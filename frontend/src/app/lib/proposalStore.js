@@ -1,14 +1,12 @@
-// =============================================================================
+﻿// =============================================================================
 // Proposal Store — in-memory session store for proposals submitted during
-// the current session. Merges with mock-db proposals so newly submitted
-// proposals appear in "My Proposals" and "Proposal Details" views.
+// the current session.
 //
-// Also provides accept/decline mutation helpers that directly update the
-// mock DB arrays so Client and Expert views stay synchronized.
+// TODO: Replace with real API calls when backend is connected.
+// acceptProposal / declineProposal should call api.proposals.accept(id) etc.
 // =============================================================================
 
-import { proposals, projects } from "../../mock-db/index.js";
-
+// In-memory session proposals (temporary until API is connected)
 const _sessionProposals = [];
 
 /** Add a proposal submitted during this session. */
@@ -34,52 +32,33 @@ export function getSessionProposalById(proposalId) {
 }
 
 // =============================================================================
-// Accept / Decline mutations (mutate mock DB arrays so both sides stay in sync)
+// Accept / Decline mutations (session-only until API is connected)
+// TODO: Replace with api.proposals.accept(id) / api.proposals.decline(id)
 // =============================================================================
 
 /**
- * Accept a proposal.
- * - Sets the proposal status to "accepted"
- * - Declines all other pending proposals for the same project
- * - Updates the project: assignedExpertId + status → "in_progress"
- *
- * @param {string} proposalId
- * @returns {{ success: boolean, error?: string }}
+ * Accept a proposal (session-only, no backend persistence).
  */
 export function acceptProposal(proposalId) {
-  const proposal = proposals.find((p) => p.id === proposalId);
+  const proposal = _sessionProposals.find((p) => p.id === proposalId);
   if (!proposal) return { success: false, error: "Proposal not found." };
 
-  // Update proposal status
   proposal.status = "accepted";
 
-  // Decline all other pending proposals for this project
-  proposals.forEach((p) => {
+  _sessionProposals.forEach((p) => {
     if (p.projectId === proposal.projectId && p.id !== proposalId && p.status === "pending") {
       p.status = "declined";
     }
   });
 
-  // Update project
-  const project = projects.find((p) => p.id === proposal.projectId);
-  if (project) {
-    project.assignedExpertId = proposal.expertId;
-    project.status = "in_progress";
-  }
-
   return { success: true };
 }
 
 /**
- * Decline a proposal.
- * - Sets only that proposal's status to "declined"
- * - The project remains unchanged.
- *
- * @param {string} proposalId
- * @returns {{ success: boolean, error?: string }}
+ * Decline a proposal (session-only, no backend persistence).
  */
 export function declineProposal(proposalId) {
-  const proposal = proposals.find((p) => p.id === proposalId);
+  const proposal = _sessionProposals.find((p) => p.id === proposalId);
   if (!proposal) return { success: false, error: "Proposal not found." };
 
   proposal.status = "declined";
