@@ -1,22 +1,37 @@
-import { useState, useCallback, useRef } from "react";
+﻿import { useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router";
 import { Clock, CheckCircle2, MessageSquare, User, ArrowLeft, Check, Loader2 } from "lucide-react";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import { getMockTaskById, getMockProjectById, getMockUserById } from "../../../mock-db/mockDbService.js";
 import {
   deriveTaskStatus,
   deriveTaskProgress,
-  toggleMockMiniTask,
-  updateMockMiniTaskNote,
-  markTaskSubmitted,
-  approveTaskInMockDb,
-  requestTaskRevisionInMockDb,
   getTaskStatusClass,
 } from "../../lib/projectTimelineStore.js";
 
+// TODO: Replace with API calls when backend is connected
+// These are local stubs for the task update workflow
+function toggleMockMiniTask(taskId, miniTaskId) {
+  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { status: ... })
+  return null;
+}
+function updateMockMiniTaskNote(taskId, miniTaskId, value) {
+  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { note: value })
+}
+function markTaskSubmitted(taskId) {
+  // TODO: Replace with api.tasks.submit(taskId)
+  return null;
+}
+function approveTaskInMockDb(taskId) {
+  // TODO: Replace with api.tasks.approve(taskId)
+  return null;
+}
+function requestTaskRevisionInMockDb(taskId, feedback) {
+  // TODO: Replace with api.tasks.requestRevision(taskId, { feedback })
+  return null;
+}
+
 function findTaskById(taskId) {
-  return getMockTaskById(taskId);
+  return null;
 }
 
 export function TaskUpdatePage() {
@@ -26,12 +41,11 @@ export function TaskUpdatePage() {
   const role = searchParams.get("role") || "expert";
   const action = searchParams.get("action") || "view";
 
-  // TEMP MOCK DB - replace with API call when backend is ready
-  const result = findTaskById(taskId);
+    const result = findTaskById(taskId);
   const task = result?.task ?? null;
   const timeline = result?.timeline ?? null;
-  const project = task ? getMockProjectById(task.projectId) : null;
-  const assignedUser = task ? getMockUserById(task.assignedTo) : null;
+  const project = task ? null : null;
+  const assignedUser = task ? null : null;
 
   // ---- Derived values (recomputed on every render from mock DB) ----
   const { completed: completedMiniTasks, total: totalMiniTasks, percent: progress } =
