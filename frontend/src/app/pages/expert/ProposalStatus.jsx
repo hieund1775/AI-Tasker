@@ -6,14 +6,8 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 
-import {
-  getMockProposalsByExpert,
-  getMockProjectById,
-  getMockUserById,
-  getMockConversationsByUser,
-} from "../../../mock-db/mockDbService.js";
+import { useAuth } from "../../hooks/useAuth.js";
 import { getSessionProposalsByExpert } from "../../lib/proposalStore.js";
-import { DEMO_EXPERT_ID } from "../../lib/demoConfig.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // Status helpers — delegated to shared proposalStatusConfig.js
@@ -23,7 +17,7 @@ function getStatusConfig(status) { return getProposalStatusConfig(status); }
  * Find the conversation ID for a given project + expert combo.
  */
 function findConversationId(projectId, expertId) {
-  const expertConvs = getMockConversationsByUser(expertId);
+  const expertConvs = [];
   const conv = expertConvs.find((c) => c.projectId === projectId);
   return conv ? conv.id : null;
 }
@@ -33,10 +27,11 @@ function findConversationId(projectId, expertId) {
 // ---------------------------------------------------------------------------
 
 export function ProposalStatus() {
-  // ---- Mock DB proposals ----
-  const mockProposals = getMockProposalsByExpert(DEMO_EXPERT_ID).map((proposal) => {
-    const project = getMockProjectById(proposal.projectId);
-    const client = project ? getMockUserById(project.clientId) : null;
+    const { user } = useAuth();
+
+    const mockProposals = [].map((proposal) => {
+    const project = null;
+    const client = project ? null : null;
     return {
       ...proposal,
       proposalTitle: proposal.proposalTitle || project?.title || proposal.projectId,
@@ -48,9 +43,9 @@ export function ProposalStatus() {
   });
 
   // ---- Session proposals ----
-  const sessionProposals = getSessionProposalsByExpert(DEMO_EXPERT_ID).map((proposal) => {
-    const project = getMockProjectById(proposal.projectId);
-    const client = project ? getMockUserById(project.clientId) : null;
+  const sessionProposals = getSessionProposalsByExpert(user?.id || "expert-current").map((proposal) => {
+    const project = null;
+    const client = project ? null : null;
     return {
       ...proposal,
       proposalTitle: proposal.proposalTitle || project?.title || proposal.projectId,
@@ -104,7 +99,7 @@ export function ProposalStatus() {
           {proposals.map((proposal) => {
             const statusCfg = getStatusConfig(proposal.status);
             const StatusIcon = statusCfg.icon;
-            const convId = findConversationId(proposal.projectId, DEMO_EXPERT_ID);
+            const convId = findConversationId(proposal.projectId, user?.id || "current-user");
 
             return (
               <div

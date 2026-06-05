@@ -17,14 +17,7 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 
-import {
-  getMockProposalsByExpert,
-  getMockProjectById,
-  getMockUserById,
-  getMockConversationsByUser,
-} from "../../../mock-db/mockDbService.js";
 import { getSessionProposalById } from "../../lib/proposalStore.js";
-import { DEMO_EXPERT_ID } from "../../lib/demoConfig.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // Status helpers — delegated to shared proposalStatusConfig.js
@@ -63,17 +56,17 @@ export function ProposalDetail() {
 
     if (!found) {
       // Search mock DB
-      const mockProposals = getMockProposalsByExpert(DEMO_EXPERT_ID);
+      const mockProposals = [];
       found = mockProposals.find((p) => p.id === id) || null;
     }
 
     if (found) {
       setProposal(found);
       // Enrich with project + client data
-      const proj = getMockProjectById(found.projectId);
+      const proj = null;
       if (proj) {
         setProject(proj);
-        const cli = getMockUserById(proj.clientId);
+        const cli = null;
         if (cli) setClient(cli);
       }
     }
@@ -84,7 +77,7 @@ export function ProposalDetail() {
   // ---- Find conversation for Contact button ----
   function getConversationId() {
     if (!proposal) return null;
-    const expertConvs = getMockConversationsByUser(DEMO_EXPERT_ID);
+    const expertConvs = [];
     const conv = expertConvs.find((c) => c.projectId === proposal.projectId);
     return conv ? conv.id : null;
   }

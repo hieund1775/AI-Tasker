@@ -1,5 +1,3 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
 import {
   Send,
   Paperclip,
@@ -13,99 +11,38 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
-import { addSessionProposal } from "../../lib/proposalStore.js";
-
-import {
-  getMockProjectById,
-  getMockUserById,
-} from "../../../mock-db/mockDbService.js";
-import { DEMO_EXPERT_ID } from "../../lib/demoConfig.js";
+import { useProposalForm } from "../../hooks/useProposalForm.js";
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
  *
- * All fields are stored in local state and, on submit, saved to the session
- * proposal store so they appear in "My Proposals" and "Proposal Details".
+ * Form state, attachment handling, and submit logic are encapsulated in the
+ * useProposalForm hook.  This component focuses on rendering.
  */
 export function SendProposal() {
-  const { id: projectId } = useParams();
-  const navigate = useNavigate();
+  const {
+    // URL param
+    projectId,
 
-  // ---- Fetch project + client info ----
-  const [project, setProject] = useState(null);
-  const [client, setClient] = useState(null);
+    // Fetched data
+    project,
+    client,
 
-  useEffect(() => {
-    const p = getMockProjectById(projectId);
-    if (p) {
-      setProject(p);
-      const c = getMockUserById(p.clientId);
-      if (c) setClient(c);
-    }
-  }, [projectId]);
+    // Form state
+    form,
+    updateField,
 
-  // ---- Form state ----
-  const [form, setForm] = useState({
-    proposalTitle: "",
-    professionalIntro: "",
-    technicalApproach: "",
-    timelineMilestones: "",
-    dependencies: "",
-    bidAmount: 0,
-    durationDays: 14,
-  });
+    // Attachment state
+    attachments,
+    showAttachMenu,
+    setShowAttachMenu,
+    handleAddAttachment,
+    removeAttachment,
 
-  const updateField = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  // ---- Mock attachments ----
-  const [attachments, setAttachments] = useState([]);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-
-  const handleAddAttachment = (type) => {
-    const demoFiles = {
-      image: { name: "portfolio-screenshot.png", type: "image/png", size: "245 KB" },
-      file: { name: "resume-cv.pdf", type: "application/pdf", size: "1.2 MB" },
-      folder: { name: "project-portfolio/", type: "folder", size: "3 files" },
-    };
-    const file = demoFiles[type];
-    if (file) {
-      setAttachments((prev) => [...prev, { ...file, id: Date.now() + Math.random() }]);
-    }
-    setShowAttachMenu(false);
-  };
-
-  const removeAttachment = (id) => {
-    setAttachments((prev) => prev.filter((a) => a.id !== id));
-  };
-
-  // ---- Submit ----
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    const record = addSessionProposal({
-      projectId,
-      expertId: DEMO_EXPERT_ID,
-      proposalTitle: form.proposalTitle.trim(),
-      professionalIntro: form.professionalIntro.trim(),
-      technicalApproach: form.technicalApproach.trim(),
-      timelineMilestones: form.timelineMilestones.trim(),
-      dependencies: form.dependencies.trim(),
-      bidAmount: Number(form.bidAmount) || 0,
-      durationDays: Number(form.durationDays) || 1,
-      attachments: [...attachments],
-    });
-
-    // Small delay for UX feedback
-    setTimeout(() => {
-      setSubmitting(false);
-      navigate(`/expert/proposals/${record.id}`);
-    }, 400);
-  };
+    // Submit
+    submitting,
+    handleSubmit,
+  } = useProposalForm();
 
   // ---- Project not found ----
   if (!project && projectId) {
