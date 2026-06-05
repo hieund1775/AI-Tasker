@@ -2,29 +2,16 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { Menu, User, LogOut, Bell } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import { getMockNotificationsByUser } from "../../../mock-db/mockDbService.js";
-import { DEMO_CLIENT_ID, DEMO_EXPERT_ID, DEMO_ADMIN_ID } from "../../lib/demoConfig.js";
 import { timeAgo } from "../../lib/dateUtils.js";
 
 // ---------------------------------------------------------------------------
-// Resolve header notifications from mock-db (centralized source of truth)
+// Notifications — loaded from API when backend is connected.
+// Currently shows empty state.
 // ---------------------------------------------------------------------------
 
-function getHeaderNotifications(role) {
-  const userId =
-    role === "expert" ? DEMO_EXPERT_ID :
-    role === "admin" ? DEMO_ADMIN_ID :
-    DEMO_CLIENT_ID;
-  const all = getMockNotificationsByUser(userId);
-  // Return the 5 most recent, enriched with display fields
-  return all.slice(0, 5).map((n) => ({
-    id: n.id,
-    title: n.title,
-    description: n.description,
-    isUnread: !n.isRead,
-    time: timeAgo(n.createdAt),
-    createdAt: n.createdAt,
-  }));
+function getHeaderNotifications(_role) {
+  // TODO: Replace with api.notifications.list({ limit: 5 })
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +22,7 @@ function getHeaderNotifications(role) {
  * Header — top navigation bar.
  *
  * Reads user & role from AuthContext (JWT), NOT from a prop or the URL.
- * Shows role-specific nav links, notification bell with mock data, profile link, and logout.
+ * Shows role-specific nav links, notification bell, profile link, and logout.
  */
 export function Header() {
   const navigate = useNavigate();
@@ -45,7 +32,7 @@ export function Header() {
 
   const { role, isAuthenticated, logout } = useAuth();
 
-  // Load mock notifications (Phase 4)
+  // Load notifications from API
   useEffect(() => {
     if (isAuthenticated) {
       // TODO: Replace with api.notifications.list({ limit: 5 })
