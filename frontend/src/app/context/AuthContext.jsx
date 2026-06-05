@@ -1,40 +1,30 @@
-import { createContext, useReducer, useEffect, useCallback, useMemo } from "react";
-import { login as apiLogin, register as apiRegister } from "../../services/authService.js";
+import {
+  createContext,
+  useReducer,
+  useEffect,
+  useCallback,
+  useMemo,
+  useContext,
+} from "react";
+import {
+  login as apiLogin,
+  register as apiRegister,
+} from "../../services/authService.js";
+import api from "../../services/api.js";
 
-// ---------------------------------------------------------------------------
-// JWT helpers (decode without verification — verification happens server-side)
-// ---------------------------------------------------------------------------
-
-/**
- * Decode the payload of a JWT without verifying the signature.
- * Returns the parsed payload object, or null if the token is invalid.
- *
- * Used ONLY to extract role / userId for client-side auth state.
- * Backend validates the token on every API call.
- */
 function decodeJwtPayload(token) {
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
-
     const payload = parts[1];
     const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
     const decoded = JSON.parse(json);
-
-    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
-      return null;
-    }
-
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) return null;
     return decoded;
   } catch {
     return null;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Demo fallback JWT creation
-// Used ONLY when the backend is unreachable.
-// ---------------------------------------------------------------------------
 
 function createDemoToken(payload) {
   const header = { alg: "HS256", typ: "JWT" };
@@ -48,7 +38,10 @@ function createDemoToken(payload) {
     exp: nowInSeconds + 24 * 60 * 60,
   };
   const encode = (obj) =>
-    btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    btoa(JSON.stringify(obj))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
   return `${encode(header)}.${encode(body)}.demo-signature`;
 }
 
@@ -58,11 +51,8 @@ function demoRoleFromEmail(email) {
   return "client";
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
+const USER_STORAGE_KEY = "aitasker_user_info";
 
 const AUTH_ACTIONS = {
   LOGIN_START: "LOGIN_START",
@@ -73,10 +63,6 @@ const AUTH_ACTIONS = {
   CLEAR_ERROR: "CLEAR_ERROR",
 };
 
-// ---------------------------------------------------------------------------
-// Reducer
-// ---------------------------------------------------------------------------
-
 const initialState = {
   user: null,
   token: null,
@@ -84,14 +70,13 @@ const initialState = {
   isAuthenticated: false,
   loading: true,
   error: null,
-  usingDemo: false, // true when backend is unavailable
+  usingDemo: false,
 };
 
 function authReducer(state, action) {
   switch (action.type) {
     case AUTH_ACTIONS.LOGIN_START:
       return { ...state, loading: true, error: null };
-
     case AUTH_ACTIONS.LOGIN_SUCCESS: {
       const { token, user, usingDemo = false } = action.payload;
       return {
@@ -105,7 +90,6 @@ function authReducer(state, action) {
         usingDemo,
       };
     }
-
     case AUTH_ACTIONS.LOGIN_FAILURE:
       return {
         ...state,
@@ -116,7 +100,6 @@ function authReducer(state, action) {
         loading: false,
         error: action.payload,
       };
-
     case AUTH_ACTIONS.LOGOUT:
       return {
         ...state,
@@ -128,10 +111,8 @@ function authReducer(state, action) {
         error: null,
         usingDemo: false,
       };
-
     case AUTH_ACTIONS.RESTORE_SESSION: {
       const { token, user } = action.payload;
-      // If token has the demo signature, mark it
       const isDemo = token?.endsWith(".demo-signature") ?? false;
       return {
         ...state,
@@ -144,210 +125,221 @@ function authReducer(state, action) {
         usingDemo: isDemo,
       };
     }
-
     case AUTH_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
-
     default:
       return state;
   }
 }
 
-// ---------------------------------------------------------------------------
-// Context
-// ---------------------------------------------------------------------------
-
 export const AuthContext = createContext(null);
-
-// ---------------------------------------------------------------------------
-// Provider
-// ---------------------------------------------------------------------------
 
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // -----------------------------------------------------------------------
-  // On mount: restore session from stored token
-  // -----------------------------------------------------------------------
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+      const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return;
       }
-
-      const payload = decodeJwtPayload(storedToken);
-      if (!payload) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        dispatch({ type: AUTH_ACTIONS.LOGOUT });
-        return;
+      let user = null;
+      if (storedUser) {
+        user = JSON.parse(storedUser);
+      } else {
+        const payload = decodeJwtPayload(storedToken);
+        if (!payload) {
+          localStorage.removeItem(TOKEN_STORAGE_KEY);
+          dispatch({ type: AUTH_ACTIONS.LOGOUT });
+          return;
+        }
+        user = {
+          id: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          role: payload.role,
+          hasProfile: true,
+        };
       }
-
-      const user = {
-        id: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
-      };
-
       dispatch({
         type: AUTH_ACTIONS.RESTORE_SESSION,
         payload: { token: storedToken, user },
       });
     } catch {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   }, []);
 
-  // Listen for forced-logout events from the API layer (401 responses)
   useEffect(() => {
     function handleUnauthorized() {
       localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
     window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    return () =>
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Helper: store token + dispatch success
-  // -----------------------------------------------------------------------
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
-
-    // Extract user from JWT payload if not provided by backend
     let finalUser = user;
     if (!finalUser) {
       const payload = decodeJwtPayload(token);
-      if (payload) {
+      if (payload)
         finalUser = {
           id: payload.sub,
           email: payload.email,
           name: payload.name,
           role: payload.role,
+          hasProfile: true,
         };
-      }
     }
-
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
     dispatch({
       type: AUTH_ACTIONS.LOGIN_SUCCESS,
       payload: { token, user: finalUser, usingDemo },
     });
-
     return finalUser;
   }, []);
 
-  // -----------------------------------------------------------------------
-  // login(email, password)
-  // -----------------------------------------------------------------------
-  const login = useCallback(async (email, password) => {
-    dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+  const login = useCallback(
+    async (email, password) => {
+      dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+      try {
+        const response = await apiLogin(email, password);
+        const normalizedRole = response.role
+          ? response.role.toLowerCase()
+          : "client";
+        let hasCompletedProfile = true;
 
-    // --- Attempt 1: Real backend API ---
-    try {
-      const { token, user } = await apiLogin(email, password);
-      return handleAuthSuccess(token, user, false);
-    } catch (apiError) {
-      // If the error is a real server rejection (not a network failure),
-      // don't fall back to demo — surface the error.
-      if (apiError.status && apiError.status !== 0) {
-        const message = apiError.message || "Login failed. Please check your credentials.";
-        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
+        if (normalizedRole === "expert") {
+          try {
+            await api.experts.checkProfile();
+            hasCompletedProfile = true;
+          } catch (err) {
+            hasCompletedProfile = false;
+          }
+        }
+        const userObj = {
+          id: response.userId,
+          role: normalizedRole,
+          email: email,
+          name: email.split("@")[0],
+          hasProfile: hasCompletedProfile,
+        };
+        return handleAuthSuccess(response.token, userObj, false);
+      } catch (apiError) {
+        if (apiError.status && apiError.status !== 0) {
+          const message = apiError.data?.message || "Đăng nhập thất bại.";
+          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
+          throw apiError;
+        }
+      }
+      try {
+        if (!email || !password)
+          throw new Error("Email and password are required.");
+        if (password.length < 3) throw new Error("Invalid email or password.");
+        const role = demoRoleFromEmail(email);
+        const token = createDemoToken({
+          email,
+          role,
+          name: email.split("@")[0],
+        });
+        return handleAuthSuccess(
+          token,
+          { role, email, name: email.split("@")[0], hasProfile: true },
+          true,
+        );
+      } catch (demoError) {
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_FAILURE,
+          payload: demoError.message,
+        });
+        throw demoError;
+      }
+    },
+    [handleAuthSuccess],
+  );
+
+  const register = useCallback(
+    async ({ name, email, password, confirmPassword, role }) => {
+      dispatch({ type: AUTH_ACTIONS.LOGIN_START });
+      try {
+        const response = await apiRegister({ name, email, password, role });
+
+        // Expert: auto-login with hasProfile=false so they go straight to
+        // profile completion instead of login → edit-profile round-trip.
+        if (role === "expert" && response.token) {
+          const userObj = {
+            id: response.user?.id || `user-${Date.now()}`,
+            role: "expert",
+            email,
+            name,
+            hasProfile: false,
+          };
+          handleAuthSuccess(response.token, userObj, false);
+          return { success: true, role: "expert" };
+        }
+
+        // Client / Admin: current behaviour — go to login page
+        dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+        return { success: true, role };
+      } catch (apiError) {
+        if (apiError.status && apiError.status !== 0) {
+          const message = apiError.data?.message || "Đăng ký thất bại.";
+          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
+          throw apiError;
+        }
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_FAILURE,
+          payload: "Lỗi kết nối tới máy chủ.",
+        });
         throw apiError;
       }
-      // Otherwise (network error / connection refused) → fall through to demo
-    }
+    },
+    [handleAuthSuccess],
+  );
 
-    // --- Attempt 2: Demo fallback (backend unreachable) ---
-    try {
-      if (!email || !password) {
-        throw new Error("Email and password are required.");
-      }
-      if (password.length < 3) {
-        throw new Error("Invalid email or password.");
-      }
-
-      const role = demoRoleFromEmail(email);
-      const token = createDemoToken({ email, role, name: email.split("@")[0] });
-
-      return handleAuthSuccess(token, null, true);
-    } catch (demoError) {
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: demoError.message || "Login failed. Please try again.",
-      });
-      throw demoError;
-    }
-  }, [handleAuthSuccess]);
-
-  // -----------------------------------------------------------------------
-  // register({ name, email, password, confirmPassword, role })
-  // -----------------------------------------------------------------------
-  const register = useCallback(async ({ name, email, password, confirmPassword, role }) => {
-    dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-
-    // --- Attempt 1: Real backend API ---
-    try {
-      const { token, user } = await apiRegister({
-        name,
-        email,
-        password,
-        confirmPassword,
-        role,
-      });
-      return handleAuthSuccess(token, user, false);
-    } catch (apiError) {
-      if (apiError.status && apiError.status !== 0) {
-        const message = apiError.message || "Registration failed.";
-        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
+  // HÀM GỌI API COMPLETE PROFILE MỚI
+  const completeExpertProfile = useCallback(
+    async (profileData) => {
+      try {
+        await api.auth.completeProfile(profileData);
+        const updatedUser = { ...state.user, hasProfile: true };
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+        dispatch({
+          type: AUTH_ACTIONS.LOGIN_SUCCESS,
+          payload: {
+            token: state.token,
+            user: updatedUser,
+            usingDemo: state.usingDemo,
+          },
+        });
+        return true;
+      } catch (apiError) {
         throw apiError;
       }
-    }
+    },
+    [state.user, state.token, state.usingDemo],
+  );
 
-    // --- Attempt 2: Demo fallback (backend unreachable) ---
-    try {
-      if (!name || !email || !password) {
-        throw new Error("All fields are required.");
-      }
-      if (password !== confirmPassword) {
-        throw new Error("Passwords do not match.");
-      }
-      if (password.length < 6) {
-        throw new Error("Password must be at least 6 characters.");
-      }
-
-      const token = createDemoToken({ email, role: role || "client", name });
-
-      return handleAuthSuccess(token, null, true);
-    } catch (demoError) {
-      dispatch({
-        type: AUTH_ACTIONS.LOGIN_FAILURE,
-        payload: demoError.message || "Registration failed. Please try again.",
-      });
-      throw demoError;
-    }
-  }, [handleAuthSuccess]);
-
-  // -----------------------------------------------------------------------
-  // logout()
-  // -----------------------------------------------------------------------
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(USER_STORAGE_KEY);
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 
-  // -----------------------------------------------------------------------
-  // clearError()
-  // -----------------------------------------------------------------------
   const clearError = useCallback(() => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   }, []);
 
-  // -----------------------------------------------------------------------
-  // Memoised context value
-  // -----------------------------------------------------------------------
   const value = useMemo(
     () => ({
       ...state,
@@ -355,9 +347,16 @@ export function AuthProvider({ children }) {
       register,
       logout,
       clearError,
-    }),
-    [state, login, register, logout, clearError],
+      completeExpertProfile,
+    }), // <--- Đã export hàm
+    [state, login, register, logout, clearError, completeExpertProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  return context;
 }
