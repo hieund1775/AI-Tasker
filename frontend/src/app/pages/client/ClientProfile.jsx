@@ -13,25 +13,14 @@ import {
 } from "lucide-react";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockUserByEmail,
-  getMockUserById,
-  getMockProjectsByClient,
-  getMockProposalsByProject,
-} from "../../../mock-db/mockDbService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 
 /**
- * Resolve the full client user object from auth email → mock DB.
- * Falls back to the demo client ID.
+ * Resolve the client user from auth. Returns the auth user directly.
+ * TODO: Connect to real API for full profile data.
  */
 function resolveClient(userFromAuth) {
-  if (userFromAuth?.email) {
-    const mockUser = getMockUserByEmail(userFromAuth.email);
-    if (mockUser) return mockUser;
-  }
-  return getMockUserById(DEMO_CLIENT_ID) || null;
+  return userFromAuth || null;
 }
 
 export function ClientProfile() {
@@ -58,14 +47,11 @@ export function ClientProfile() {
           return;
         }
       } catch {
-        // API unreachable — fall through to mock DB
+        // API unreachable — show empty profile
       }
 
-      if (!cancelled) {
-        const resolved = resolveClient(authUser);
-        setClient(resolved);
-        if (resolved) setStats(computeStats(resolved));
-      }
+      // No fallback — client stays null when API is unavailable
+      // TODO: Connect real API endpoint for user profiles
     }
 
     fetchProfile();
@@ -253,16 +239,11 @@ export function ClientProfile() {
 function computeStats(client) {
   if (!client) return null;
 
-  const projects = getMockProjectsByClient(client.id);
-  const posted = projects.length;
-  const active = projects.filter((p) => p.status === "in_progress").length;
-  const completed = projects.filter((p) => p.status === "completed").length;
-
-  let proposalCount = 0;
-  projects.forEach((p) => {
-    proposalCount += getMockProposalsByProject(p.id).length;
-  });
-
+  // TODO: Replace with API call — api.users.getStats(client.id)
+  const posted = 0;
+  const active = 0;
+  const completed = 0;
+  const proposalCount = 0;
   const totalSpent = client.profile?.totalSpent ?? 0;
 
   return { posted, active, completed, proposals: proposalCount, totalSpent };

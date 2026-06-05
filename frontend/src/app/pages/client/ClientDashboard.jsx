@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router";
+
 import {
   Briefcase,
   Clock,
@@ -13,28 +14,24 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
+import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 
-// TEMP MOCK DB - replace with API call when backend is ready
 import {
-  getMockProjectsByClient,
-  getMockUserById,
-  getMockUsers,
-  getMockReviewsByExpert,
-  getMockProposalsByProject,
-} from "../../../mock-db/mockDbService.js";
-import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getClientButtonConfig } from "../../lib/projectTimelineStore.js";
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
+  getProjectProgress,
+  deriveProjectStatusKey,
+  getStatusLabel,
+  getStatusBadgeClass,
+  getClientButtonConfig,
+} from "../../lib/projectTimelineStore.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Compute average rating for an expert from mock reviews. */
-function computeExpertRating(expertId) {
-  const reviews = getMockReviewsByExpert(expertId);
-  if (!reviews.length) return null;
-  const avg = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-  return avg.toFixed(1);
+/** Compute average rating for an expert. */
+function computeExpertRating(_expertId) {
+  // TODO: Replace with API call — api.experts.getReviews(expertId)
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,25 +50,40 @@ const SKILL_VISIBLE_COUNT = {
 export function ClientDashboard() {
   const location = useLocation();
 
-  // ---- Mock DB data -------------------------------------------------------
-  const clientProjects = getMockProjectsByClient(DEMO_CLIENT_ID);
-  const allUsers = getMockUsers();
-  const experts = allUsers.filter((u) => u.role === "expert");
-
-  // ---- Sort experts by rating (highest first) for recommendations ---------
-  const recommendedExperts = [...experts]
-    .map((expert) => ({
-      ...expert,
-      avgRating: computeExpertRating(expert.id),
-    }))
-    .filter((e) => e.avgRating !== null)
-    .sort((a, b) => parseFloat(b.avgRating) - parseFloat(a.avgRating));
+  // TODO: Replace with API calls — api.projects.list({ clientId }), api.experts.list()
+  const clientProjects = [];
+  const experts = [];
+  const recommendedExperts = [];
 
   // ---- Stats ---------------------------------------------------------------
-  const inProgress = clientProjects.filter((p) => p.status === "in_progress").length;
-  const completed = clientProjects.filter((p) => p.status === "completed").length;
-  const openProjects = clientProjects.filter((p) => p.status === "open").length;
-  const cancelledProjects = clientProjects.filter((p) => p.status === "cancelled").length;
+  const dashboardStats = [
+    {
+      label: "Active Projects",
+      value: clientProjects.filter((p) => p.status === "in_progress").length,
+      icon: Briefcase,
+      color: "text-blue-600 bg-blue-100",
+    },
+    {
+      label: "Open Proposals",
+      value: clientProjects.filter((p) => p.status === "open").length,
+      icon: FileText,
+      color: "text-amber-600 bg-amber-100",
+    },
+    {
+      label: "Completed",
+      value: clientProjects.filter((p) => p.status === "completed").length,
+      icon: CheckCircle2,
+      color: "text-green-600 bg-green-100",
+    },
+    {
+      label: "Cancelled",
+      value: clientProjects.filter(
+        (p) => p.status === "cancelled",
+      ).length,
+      icon: Clock,
+      color: "text-red-600 bg-red-100",
+    },
+  ];
 
   // ---- Render --------------------------------------------------------------
   return (
@@ -81,9 +93,7 @@ export function ClientDashboard() {
       {/* ================================================================== */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Client Dashboard
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">Client Dashboard</h1>
           <p className="text-gray-500 mt-0.5">
             Manage your AI projects and find experts
           </p>
@@ -107,51 +117,7 @@ export function ClientDashboard() {
       {/* ================================================================== */}
       {/* Stats Row                                                          */}
       {/* ================================================================== */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          {
-            label: "Active Projects",
-            value: inProgress,
-            icon: Briefcase,
-            color: "text-blue-600 bg-blue-100",
-          },
-          {
-            label: "Open Proposals",
-            value: openProjects,
-            icon: FileText,
-            color: "text-amber-600 bg-amber-100",
-          },
-          {
-            label: "Completed",
-            value: completed,
-            icon: CheckCircle2,
-            color: "text-green-600 bg-green-100",
-          },
-          {
-            label: "Cancelled",
-            value: cancelledProjects,
-            icon: Clock,
-            color: "text-red-600 bg-red-100",
-          },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
-          >
-            <div
-              className={`w-9 h-9 ${stat.color} rounded-lg flex items-center justify-center mb-2.5`}
-            >
-              <stat.icon className="w-[18px] h-[18px]" />
-            </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              {stat.label}
-            </p>
-            <p className="text-xl font-bold text-gray-900 mt-0.5">
-              {stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      <DashboardStats stats={dashboardStats} size="sm" className="mb-6" />
 
       {/* ================================================================== */}
       {/* Two-Column Dashboard                                               */}
@@ -194,13 +160,11 @@ export function ClientDashboard() {
               </div>
             ) : (
               clientProjects.map((p) => {
-                const assignedExpert = p.assignedExpertId
-                  ? getMockUserById(p.assignedExpertId)
-                  : null;
+                // TODO: Replace with API calls for expert info and proposals
+                const assignedExpert = null;
                 const progress = getProjectProgress(p.id);
-                const proposals = getMockProposalsByProject(p.id);
                 const statusKey = deriveProjectStatusKey(p, {
-                  proposalCount: proposals.length,
+                  proposalCount: 0,
                 });
                 const displayStatus = getStatusLabel(statusKey);
                 const badgeClass = getStatusBadgeClass(statusKey);
@@ -233,7 +197,9 @@ export function ClientDashboard() {
                           </span>
                         </>
                       ) : (
-                        <span className="text-gray-400 italic">No expert assigned yet</span>
+                        <span className="text-gray-400 italic">
+                          No expert assigned yet
+                        </span>
                       )}
                     </p>
 
@@ -272,10 +238,10 @@ export function ClientDashboard() {
                           <Calendar className="w-3.5 h-3.5" />
                           Due{" "}
                           {p.deadline
-                            ? new Date(p.deadline).toLocaleDateString(
-                                "en-US",
-                                { month: "short", day: "numeric" },
-                              )
+                            ? new Date(p.deadline).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                              })
                             : "N/A"}
                         </span>
                         <span className="inline-flex items-center gap-1 font-semibold text-gray-900">

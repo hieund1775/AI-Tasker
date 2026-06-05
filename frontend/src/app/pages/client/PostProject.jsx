@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Send } from "lucide-react";
 import { AIChatbox } from "../../components/ai/AIChatbox.jsx";
-import { getMockAiCategories } from "../../../mock-db/mockDbService.js";
 
 /**
  * PostProject — Client form for creating a new project.
@@ -120,9 +119,7 @@ export function PostProject() {
                 required
               >
                 <option value="" disabled>Select a category...</option>
-                {getMockAiCategories().map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.label}</option>
-                ))}
+                {/* TODO: Replace with API call — api.categories.list() */}
               </select>
             </div>
 

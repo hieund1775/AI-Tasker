@@ -2,9 +2,6 @@ import { useState, useMemo } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, ArrowRight, SlidersHorizontal, X } from "lucide-react";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import { getMockUsers } from "../../../mock-db/mockDbService.js";
-
 // ---------------------------------------------------------------------------
 // Checkbox group — reusable inner component
 // ---------------------------------------------------------------------------
@@ -59,22 +56,10 @@ export function ExpertList() {
   const [selectedRatings, setSelectedRatings] = useState(new Set());
   const [selectedExperience, setSelectedExperience] = useState(new Set());
 
-  // ---- Expert data from mock DB --------------------------------------------
+  // ---- Expert data (loaded from API when backend is connected) -----------
+  // TODO: Replace with API call — api.experts.list()
   const experts = useMemo(() => {
-    return getMockUsers()
-      .filter((u) => u.role === "expert")
-      .map((u) => ({
-        id: u.id,
-        name: u.fullName,
-        avatar: u.avatarUrl || "from-blue-400 to-purple-500",
-        specialization: u.profile?.specialization || u.profile?.title || "",
-        location: u.profile?.location || "",
-        rating: u.profile?.rating || 0,
-        reviews: u.profile?.reviewCount || 0,
-        hourlyRate: u.profile?.hourlyRate || 0,
-        skills: u.profile?.skills || [],
-        completedProjects: u.profile?.completedProjects || 0,
-      }));
+    return [];
   }, []);
 
   // ---- Filter options derived from expert data -----------------------------

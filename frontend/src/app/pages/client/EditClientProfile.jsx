@@ -2,21 +2,13 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockUserByEmail,
-  getMockUserById,
-} from "../../../mock-db/mockDbService.js";
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 
 // ---------------------------------------------------------------------------
-// Resolve client user from mock DB
+// Resolve client user from auth
 // ---------------------------------------------------------------------------
 function resolveClient(userFromAuth) {
-  if (userFromAuth?.email) {
-    const mockUser = getMockUserByEmail(userFromAuth.email);
-    if (mockUser) return mockUser;
-  }
-  return getMockUserById(DEMO_CLIENT_ID) || null;
+  // TODO: Replace with API call — api.users.getProfile()
+  return userFromAuth || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -39,18 +31,19 @@ export function EditClientProfile() {
   });
   const [loading, setLoading] = useState(true);
 
-  // ---- Load profile from mock DB on mount ----
+  // ---- Load profile from API on mount ----
   useEffect(() => {
+    // TODO: Replace with API call — api.users.getProfile()
     const client = resolveClient(authUser);
     if (!client) {
       setLoading(false);
       return;
     }
 
-    setClientId(client.id);
+    setClientId(client.id || null);
     setFormData({
       companyName: client.profile?.company || "",
-      fullName: client.fullName || "",
+      fullName: client.fullName || client.name || "",
       email: client.email || "",
       phone: client.profile?.phone || "",
       location: client.profile?.location || "",

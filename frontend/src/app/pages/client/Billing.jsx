@@ -14,39 +14,6 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockUserByEmail,
-  getNormalizedWallet,
-  getMockTransactionsByUser,
-  getMockProjectsByClient,
-} from "../../../mock-db/mockDbService.js";
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
-
-// ---------------------------------------------------------------------------
-// Mock fallback data (uses centralized mock DB when backend is unreachable)
-// ---------------------------------------------------------------------------
-
-function resolveClientId(user) {
-  if (user?.email) {
-    const mockUser = getMockUserByEmail(user.email);
-    if (mockUser) return mockUser.id;
-  }
-  return DEMO_CLIENT_ID;
-}
-
-function getMockBillingData(userId) {
-  const normWallet = getNormalizedWallet(userId);
-  const mockTransactions = getMockTransactionsByUser(userId);
-  const activeProjects = (getMockProjectsByClient(userId) || [])
-    .filter((p) => p.status === "in_progress")
-    .map((p) => ({ id: p.id, title: p.title, escrowAmount: p.budget, status: p.status }));
-
-  return {
-    wallet: normWallet || { balance: 0, escrowBalance: 0 },
-    transactions: mockTransactions,
-    activeProjects,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,7 +47,6 @@ const statusColors = {
 
 export function Billing() {
   const { user } = useAuth();
-  const userId = resolveClientId(user);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -103,19 +69,21 @@ export function Billing() {
         ]);
 
         if (!cancelled) {
-          if (wallet || transactions) {
-            const mock = getMockBillingData(userId);
-            setData({
-              wallet: wallet || mock.wallet,
-              transactions: transactions || mock.transactions,
-              activeProjects: mock.activeProjects,
-            });
-          } else {
-            setData(getMockBillingData(userId));
-          }
+          // TODO: Connect real API endpoints for wallet + billing
+          setData({
+            wallet: wallet || { balance: 0, escrowBalance: 0 },
+            transactions: transactions || [],
+            activeProjects: [],
+          });
         }
       } catch {
-        if (!cancelled) setData(getMockBillingData(userId));
+        if (!cancelled) {
+          setData({
+            wallet: { balance: 0, escrowBalance: 0 },
+            transactions: [],
+            activeProjects: [],
+          });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -123,7 +91,7 @@ export function Billing() {
 
     fetchData();
     return () => { cancelled = true; };
-  }, [userId]);
+  }, []);
 
   const handleDeposit = async (e) => {
     e.preventDefault();

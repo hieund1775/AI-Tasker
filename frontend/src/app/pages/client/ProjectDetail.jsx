@@ -2,8 +2,6 @@ import { useParams } from "react-router";
 import { Clock, DollarSign, User } from "lucide-react";
 import { ProjectTimelineManager } from "../../components/project/ProjectTimelineManager.jsx";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import { getMockProjectById, getMockProposalsByProject } from "../../../mock-db/mockDbService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { deriveProjectDisplayStatus } from "../../lib/projectTimelineStore.js";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -11,13 +9,13 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 export function ProjectDetail() {
   const { id } = useParams();
 
-  // TEMP MOCK DB - replace with API call when backend is ready
-  const project = getMockProjectById(id);
+  // TODO: Replace with API call — api.projects.getById(id)
+  const project = null;
 
-  // Derived display status (consistent with dashboard cards)
+  // Derived display status
   const displayStatus = project
     ? deriveProjectDisplayStatus(project, {
-        proposalCount: getMockProposalsByProject(project.id).length,
+        proposalCount: 0,
       })
     : null;
 

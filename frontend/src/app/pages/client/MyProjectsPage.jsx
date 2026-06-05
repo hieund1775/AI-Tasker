@@ -11,15 +11,7 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import {
-  getMockProjectsByClient,
-  getMockUserById,
-  getMockProposalsByProject,
-  getMockAiCategoryById,
-} from "../../../mock-db/mockDbService.js";
 import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getClientButtonConfig } from "../../lib/projectTimelineStore.js";
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 
 // ---------------------------------------------------------------------------
 // Status-specific helper: what button label + route for a status key
@@ -69,8 +61,8 @@ function getActionInfo(statusKey, projectId, proposalCount) {
 export function MyProjectsList() {
   const location = useLocation();
 
-  // TEMP MOCK DB - replace with API call when backend is ready
-  const projects = getMockProjectsByClient(DEMO_CLIENT_ID);
+  // TODO: Replace with API call — api.projects.list({ clientId })
+  const projects = [];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -106,16 +98,14 @@ export function MyProjectsList() {
       ) : (
         <div className="space-y-4">
           {projects.map((project) => {
-            const proposals = getMockProposalsByProject(project.id);
-            const proposalCount = proposals.length;
+            // TODO: Replace with API calls for proposals, expert info, category
+            const proposalCount = 0;
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
             const displayStatus = getStatusLabel(statusKey);
             const badgeClass = getStatusBadgeClass(statusKey);
             const progress = getProjectProgress(project.id);
-            const assignedExpert = project.assignedExpertId
-              ? getMockUserById(project.assignedExpertId)
-              : null;
-            const category = getMockAiCategoryById(project.category);
+            const assignedExpert = null;
+            const category = null;
             const action = getActionInfo(statusKey, project.id, proposalCount);
 
             return (
