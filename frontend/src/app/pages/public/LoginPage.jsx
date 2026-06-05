@@ -33,7 +33,7 @@ export function LoginPage() {
 
       // SỬA: ĐIỀU HƯỚNG TỚI EDIT-PROFILE
       if (user.role === "expert" && user.hasProfile === false) {
-        navigate("/expert/edit-profile", { replace: true });
+        navigate("/expert/profile/edit", { replace: true });
       } else {
         const dashboardPath =
           user.role === "expert"
