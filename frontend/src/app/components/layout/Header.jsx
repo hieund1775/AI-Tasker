@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router";
 import { Menu, User, LogOut, Bell } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
+<<<<<<< HEAD
 import { getMockNotificationsByUser } from "../../../mock-db/mockDbService.js";
 import { DEMO_CLIENT_ID, DEMO_EXPERT_ID, DEMO_ADMIN_ID } from "../../lib/demoConfig.js";
 import { timeAgo } from "../../lib/dateUtils.js";
@@ -25,6 +26,18 @@ function getHeaderNotifications(role) {
     time: timeAgo(n.createdAt),
     createdAt: n.createdAt,
   }));
+=======
+import { timeAgo } from "../../lib/dateUtils.js";
+
+// ---------------------------------------------------------------------------
+// Notifications — loaded from API when backend is connected.
+// Currently shows empty state.
+// ---------------------------------------------------------------------------
+
+function getHeaderNotifications(_role) {
+  // TODO: Replace with api.notifications.list({ limit: 5 })
+  return [];
+>>>>>>> 0ef381cffa1304fa00ef2aed0caa24e71a71d77f
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +48,11 @@ function getHeaderNotifications(role) {
  * Header — top navigation bar.
  *
  * Reads user & role from AuthContext (JWT), NOT from a prop or the URL.
+<<<<<<< HEAD
  * Shows role-specific nav links, notification bell with mock data, profile link, and logout.
+=======
+ * Shows role-specific nav links, notification bell, profile link, and logout.
+>>>>>>> 0ef381cffa1304fa00ef2aed0caa24e71a71d77f
  */
 export function Header() {
   const navigate = useNavigate();
@@ -45,7 +62,11 @@ export function Header() {
 
   const { role, isAuthenticated, logout } = useAuth();
 
+<<<<<<< HEAD
   // Load mock notifications (Phase 4)
+=======
+  // Load notifications from API
+>>>>>>> 0ef381cffa1304fa00ef2aed0caa24e71a71d77f
   useEffect(() => {
     if (isAuthenticated) {
       // TODO: Replace with api.notifications.list({ limit: 5 })
