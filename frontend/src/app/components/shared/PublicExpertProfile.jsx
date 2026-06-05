@@ -11,10 +11,6 @@ import {
   Briefcase,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
-import {
-  getMockUserById,
-  getMockReviewsByExpert,
-} from "../../../mock-db/mockDbService.js";
 
 /**
  * PublicExpertProfile — unified expert profile component.
@@ -28,41 +24,8 @@ import {
  *   viewerRole   — "client" | "expert" | "public"
  *   expertId     — optional expert ID (for client/public views)
  *
- * API-first: tries the real API, falls back to centralized mock DB.
+ * API-first: tries the real API. Shows empty state when data is unavailable.
  */
-
-// ---------------------------------------------------------------------------
-// Build expert profile data from centralized mock DB
-// ---------------------------------------------------------------------------
-
-function getExpertProfileData(expertId) {
-  const id = expertId || "expert-001";
-  const user = getMockUserById(id);
-  if (!user) return null;
-
-  const reviews = getMockReviewsByExpert(user.id);
-
-  return {
-    id: user.id,
-    name: user.fullName,
-    title: user.profile?.title,
-    specialization: user.profile?.specialization,
-    location: user.profile?.location,
-    rating: user.profile?.rating,
-    reviews: user.profile?.reviewCount,
-    completedProjects: user.profile?.completedProjects,
-    hourlyRate: user.profile?.hourlyRate,
-    bio: user.profile?.bio,
-    skills: user.profile?.skills || [],
-    portfolio: user.profile?.portfolio || [],
-    clientReviews: reviews.map((r) => ({
-      clientName: getMockUserById(r.clientId)?.fullName || "Unknown",
-      rating: r.rating,
-      comment: r.comment,
-      date: r.date,
-    })),
-  };
-}
 
 export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   // Resolve expertId from props or URL params
@@ -106,12 +69,11 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
           }
         }
       } catch {
-        // API unreachable — fall through to mock DB
+        // API unreachable — expert will remain null (empty state shown)
       }
 
-      if (!cancelled) {
-        setExpert(getExpertProfileData(resolvedId));
-      }
+      // No fallback — expert stays null when API is unavailable
+      // TODO: Connect real API endpoint for expert profiles
     }
 
     fetchExpert().finally(() => {
