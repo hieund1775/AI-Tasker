@@ -3,12 +3,6 @@ import { Clock, DollarSign, User } from "lucide-react";
 import { ProjectTimelineManager } from "../../components/project/ProjectTimelineManager.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import {
-  getMockProjectById,
-  getMockUserById,
-  getMockProposalsByProject,
-} from "../../../mock-db/mockDbService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import {
   deriveProjectStatusKey,
@@ -19,20 +13,19 @@ import {
 export function ExpertProjectDetail() {
   const { id } = useParams();
 
-  // TEMP MOCK DB - replace with API call when backend is ready
-  const project = getMockProjectById(id);
+    const project = null;
 
   // Derived display status (consistent with dashboard cards)
   const statusKey = project
     ? deriveProjectStatusKey(project, {
-        proposalCount: getMockProposalsByProject(project.id).length,
+        proposalCount: [].length,
       })
     : null;
   const displayStatus = statusKey ? getStatusLabel(statusKey) : null;
   const badgeClass = statusKey ? getStatusBadgeClass(statusKey) : "bg-gray-100 text-gray-700";
 
   // Client info
-  const client = project ? getMockUserById(project.clientId) : null;
+  const client = project ? null : null;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -10,32 +10,20 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockUserByEmail,
-  getNormalizedWallet,
-  getMockTransactionsByUser,
-} from "../../../mock-db/mockDbService.js";
-import { DEMO_EXPERT_ID } from "../../lib/demoConfig.js";
-
 // ---------------------------------------------------------------------------
-// Mock fallback data (uses centralized mock DB when backend is unreachable)
+// Helpers
 // ---------------------------------------------------------------------------
 
 function resolveExpertId(user) {
-  if (user?.email) {
-    const mockUser = getMockUserByEmail(user.email);
-    if (mockUser) return mockUser.id;
-  }
-  return DEMO_EXPERT_ID;
+  // TODO: Replace with API call — api.users.getProfile()
+  return user?.id || null;
 }
 
-function getMockExpertWalletData(userId) {
-  const normWallet = getNormalizedWallet(userId);
-  const mockTransactions = getMockTransactionsByUser(userId);
-
+function getExpertWalletData() {
+  // TODO: Replace with API call — api.payments.getWallet()
   return {
-    wallet: normWallet || { balance: 0, pendingBalance: 0, totalEarned: 0 },
-    transactions: mockTransactions,
+    wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 },
+    transactions: [],
   };
 }
 
@@ -50,8 +38,7 @@ const statusColors = {
 // ---------------------------------------------------------------------------
 
 export function ExpertWallet() {
-  const { user } = useAuth(); // Lấy thông tin user hiện tại từ AuthContext
-  const mockUserId = resolveExpertId(user);
+  const { user } = useAuth();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -68,25 +55,24 @@ export function ExpertWallet() {
 
     async function fetchData() {
       try {
-        // Ưu tiên dùng ID thật từ Token (user.id), nếu không có mới dùng mock
-        const currentUserId = user?.id || mockUserId;
+        const currentUserId = user?.id;
 
-        // GỌI API THẬT: Lấy ví tiền dựa trên ID của User
         const [wallet, transactions] = await Promise.all([
-          api.users.getWallet(currentUserId).catch(() => null), // Gọi đúng API đã chốt trên Swagger
-          api.payments.getTransactions({ type: "expert" }).catch(() => null), // Tạm giữ mock giao dịch
+          api.users.getWallet(currentUserId).catch(() => null),
+          api.payments.getTransactions({ type: "expert" }).catch(() => null),
         ]);
 
         if (!cancelled) {
-          const mock = getMockExpertWalletData(mockUserId);
           setData({
-            // Nếu Backend C# trả về wallet thật thì dùng, không thì lấy data giả
-            wallet: wallet || mock.wallet,
-            transactions: transactions || mock.transactions,
+            wallet: wallet || { balance: 0, pendingBalance: 0, totalEarned: 0 },
+            transactions: transactions || [],
           });
         }
       } catch {
-        if (!cancelled) setData(getMockExpertWalletData(mockUserId));
+        if (!cancelled) {
+          // TODO: Connect real API endpoint for wallet data
+          setData({ wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 }, transactions: [] });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -98,7 +84,7 @@ export function ExpertWallet() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id, mockUserId]);
+  }, [user?.id]);
 
   const handleWithdraw = async (e) => {
     e.preventDefault();
@@ -116,41 +102,41 @@ export function ExpertWallet() {
     setFeedback(null);
     try {
       await api.payments.withdraw({ amount, method: paymentMethod });
+
+      // Update local state with the real withdrawal
+      setData((prev) => ({
+        ...prev,
+        wallet: {
+          ...prev.wallet,
+          balance: prev.wallet.balance - amount,
+        },
+        transactions: [
+          {
+            id: `wt-${Date.now()}`,
+            type: "withdrawal",
+            amount,
+            description: `Withdrawal via ${paymentMethod}`,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          },
+          ...prev.transactions,
+        ],
+      }));
+
       setFeedback({
         type: "success",
         message: "Withdrawal request submitted successfully.",
       });
+      setShowWithdrawForm(false);
+      setWithdrawAmount(0);
     } catch {
-      // Demo fallback
+      setFeedback({
+        type: "error",
+        message: "Withdrawal failed. Please try again later.",
+      });
+    } finally {
+      setSubmitting(false);
     }
-
-    // Update local state (demo)
-    setData((prev) => ({
-      ...prev,
-      wallet: {
-        ...prev.wallet,
-        balance: prev.wallet.balance - amount,
-      },
-      transactions: [
-        {
-          id: `wt-${Date.now()}`,
-          type: "withdrawal",
-          amount,
-          description: `Withdrawal via ${paymentMethod}`,
-          status: "completed",
-          createdAt: new Date().toISOString(),
-        },
-        ...prev.transactions,
-      ],
-    }));
-
-    setFeedback({
-      type: "success",
-      message: "Withdrawal processed (demo mode).",
-    });
-    setShowWithdrawForm(false);
-    setWithdrawAmount(0);
-    setSubmitting(false);
   };
 
   if (loading) {

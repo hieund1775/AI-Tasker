@@ -9,11 +9,6 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockOpenJobs,
-  getMockAiCategories,
-} from "../../../mock-db/mockDbService.js";
-
 export function JobList() {
   const { user } = useAuth();
 
@@ -27,8 +22,8 @@ export function JobList() {
     sortBy: "newest",
   });
 
-  const jobs = getMockOpenJobs();
-  const allCategories = getMockAiCategories();
+  const jobs = [];
+  const allCategories = [];
   const allSkills = [
     ...new Set(jobs.flatMap((j) => j.requiredSkills || [])),
   ].sort();
@@ -111,7 +106,7 @@ export function JobList() {
           </p>
           {/* SỬA: CHUYỂN TỚI EDIT-PROFILE */}
           <Link
-            to="/expert/edit-profile"
+            to="/expert/profile/edit"
             className="whitespace-nowrap px-4 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition shadow-sm"
           >
             Tạo Profile Ngay
@@ -267,7 +262,7 @@ export function JobList() {
                     </h3>
                     {job.category && (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                        {getMockAiCategories().find(
+                        {[].find(
                           (c) => c.id === job.category,
                         )?.label || job.category}
                       </span>

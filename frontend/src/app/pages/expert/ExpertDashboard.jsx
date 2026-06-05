@@ -10,14 +10,8 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
+import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import {
-  getMockProjects,
-  getMockProposalsByExpert,
-  getMockUserById,
-  getMockOpenJobs,
-} from "../../../mock-db/mockDbService.js";
 import {
   getProjectProgress,
   deriveProjectStatusKey,
@@ -25,7 +19,6 @@ import {
   getStatusBadgeClass,
   getExpertButtonConfig,
 } from "../../lib/projectTimelineStore.js";
-import { DEMO_EXPERT_ID } from "../../lib/demoConfig.js";
 import { timeAgo } from "../../lib/dateUtils.js";
 
 // ---------------------------------------------------------------------------
@@ -52,22 +45,18 @@ const SKILL_VISIBLE_COUNT = {
 // ---------------------------------------------------------------------------
 
 export function ExpertDashboard() {
-  // ---- Mock DB data -------------------------------------------------------
-  const allProjects = getMockProjects();
-  const expertProposals = getMockProposalsByExpert(DEMO_EXPERT_ID);
-  const expert = getMockUserById(DEMO_EXPERT_ID);
+  // TODO: Replace with API calls — api.projects.list(), api.proposals.list()
+  const allProjects = [];
+  const expertProposals = [];
+  const expert = null;
 
   // Active contracts: in_progress projects assigned to this expert
-  const activeContracts = allProjects.filter(
-    (p) => p.assignedExpertId === DEMO_EXPERT_ID && p.status === "in_progress",
-  );
+  const activeContracts = [];
 
   // Completed projects
-  const completedProjects = allProjects.filter(
-    (p) => p.assignedExpertId === DEMO_EXPERT_ID && p.status === "completed",
-  );
+  const completedProjects = [];
 
-  // ---- Stats ---------------------------------------------------------------
+  // ---- Computed stat values ------------------------------------------------
   const earningsDisplay = expert?.profile?.hourlyRate
     ? expert.profile.hourlyRate * (expert.profile.completedProjects || 0) * 40
     : 0;
@@ -80,8 +69,36 @@ export function ExpertDashboard() {
     (p) => p.status === "pending",
   ).length;
 
+  // ---- Stats ---------------------------------------------------------------
+  const dashboardStats = [
+    {
+      label: "Active Contracts",
+      value: activeContracts.length,
+      icon: Briefcase,
+      color: "text-blue-600 bg-blue-100",
+    },
+    {
+      label: "Total Earned",
+      value: <MoneyDisplay amount={earningsDisplay} />,
+      icon: TrendingUp,
+      color: "text-green-600 bg-green-100",
+    },
+    {
+      label: "Success Rate",
+      value: `${successRate}%`,
+      icon: CheckCircle,
+      color: "text-emerald-600 bg-emerald-100",
+    },
+    {
+      label: "Open Proposals",
+      value: pendingOffers,
+      icon: Clock,
+      color: "text-amber-600 bg-amber-100",
+    },
+  ];
+
   // ---- Recommended projects ------------------------------------------------
-  const openJobs = getMockOpenJobs();
+  const openJobs = [];
   const recommendedProjects = openJobs.slice(0, 5);
 
   // ---- Render --------------------------------------------------------------
@@ -110,51 +127,7 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       {/* Stats Row                                                          */}
       {/* ================================================================== */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        {[
-          {
-            label: "Active Contracts",
-            value: activeContracts.length,
-            icon: Briefcase,
-            color: "text-blue-600 bg-blue-100",
-          },
-          {
-            label: "Total Earned",
-            value: <MoneyDisplay amount={earningsDisplay} />,
-            icon: TrendingUp,
-            color: "text-green-600 bg-green-100",
-          },
-          {
-            label: "Success Rate",
-            value: `${successRate}%`,
-            icon: CheckCircle,
-            color: "text-emerald-600 bg-emerald-100",
-          },
-          {
-            label: "Open Proposals",
-            value: pendingOffers,
-            icon: Clock,
-            color: "text-amber-600 bg-amber-100",
-          },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
-          >
-            <div
-              className={`w-9 h-9 ${stat.color} rounded-lg flex items-center justify-center mb-2.5`}
-            >
-              <stat.icon className="w-[18px] h-[18px]" />
-            </div>
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
-              {stat.label}
-            </p>
-            <p className="text-xl font-bold text-gray-900 mt-0.5">
-              {stat.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      <DashboardStats stats={dashboardStats} size="sm" className="mb-6" />
 
       {/* ================================================================== */}
       {/* Two-Column Dashboard                                               */}
@@ -197,7 +170,7 @@ export function ExpertDashboard() {
               </div>
             ) : (
               activeContracts.map((p) => {
-                const client = getMockUserById(p.clientId);
+                const client = null;
                 const progress = getProjectProgress(p.id);
                 const statusKey = deriveProjectStatusKey(p);
                 const displayStatus = getStatusLabel(statusKey);
@@ -327,7 +300,7 @@ export function ExpertDashboard() {
               </div>
             ) : (
               recommendedProjects.map((p, idx) => {
-                const client = getMockUserById(p.clientId);
+                const client = null;
                 const matchPct = getMatchPct(idx);
 
                 return (

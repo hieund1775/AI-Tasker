@@ -11,12 +11,6 @@ import {
 } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import {
-  getMockProjectById,
-  getMockAiCategoryById,
-  getMockUserById,
-} from "../../../mock-db/mockDbService.js";
-
 export function JobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -32,13 +26,13 @@ export function JobDetail() {
       setLoading(true);
       setError(null);
       try {
-        const project = getMockProjectById(id);
+        const project = null;
         if (!project) {
           if (!cancelled) setError("Project not found.");
           return;
         }
-        const category = getMockAiCategoryById(project.category);
-        const client = getMockUserById(project.clientId);
+        const category = null;
+        const client = null;
         if (!cancelled) {
           setJob({
             ...project,
@@ -154,7 +148,7 @@ export function JobDetail() {
                   <span className="text-xs text-red-500 font-medium">
                     {/* SỬA: CHUYỂN TỚI EDIT-PROFILE */}
                     Vui lòng{" "}
-                    <Link to="/expert/edit-profile" className="underline">
+                    <Link to="/expert/profile/edit" className="underline">
                       hoàn thiện Profile
                     </Link>{" "}
                     để ứng tuyển.
