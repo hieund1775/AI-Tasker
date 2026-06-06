@@ -11,11 +11,6 @@ import {
   Eye,
 } from "lucide-react";
 
-import {
-  getMockConversationsByUser,
-  getMockMessagesBetweenUsers,
-  getMockUserById,
-} from "../../../mock-db/mockDbService.js";
 import { DEMO_EXPERT_ID, DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 
 // ---------------------------------------------------------------------------
@@ -72,7 +67,7 @@ export function Messenger() {
   const [sessionMsgs, setSessionMsgs] = useState([..._sessionMessages]);
 
   // ---- Determine demo user ----
-  const rawConversations = getMockConversationsByUser(DEMO_EXPERT_ID);
+  const rawConversations = []; // TODO: Replace with API call when backend is ready
   const allConvIds = new Set(rawConversations.map((c) => c.id));
 
   // If activeConvId is not in expert conversations, try client conversations
@@ -81,12 +76,12 @@ export function Messenger() {
     : DEMO_EXPERT_ID;
 
   // ---- Build conversation list ----
-  const demoConvs = getMockConversationsByUser(demoUserId);
+  const demoConvs = []; // TODO: Replace with API call when backend is ready
 
   const conversations = demoConvs.map((conv) => {
     const otherUserId = conv.participants.find((p) => p !== demoUserId);
-    const otherUser = otherUserId ? getMockUserById(otherUserId) : null;
-    const msgs = getMockMessagesBetweenUsers(demoUserId, otherUserId);
+    const otherUser = null; // TODO: Replace with API call when backend is ready
+    const msgs = []; // TODO: Replace with API call when backend is ready
 
     // Merge session messages for this conversation
     const extraMsgs = _sessionMessages.filter((m) => m.conversationId === conv.id);
