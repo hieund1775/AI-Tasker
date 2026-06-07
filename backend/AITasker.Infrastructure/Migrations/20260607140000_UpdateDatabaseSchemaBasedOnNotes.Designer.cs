@@ -4,6 +4,7 @@ using AITasker.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607140000_UpdateDatabaseSchemaBasedOnNotes")]
+    partial class UpdateDatabaseSchemaBasedOnNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -223,12 +226,6 @@ namespace AITasker.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("FeedbackContent")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("FeedbackSenderId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
@@ -240,8 +237,6 @@ namespace AITasker.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FeedbackSenderId");
 
                     b.HasIndex("TaskId");
 
@@ -405,6 +400,34 @@ namespace AITasker.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Skills");
+                });
+
+            modelBuilder.Entity("AITasker.Domain.Entities.TaskFeedback", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SenderId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskFeedbacks");
                 });
 
             modelBuilder.Entity("AITasker.Domain.Entities.TransactionLog", b =>
@@ -643,18 +666,11 @@ namespace AITasker.Infrastructure.Migrations
 
             modelBuilder.Entity("AITasker.Domain.Entities.MiniTask", b =>
                 {
-                    b.HasOne("AITasker.Domain.Entities.User", "FeedbackSender")
-                        .WithMany()
-                        .HasForeignKey("FeedbackSenderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("AITasker.Domain.Entities.ProjectTask", "Task")
                         .WithMany("MiniTasks")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("FeedbackSender");
 
                     b.Navigation("Task");
                 });
@@ -747,6 +763,25 @@ namespace AITasker.Infrastructure.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("TargetUser");
+                });
+
+            modelBuilder.Entity("AITasker.Domain.Entities.TaskFeedback", b =>
+                {
+                    b.HasOne("AITasker.Domain.Entities.User", "Sender")
+                        .WithMany()
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("AITasker.Domain.Entities.ProjectTask", "Task")
+                        .WithMany("Feedbacks")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sender");
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("AITasker.Domain.Entities.TransactionLog", b =>
@@ -855,6 +890,8 @@ namespace AITasker.Infrastructure.Migrations
 
             modelBuilder.Entity("AITasker.Domain.Entities.ProjectTask", b =>
                 {
+                    b.Navigation("Feedbacks");
+
                     b.Navigation("MiniTasks");
                 });
 

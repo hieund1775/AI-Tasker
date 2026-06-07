@@ -157,6 +157,11 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey(p => p.ExpertId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(p => p.Conversation)
+                .WithMany()
+                .HasForeignKey(p => p.ConversationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             entity.Property(p => p.EscrowBalance).HasColumnType("decimal(18,2)");
         });
 
@@ -181,6 +186,11 @@ public class ApplicationDbContext : DbContext
                 .WithMany(t => t.MiniTasks)
                 .HasForeignKey(mt => mt.TaskId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(mt => mt.FeedbackSender)
+                .WithMany()
+                .HasForeignKey(mt => mt.FeedbackSenderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // --- Conversation ---
@@ -188,9 +198,9 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(c => c.Id);
 
-            entity.HasOne(c => c.Project)
+            entity.HasOne(c => c.OriginJobPost)
                 .WithMany()
-                .HasForeignKey(c => c.ProjectId)
+                .HasForeignKey(c => c.OriginJobPostId)
                 .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(c => c.Client)

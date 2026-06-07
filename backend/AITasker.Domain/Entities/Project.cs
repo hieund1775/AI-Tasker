@@ -10,6 +10,9 @@ public class Project
     public Guid? JobPostId { get; set; }
     public JobPost? JobPost { get; set; }
 
+    public Guid? ConversationId { get; set; }
+    public Conversation? Conversation { get; set; }
+
     public Guid ClientId { get; set; }
     public User Client { get; set; } = null!;
 

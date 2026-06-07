@@ -7,8 +7,8 @@ public class Conversation
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid? ProjectId { get; set; }
-    public Project? Project { get; set; }
+    public Guid? OriginJobPostId { get; set; }
+    public JobPost? OriginJobPost { get; set; }
 
     public Guid ClientId { get; set; }
     public User Client { get; set; } = null!;

@@ -11,5 +11,8 @@ public class MiniTask
 
     public string Title { get; set; } = string.Empty;
     public bool IsCompleted { get; set; } = false;
+    public string? FeedbackContent { get; set; }
+    public Guid? FeedbackSenderId { get; set; }
+    public User? FeedbackSender { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
