@@ -1,23 +1,13 @@
 {
-	"version": "2.0.0",
-	"tasks": [
-		{
-			"type": "dotnet",
-			"task": "build",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"problemMatcher": [],
-			"label": "dotnet: build"
-        },
+    "version": "2.0.0",
+    "tasks": [
         {
             "label": "build",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/API/AITasker_Modular.csproj",
+                "${workspaceFolder}/backend/AITasker.API/AITasker.API.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -29,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/API/AITasker_Modular.csproj",
+                "${workspaceFolder}/backend/AITasker.API/AITasker.API.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -43,9 +33,9 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/API/AITasker_Modular.csproj"
+                "${workspaceFolder}/backend/AITasker.API/AITasker.API.csproj"
             ],
             "problemMatcher": "$msCompile"
         }
-	]
+    ]
 }
