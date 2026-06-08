@@ -2,9 +2,6 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, ArrowRight } from "lucide-react";
 
-// TEMP MOCK DB - replace with API call when backend is ready
-import { getMockUsers } from "../../../mock-db/mockDbService.js";
-
 /**
  * ExpertsPage — public expert discovery/browsing page.
  * TODO: Connect to backend API to list and search experts.
@@ -16,8 +13,7 @@ import { getMockUsers } from "../../../mock-db/mockDbService.js";
 export function ExpertsPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // TEMP MOCK DB - replace with API call when backend is ready
-  const experts = getMockUsers()
+  const experts = []
     .filter((u) => u.role === "expert")
     .map((u) => ({
       id: u.id,
