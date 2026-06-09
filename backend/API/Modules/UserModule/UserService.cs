@@ -296,6 +296,19 @@ public class UserService : IUserService
         };
     }
 
+    public async Task<bool> IsAdminOrOwnerAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var guid))
+            return false;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
+        if (user == null)
+            return false;
+
+        return user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+               user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string HashPassword(string password)
     {
         return BCryptTool.HashPassword(password, workFactor: 11);

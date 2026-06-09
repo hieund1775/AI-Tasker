@@ -1,5 +1,6 @@
 using AITasker_Modular.Modules.UserModule.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using AITasker_Modular.Helpers;
 
 namespace AITasker_Modular.Modules.UserModule;
 
@@ -72,16 +73,15 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAllUsers([FromQuery] string requesterId)
+    public async Task<IActionResult> GetAllUsers()
     {
-        if (string.IsNullOrEmpty(requesterId))
-            return BadRequest(new { message = "Requester ID is required." });
+        var (requesterId, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
 
-        var (users, error) = await _userService.GetAllUsersAsync(requesterId);
+        var (users, error) = await _userService.GetAllUsersAsync(requesterId!);
         if (error != null)
         {
-            if (error.Equals("Unauthorized", StringComparison.OrdinalIgnoreCase))
-                return StatusCode(403, new { message = "Only Admin or Owner can access this resource." });
             return BadRequest(new { message = error });
         }
 
