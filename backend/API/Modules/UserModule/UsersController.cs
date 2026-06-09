@@ -97,4 +97,23 @@ public class UsersController : ControllerBase
 
         return Ok(userDetail);
     }
+
+    [HttpPut("{id}/set-active")]
+    public async Task<IActionResult> SetUserActive(string id, [FromBody] SetUserActiveDto dto)
+    {
+        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
+        var success = await _userService.SetUserActiveStatusAsync(id, dto.IsActive);
+        if (!success)
+            return NotFound(new { message = "User not found." });
+
+        return Ok(new { message = $"User status set to {(dto.IsActive ? "Active" : "Inactive")} successfully." });
+    }
+}
+
+public class SetUserActiveDto
+{
+    public bool IsActive { get; set; }
 }

@@ -55,7 +55,7 @@ public class UserService : IUserService
         if (user == null || !VerifyPassword(password, user.PasswordHash))
             return (null, null, "Invalid email or password.");
 
-        if (user.Status != "Active")
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
             return (null, null, "User account is not active.");
 
         var userDto = new DTOs.UserDto
@@ -343,5 +343,19 @@ public class UserService : IUserService
         {
             return false;
         }
+    }
+
+    public async Task<bool> SetUserActiveStatusAsync(string userId, bool isActive)
+    {
+        if (!Guid.TryParse(userId, out var userGuid))
+            return false;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+        if (user == null)
+            return false;
+
+        user.Status = isActive ? "Active" : "Inactive";
+        await _context.SaveChangesAsync();
+        return true;
     }
 }
