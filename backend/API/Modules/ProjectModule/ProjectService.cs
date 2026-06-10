@@ -1,68 +1,57 @@
-using AITasker_Modular.Database;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using AITasker_Modular.Database;
 
-namespace AITasker_Modular.Modules.ProjectModule;
-
-public class ProjectService : IProjectService
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    private readonly DataContext _context;
-
-    public ProjectService(DataContext context)
+    public class ProjectService : IProjectService
     {
-        _context = context;
-    }
+        private readonly DataContext _context;
 
-    public async System.Threading.Tasks.Task<bool> ApproveMiniTaskAsync(string miniTaskId)
-    {
-        if (!Guid.TryParse(miniTaskId, out var miniTaskGuid))
-            return false;
+        public ProjectService(DataContext context)
+        {
+            _context = context;
+        }
 
-        var miniTask = await _context.MiniTasks.FindAsync(miniTaskGuid);
-        if (miniTask == null)
-            return false;
+        public async Task<IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId)
+        {
+            return await _context.Projects
+                .Where(x => x.ClientId == clientId)
+                .Include(x => x.JobPost)
+                .ToListAsync();
+        }
 
-        miniTask.IsCompleted = true;
-        await _context.SaveChangesAsync();
-        return true;
-    }
+        public async Task<IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId)
+        {
+            return await _context.Projects
+                .Where(x => x.ExpertId == expertId)
+                .Include(x => x.JobPost)
+                .ToListAsync();
+        }
 
-    public async System.Threading.Tasks.Task<IReadOnlyList<Project>> GetProjectsAsync()
-    {
-        return await _context.Projects
-            .Include(p => p.Client)
-            .Include(p => p.Expert)
-            .Include(p => p.JobPost)
-            .Include(p => p.ProjectSkills)
-                .ThenInclude(ps => ps.Skill)
-            .AsNoTracking()
-            .ToListAsync();
-    }
+        public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status)
+        {
+            var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
+            if (project == null) return null;
 
-    public async System.Threading.Tasks.Task<string> SaveFeedbackAsync(string miniTaskId, string feedback)
-    {
-        if (!Guid.TryParse(miniTaskId, out var miniTaskGuid))
-            return "Invalid mini task ID format.";
+            project.Status = status.Trim();
+            await _context.SaveChangesAsync();
+            return project;
+        }
 
-        var miniTask = await _context.MiniTasks.FindAsync(miniTaskGuid);
-        if (miniTask == null)
-            return "Mini task not found.";
+        public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink)
+        {
+            var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
+            if (project == null) return null;
 
-        miniTask.FeedbackContent = feedback;
-        await _context.SaveChangesAsync();
-        return $"Saved feedback for {miniTaskId}: {feedback}";
-    }
-
-    public async System.Threading.Tasks.Task<Project> UpdateProgressAsync(string projectId, string status)
-    {
-        if (!Guid.TryParse(projectId, out var projectGuid))
-            throw new ArgumentException("Invalid project ID format.", nameof(projectId));
-
-        var project = await _context.Projects.FindAsync(projectGuid);
-        if (project == null)
-            throw new KeyNotFoundException($"Project with ID {projectId} not found.");
-
-        project.Status = status;
-        await _context.SaveChangesAsync();
-        return project;
+            project.ProjectLink = projectLink;
+            project.Status = "Submitted"; // Chuyển sang trạng thái chờ Client duyệt nghiệm thu
+            
+            await _context.SaveChangesAsync();
+            return project;
+        }
     }
 }

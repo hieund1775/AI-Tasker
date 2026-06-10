@@ -1,47 +1,50 @@
+using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Helpers;
 
-namespace AITasker_Modular.Modules.ProjectModule;
-
-[ApiController]
-[Route("api/projects")]
-public class ProjectsController : ControllerBase
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    private readonly IProjectService _service;
-    private readonly IUserService _userService;
-
-    public ProjectsController(IProjectService service, IUserService userService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ProjectsController : ControllerBase
     {
-        _service = service;
-        _userService = userService;
-    }
+        private readonly IProjectService _projectService;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
-        if (errorResult != null)
-            return errorResult;
-
-        return Ok(await _service.GetProjectsAsync());
-    }
-
-    [HttpPost("progress")]
-    public async Task<IActionResult> Progress(string projectId, string status) // Changed Guid to string
-    {
-        try
+        public ProjectsController(IProjectService projectService)
         {
-            var project = await _service.UpdateProgressAsync(projectId, status);
-            return Ok(project);
+            _projectService = projectService;
         }
-        catch (ArgumentException ex)
+
+        [HttpGet("client/{clientId:guid}")]
+        public async Task<IActionResult> GetByClient(Guid clientId)
         {
-            return BadRequest(new { message = ex.Message });
+            var result = await _projectService.GetProjectsByClientAsync(clientId);
+            return Ok(result);
         }
-        catch (KeyNotFoundException ex)
+
+        [HttpGet("expert/{expertId:guid}")]
+        public async Task<IActionResult> GetByExpert(Guid expertId)
         {
-            return NotFound(new { message = ex.Message });
+            var result = await _projectService.GetProjectsByExpertAsync(expertId);
+            return Ok(result);
+        }
+
+        [HttpPut("{id:guid}/status")]
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
+        {
+            var result = await _projectService.UpdateProjectStatusAsync(id, status);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPut("{id:guid}/submit-work")]
+        public async Task<IActionResult> SubmitWork(Guid id, [FromQuery] string projectLink)
+        {
+            if (string.IsNullOrEmpty(projectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
+            
+            var result = await _projectService.SubmitProjectLinkAsync(id, projectLink);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
         }
     }
 }

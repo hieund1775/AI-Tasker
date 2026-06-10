@@ -1,9 +1,14 @@
-namespace AITasker_Modular.Modules.ProjectModule;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public interface IProjectService
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    Task<IReadOnlyList<Project>> GetProjectsAsync();
-    Task<Project> UpdateProgressAsync(string projectId, string status); // Changed Guid to string
-    Task<bool> ApproveMiniTaskAsync(string miniTaskId); // Changed Guid to string
-    Task<string> SaveFeedbackAsync(string miniTaskId, string feedback); // Changed Guid to string
+    public interface IProjectService
+    {
+        Task<IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId);
+        Task<IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId);
+        Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status);
+        Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink); // Expert nộp sản phẩm/link nghiệm thu
+    }
 }

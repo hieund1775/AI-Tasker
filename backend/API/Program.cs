@@ -6,6 +6,7 @@ using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
 using Microsoft.EntityFrameworkCore;
+using AITasker_Modular.Modules.ProposalModule;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +66,9 @@ builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
+builder.Services.AddScoped<IProposalService, ProposalService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+
 
 var app = builder.Build();
 
