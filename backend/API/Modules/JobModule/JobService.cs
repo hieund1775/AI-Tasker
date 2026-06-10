@@ -45,12 +45,13 @@ public class JobService : IJobService
 
         _context.JobPosts.Add(jobPost);
         await _context.SaveChangesAsync();
-        return jobPost;
+        return (await GetJobPostByIdAsync(jobPost.Id.ToString()))!;
     }
 
     public async Task<IReadOnlyList<JobPost>> GetJobsAsync()
     {
         return await _context.JobPosts
+                             .Include(jp => jp.ClientUser)
                              .Include(jp => jp.AICategoryDomain) 
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
@@ -64,10 +65,52 @@ public class JobService : IJobService
             return null;
 
         return await _context.JobPosts
+                             .Include(jp => jp.ClientUser)
                              .Include(jp => jp.AICategoryDomain)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .AsNoTracking()
                              .FirstOrDefaultAsync(jp => jp.Id == jobGuid);
      }
+
+    public async Task<JobPost?> UpdateJobPostAsync(string id, DTOs.UpdateJobPostDto jobPostDto)
+    {
+        if (!Guid.TryParse(id, out var jobGuid))
+            return null;
+
+        var jobPost = await _context.JobPosts
+                                     .Include(jp => jp.JobPostSkills)
+                                     .FirstOrDefaultAsync(jp => jp.Id == jobGuid);
+        if (jobPost == null)
+            return null;
+
+        jobPost.Title = jobPostDto.Title.Trim();
+        jobPost.Description = jobPostDto.Description.Trim();
+        jobPost.Budget = jobPostDto.Budget;
+        jobPost.Deadline = jobPostDto.Deadline;
+        jobPost.AICategoryDomainId = Guid.TryParse(jobPostDto.AICategoryDomainId, out var domainGuid) ? domainGuid : null;
+
+        // Clear existing skills
+        _context.JobPostSkills.RemoveRange(jobPost.JobPostSkills);
+        jobPost.JobPostSkills.Clear();
+
+        // Add new skills
+        if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
+        {
+            foreach (var sid in jobPostDto.SkillIds)
+            {
+                if (Guid.TryParse(sid, out var sguid))
+                {
+                    jobPost.JobPostSkills.Add(new JobPostSkill
+                    {
+                        JobPostsId = jobPost.Id,
+                        SkillsId = sguid
+                    });
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return await GetJobPostByIdAsync(id);
+    }
 }
