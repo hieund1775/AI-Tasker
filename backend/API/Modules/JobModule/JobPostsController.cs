@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using AITasker_Modular.Modules.JobModule.DTOs; // Import DTO
+using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Helpers;
 
 namespace AITasker_Modular.Modules.JobModule;
 
@@ -8,10 +10,12 @@ namespace AITasker_Modular.Modules.JobModule;
 public class JobPostsController : ControllerBase
 {
     private readonly IJobService _service;
+    private readonly IUserService _userService;
 
-    public JobPostsController(IJobService service)
+    public JobPostsController(IJobService service, IUserService userService)
     {
         _service = service;
+        _userService = userService;
     }
 
     [HttpGet]
@@ -40,5 +44,29 @@ public class JobPostsController : ControllerBase
         var createdJobPost = await _service.CreateJobAsync(jobPostDto);
         // Return 201 Created with a Location header pointing to the newly created resource
         return CreatedAtAction(nameof(Get), new { id = createdJobPost.Id }, createdJobPost);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateJobPost(string id, [FromBody] UpdateJobPostDto jobPostDto)
+    {
+        var (requesterId, errorResult) = this.GetRequesterId();
+        if (errorResult != null)
+            return errorResult;
+
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var jobPost = await _service.GetJobPostByIdAsync(id);
+        if (jobPost == null)
+            return NotFound(new { message = "Job post not found." });
+
+        var isAdminOrOwner = await _userService.IsAdminOrOwnerAsync(requesterId!);
+        var isCreator = jobPost.ClientId.ToString().Equals(requesterId, StringComparison.OrdinalIgnoreCase);
+
+        if (!isAdminOrOwner && !isCreator)
+            return StatusCode(403, new { message = "Only Admin, Owner, or the Client who created this job post can modify it." });
+
+        var updated = await _service.UpdateJobPostAsync(id, jobPostDto);
+        return Ok(updated);
     }
 }
