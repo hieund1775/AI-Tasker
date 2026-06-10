@@ -7,6 +7,16 @@ using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
+using AITasker_Modular.Modules.AiModule;
+using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +25,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "AITasker Modular API", Version = "v1" });
-    
+
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter your token (e.g. mock-jwt-token-for-xxxxx) below.",
@@ -60,6 +70,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// --- ĐĂNG KÝ CÁC DỊCH VỤ HỆ THỐNG GỐC (DI) ---
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
@@ -67,11 +78,15 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
-builder.Services.AddScoped<IProjectService, ProjectService>();
+
+// --- ĐĂNG KÝ HẠ TẦNG AI PROXY ĐỒNG BỘ 100% THEO AIMODULE CỦA MINH ---
+builder.Services.AddHttpClient<GeminiUtil>();
+builder.Services.AddScoped<AiChatService>(); // Gọi đúng class chữ 'i' ngắn viết thường
 
 
 var app = builder.Build();
 
+// --- TỰ ĐỘNG KHỞI CHẠY VÀ MIGRATION DATABASE TOÀN CỤC ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -152,7 +167,7 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "AITasker Modular API v1");
     c.RoutePrefix = string.Empty;
-}); 
+});
 
 app.UseCors("AllowLocalhost5173");
 
