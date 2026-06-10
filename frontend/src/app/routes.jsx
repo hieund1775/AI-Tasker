@@ -18,6 +18,7 @@ import { MyProjectsList } from "./pages/client/MyProjectsPage.jsx";
 import { PublicExpertProfile } from "./components/shared/PublicExpertProfile.jsx";
 import { Billing } from "./pages/client/Billing.jsx";
 
+// Common Pages (shared across roles)
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
 import { JobList } from "./pages/expert/JobList.jsx";
@@ -70,9 +71,15 @@ export const router = createBrowserRouter([
               { path: "client/post-project", Component: PostProject },
               { path: "client/my-projects", Component: MyProjectsList },
               { path: "client/projects/:id", Component: ProjectDetail },
-              { path: "client/projects/:projectId/proposals", Component: ProposalReview },
+              {
+                path: "client/projects/:projectId/proposals",
+                Component: ProposalReview,
+              },
               { path: "client/experts", Component: ExpertList },
-              { path: "client/experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
+              {
+                path: "client/experts/:id",
+                element: <PublicExpertProfile viewerRole="client" />,
+              },
               { path: "client/profile", Component: ClientProfile },
               { path: "client/profile/edit", Component: EditClientProfile },
               { path: "client/billing", Component: Billing },
@@ -91,7 +98,10 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/profile", element: <PublicExpertProfile viewerRole="expert" /> },
+              {
+                path: "expert/profile",
+                element: <PublicExpertProfile viewerRole="expert" />,
+              },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
             ],
@@ -112,7 +122,10 @@ export const router = createBrowserRouter([
 
           // ----- Common routes (any authenticated role) -----
           { path: "notifications", Component: NotificationsPage },
-          { path: "expert/profile/:id", element: <PublicExpertProfile viewerRole="public" /> },
+          {
+            path: "expert/profile/:id",
+            element: <PublicExpertProfile viewerRole="public" />,
+          },
           { path: "messenger", Component: Messenger },
           { path: "messenger/:id", Component: Messenger },
           { path: "tasks/:taskId/update", Component: TaskUpdatePage },
