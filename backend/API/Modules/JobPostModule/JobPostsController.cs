@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using AITasker_Modular.Modules.JobModule; // Giữ lại nếu DTOs vẫn nằm bên folder cũ của Hùng
-using AITasker_Modular.Modules.JobModule.DTOs; 
+using AITasker_Modular.Modules.JobModule.DTOs;
 
 namespace AITasker_Modular.Modules.JobPostModule
 {
@@ -11,7 +11,7 @@ namespace AITasker_Modular.Modules.JobPostModule
     public class JobPostsController : ControllerBase
     {
         // Gọi chính xác Interface nằm trong JobPostModule của Minh
-        private readonly IJobService _jobService; 
+        private readonly IJobService _jobService;
 
         public JobPostsController(IJobService jobService)
         {
