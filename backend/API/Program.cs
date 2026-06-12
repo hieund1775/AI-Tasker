@@ -6,25 +6,87 @@ using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
 using Microsoft.EntityFrameworkCore;
+using AITasker_Modular.Modules.ProposalModule;
+using AITasker_Modular.Modules.AiModule;
+using System;
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "AITasker Modular API", Version = "v1" });
+
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token (e.g. mock-jwt-token-for-xxxxx) below.",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement()
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost5173",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:5173")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+});
 
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+// --- ĐĂNG KÝ CÁC DỊCH VỤ HỆ THỐNG GỐC (DI) ---
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
+builder.Services.AddScoped<IProposalService, ProposalService>();
+
+// --- ĐĂNG KÝ HẠ TẦNG AI PROXY ĐỒNG BỘ 100% THEO AIMODULE CỦA MINH ---
+builder.Services.AddHttpClient<GeminiUtil>();
+builder.Services.AddScoped<AiChatService>(); // Gọi đúng class chữ 'i' ngắn viết thường
+
 
 var app = builder.Build();
 
+// --- TỰ ĐỘNG KHỞI CHẠY VÀ MIGRATION DATABASE TOÀN CỤC ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -32,6 +94,19 @@ using (var scope = app.Services.CreateScope())
     {
         var db = services.GetRequiredService<DataContext>();
         await db.Database.MigrateAsync();
+
+        // Check and update JobPosts.Deadline column type in DB
+        using (var command = db.Database.GetDbConnection().CreateCommand())
+        {
+            await db.Database.OpenConnectionAsync();
+            command.CommandText = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'JobPosts' AND COLUMN_NAME = 'Deadline';";
+            var dataType = (string?)await command.ExecuteScalarAsync();
+            if (dataType != null && (dataType.Equals("datetime", StringComparison.OrdinalIgnoreCase) || dataType.Equals("datetime2", StringComparison.OrdinalIgnoreCase)))
+            {
+                command.CommandText = "ALTER TABLE JobPosts DROP COLUMN Deadline; ALTER TABLE JobPosts ADD Deadline INT NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
+            }
+        }
 
         if (!await db.AICategoryDomains.AnyAsync())
         {
@@ -42,6 +117,16 @@ using (var scope = app.Services.CreateScope())
                 new AICategoryDomain { Id = Guid.NewGuid(), Name = "Generative AI" },
                 new AICategoryDomain { Id = Guid.NewGuid(), Name = "Machine Learning Engineering" }
             });
+        }
+
+        // Seed some new test categories if they don't exist yet
+        var testCategories = new List<string> { "Deep Learning", "Data Science", "Reinforcement Learning" };
+        foreach (var catName in testCategories)
+        {
+            if (!await db.AICategoryDomains.AnyAsync(c => c.Name == catName))
+            {
+                db.AICategoryDomains.Add(new AICategoryDomain { Id = Guid.NewGuid(), Name = catName });
+            }
         }
 
         if (!await db.Skills.AnyAsync())
@@ -57,6 +142,17 @@ using (var scope = app.Services.CreateScope())
                 new Skill { Id = Guid.NewGuid(), Name = "Docker" }
             });
         }
+
+        // Seed some new test skills if they don't exist yet
+        var testSkills = new List<string> { "React.js", "Vue.js", "Node.js", "LangChain", "Semantic Kernel" };
+        foreach (var skillName in testSkills)
+        {
+            if (!await db.Skills.AnyAsync(s => s.Name == skillName))
+            {
+                db.Skills.Add(new Skill { Id = Guid.NewGuid(), Name = skillName });
+            }
+        }
+
         await db.SaveChangesAsync();
     }
     catch (Exception ex)
@@ -71,7 +167,9 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "AITasker Modular API v1");
     c.RoutePrefix = string.Empty;
-}); 
+});
+
+app.UseCors("AllowLocalhost5173");
 
 app.UseAuthorization();
 app.MapControllers();

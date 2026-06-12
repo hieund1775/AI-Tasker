@@ -1,27 +1,50 @@
+using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 
-namespace AITasker_Modular.Modules.ProjectModule;
-
-[ApiController]
-[Route("api/projects")]
-public class ProjectsController : ControllerBase
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    private readonly IProjectService _service;
-
-    public ProjectsController(IProjectService service)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ProjectsController : ControllerBase
     {
-        _service = service;
-    }
+        private readonly IProjectService _projectService;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        return Ok(await _service.GetProjectsAsync());
-    }
+        public ProjectsController(IProjectService projectService)
+        {
+            _projectService = projectService;
+        }
 
-    [HttpPost("progress")]
-    public async Task<IActionResult> Progress(string projectId, string status) // Changed Guid to string
-    {
-        return Ok(await _service.UpdateProgressAsync(projectId, status));
+        [HttpGet("client/{clientId:guid}")]
+        public async Task<IActionResult> GetByClient(Guid clientId)
+        {
+            var result = await _projectService.GetProjectsByClientAsync(clientId);
+            return Ok(result);
+        }
+
+        [HttpGet("expert/{expertId:guid}")]
+        public async Task<IActionResult> GetByExpert(Guid expertId)
+        {
+            var result = await _projectService.GetProjectsByExpertAsync(expertId);
+            return Ok(result);
+        }
+
+        [HttpPut("{id:guid}/status")]
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
+        {
+            var result = await _projectService.UpdateProjectStatusAsync(id, status);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPut("{id:guid}/submit-work")]
+        public async Task<IActionResult> SubmitWork(Guid id, [FromQuery] string projectLink)
+        {
+            if (string.IsNullOrEmpty(projectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
+            
+            var result = await _projectService.SubmitProjectLinkAsync(id, projectLink);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
+        }
     }
 }

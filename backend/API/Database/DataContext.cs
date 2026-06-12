@@ -112,7 +112,7 @@ public class DataContext : DbContext
         }
         modelBuilder.Entity<ExpertProfile>().HasOne<ApplicationUser>().WithOne().HasForeignKey<ExpertProfile>(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Wallet>().HasOne<ApplicationUser>().WithOne().HasForeignKey<Wallet>(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
-        modelBuilder.Entity<JobPost>().HasOne(x => x.Client).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<JobPost>().HasOne(x => x.ClientUser).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Conversation>().HasOne(x => x.Client).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Conversation>().HasOne(x => x.Expert).WithMany().HasForeignKey(x => x.ExpertId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Project>().HasOne(x => x.Client).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.NoAction);

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Helpers;
 
 namespace AITasker_Modular.Modules.ChatModule;
 
@@ -7,15 +9,21 @@ namespace AITasker_Modular.Modules.ChatModule;
 public class ChatController : ControllerBase
 {
     private readonly IChatService _service;
+    private readonly IUserService _userService;
 
-    public ChatController(IChatService service)
+    public ChatController(IChatService service, IUserService userService)
     {
         _service = service;
+        _userService = userService;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get()
     {
+        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
         return Ok(await _service.GetConversationsAsync());
     }
 
