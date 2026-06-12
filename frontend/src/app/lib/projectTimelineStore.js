@@ -163,7 +163,8 @@ export async function getProjectTimeline(projectId) {
 export async function submitTask(taskId, data) {
   try {
     await api.tasks.submit(taskId, data);
-    return getProjectTimeline();
+    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
+    return null;
   } catch {
     // Backend unavailable — return null
     // TODO: Connect to real API — api.tasks.submit(taskId, data)
@@ -182,7 +183,8 @@ export async function approveSubmission(submissionId, data) {
       status: "approved",
       feedback: data?.feedback || "",
     });
-    return getProjectTimeline();
+    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
+    return null;
   } catch {
     // Backend unavailable — return null
     // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
@@ -201,7 +203,8 @@ export async function requestRevision(submissionId, data) {
       status: "needs_revision",
       feedback: data?.feedback || "",
     });
-    return getProjectTimeline();
+    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
+    return null;
   } catch {
     // Backend unavailable — return null
     // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
@@ -274,10 +277,10 @@ export async function resolveExtension(projectId, extensionId, data) {
  */
 export async function updateTask(taskId, updates) {
   try {
-    // TODO: Replace with api.tasks.update(taskId, updates)
-    return getProjectTimeline();
+    return await api.tasks.update(taskId, updates);
   } catch {
     // Backend unavailable — return null
+    // TODO: Connect to real API — api.tasks.update(taskId, updates)
     return null;
   }
 }
@@ -289,10 +292,10 @@ export async function updateTask(taskId, updates) {
  */
 export async function updateMiniTask(taskId, miniTaskId, updates) {
   try {
-    // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, updates)
-    return getProjectTimeline();
+    return await api.tasks.updateMiniTask(taskId, miniTaskId, updates);
   } catch {
     // Backend unavailable — return null
+    // TODO: Connect to real API — api.tasks.updateMiniTask(taskId, miniTaskId, updates)
     return null;
   }
 }
@@ -304,10 +307,10 @@ export async function updateMiniTask(taskId, miniTaskId, updates) {
  */
 export async function addTaskLog(taskId, log) {
   try {
-    // TODO: Replace with api.tasks.addLog(taskId, log)
-    return getProjectTimeline();
+    return await api.tasks.addLog(taskId, log);
   } catch {
     // Backend unavailable — return null
+    // TODO: Connect to real API — api.tasks.addLog(taskId, log)
     return null;
   }
 }
@@ -319,10 +322,10 @@ export async function addTaskLog(taskId, log) {
  */
 export async function addTaskFeedback(taskId, feedback) {
   try {
-    // TODO: Replace with api.tasks.addFeedback(taskId, feedback)
-    return getProjectTimeline();
+    return await api.tasks.addFeedback(taskId, feedback);
   } catch {
     // Backend unavailable — return null
+    // TODO: Connect to real API — api.tasks.addFeedback(taskId, feedback)
     return null;
   }
 }

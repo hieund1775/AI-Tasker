@@ -59,24 +59,34 @@ export function Billing() {
   const [feedback, setFeedback] = useState(null);
 
   useEffect(() => {
+    if (!user?.id) return;
     let cancelled = false;
 
     async function fetchData() {
       try {
-        const [wallet, transactions] = await Promise.all([
-          api.payments.getWallet().catch(() => null),
-          api.payments.getTransactions().catch(() => null),
+        const [wallet, transactions, clientProjects] = await Promise.all([
+          api.payments.getWallet(user.id).catch(() => null),
+          api.payments.getTransactions().catch(() => []),
+          api.projects.getByClient(user.id).catch(() => []),
         ]);
 
         if (!cancelled) {
-          // TODO: Connect real API endpoints for wallet + billing
+          const activeProjects = Array.isArray(clientProjects)
+            ? clientProjects.map((p) => ({
+                id: p.id,
+                title: p.jobPost?.title || "Active Project",
+                escrowAmount: p.escrowBalance || 0,
+              }))
+            : [];
+
           setData({
             wallet: wallet || { balance: 0, escrowBalance: 0 },
-            transactions: transactions || [],
-            activeProjects: [],
+            transactions: Array.isArray(transactions) ? transactions : [],
+            activeProjects,
           });
         }
-      } catch {
+      } catch (err) {
+        console.error("Failed to load billing data:", err);
         if (!cancelled) {
           setData({
             wallet: { balance: 0, escrowBalance: 0 },
@@ -90,10 +100,8 @@ export function Billing() {
     }
 
     fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const handleDeposit = async (e) => {
     e.preventDefault();
@@ -106,10 +114,7 @@ export function Billing() {
         projectId: selectedProject,
         amount: Number(depositAmount),
       });
-      setFeedback({
-        type: "success",
-        message: "Funds deposited to escrow successfully.",
-      });
+      setFeedback({ type: "success", message: "Funds deposited to escrow successfully." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
@@ -144,10 +149,7 @@ export function Billing() {
           ...prev.transactions,
         ],
       }));
-      setFeedback({
-        type: "success",
-        message: "Funds deposited to escrow (demo mode).",
-      });
+      setFeedback({ type: "success", message: "Funds deposited to escrow (demo mode)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
@@ -180,15 +182,9 @@ export function Billing() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/dashboard" className="mb-4">
-        Back to Dashboard
-      </BackButton>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        Billing &amp; Payments
-      </h1>
-      <p className="text-gray-600 mb-8">
-        Manage your wallet, escrow payments, and transaction history.
-      </p>
+      <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
+      <h1 className="text-2xl font-bold text-gray-900 mb-2">Billing &amp; Payments</h1>
+      <p className="text-gray-600 mb-8">Manage your wallet, escrow payments, and transaction history.</p>
 
       {/* Feedback banner */}
       {feedback && (
@@ -238,16 +234,11 @@ export function Billing() {
       {data?.activeProjects?.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
           <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Active Projects
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-900">Active Projects</h2>
           </div>
           <div className="divide-y">
             {data.activeProjects.map((proj) => (
-              <div
-                key={proj.id}
-                className="p-6 flex items-center justify-between"
-              >
+              <div key={proj.id} className="p-6 flex items-center justify-between">
                 <div>
                   <p className="font-medium text-gray-900">{proj.title}</p>
                   <p className="text-sm text-gray-500">
@@ -271,9 +262,7 @@ export function Billing() {
       {/* Deposit to escrow */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Deposit to Escrow
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Deposit to Escrow</h2>
           <button
             type="button"
             onClick={() => setShowDepositForm(!showDepositForm)}
@@ -287,9 +276,7 @@ export function Billing() {
           <div className="p-6">
             <form onSubmit={handleDeposit} className="space-y-4 max-w-md">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Project</label>
                 <select
                   value={selectedProject}
                   onChange={(e) => setSelectedProject(e.target.value)}
@@ -298,26 +285,18 @@ export function Billing() {
                 >
                   <option value="">Select a project</option>
                   {(data?.activeProjects || []).map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title}
-                    </option>
+                    <option key={p.id} value={p.id}>{p.title}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Amount (USD)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Amount (USD)</label>
                 <input
                   type="number"
                   min="1"
                   step="1"
                   value={depositAmount || ""}
-                  onChange={(e) =>
-                    setDepositAmount(
-                      e.target.value === "" ? 0 : Number(e.target.value),
-                    )
-                  }
+                  onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
                   placeholder="500"
                   required
@@ -326,12 +305,7 @@ export function Billing() {
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  disabled={
-                    submitting ||
-                    !depositAmount ||
-                    depositAmount <= 0 ||
-                    !selectedProject
-                  }
+                  disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
                   className="px-5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                 >
                   {submitting ? "Processing..." : "Deposit to Escrow"}
@@ -352,9 +326,7 @@ export function Billing() {
       {/* Transaction history */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
         <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Transaction History
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
         </div>
 
         {!data?.transactions?.length ? (
@@ -367,21 +339,11 @@ export function Billing() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    Type
-                  </th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    Description
-                  </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    Amount
-                  </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
-                    Date
-                  </th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -392,21 +354,15 @@ export function Billing() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Icon className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-700">
-                            {typeLabels[tx.type] || tx.type}
-                          </span>
+                          <span className="text-sm text-gray-700">{typeLabels[tx.type] || tx.type}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {tx.description}
-                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{tx.description}</td>
                       <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
                         <MoneyDisplay amount={tx.amount} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-gray-100 text-gray-700"}`}
-                        >
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-gray-100 text-gray-700"}`}>
                           {tx.status}
                         </span>
                       </td>

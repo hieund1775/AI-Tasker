@@ -1,13 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
-import {
-  Search,
-  Star,
-  MapPin,
-  ArrowRight,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { Search, Star, MapPin, ArrowRight, SlidersHorizontal, X } from "lucide-react";
+import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Checkbox group — reusable inner component
@@ -39,9 +33,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
                 {opt.label}
               </span>
               {opt.count != null && (
-                <span className="text-xs text-gray-400 ml-auto">
-                  {opt.count}
-                </span>
+                <span className="text-xs text-gray-400 ml-auto">{opt.count}</span>
               )}
             </label>
           );
@@ -65,10 +57,35 @@ export function ExpertList() {
   const [selectedRatings, setSelectedRatings] = useState(new Set());
   const [selectedExperience, setSelectedExperience] = useState(new Set());
 
-  // ---- Expert data (loaded from API when backend is connected) -----------
-  // TODO: Replace with API call — api.experts.list()
-  const experts = useMemo(() => {
-    return [];
+  const [experts, setExperts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadExperts() {
+      try {
+        setLoading(true);
+        const res = await api.experts.list();
+        // Filter out experts with a completed profile
+        const expertsOnly = (res || [])
+          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
+          .map((u) => ({
+            id: u.id,
+            name: u.fullName,
+            specialization: u.expertProfile.major || "AI Specialist",
+            location: u.expertProfile.location || "N/A",
+            rating: 4.8,
+            completedProjects: 5,
+            skills: u.expertProfile.skills || ["Python", "Semantic Kernel"],
+            avatar: null,
+          }));
+        setExperts(expertsOnly);
+      } catch (err) {
+        console.error("Failed to load experts list:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadExperts();
   }, []);
 
   // ---- Filter options derived from expert data -----------------------------
@@ -182,12 +199,8 @@ export function ExpertList() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          Find AI Experts
-        </h1>
-        <p className="text-gray-600">
-          Browse and connect with skilled AI professionals
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Find AI Experts</h1>
+        <p className="text-gray-600">Browse and connect with skilled AI professionals</p>
       </div>
 
       {/* Search + Filter toggle */}
@@ -223,47 +236,27 @@ export function ExpertList() {
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
           {[...selectedDomains].map((v) => (
-            <span
-              key={v}
-              className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1"
-            >
+            <span key={v} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
-              <button onClick={() => toggleFilter(setSelectedDomains)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedDomains)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedTech].map((v) => (
-            <span
-              key={v}
-              className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium inline-flex items-center gap-1"
-            >
+            <span key={v} className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
-              <button onClick={() => toggleFilter(setSelectedTech)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedTech)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedRatings].map((v) => (
-            <span
-              key={v}
-              className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium inline-flex items-center gap-1"
-            >
+            <span key={v} className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
               ★ {v}+
-              <button onClick={() => toggleFilter(setSelectedRatings)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedRatings)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedExperience].map((v) => (
-            <span
-              key={v}
-              className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium inline-flex items-center gap-1"
-            >
+            <span key={v} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}+ projects
-              <button onClick={() => toggleFilter(setSelectedExperience)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedExperience)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           <button
@@ -321,9 +314,7 @@ export function ExpertList() {
       {filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
-            No experts found
-          </h3>
+          <h3 className="text-lg font-semibold text-gray-500 mb-2">No experts found</h3>
           <p className="text-sm text-gray-400">
             {searchTerm || hasActiveFilters
               ? "Try adjusting your search or filters."
@@ -352,9 +343,7 @@ export function ExpertList() {
                   <h3 className="font-semibold text-gray-900 truncate">
                     {expert.name}
                   </h3>
-                  <p className="text-sm text-gray-600">
-                    {expert.specialization}
-                  </p>
+                  <p className="text-sm text-gray-600">{expert.specialization}</p>
                   <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5" />

@@ -2,14 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-
-// ---------------------------------------------------------------------------
-// Resolve client user from auth
-// ---------------------------------------------------------------------------
-function resolveClient(userFromAuth) {
-  // TODO: Replace with API call — api.users.getProfile()
-  return userFromAuth || null;
-}
+import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -33,48 +26,78 @@ export function EditClientProfile() {
 
   // ---- Load profile from API on mount ----
   useEffect(() => {
-    // TODO: Replace with API call — api.users.getProfile()
-    const client = resolveClient(authUser);
-    if (!client) {
-      setLoading(false);
-      return;
-    }
+    if (!authUser?.id) return;
+    setLoading(true);
+    api.users.getById(authUser.id)
+      .then((client) => {
+        if (client) {
+          setClientId(client.id);
+          let profile = {};
+          try {
+            profile = JSON.parse(client.status);
+          } catch (e) {
+            profile = {
+              bio: client.status || "",
+            };
+          }
 
-    setClientId(client.id || null);
-    setFormData({
-      companyName: client.profile?.company || "",
-      fullName: client.fullName || client.name || "",
-      email: client.email || "",
-      phone: client.profile?.phone || "",
-      location: client.profile?.location || "",
-      website: client.profile?.website || "",
-      industry: client.profile?.industry || "",
-      bio: client.profile?.bio || "",
-    });
-    setLoading(false);
+          setFormData({
+            companyName: profile.companyName || "",
+            fullName: client.fullName || client.name || "",
+            email: client.email || "",
+            phone: profile.phone || "",
+            location: profile.location || "",
+            website: profile.website || "",
+            industry: profile.industry || "",
+            bio: profile.bio || "",
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load client details for editing:", err);
+      })
+      .finally(() => setLoading(false));
   }, [authUser]);
 
   const handleChange = (key, value) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const client = resolveClient(authUser);
-    if (!client) return;
+    if (!authUser?.id) return;
+    setLoading(true);
 
-    // Mutate the mock DB object in-place so ClientProfile sees updates
-    client.fullName = formData.fullName.trim() || client.fullName;
-    client.email = formData.email.trim() || client.email;
-    if (!client.profile) client.profile = {};
-    client.profile.company = formData.companyName.trim();
-    client.profile.phone = formData.phone.trim();
-    client.profile.location = formData.location.trim();
-    client.profile.website = formData.website.trim();
-    client.profile.industry = formData.industry.trim();
-    client.profile.bio = formData.bio.trim();
+    try {
+      const statusPayload = {
+        companyName: formData.companyName.trim(),
+        phone: formData.phone.trim(),
+        location: formData.location.trim(),
+        website: formData.website.trim(),
+        industry: formData.industry.trim(),
+        bio: formData.bio.trim(),
+      };
 
-    navigate("/client/profile");
+      await api.users.update(authUser.id, {
+        fullName: formData.fullName.trim(),
+        status: JSON.stringify(statusPayload),
+      });
+
+      // Update stored user details locally too
+      const storedUser = localStorage.getItem("aitasker_user_info");
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        u.name = formData.fullName.trim();
+        localStorage.setItem("aitasker_user_info", JSON.stringify(u));
+      }
+
+      navigate("/client/profile");
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+      alert(err.message || "Failed to update profile. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ---- Loading ----
@@ -97,10 +120,7 @@ export function EditClientProfile() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center gap-4 mb-6">
-        <Link
-          to="/client/profile"
-          className="text-gray-600 hover:text-gray-900"
-        >
+        <Link to="/client/profile" className="text-gray-600 hover:text-gray-900">
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">Edit Profile</h1>

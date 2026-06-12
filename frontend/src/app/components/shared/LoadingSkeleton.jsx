@@ -96,7 +96,11 @@ const RENDERERS = {
   detail: DetailSkeleton,
 };
 
-export function LoadingSkeleton({ variant = "card", count, className = "" }) {
+export function LoadingSkeleton({
+  variant = "card",
+  count,
+  className = "",
+}) {
   const Renderer = RENDERERS[variant] || RENDERERS.card;
   const itemCount = count ?? DEFAULT_COUNTS[variant] ?? 1;
 

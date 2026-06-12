@@ -80,9 +80,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       if (!cancelled) setLoading(false);
     });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [resolvedId]);
 
   // Derive back-link destination from viewer role
@@ -175,15 +173,14 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             {/* Name & meta */}
             <div className="flex-1 min-w-0">
               <h1 className="text-2xl font-bold">{expert.name}</h1>
-              <p className="text-blue-100">
-                {expert.title || expert.specialization}
-              </p>
+              <p className="text-blue-100">{expert.title || expert.specialization}</p>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-blue-100">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-4 h-4" /> {expert.location}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />{" "}
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  {" "}
                   {expert.rating} ({expert.reviews} reviews)
                 </span>
                 <span className="flex items-center gap-1">
@@ -302,9 +299,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                     </div>
                     <p className="text-sm text-gray-600">{review.comment}</p>
                     {review.date && (
-                      <p className="text-xs text-gray-400 mt-1">
-                        {review.date}
-                      </p>
+                      <p className="text-xs text-gray-400 mt-1">{review.date}</p>
                     )}
                   </div>
                 ))}

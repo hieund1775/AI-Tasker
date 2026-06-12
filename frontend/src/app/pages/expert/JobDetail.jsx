@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   DollarSign,
@@ -148,7 +148,7 @@ export function JobDetail() {
                   <span className="text-xs text-red-500 font-medium">
                     {/* SỬA: CHUYỂN TỚI EDIT-PROFILE */}
                     Vui lòng{" "}
-                    <Link to="/expert/profile/edit" className="underline">
+                    <Link to="/expert/edit-profile" className="underline">
                       hoàn thiện Profile
                     </Link>{" "}
                     để ứng tuyển.

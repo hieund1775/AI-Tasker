@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router"; // (Lưu ý: react-router-dom nếu bạn dùng bản 6)
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js"; // Lấy hook Auth
+import api from "../../../services/api.js";
 
 export function EditExpertProfile() {
   const navigate = useNavigate();
@@ -26,6 +27,43 @@ export function EditExpertProfile() {
 
   const [skills, setSkills] = useState([]);
 
+  useEffect(() => {
+    if (!user?.id) return;
+    if (user?.hasProfile === false) {
+      setFormData((prev) => ({
+        ...prev,
+        name: user.name || "",
+        email: user.email || "",
+      }));
+      return;
+    }
+
+    setLoading(true);
+    api.users.getById(user.id)
+      .then((res) => {
+        if (res) {
+          setFormData({
+            name: res.fullName || "",
+            email: res.email || "",
+            phone: res.status || "",
+            jobTitle: res.expertProfile?.jobTitle || "",
+            major: res.expertProfile?.major || "",
+            location: res.expertProfile?.location || "",
+            portfolioUrls: res.expertProfile?.portfolioUrls || "",
+            bio: res.expertProfile?.bio || "",
+            hourlyRate: "",
+          });
+          if (res.expertProfile?.major) {
+            setSkills([res.expertProfile.major]);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load expert profile details:", err);
+      })
+      .finally(() => setLoading(false));
+  }, [user]);
+
   const removeSkill = (skill) => {
     setSkills(skills.filter((s) => s !== skill));
   };
@@ -36,29 +74,28 @@ export function EditExpertProfile() {
     setLoading(true);
 
     try {
-      // 1. CHƯA CÓ PROFILE -> Gọi API Complete Profile (Tạo mới)
-      if (user?.hasProfile === false) {
-        // Nhào nặn đúng 5 trường backend cần
-        const apiPayload = {
-          jobTitle: formData.jobTitle || "Chưa cập nhật",
-          major: formData.major || "Chưa cập nhật",
-          bio: formData.bio || "Chưa có giới thiệu",
-          portfolioUrls: formData.portfolioUrls || "",
-          location: formData.location || "Chưa cập nhật",
-        };
+      const apiPayload = {
+        jobTitle: formData.jobTitle || "Chưa cập nhật",
+        major: formData.major || "Chưa cập nhật",
+        bio: formData.bio || "Chưa có giới thiệu",
+        portfolioUrls: formData.portfolioUrls || "",
+        location: formData.location || "Chưa cập nhật",
+      };
 
-        await completeExpertProfile(apiPayload);
+      await Promise.all([
+        api.users.update(user.id, { fullName: formData.name.trim() }),
+        completeExpertProfile(apiPayload),
+      ]);
 
-        alert("Khởi tạo Profile thành công! Chào mừng đến Dashboard.");
-        navigate("/expert/dashboard", { replace: true });
+      const storedUser = localStorage.getItem("aitasker_user_info");
+      if (storedUser) {
+        const u = JSON.parse(storedUser);
+        u.name = formData.name.trim();
+        localStorage.setItem("aitasker_user_info", JSON.stringify(u));
       }
-      // 2. ĐÃ CÓ PROFILE -> Gọi API Cập nhật (Update)
-      else {
-        // TODO: Chỗ này sau này bạn thay bằng api.experts.updateProfile(formData)
-        console.log("Dữ liệu cập nhật:", formData);
-        alert("Cập nhật Profile thành công!");
-        navigate("/expert/profile");
-      }
+
+      alert("Hồ sơ đã được lưu thành công!");
+      navigate("/expert/dashboard", { replace: true });
     } catch (err) {
       setError(err.message || "Có lỗi xảy ra khi lưu. Vui lòng thử lại!");
     } finally {

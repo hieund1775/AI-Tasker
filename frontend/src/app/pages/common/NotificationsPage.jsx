@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Bell,
@@ -11,8 +11,6 @@ import {
   Clock,
 } from "lucide-react";
 
-// TODO: Replace with API call when backend is ready
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 import { timeAgo } from "../../lib/dateUtils.js";
 
 // ---------------------------------------------------------------------------
@@ -52,8 +50,7 @@ export function NotificationsPage() {
     let cancelled = false;
 
     async function fetchNotifications() {
-      // TODO: Replace with API call when backend is ready
-      const data = [];
+            const data = [];
       if (!cancelled && Array.isArray(data)) {
         setNotifications(data);
       }
@@ -71,15 +68,13 @@ export function NotificationsPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
     );
-    // TODO: Replace with API call when backend is ready
-  };
+      };
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setActionFeedback("All notifications marked as read.");
     setTimeout(() => setActionFeedback(null), 3000);
-    // TODO: Replace with API call when backend is ready
-  };
+      };
 
   if (loading) {
     return (

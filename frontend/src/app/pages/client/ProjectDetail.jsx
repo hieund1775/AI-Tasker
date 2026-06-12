@@ -1,142 +1,375 @@
-import { useState, useEffect } from "react";
+// =============================================================================
+// ClientProjectDetail — Project detail page for Client role.
+//
+// Features:
+//   - View project details
+//   - "Pay Project" button — pay full amount into escrow
+//   - "Complete & Accept" button — accept work, release payment to Expert
+//   - Dispute banner when project is Disputed
+//   - Read-only mode when project is Disputed
+// =============================================================================
+
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router";
-import {
-  ArrowLeft,
-  FileText,
-  DollarSign,
-  Calendar,
-  User,
-  Briefcase,
-} from "lucide-react";
+import { Clock, DollarSign, User, ShieldCheck, CheckCircle, AlertTriangle } from "lucide-react";
+import { ProjectTimelineManager } from "../../components/project/ProjectTimelineManager.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
-import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
-import api from "../../../services/api.js";
+import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
+import { DisputeBanner } from "../../components/shared/DisputeBanner.jsx";
+import { toast } from "sonner";
+import { payProjectToEscrow, releaseProjectMoneyToExpert } from "../../../services/escrowService.js";
+import { deriveProjectDisplayStatus } from "../../lib/projectTimelineStore.js";
+import { api } from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
-function getStatusConfig(status) {
-  return (
-    getProposalStatusConfig(status) || {
-      label: status,
-      icon: FileText,
-      className: "bg-gray-100 text-gray-700",
-    }
-  );
-}
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
-function DetailSection({ title, children, className = "" }) {
-  return (
-    <div
-      className={`border-b border-gray-100 last:border-b-0 py-6 first:pt-0 ${className}`}
-    >
-      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-export function ProposalDetail() {
+export function ProjectDetail() {
   const { id } = useParams();
-  const [proposal, setProposal] = useState(null);
+  const { user } = useAuth();
+
+  // Project data — loaded from API
+  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Escrow & payment state
+  const [escrowPaid, setEscrowPaid] = useState(false);
+  const [paymentReleased, setPaymentReleased] = useState(false);
+
+  // Modal & loading state
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Load project by id
   useEffect(() => {
-    async function fetchProposalDetail() {
+    if (!user?.id || !id) return;
+    let cancelled = false;
+
+    async function loadProject() {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await api.proposals.getById(id);
-        setProposal(data);
+        const list = await api.projects.getByClient(user.id);
+        const data = Array.isArray(list) ? list.find((p) => p.id === id) : null;
+        if (!cancelled) {
+          if (data) {
+            setProject(data);
+            // Derive escrow/payment state from project data
+            setEscrowPaid(data.escrowPaid || data.escrowStatus === "paid" || false);
+            setPaymentReleased(data.paymentReleased || data.status === "completed" || false);
+          } else {
+            setError("not_found");
+          }
+        }
       } catch (err) {
-        setError("Không thể tải chi tiết báo giá.");
+        console.error("Failed to load project details:", err);
+        if (!cancelled) {
+          setError("load_failed");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
-    if (id) fetchProposalDetail();
-  }, [id]);
 
-  if (loading)
-    return <div className="p-8 text-center text-gray-500">Đang tải...</div>;
-  if (error || !proposal)
+    loadProject();
+    return () => { cancelled = true; };
+  }, [id, user?.id]);
+
+  // Derived display status
+  const displayStatus = project
+    ? deriveProjectDisplayStatus(project, { proposalCount: 0 })
+    : null;
+
+  const isDisputed = project?.status?.toLowerCase() === "disputed";
+
+  // -----------------------------------------------------------------------
+  // 1. Pay project to escrow
+  // -----------------------------------------------------------------------
+  const handlePayToEscrow = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      await payProjectToEscrow({
+        projectId: id,
+        amount: project?.budget || 0,
+      });
+      setEscrowPaid(true);
+      setShowPayModal(false);
+      toast.success(
+        "Your project funds have been transferred to the platform's secure intermediary system.",
+      );
+    } catch (err) {
+      toast.error(err.message || "Payment error. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, project?.budget]);
+
+  // -----------------------------------------------------------------------
+  // 2. Accept work & release payment to Expert
+  // -----------------------------------------------------------------------
+  const handleAcceptAndRelease = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      await releaseProjectMoneyToExpert({
+        projectId: id,
+        amount: project?.budget || 0,
+        expertId: project?.assignedExpertId || project?.expertId,
+      });
+      setPaymentReleased(true);
+      setShowAcceptModal(false);
+      toast.success(
+        "Payment has been released to the Expert. Project is now complete.",
+      );
+    } catch (err) {
+      toast.error(err.message || "Acceptance error. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, project?.budget, project?.assignedExpertId, project?.expertId]);
+
+  // -----------------------------------------------------------------------
+  // Render: loading
+  // -----------------------------------------------------------------------
+  if (loading) {
     return (
-      <div className="p-8 text-center text-red-500">
-        {error || "Không tìm thấy"}
-      </div>
-    );
-
-  const statusCfg = getStatusConfig(proposal.status || "pending");
-  const StatusIcon = statusCfg.icon;
-
-  // SỬA: Đặt tên biến khớp với JSX bên dưới là projectInfo và clientInfo
-  const projectInfo = proposal.project || {};
-  const clientInfo = proposal.client || {};
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/expert/proposals" className="mb-6">
-        Back to My Proposals
-      </BackButton>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-3">
-                <FileText className="w-4 h-4" /> Proposal Details
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {proposal.proposalTitle || projectInfo.title || "Proposal"}
-              </h1>
-
-              {/* SỬA: Dùng projectInfo và clientInfo */}
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 text-sm text-gray-500">
-                {projectInfo.title && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Briefcase className="w-4 h-4 text-gray-400" />
-                    Project:{" "}
-                    <span className="font-medium text-gray-700">
-                      {projectInfo.title}
-                    </span>
-                  </span>
-                )}
-                {clientInfo.name && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-gray-400" />
-                    Client:{" "}
-                    <span className="font-medium text-gray-700">
-                      {clientInfo.name}
-                    </span>
-                  </span>
-                )}
-                {projectInfo.budget != null && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-gray-400" />
-                    Budget: <MoneyDisplay amount={projectInfo.budget} />
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <div className="text-right flex-shrink-0">
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${statusCfg.className}`}
-              >
-                <StatusIcon className="w-4 h-4" /> {statusCfg.label}
-              </span>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton fallback="/client/dashboard" className="mb-6">
+          Back
+        </BackButton>
+        <div className="bg-white rounded-xl border border-gray-200 p-12 shadow-sm">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-64" />
+            <div className="h-4 bg-gray-200 rounded w-full" />
+            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="flex gap-4">
+              <div className="h-6 bg-gray-200 rounded w-32" />
+              <div className="h-6 bg-gray-200 rounded w-32" />
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="p-8">
-          <DetailSection title="Professional Introduction">
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {proposal.professionalIntro || "No introduction provided."}
-            </p>
-          </DetailSection>
-          {/* ... các DetailSection còn lại giữ nguyên ... */}
+  // -----------------------------------------------------------------------
+  // Render: error (load failed)
+  // -----------------------------------------------------------------------
+  if (error === "load_failed") {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton fallback="/client/dashboard" className="mb-6">
+          Back
+        </BackButton>
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-500">
+            Unable to Load Project
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">
+            An error occurred while loading project details. Please try again later.
+          </p>
         </div>
       </div>
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Render: project not found
+  // -----------------------------------------------------------------------
+  if (error === "not_found" || !project) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton fallback="/client/dashboard" className="mb-6">
+          Back
+        </BackButton>
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-500">
+            Project Not Found
+          </h3>
+          <p className="text-sm text-gray-400 mt-1">
+            The project you are looking for may have been removed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Determine button states
+  // -----------------------------------------------------------------------
+  const canPayToEscrow = !escrowPaid && !isDisputed && !paymentReleased;
+  const canAcceptWork =
+    escrowPaid && !paymentReleased && !isDisputed && project?.assignedExpertId;
+
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <BackButton fallback="/client/dashboard" className="mb-6">
+        Back
+      </BackButton>
+
+      {/* ---- Dispute banner ---- */}
+      {isDisputed && <DisputeBanner className="mb-6" />}
+
+      {/* ---- Project header ---- */}
+      <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+          {project.title}
+        </h1>
+        <p className="text-gray-600 mb-4">{project.description}</p>
+        <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
+          <span className="flex items-center gap-1">
+            <DollarSign className="w-4 h-4" />
+            Budget: <MoneyDisplay amount={project.budget} />
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            Status: {displayStatus}
+          </span>
+          {project.assignedExpertId && (
+            <span className="flex items-center gap-1">
+              <User className="w-4 h-4" />
+              Expert Assigned
+            </span>
+          )}
+        </div>
+
+        {/* ---- Escrow status indicator ---- */}
+        {escrowPaid && !paymentReleased && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <div>
+              <p className="text-sm font-medium text-blue-700">
+                Funds Held / Project Active
+              </p>
+              <p className="text-xs text-blue-600">
+                <MoneyDisplay amount={project.budget} /> is securely held in the intermediary system.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {paymentReleased && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-700">
+                Paid to Expert
+              </p>
+              <p className="text-xs text-green-600">
+                Project is complete and payment has been released.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Action buttons ---- */}
+        <div className="flex flex-wrap gap-3">
+          {/* Pay to escrow button */}
+          {canPayToEscrow && (
+            <button
+              type="button"
+              onClick={() => setShowPayModal(true)}
+              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Pay Project
+            </button>
+          )}
+
+          {/* Already paid — disabled state */}
+          {escrowPaid && !paymentReleased && !isDisputed && (
+            <button
+              type="button"
+              disabled
+              className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Funds Held / Project Active
+            </button>
+          )}
+
+          {/* Accept work & release payment button */}
+          {canAcceptWork && (
+            <button
+              type="button"
+              onClick={() => setShowAcceptModal(true)}
+              className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Complete & Accept
+            </button>
+          )}
+
+          {/* Already released */}
+          {paymentReleased && (
+            <button
+              type="button"
+              disabled
+              className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed"
+            >
+              <CheckCircle className="w-4 h-4" />
+              Completed
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Timeline (hidden when disputed) ---- */}
+      {isDisputed ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">
+            Project actions are temporarily locked during dispute resolution.
+          </p>
+        </div>
+      ) : (
+        <ProjectTimelineManager role="client" projectId={id} />
+      )}
+
+      {/* ================================================================== */}
+      {/* PAYMENT CONFIRMATION MODAL                                          */}
+      {/* ================================================================== */}
+      <ConfirmationModal
+        open={showPayModal}
+        onOpenChange={setShowPayModal}
+        title="Pay Project"
+        description={
+          <span>
+            Are you sure you want to pay the full project amount of{" "}
+            <strong>
+              <MoneyDisplay amount={project?.budget || 0} />
+            </strong>{" "}
+            into the secure intermediary system?
+          </span>
+        }
+        confirmLabel="Confirm Payment"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={handlePayToEscrow}
+      />
+
+      {/* ================================================================== */}
+      {/* ACCEPTANCE CONFIRMATION MODAL                                       */}
+      {/* ================================================================== */}
+      <ConfirmationModal
+        open={showAcceptModal}
+        onOpenChange={setShowAcceptModal}
+        title="Complete & Accept"
+        description="Do you confirm that you are satisfied with the product and want to release payment to the Expert?"
+        confirmLabel="Confirm & Release Payment"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={handleAcceptAndRelease}
+      />
     </div>
   );
 }
+
+export default ProjectDetail;

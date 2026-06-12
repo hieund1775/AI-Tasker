@@ -47,7 +47,7 @@ export function TaskUpdatePage() {
   const project = task ? null : null;
   const assignedUser = task ? null : null;
 
-  // ---- Derived values (recomputed on every render) ----
+  // ---- Derived values (recomputed on every render from mock DB) ----
   const { completed: completedMiniTasks, total: totalMiniTasks, percent: progress } =
     deriveTaskProgress(task);
   const derivedStatus = deriveTaskStatus(task);
@@ -57,7 +57,7 @@ export function TaskUpdatePage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Controlled note inputs — seeded on first render
+  // Controlled note inputs — seeded from mock DB on first render
   const [miniTaskNotes, setMiniTaskNotes] = useState(() => {
     const notes = {};
     task?.miniTasks?.forEach((mt) => {
@@ -94,40 +94,34 @@ export function TaskUpdatePage() {
   const handleDone = useCallback(() => {
     if (!allMiniTasksDone || submitting) return;
     setSubmitting(true);
-    setTimeout(() => {
-      const updated = markTaskSubmitted(taskId);
-      if (updated) {
-        setSubmitted(true);
-        try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
-        setTimeout(() => navigate(-1), 800);
-      }
-      setSubmitting(false);
-    }, 400);
+    const updated = markTaskSubmitted(taskId);
+    if (updated) {
+      setSubmitted(true);
+      try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
+      navigate(-1);
+    }
+    setSubmitting(false);
   }, [taskId, allMiniTasksDone, submitting, navigate]);
 
   // ---- Client approve ----
   const handleClientApprove = useCallback(() => {
     setSubmitting(true);
-    setTimeout(() => {
-      approveTaskInMockDb(taskId);
-      setSubmitted(true);
-      try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
-      setTimeout(() => navigate(-1), 800);
-      setSubmitting(false);
-    }, 300);
+    approveTaskInMockDb(taskId);
+    setSubmitted(true);
+    try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
+    navigate(-1);
+    setSubmitting(false);
   }, [taskId, navigate]);
 
   // ---- Client request changes ----
   const handleClientRequestChanges = useCallback(() => {
     if (!feedbackText.trim()) return;
     setSubmitting(true);
-    setTimeout(() => {
-      requestTaskRevisionInMockDb(taskId, feedbackText.trim());
-      setSubmitted(true);
-      try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
-      setTimeout(() => navigate(-1), 800);
-      setSubmitting(false);
-    }, 300);
+    requestTaskRevisionInMockDb(taskId, feedbackText.trim());
+    setSubmitted(true);
+    try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
+    navigate(-1);
+    setSubmitting(false);
   }, [taskId, feedbackText, navigate]);
 
   // ---- Back button ----

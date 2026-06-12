@@ -18,7 +18,6 @@ import { MyProjectsList } from "./pages/client/MyProjectsPage.jsx";
 import { PublicExpertProfile } from "./components/shared/PublicExpertProfile.jsx";
 import { Billing } from "./pages/client/Billing.jsx";
 
-// Common Pages (shared across roles)
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
 import { JobList } from "./pages/expert/JobList.jsx";
@@ -37,6 +36,24 @@ import { AdminDisputes } from "./pages/admin/AdminDisputes.jsx";
 import { AdminRevenue } from "./pages/admin/AdminRevenue.jsx";
 import { AdminProfile } from "./pages/admin/AdminProfile.jsx";
 import { EditAdminProfile } from "./pages/admin/EditAdminProfile.jsx";
+import { AdminReportDetail } from "./pages/admin/AdminReportDetail.jsx";
+import { AdminProjects } from "./pages/admin/AdminProjects.jsx";
+import { AdminReviews } from "./pages/admin/AdminReviews.jsx";
+import { AdminJobPosts } from "./pages/admin/AdminJobPosts.jsx";
+import { AdminCategoryTags } from "./pages/admin/AdminCategoryTags.jsx";
+
+// Owner Pages
+import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
+import { CreateAdmin } from "./pages/owner/CreateAdmin.jsx";
+import { ManageAdmins } from "./pages/owner/ManageAdmins.jsx";
+import { OwnerProfile } from "./pages/owner/OwnerProfile.jsx";
+import { EditOwnerProfile } from "./pages/owner/EditOwnerProfile.jsx";
+import OwnerUsers from "./pages/owner/OwnerUsers.jsx";
+import OwnerProjects from "./pages/owner/OwnerProjects.jsx";
+import OwnerReports from "./pages/owner/OwnerReports.jsx";
+import OwnerReviews from "./pages/owner/OwnerReviews.jsx";
+import OwnerJobPosts from "./pages/owner/OwnerJobPosts.jsx";
+import OwnerCategoryTags from "./pages/owner/OwnerCategoryTags.jsx";
 
 // Common Pages (shared components)
 import { Messenger } from "./pages/common/Messenger.jsx";
@@ -71,15 +88,9 @@ export const router = createBrowserRouter([
               { path: "client/post-project", Component: PostProject },
               { path: "client/my-projects", Component: MyProjectsList },
               { path: "client/projects/:id", Component: ProjectDetail },
-              {
-                path: "client/projects/:projectId/proposals",
-                Component: ProposalReview,
-              },
+              { path: "client/projects/:projectId/proposals", Component: ProposalReview },
               { path: "client/experts", Component: ExpertList },
-              {
-                path: "client/experts/:id",
-                element: <PublicExpertProfile viewerRole="client" />,
-              },
+              { path: "client/experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
               { path: "client/profile", Component: ClientProfile },
               { path: "client/profile/edit", Component: EditClientProfile },
               { path: "client/billing", Component: Billing },
@@ -98,10 +109,7 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              {
-                path: "expert/profile",
-                element: <PublicExpertProfile viewerRole="expert" />,
-              },
+              { path: "expert/profile", element: <PublicExpertProfile viewerRole="expert" /> },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
             ],
@@ -114,18 +122,39 @@ export const router = createBrowserRouter([
               { path: "admin/dashboard", Component: AdminDashboard },
               { path: "admin/users", Component: AdminUsers },
               { path: "admin/disputes", Component: AdminDisputes },
+              { path: "admin/disputes/:id", Component: AdminReportDetail },
+              { path: "admin/projects", Component: AdminProjects },
+              { path: "admin/reviews", Component: AdminReviews },
+              { path: "admin/job-posts", Component: AdminJobPosts },
+              { path: "admin/category-tags", Component: AdminCategoryTags },
               { path: "admin/revenue", Component: AdminRevenue },
               { path: "admin/profile", Component: AdminProfile },
               { path: "admin/profile/edit", Component: EditAdminProfile },
             ],
           },
 
+          // ----- Owner routes (role=owner only) -----
+          {
+            element: <ProtectedRoute role="owner" />,
+            children: [
+              { path: "owner/dashboard", Component: OwnerDashboard },
+              { path: "owner/create-admin", Component: CreateAdmin },
+              { path: "owner/manage-admins", Component: ManageAdmins },
+              { path: "owner/profile", Component: OwnerProfile },
+              { path: "owner/profile/edit", Component: EditOwnerProfile },
+              // Owner-specific management pages (reuse Admin components)
+              { path: "owner/users", Component: OwnerUsers },
+              { path: "owner/projects", Component: OwnerProjects },
+              { path: "owner/reports", Component: OwnerReports },
+              { path: "owner/reviews", Component: OwnerReviews },
+              { path: "owner/job-posts", Component: OwnerJobPosts },
+              { path: "owner/category-tags", Component: OwnerCategoryTags },
+            ],
+          },
+
           // ----- Common routes (any authenticated role) -----
           { path: "notifications", Component: NotificationsPage },
-          {
-            path: "expert/profile/:id",
-            element: <PublicExpertProfile viewerRole="public" />,
-          },
+          { path: "expert/profile/:id", element: <PublicExpertProfile viewerRole="public" /> },
           { path: "messenger", Component: Messenger },
           { path: "messenger/:id", Component: Messenger },
           { path: "tasks/:taskId/update", Component: TaskUpdatePage },

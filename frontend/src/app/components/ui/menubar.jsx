@@ -1,6 +1,6 @@
 import * as MenubarPrimitive from "@radix-ui/react-menubar";
 import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 
 function Menubar({ className, ...props }) {
   return (
@@ -46,13 +46,7 @@ function MenubarTrigger({ className, ...props }) {
   );
 }
 
-function MenubarContent({
-  className,
-  align = "start",
-  alignOffset = -4,
-  sideOffset = 8,
-  ...props
-}) {
+function MenubarContent({ className, align = "start", alignOffset = -4, sideOffset = 8, ...props }) {
   return (
     <MenubarPortal>
       <MenubarPrimitive.Content

@@ -1,7 +1,7 @@
 import * as React from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 import { Button } from "./button.jsx";
 
 const CarouselContext = React.createContext(null);
@@ -145,12 +145,7 @@ function CarouselItem({ className, ...props }) {
   );
 }
 
-function CarouselPrevious({
-  className,
-  variant = "outline",
-  size = "icon",
-  ...props
-}) {
+function CarouselPrevious({ className, variant = "outline", size = "icon", ...props }) {
   const { orientation, scrollPrev, canScrollPrev } = useCarousel();
 
   return (
@@ -175,12 +170,7 @@ function CarouselPrevious({
   );
 }
 
-function CarouselNext({
-  className,
-  variant = "outline",
-  size = "icon",
-  ...props
-}) {
+function CarouselNext({ className, variant = "outline", size = "icon", ...props }) {
   const { orientation, scrollNext, canScrollNext } = useCarousel();
 
   return (

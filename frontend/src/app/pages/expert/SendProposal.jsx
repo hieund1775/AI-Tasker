@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import {
   Send,
   Paperclip,
@@ -11,38 +13,127 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
-import { useProposalForm } from "../../hooks/useProposalForm.js";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
- *
- * Form state, attachment handling, and submit logic are encapsulated in the
- * useProposalForm hook.  This component focuses on rendering.
  */
 export function SendProposal() {
-  const {
-    // URL param
-    projectId,
+  const { id: projectId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-    // Fetched data
-    project,
-    client,
+  // ---- Fetch project + client info ----
+  const [project, setProject] = useState(null);
+  const [client, setClient] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    // Form state
-    form,
-    updateField,
+  useEffect(() => {
+    if (!projectId) return;
+    setLoading(true);
+    api.jobPosts.getById(projectId)
+      .then(async (job) => {
+        setProject(job);
+        if (job.clientId) {
+          try {
+            const userDetail = await api.users.getById(job.clientId);
+            setClient(userDetail);
+          } catch (err) {
+            console.error("Failed to load client details:", err);
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load job post details:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [projectId]);
 
-    // Attachment state
-    attachments,
-    showAttachMenu,
-    setShowAttachMenu,
-    handleAddAttachment,
-    removeAttachment,
+  // ---- Form state ----
+  const [form, setForm] = useState({
+    proposalTitle: "",
+    professionalIntro: "",
+    technicalApproach: "",
+    timelineMilestones: "",
+    dependencies: "",
+    bidAmount: 0,
+    durationDays: 14,
+  });
 
-    // Submit
-    submitting,
-    handleSubmit,
-  } = useProposalForm();
+  const updateField = (field, value) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // ---- Mock attachments ----
+  const [attachments, setAttachments] = useState([]);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+
+  const handleAddAttachment = (type) => {
+    const demoFiles = {
+      image: { name: "portfolio-screenshot.png", type: "image/png", size: "245 KB" },
+      file: { name: "resume-cv.pdf", type: "application/pdf", size: "1.2 MB" },
+      folder: { name: "project-portfolio/", type: "folder", size: "3 files" },
+    };
+    const file = demoFiles[type];
+    if (file) {
+      setAttachments((prev) => [...prev, { ...file, id: Date.now() + Math.random() }]);
+    }
+    setShowAttachMenu(false);
+  };
+
+  const removeAttachment = (id) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  // ---- Submit ----
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!user?.id) return;
+    setSubmitting(true);
+
+    try {
+      const coverLetterObj = {
+        proposalTitle: form.proposalTitle.trim(),
+        professionalIntro: form.professionalIntro.trim(),
+        technicalApproach: form.technicalApproach.trim(),
+        timelineMilestones: form.timelineMilestones.trim(),
+        dependencies: form.dependencies.trim(),
+        durationDays: Number(form.durationDays) || 1,
+        attachments: [...attachments],
+      };
+
+      await api.proposals.create({
+        jobPostId: projectId,
+        expertId: user.id,
+        bidAmount: Number(form.bidAmount) || 0,
+        coverLetter: JSON.stringify(coverLetterObj),
+      });
+
+      setSubmitting(false);
+      navigate("/expert/proposals");
+    } catch (err) {
+      console.error("Failed to submit proposal:", err);
+      alert(err.message || "Failed to submit proposal. Please try again.");
+      setSubmitting(false);
+    }
+  };
+
+  // ---- Loading state ----
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <BackButton fallback="/expert/jobs" className="mb-6">Back</BackButton>
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-500 animate-pulse">Loading job post details...</h3>
+        </div>
+      </div>
+    );
+  }
 
   // ---- Project not found ----
   if (!project && projectId) {

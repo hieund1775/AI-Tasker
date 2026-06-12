@@ -46,8 +46,10 @@ function createDemoToken(payload) {
 }
 
 function demoRoleFromEmail(email) {
-  if (email.toLowerCase().includes("admin")) return "admin";
-  if (email.toLowerCase().includes("expert")) return "expert";
+  const lower = email.toLowerCase();
+  if (lower.includes("owner")) return "owner";
+  if (lower.includes("admin")) return "admin";
+  if (lower.includes("expert")) return "expert";
   return "client";
 }
 
@@ -146,16 +148,17 @@ export function AuthProvider({ children }) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return;
       }
+      const payload = decodeJwtPayload(storedToken);
+      if (!payload) {
+        localStorage.removeItem(TOKEN_STORAGE_KEY);
+        localStorage.removeItem(USER_STORAGE_KEY);
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+        return;
+      }
       let user = null;
       if (storedUser) {
         user = JSON.parse(storedUser);
       } else {
-        const payload = decodeJwtPayload(storedToken);
-        if (!payload) {
-          localStorage.removeItem(TOKEN_STORAGE_KEY);
-          dispatch({ type: AUTH_ACTIONS.LOGOUT });
-          return;
-        }
         user = {
           id: payload.sub,
           email: payload.email,
@@ -208,60 +211,75 @@ export function AuthProvider({ children }) {
     return finalUser;
   }, []);
 
+  // Resolved at module load time — constant for the session.
+  const USE_DEMO_AUTH = import.meta.env.VITE_USE_DEMO_AUTH === "true";
+
   const login = useCallback(
     async (email, password) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-      try {
-        const response = await apiLogin(email, password);
-        const normalizedRole = response.role
-          ? response.role.toLowerCase()
-          : "client";
-        let hasCompletedProfile = true;
 
-        if (normalizedRole === "expert") {
-          try {
-            await api.experts.checkProfile();
-            hasCompletedProfile = true;
-          } catch (err) {
-            hasCompletedProfile = false;
-          }
+      // -------------------------------------------------------------------
+      // DEMO AUTH MODE — skip backend API entirely, resolve immediately
+      // -------------------------------------------------------------------
+      if (USE_DEMO_AUTH) {
+        if (!email || !password) {
+          const msg = "Email and password are required.";
+          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: msg });
+          throw new Error(msg);
         }
-        const userObj = {
-          id: response.userId,
-          role: normalizedRole,
-          email: email,
-          name: email.split("@")[0],
-          hasProfile: hasCompletedProfile,
-        };
-        return handleAuthSuccess(response.token, userObj, false);
-      } catch (apiError) {
-        if (apiError.status && apiError.status !== 0) {
-          const message = apiError.data?.message || "Đăng nhập thất bại.";
-          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
-          throw apiError;
+        if (password.length < 3) {
+          const msg = "Password must be at least 3 characters.";
+          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: msg });
+          throw new Error(msg);
         }
-      }
-      try {
-        if (!email || !password)
-          throw new Error("Email and password are required.");
-        if (password.length < 3) throw new Error("Invalid email or password.");
         const role = demoRoleFromEmail(email);
         const token = createDemoToken({
           email,
           role,
           name: email.split("@")[0],
         });
-        return handleAuthSuccess(
-          token,
-          { role, email, name: email.split("@")[0], hasProfile: true },
-          true,
-        );
-      } catch (demoError) {
-        dispatch({
-          type: AUTH_ACTIONS.LOGIN_FAILURE,
-          payload: demoError.message,
-        });
-        throw demoError;
+        const userObj = {
+          role,
+          email,
+          name: email.split("@")[0],
+          hasProfile: true,
+        };
+        return handleAuthSuccess(token, userObj, true);
+      }
+
+      // -------------------------------------------------------------------
+      // REAL API MODE — call backend, no demo fallback
+      // -------------------------------------------------------------------
+      try {
+        const response = await apiLogin(email, password);
+        const roleFromResponse =
+          response.user?.role || response.role || "client";
+        const normalizedRole = roleFromResponse.toLowerCase();
+        let hasCompletedProfile = true;
+
+        if (normalizedRole === "expert") {
+          try {
+            const userDetails = await api.users.getById(response.user?.id || response.userId);
+            hasCompletedProfile = !!(userDetails && userDetails.expertProfile);
+          } catch (_err) {
+            hasCompletedProfile = false;
+          }
+        }
+        const userObj = {
+          id: response.user?.id || response.userId,
+          role: normalizedRole,
+          email: email,
+          name: response.user?.fullName || response.user?.name || email.split("@")[0],
+          hasProfile: hasCompletedProfile,
+        };
+        return handleAuthSuccess(response.token, userObj, false);
+      } catch (apiError) {
+        const message =
+          apiError.data?.message ||
+          apiError.message ||
+          "Login failed. Please check your credentials.";
+        dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
+        throw apiError;
       }
     },
     [handleAuthSuccess],
@@ -271,26 +289,10 @@ export function AuthProvider({ children }) {
     async ({ name, email, password, confirmPassword, role }) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       try {
-        const response = await apiRegister({ name, email, password, role });
-
-        // Expert: auto-login with hasProfile=false so they go straight to
-        // profile completion instead of login → edit-profile round-trip.
-        if (role === "expert" && response.token) {
-          const userObj = {
-            id: response.user?.id || `user-${Date.now()}`,
-            role: "expert",
-            email,
-            name,
-            hasProfile: false,
-          };
-          handleAuthSuccess(response.token, userObj, false);
-          return { success: true, role: "expert" };
-        }
-
-        // Client / Admin: current behaviour — go to login page
+        await apiRegister({ name, email, password, role });
         dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
-        return { success: true, role };
+        return true;
       } catch (apiError) {
         if (apiError.status && apiError.status !== 0) {
           const message = apiError.data?.message || "Đăng ký thất bại.";
@@ -304,14 +306,14 @@ export function AuthProvider({ children }) {
         throw apiError;
       }
     },
-    [handleAuthSuccess],
+    [],
   );
 
   // HÀM GỌI API COMPLETE PROFILE MỚI
   const completeExpertProfile = useCallback(
     async (profileData) => {
       try {
-        await api.auth.completeProfile(profileData);
+        await api.auth.completeProfile(state.user?.id, profileData);
         const updatedUser = { ...state.user, hasProfile: true };
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
         dispatch({

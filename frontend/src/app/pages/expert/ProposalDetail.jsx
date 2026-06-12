@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
-
-import { getSessionProposalById } from "../../lib/proposalStore.js";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // Status helpers — delegated to shared proposalStatusConfig.js
@@ -44,6 +44,7 @@ function DetailSection({ title, children, className = "" }) {
 
 export function ProposalDetail() {
   const { id } = useParams();
+  const { user } = useAuth();
 
   const [proposal, setProposal] = useState(null);
   const [project, setProject] = useState(null);
@@ -51,28 +52,55 @@ export function ProposalDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check session store first, then mock DB
-    let found = getSessionProposalById(id);
+    if (!user?.id || !id) return;
+    setLoading(true);
+    api.proposals.getByExpert(user.id)
+      .then(async (list) => {
+        const found = list.find((p) => p.id === id);
+        if (found) {
+          let parsedCoverLetter = {};
+          try {
+            parsedCoverLetter = JSON.parse(found.coverLetter);
+          } catch (e) {
+            parsedCoverLetter = {
+              coverLetter: found.coverLetter,
+              professionalIntro: found.coverLetter,
+            };
+          }
 
-    if (!found) {
-      // Search mock DB
-      const mockProposals = [];
-      found = mockProposals.find((p) => p.id === id) || null;
-    }
+          const enrichedProposal = {
+            ...found,
+            proposalTitle: parsedCoverLetter.proposalTitle || "Proposal",
+            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
+            technicalApproach: parsedCoverLetter.technicalApproach || "",
+            timelineMilestones: parsedCoverLetter.timelineMilestones || "",
+            dependencies: parsedCoverLetter.dependencies || "",
+            durationDays: parsedCoverLetter.durationDays || 0,
+            attachments: parsedCoverLetter.attachments || [],
+          };
+          setProposal(enrichedProposal);
 
-    if (found) {
-      setProposal(found);
-      // Enrich with project + client data
-      const proj = null;
-      if (proj) {
-        setProject(proj);
-        const cli = null;
-        if (cli) setClient(cli);
-      }
-    }
-
-    setLoading(false);
-  }, [id]);
+          if (found.jobPostId) {
+            try {
+              const job = await api.jobPosts.getById(found.jobPostId);
+              setProject(job);
+              if (job.clientId) {
+                const cli = await api.users.getById(job.clientId);
+                setClient(cli);
+              }
+            } catch (err) {
+              console.error("Failed to load project/client details:", err);
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load proposals:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [id, user?.id]);
 
   // ---- Find conversation for Contact button ----
   function getConversationId() {

@@ -1,12 +1,13 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Briefcase,
   TrendingUp,
   CheckCircle,
-  Clock,
   Search,
   Calendar,
   DollarSign,
+  Wallet,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
@@ -20,6 +21,8 @@ import {
   getExpertButtonConfig,
 } from "../../lib/projectTimelineStore.js";
 import { timeAgo } from "../../lib/dateUtils.js";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,29 +48,65 @@ const SKILL_VISIBLE_COUNT = {
 // ---------------------------------------------------------------------------
 
 export function ExpertDashboard() {
-  // TODO: Replace with API calls — api.projects.list(), api.proposals.list()
-  const allProjects = [];
-  const expertProposals = [];
-  const expert = null;
+  const { user } = useAuth();
 
-  // Active contracts: in_progress projects assigned to this expert
-  const activeContracts = [];
+  const [activeContracts, setActiveContracts] = useState([]);
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [expertProposals, setExpertProposals] = useState([]);
+  const [recommendedProjects, setRecommendedProjects] = useState([]);
+  const [expertDetails, setExpertDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Completed projects
-  const completedProjects = [];
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user?.id) return;
+      setLoading(true);
+      
+      // Load user details (projects, proposals)
+      try {
+        const userRes = await api.users.getById(user.id);
+        setExpertDetails(userRes);
+        
+        const allUserProjects = userRes.projects || [];
+        setActiveContracts(
+          allUserProjects.filter(
+            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress"
+          )
+        );
+        setCompletedProjects(
+          allUserProjects.filter(
+            (p) => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "complete"
+          )
+        );
+        
+        setExpertProposals(userRes.proposals || []);
+      } catch (err) {
+        console.error("Error loading expert dashboard details:", err);
+      }
+
+      // Load recommended/open jobs
+      try {
+        const jobsList = await api.jobPosts.list();
+        const openJobs = (jobsList || []).filter(
+          (j) => j.status?.toLowerCase() === "open" || j.status?.toLowerCase() === "published"
+        );
+        setRecommendedProjects(openJobs.slice(0, 5));
+      } catch (err) {
+        console.error("Error loading open jobs:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, [user?.id]);
 
   // ---- Computed stat values ------------------------------------------------
-  const earningsDisplay = expert?.profile?.hourlyRate
-    ? expert.profile.hourlyRate * (expert.profile.completedProjects || 0) * 40
-    : 0;
+  const earningsDisplay = expertDetails?.wallet?.balance || 0;
   const totalAssigned = completedProjects.length + activeContracts.length;
   const successRate =
     totalAssigned > 0
       ? Math.round((completedProjects.length / totalAssigned) * 100)
       : 0;
-  const pendingOffers = expertProposals.filter(
-    (p) => p.status === "pending",
-  ).length;
 
   // ---- Stats ---------------------------------------------------------------
   const dashboardStats = [
@@ -76,30 +115,32 @@ export function ExpertDashboard() {
       value: activeContracts.length,
       icon: Briefcase,
       color: "text-blue-600 bg-blue-100",
+      link: "/expert/projects",
     },
     {
       label: "Total Earned",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: TrendingUp,
       color: "text-green-600 bg-green-100",
+      link: "/expert/wallet",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       icon: CheckCircle,
       color: "text-emerald-600 bg-emerald-100",
+      link: "/expert/proposals",
     },
     {
-      label: "Open Proposals",
-      value: pendingOffers,
-      icon: Clock,
+      label: "My Wallet",
+      value: <MoneyDisplay amount={earningsDisplay} />,
+      icon: Wallet,
       color: "text-amber-600 bg-amber-100",
+      link: "/expert/wallet",
     },
   ];
 
-  // ---- Recommended projects ------------------------------------------------
-  const openJobs = [];
-  const recommendedProjects = openJobs.slice(0, 5);
+
 
   // ---- Render --------------------------------------------------------------
   return (
@@ -116,12 +157,14 @@ export function ExpertDashboard() {
             Manage your contracts and discover new opportunities
           </p>
         </div>
-        <Link
-          to="/expert/find-jobs"
-          className="px-4 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
-        >
-          <Search className="w-4 h-4" /> Browse All Jobs
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/expert/find-jobs"
+            className="px-4 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+          >
+            <Search className="w-4 h-4" /> Browse All Jobs
+          </Link>
+        </div>
       </div>
 
       {/* ================================================================== */}
@@ -170,12 +213,13 @@ export function ExpertDashboard() {
               </div>
             ) : (
               activeContracts.map((p) => {
-                const client = null;
+                const clientName = p.client || "Client";
                 const progress = getProjectProgress(p.id);
                 const statusKey = deriveProjectStatusKey(p);
                 const displayStatus = getStatusLabel(statusKey);
                 const badgeClass = getStatusBadgeClass(statusKey);
                 const btnCfg = getExpertButtonConfig(statusKey);
+                const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
 
                 return (
                   <div
@@ -198,14 +242,14 @@ export function ExpertDashboard() {
                     <p className="text-sm text-gray-500 mb-3">
                       with{" "}
                       <span className="font-medium text-gray-700">
-                        {client?.fullName || "Client"}
+                        {clientName}
                       </span>
                     </p>
 
                     {/* ── Skill tags ── */}
                     <div className="mb-4">
                       <SkillTags
-                        skills={p.requiredSkills}
+                        skills={skills}
                         maxVisible={SKILL_VISIBLE_COUNT.active}
                       />
                     </div>
@@ -300,8 +344,9 @@ export function ExpertDashboard() {
               </div>
             ) : (
               recommendedProjects.map((p, idx) => {
-                const client = null;
+                const clientName = p.client || "Client";
                 const matchPct = getMatchPct(idx);
+                const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
 
                 return (
                   <div
@@ -322,7 +367,7 @@ export function ExpertDashboard() {
                     <p className="text-xs text-gray-500 mb-2.5">
                       Posted by{" "}
                       <span className="font-medium text-gray-600">
-                        {client?.fullName || "Client"}
+                        {clientName}
                       </span>
                       {" · "}
                       {timeAgo(p.createdAt)}
@@ -336,7 +381,7 @@ export function ExpertDashboard() {
                     {/* ── Skill tags ── */}
                     <div className="mb-3">
                       <SkillTags
-                        skills={p.requiredSkills}
+                        skills={skills}
                         maxVisible={SKILL_VISIBLE_COUNT.recommended}
                       />
                     </div>
@@ -348,7 +393,7 @@ export function ExpertDashboard() {
                       </span>
                       <span className="text-gray-300">·</span>
                       <span className="text-gray-500 text-xs">
-                        {p.durationValue} {p.durationUnit}
+                        {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
 

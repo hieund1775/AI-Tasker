@@ -1,14 +1,7 @@
 import * as SliderPrimitive from "@radix-ui/react-slider";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 
-function Slider({
-  className,
-  defaultValue,
-  value,
-  min = 0,
-  max = 100,
-  ...props
-}) {
+function Slider({ className, defaultValue, value, min = 0, max = 100, ...props }) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)

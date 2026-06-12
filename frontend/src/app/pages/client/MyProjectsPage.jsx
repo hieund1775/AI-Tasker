@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 import {
   Briefcase,
@@ -10,14 +11,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
 
-import {
-  getProjectProgress,
-  deriveProjectStatusKey,
-  getStatusLabel,
-  getStatusBadgeClass,
-  getClientButtonConfig,
-} from "../../lib/projectTimelineStore.js";
+import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getClientButtonConfig } from "../../lib/projectTimelineStore.js";
 
 // ---------------------------------------------------------------------------
 // Status-specific helper: what button label + route for a status key
@@ -66,9 +63,26 @@ function getActionInfo(statusKey, projectId, proposalCount) {
 // ---------------------------------------------------------------------------
 export function MyProjectsList() {
   const location = useLocation();
+  const { user } = useAuth();
 
-  // TODO: Replace with API call — api.projects.list({ clientId })
-  const projects = [];
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProjects() {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const userRes = await api.users.getById(user.id);
+        setProjects(userRes?.jobPosts || []);
+      } catch (err) {
+        console.error("Failed to load client projects:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProjects();
+  }, [user?.id]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -104,17 +118,30 @@ export function MyProjectsList() {
       ) : (
         <div className="space-y-4">
           {projects.map((project) => {
-            // TODO: Replace with API calls for proposals, expert info, category
             const proposalCount = 0;
-            const statusKey = deriveProjectStatusKey(project, {
-              proposalCount,
-            });
+            const statusKey = deriveProjectStatusKey(project, { proposalCount });
             const displayStatus = getStatusLabel(statusKey);
             const badgeClass = getStatusBadgeClass(statusKey);
             const progress = getProjectProgress(project.id);
             const assignedExpert = null;
-            const category = null;
+            const category = project.aiCategoryDomain;
             const action = getActionInfo(statusKey, project.id, proposalCount);
+            
+            const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
+            const deadlineText = (() => {
+              if (!project.deadline) return null;
+              const num = Number(project.deadline);
+              if (!isNaN(num) && num < 1000) return `${num} days`;
+              try {
+                return new Date(project.deadline).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                });
+              } catch {
+                return String(project.deadline);
+              }
+            })();
 
             return (
               <div
@@ -143,7 +170,7 @@ export function MyProjectsList() {
                   {category && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
                       <Tag className="w-3.5 h-3.5" />
-                      {category.label}
+                      {category.name}
                     </span>
                   )}
                   {project.createdAt && (
@@ -163,10 +190,10 @@ export function MyProjectsList() {
                       <MoneyDisplay amount={project.budget} />
                     </span>
                   </span>
-                  {project.durationValue && (
+                  {deadlineText && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
                       <Calendar className="w-3.5 h-3.5" />
-                      {project.durationValue} {project.durationUnit}
+                      Deadline: {deadlineText}
                     </span>
                   )}
                   {proposalCount > 0 && (
@@ -178,9 +205,9 @@ export function MyProjectsList() {
                 </div>
 
                 {/* ── Required skills ── */}
-                {project.requiredSkills?.length > 0 && (
+                {skills.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mb-4">
-                    {project.requiredSkills.map((skill) => (
+                    {skills.map((skill) => (
                       <span
                         key={skill}
                         className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"

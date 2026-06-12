@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Save } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -92,13 +92,9 @@ export function EditAdminProfile() {
   // ---- Render ----
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/profile" className="mb-4">
-        Back to Profile
-      </BackButton>
+      <BackButton fallback="/admin/profile" className="mb-4">Back to Profile</BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        Edit Admin Profile
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Admin Profile</h1>
 
       <form
         onSubmit={handleSubmit}

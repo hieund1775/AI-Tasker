@@ -4,8 +4,9 @@
 // Thin wrapper around the API client for authentication endpoints.
 // Matches the expected ASP.NET Core backend routes:
 //
-//   POST /auth/login            → { token, user }
-//   POST /auth/register         → { token, user }
+//   POST /users/login           → { token, user }
+//   POST /users/register/client → { token, user }  (or /users/register)
+//   POST /users/register/expert → { token, user }
 //   POST /auth/forgot-password  → { message }
 //   POST /auth/reset-password   → { message }
 //   POST /auth/refresh          → { token }

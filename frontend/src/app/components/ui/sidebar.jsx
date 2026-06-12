@@ -3,7 +3,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import { useIsMobile } from "../../hooks/use-mobile.js";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 import { Button } from "./button.jsx";
 import { Input } from "./input.jsx";
 import { Separator } from "./separator.jsx";
@@ -485,12 +485,7 @@ function SidebarMenuButton({
   );
 }
 
-function SidebarMenuAction({
-  className,
-  asChild = false,
-  showOnHover = false,
-  ...props
-}) {
+function SidebarMenuAction({ className, asChild = false, showOnHover = false, ...props }) {
   const Comp = asChild ? Slot : "button";
 
   return (

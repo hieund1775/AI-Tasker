@@ -18,12 +18,7 @@ import { formatCurrency } from "../../lib/formatCurrency.js";
  *   <MoneyDisplay amount={null} />                     → (renders fallback)
  *   <MoneyDisplay amount={0} />                        → "$0"
  */
-export function MoneyDisplay({
-  amount,
-  currency = "USD",
-  locale,
-  className = "",
-}) {
+export function MoneyDisplay({ amount, currency = "USD", locale, className = "" }) {
   const formatted = formatCurrency(amount, currency, locale);
 
   // If formatCurrency returned empty string, show a safe fallback
@@ -31,7 +26,9 @@ export function MoneyDisplay({
     // Distinguish "zero" from "not provided"
     if (amount === 0 || amount === "0") {
       return (
-        <span className={className}>{formatCurrency(0, currency, locale)}</span>
+        <span className={className}>
+          {formatCurrency(0, currency, locale)}
+        </span>
       );
     }
     return <span className={`text-gray-400 italic ${className}`}>—</span>;

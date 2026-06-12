@@ -1,213 +1,199 @@
-import { useState, useEffect } from "react";
-import { AlertTriangle, CheckCircle, ArrowRight } from "lucide-react";
-import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
+// =============================================================================
+// AdminDisputes — Dispute report list page for Admin/Owner.
+//
+// Shows all dispute reports with:
+//   - Status filter (Pending, Accepted, Rejected, Under Review, Resolved, Closed)
+//   - Search
+//   - View detail button -> /admin/disputes/:id
+//   - Status badge per report
+// =============================================================================
 
-const statusColors = {
-  open: "bg-red-100 text-red-700",
-  under_review: "bg-yellow-100 text-yellow-700",
-  resolved: "bg-green-100 text-green-700",
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router";
+import { Search, Eye, Filter } from "lucide-react";
+import { DataTable } from "../../components/shared/DataTable.jsx";
+import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
+import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { formatDateTime } from "../../lib/dateUtils.js";
+import { getReports } from "../../../services/reportService.js";
+
+// ---------------------------------------------------------------------------
+// Report status config for StatusBadge
+// ---------------------------------------------------------------------------
+
+const REPORT_STATUS_CONFIG = {
+  Pending: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
+  Accepted: { color: "bg-blue-100 text-blue-700", label: "Accepted" },
+  Rejected: { color: "bg-red-100 text-red-700", label: "Rejected" },
+  "Under Review": { color: "bg-purple-100 text-purple-700", label: "Under Review" },
+  Resolved: { color: "bg-green-100 text-green-700", label: "Resolved" },
+  Closed: { color: "bg-gray-100 text-gray-700", label: "Closed" },
 };
+
+const STATUS_OPTIONS = [
+  { value: "", label: "All Statuses" },
+  { value: "Pending", label: "Pending" },
+  { value: "Accepted", label: "Accepted" },
+  { value: "Under Review", label: "Under Review" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "Resolved", label: "Resolved" },
+  { value: "Closed", label: "Closed" },
+];
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function AdminDisputes() {
-  const [disputes, setDisputes] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [feedback, setFeedback] = useState(null);
-  const [resolveForm, setResolveForm] = useState(null); // { id, outcome }
+  const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  // Fetch reports
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (searchTerm) params.search = searchTerm;
+      const result = await getReports(params);
+      setReports(result?.data || []);
+    } catch (err) {
+      setError(err.message || "Unable to load reports.");
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [statusFilter, searchTerm]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const rawDisputes = [];
-      setDisputes(
-        rawDisputes.map((d) => {
-          const project = null;
-          const client = null;
-          const expert = null;
-          return {
-            id: d.id,
-            projectTitle: project?.title || d.projectId,
-            clientName: client?.fullName || d.clientId,
-            expertName: expert?.fullName || d.expertId,
-            reason: d.description,
-            amount: project?.budget || 0,
-            status: d.status,
-            openedAt: d.createdAt,
-            outcome: d.resolution,
-          };
-        }),
-      );
-      setLoading(false);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchReports();
+  }, [fetchReports]);
 
-  const handleResolve = (disputeId, outcome) => {
-    setDisputes((prev) =>
-      prev.map((d) =>
-        d.id === disputeId ? { ...d, status: "resolved", outcome } : d,
-      ),
-    );
-    setResolveForm(null);
-    setFeedback(
-      `Dispute resolved — ${outcome === "refund" ? "refunded to client" : outcome === "release" ? "released to expert" : "split between parties"}.`,
-    );
-    setTimeout(() => setFeedback(null), 4000);
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-gray-200 rounded-xl" />
-          ))}
+  const columns = [
+    {
+      key: "reportName",
+      label: "Report Name",
+      render: (val, row) => (
+        <div>
+          <p className="font-medium text-gray-900 text-sm">{val || row.projectTitle || "—"}</p>
+          <p className="text-xs text-gray-500">
+            {row.clientName || row.expertName
+              ? `Client: ${row.clientName || "—"}  •  Expert: ${row.expertName || "—"}`
+              : `Project: ${row.projectId || "—"}`}
+          </p>
         </div>
-      </div>
-    );
-  }
+      ),
+    },
+    {
+      key: "amount",
+      label: "Amount",
+      render: (val) => (
+        <span className="text-sm font-medium">
+          {val != null ? <MoneyDisplay amount={val} /> : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "disputeType",
+      label: "Type",
+      render: (val) => (
+        <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">
+          {val || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (val) => (
+        <StatusBadge
+          status={val || "Pending"}
+          config={REPORT_STATUS_CONFIG}
+        />
+      ),
+    },
+    {
+      key: "submittedAt",
+      label: "Submitted",
+      render: (val) => (
+        <span className="text-xs text-gray-500">
+          {val ? formatDateTime(val) : "—"}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/admin/dashboard" className="mb-4">
         Back to Dashboard
       </BackButton>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
-        Dispute Resolution
-      </h1>
+
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-2xl font-bold text-gray-900">Dispute Management</h1>
+      </div>
       <p className="text-gray-600 mb-6">
-        Review and resolve disputes between clients and experts.
+        Review and resolve dispute reports between Clients and Experts.
       </p>
 
-      {feedback && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 font-medium flex items-center gap-2">
-          <CheckCircle className="w-4 h-4" /> {feedback}
+      {/* Error state */}
+      {error && (
+        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      {disputes.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-          <CheckCircle className="w-12 h-12 text-green-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
-            No open disputes
-          </h3>
-          <p className="text-sm text-gray-400">All clear!</p>
+      {/* Filter row */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by report name, project..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+          />
         </div>
-      ) : (
-        <div className="space-y-4">
-          {disputes.map((dispute) => (
-            <div
-              key={dispute.id}
-              className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${
-                dispute.status === "resolved"
-                  ? "border-green-200"
-                  : "border-gray-200"
-              }`}
-            >
-              <div className="p-6">
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {dispute.projectTitle}
-                      </h3>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[dispute.status] || "bg-gray-100 text-gray-700"}`}
-                      >
-                        {dispute.status.replace("_", " ")}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-3">
-                      {dispute.reason}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                      <span>
-                        Client: <strong>{dispute.clientName}</strong>
-                      </span>
-                      <span>
-                        Expert: <strong>{dispute.expertName}</strong>
-                      </span>
-                      <span>
-                        Amount: <MoneyDisplay amount={dispute.amount} />
-                      </span>
-                      <span>
-                        Opened:{" "}
-                        {new Date(dispute.openedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {dispute.status !== "resolved" && (
-                    <div className="flex gap-2">
-                      {!resolveForm || resolveForm.id !== dispute.id ? (
-                        <button
-                          type="button"
-                          onClick={() => setResolveForm({ id: dispute.id })}
-                          className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2"
-                        >
-                          Resolve <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <div className="flex flex-col gap-2 min-w-[200px]">
-                          <p className="text-xs font-semibold text-gray-700">
-                            Choose outcome:
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => handleResolve(dispute.id, "refund")}
-                            className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-medium border border-red-200"
-                          >
-                            Refund Client
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleResolve(dispute.id, "release")}
-                            className="px-3 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-lg text-xs font-medium border border-green-200"
-                          >
-                            Release to Expert
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleResolve(dispute.id, "split")}
-                            className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 rounded-lg text-xs font-medium border border-yellow-200"
-                          >
-                            50/50 Split
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setResolveForm(null)}
-                            className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-xs"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {dispute.status === "resolved" && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-sm text-green-700">
-                      <CheckCircle className="w-4 h-4 inline mr-1" />
-                      Resolved —{" "}
-                      {dispute.outcome === "refund"
-                        ? "Refunded to client"
-                        : dispute.outcome === "release"
-                          ? "Released to expert"
-                          : "50/50 split"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+        <div className="relative">
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
+          >
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+      </div>
+
+      {/* Table */}
+      <DataTable
+        columns={columns}
+        data={reports}
+        loading={loading}
+        emptyMessage="No dispute reports found."
+        actions={(row) => (
+          <Link
+            to={`/admin/disputes/${row.id}`}
+            className="px-3 py-1.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center gap-1.5 transition"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            View Detail
+          </Link>
+        )}
+      />
     </div>
   );
 }
+
+export default AdminDisputes;

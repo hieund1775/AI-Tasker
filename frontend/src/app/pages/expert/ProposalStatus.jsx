@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   FileText,
@@ -5,9 +6,9 @@ import {
   Eye,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
-
 import { useAuth } from "../../hooks/useAuth.js";
-import { getSessionProposalsByExpert } from "../../lib/proposalStore.js";
+import api from "../../../services/api.js";
+
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // Status helpers — delegated to shared proposalStatusConfig.js
@@ -27,37 +28,56 @@ function findConversationId(projectId, expertId) {
 // ---------------------------------------------------------------------------
 
 export function ProposalStatus() {
-    const { user } = useAuth();
+  const { user } = useAuth();
 
-    const mockProposals = [].map((proposal) => {
-    const project = null;
-    const client = project ? null : null;
-    return {
-      ...proposal,
-      proposalTitle: proposal.proposalTitle || project?.title || proposal.projectId,
-      projectTitle: project?.title || proposal.projectId,
-      clientName: client?.fullName || "Client",
-      clientCompany: client?.profile?.company || "",
-      project,
-    };
-  });
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // ---- Session proposals ----
-  const sessionProposals = getSessionProposalsByExpert(user?.id || "expert-current").map((proposal) => {
-    const project = null;
-    const client = project ? null : null;
-    return {
-      ...proposal,
-      proposalTitle: proposal.proposalTitle || project?.title || proposal.projectId,
-      projectTitle: project?.title || proposal.projectId,
-      clientName: client?.fullName || "Client",
-      clientCompany: client?.profile?.company || "",
-      project,
-    };
-  });
+  useEffect(() => {
+    async function loadProposals() {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const list = await api.proposals.getByExpert(user.id);
+        const fetchedProposals = await Promise.all(
+          list.map(async (proposal) => {
+            let job = null;
+            try {
+              job = await api.jobPosts.getById(proposal.jobPostId);
+            } catch (err) {
+              console.error("Failed to load job post details:", err);
+            }
 
-  // Merge — session proposals first (newest on top)
-  const proposals = [...sessionProposals, ...mockProposals];
+            let parsed = {};
+            try {
+              parsed = JSON.parse(proposal.coverLetter);
+            } catch (e) {
+              parsed = {
+                coverLetter: proposal.coverLetter,
+                professionalIntro: proposal.coverLetter,
+              };
+            }
+
+            return {
+              ...proposal,
+              proposalTitle: parsed.proposalTitle || job?.title || "Proposal",
+              projectTitle: job?.title || "AI Project",
+              clientName: job?.client || "Client",
+              clientCompany: "",
+              durationDays: parsed.durationDays || job?.deadline || 0,
+              project: job,
+            };
+          })
+        );
+        setProposals(fetchedProposals);
+      } catch (err) {
+        console.error("Failed to load expert proposals:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProposals();
+  }, [user?.id]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

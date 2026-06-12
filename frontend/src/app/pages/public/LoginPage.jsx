@@ -31,16 +31,18 @@ export function LoginPage() {
     try {
       const user = await login(email.trim(), password);
 
-      // SỬA: ĐIỀU HƯỚNG TỚI EDIT-PROFILE
+      // Redirect expert with incomplete profile to profile edit page
       if (user.role === "expert" && user.hasProfile === false) {
         navigate("/expert/profile/edit", { replace: true });
       } else {
         const dashboardPath =
-          user.role === "expert"
-            ? "/expert/dashboard"
+          user.role === "owner"
+            ? "/owner/dashboard"
             : user.role === "admin"
               ? "/admin/dashboard"
-              : "/client/dashboard";
+              : user.role === "expert"
+                ? "/expert/dashboard"
+                : "/client/dashboard";
         navigate(dashboardPath, { replace: true });
       }
     } catch (err) {

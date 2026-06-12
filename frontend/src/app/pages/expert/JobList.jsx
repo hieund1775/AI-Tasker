@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Search,
@@ -9,6 +9,9 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
+import { categoryTagService } from "../../../services/categoryTagService.js";
+
 export function JobList() {
   const { user } = useAuth();
 
@@ -22,11 +25,31 @@ export function JobList() {
     sortBy: "newest",
   });
 
-  const jobs = [];
-  const allCategories = [];
-  const allSkills = [
-    ...new Set(jobs.flatMap((j) => j.requiredSkills || [])),
-  ].sort();
+  const [jobs, setJobs] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [jobsRes, catsRes, skillsRes] = await Promise.all([
+          api.jobPosts.list(),
+          categoryTagService.getCategories(),
+          categoryTagService.getSkills(),
+        ]);
+        setJobs(jobsRes || []);
+        setAllCategories(catsRes || []);
+        setAllSkills(skillsRes || []);
+      } catch (err) {
+        console.error("Failed to load jobs list data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const updateFilter = (key, value) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -49,20 +72,18 @@ export function JobList() {
     if (!j) return false;
     if (
       searchTerm &&
-      !j.title?.toLowerCase().includes(searchTerm.toLowerCase())
+      !j.title?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      !j.description?.toLowerCase().includes(searchTerm.toLowerCase())
     )
       return false;
-    if (filters.category && j.category !== filters.category) return false;
+    if (filters.category && j.aiCategoryDomainId !== filters.category) return false;
     const budget = Number(j.budget) || 0;
     if (filters.minBudget > 0 && budget < filters.minBudget) return false;
     if (filters.maxBudget > 0 && budget > filters.maxBudget) return false;
-    if (
-      filters.skill &&
-      !j.requiredSkills?.some((s) =>
-        s.toLowerCase().includes(filters.skill.toLowerCase()),
-      )
-    )
-      return false;
+    if (filters.skill) {
+      const jobSkillIds = j.jobPostSkills?.map((s) => s.skillsId) || [];
+      if (!jobSkillIds.includes(filters.skill)) return false;
+    }
     return true;
   });
 
@@ -79,7 +100,7 @@ export function JobList() {
       break;
     case "deadline":
       filtered = [...filtered].sort(
-        (a, b) => new Date(a.deadline || 0) - new Date(b.deadline || 0),
+        (a, b) => (Number(a.deadline) || 0) - (Number(b.deadline) || 0),
       );
       break;
     default:
@@ -106,7 +127,7 @@ export function JobList() {
           </p>
           {/* SỬA: CHUYỂN TỚI EDIT-PROFILE */}
           <Link
-            to="/expert/profile/edit"
+            to="/expert/edit-profile"
             className="whitespace-nowrap px-4 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition shadow-sm"
           >
             Tạo Profile Ngay
@@ -162,7 +183,7 @@ export function JobList() {
                 <option value="">All categories</option>
                 {allCategories.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.label}
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -216,8 +237,8 @@ export function JobList() {
               >
                 <option value="">Any skill</option>
                 {allSkills.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                  <option key={s.id} value={s.id}>
+                    {s.name}
                   </option>
                 ))}
               </select>
@@ -260,11 +281,9 @@ export function JobList() {
                     <h3 className="font-semibold text-gray-900 text-lg">
                       {job.title}
                     </h3>
-                    {job.category && (
+                    {(job.aiCategoryDomain?.name || job.category) && (
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                        {[].find(
-                          (c) => c.id === job.category,
-                        )?.label || job.category}
+                        {job.aiCategoryDomain?.name || job.category}
                       </span>
                     )}
                   </div>
@@ -277,8 +296,8 @@ export function JobList() {
                       {job.budget != null ? job.budget.toLocaleString() : "—"}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" /> {job.durationValue}{" "}
-                      {job.durationUnit}
+                      <Clock className="w-4 h-4" /> {job.deadline || job.durationValue || 0}{" "}
+                      {job.durationUnit || "days"}
                     </span>
                   </div>
                 </div>

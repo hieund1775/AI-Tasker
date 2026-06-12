@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 
 import {
@@ -11,10 +12,13 @@ import {
   Star,
   TrendingUp,
   FileText,
+  Wallet,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
 
 import {
   getProjectProgress,
@@ -49,37 +53,89 @@ const SKILL_VISIBLE_COUNT = {
 
 export function ClientDashboard() {
   const location = useLocation();
+  const { user } = useAuth();
 
-  // TODO: Replace with API calls — api.projects.list({ clientId }), api.experts.list()
-  const clientProjects = [];
-  const experts = [];
-  const recommendedExperts = [];
+  const [clientProjects, setClientProjects] = useState([]);
+  const [recommendedExperts, setRecommendedExperts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboardData() {
+      if (!user?.id) return;
+      setLoading(true);
+      
+      // Load user projects
+      try {
+        const userRes = await api.users.getById(user.id);
+        setClientProjects(userRes?.jobPosts || []);
+      } catch (err) {
+        console.error("Error loading client projects:", err);
+      }
+
+      // Load recommended experts (handle 403 gracefully)
+      try {
+        const allUsersRes = await api.experts.list();
+        const expertsOnly = (allUsersRes || [])
+          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
+          .map((u) => ({
+            id: u.id,
+            fullName: u.fullName,
+            avgRating: 4.8,
+            profile: {
+              title: u.expertProfile.jobTitle,
+              location: u.expertProfile.location,
+              bio: u.expertProfile.bio,
+              hourlyRate: 65,
+              completedProjects: 8,
+              skills: u.expertProfile.skills || ["Python", "Semantic Kernel"]
+            }
+          }));
+        setRecommendedExperts(expertsOnly.slice(0, 3));
+      } catch (err) {
+        console.warn("Failed to load recommended experts (may lack permission):", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboardData();
+  }, [user?.id]);
 
   // ---- Stats ---------------------------------------------------------------
+  const getProjectsByStatus = (statusList) => {
+    return clientProjects.filter((p) => {
+      const statusLower = p.status?.toLowerCase() || "";
+      return statusList.some((s) => statusLower === s.toLowerCase());
+    }).length;
+  };
+
   const dashboardStats = [
     {
       label: "Active Projects",
-      value: clientProjects.filter((p) => p.status === "in_progress").length,
+      value: getProjectsByStatus(["in_progress", "in progress", "published", "open"]),
       icon: Briefcase,
       color: "text-blue-600 bg-blue-100",
+      link: "/client/my-projects",
     },
     {
-      label: "Open Proposals",
-      value: clientProjects.filter((p) => p.status === "open").length,
-      icon: FileText,
+      label: "Billing",
+      value: <MoneyDisplay amount={0} />,
+      icon: Wallet,
       color: "text-amber-600 bg-amber-100",
+      link: "/client/billing",
     },
     {
       label: "Completed",
-      value: clientProjects.filter((p) => p.status === "completed").length,
+      value: getProjectsByStatus(["completed", "complete"]),
       icon: CheckCircle2,
       color: "text-green-600 bg-green-100",
+      link: "/client/my-projects",
     },
     {
       label: "Cancelled",
-      value: clientProjects.filter((p) => p.status === "cancelled").length,
+      value: getProjectsByStatus(["cancelled", "cancel"]),
       icon: Clock,
       color: "text-red-600 bg-red-100",
+      link: "/client/my-projects",
     },
   ];
 
@@ -167,6 +223,21 @@ export function ClientDashboard() {
                 const displayStatus = getStatusLabel(statusKey);
                 const badgeClass = getStatusBadgeClass(statusKey);
                 const btnCfg = getClientButtonConfig(statusKey);
+                
+                const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
+                const deadlineText = (() => {
+                  if (!p.deadline) return "N/A";
+                  const num = Number(p.deadline);
+                  if (!isNaN(num) && num < 1000) return `${num} days`;
+                  try {
+                    return new Date(p.deadline).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                    });
+                  } catch {
+                    return String(p.deadline);
+                  }
+                })();
 
                 return (
                   <div
@@ -202,10 +273,10 @@ export function ClientDashboard() {
                     </p>
 
                     {/* ── Skill tags ── */}
-                    {p.requiredSkills?.length > 0 && (
+                    {skills.length > 0 && (
                       <div className="mb-4">
                         <SkillTags
-                          skills={p.requiredSkills}
+                          skills={skills}
                           maxVisible={SKILL_VISIBLE_COUNT.project}
                         />
                       </div>
@@ -234,13 +305,7 @@ export function ClientDashboard() {
                       <div className="flex items-center gap-4 text-xs text-gray-500">
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
-                          Due{" "}
-                          {p.deadline
-                            ? new Date(p.deadline).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                              })
-                            : "N/A"}
+                          Due {deadlineText}
                         </span>
                         <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
                           <DollarSign className="w-3.5 h-3.5 text-gray-400" />

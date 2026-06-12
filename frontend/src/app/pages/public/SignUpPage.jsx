@@ -40,7 +40,7 @@ export function SignUpPage() {
     setSubmitting(true);
     try {
       // Gọi AuthContext.register() — Chú ý: bây giờ nó chỉ trả về true (thành công)
-      const result = await register({
+      const isSuccess = await register({
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
@@ -49,13 +49,11 @@ export function SignUpPage() {
       });
 
       // Nếu API C# trả về 200 OK và xử lý thành công
-      if (result.success) {
-        if (result.role === "expert") {
-          navigate("/expert/profile/edit", { replace: true });
-        } else {
-          alert("Registration successful! Redirecting to login.");
-          navigate("/login", { replace: true });
-        }
+      if (isSuccess) {
+        alert(
+          "Đăng ký thành công! Hệ thống sẽ chuyển bạn đến trang Đăng nhập.",
+        );
+        navigate("/login", { replace: true }); // Đá người dùng về trang Login
       }
     } catch (err) {
       setError(err.message || "Registration failed. Please try again.");

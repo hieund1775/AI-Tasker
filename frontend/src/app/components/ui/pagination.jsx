@@ -1,9 +1,5 @@
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MoreHorizontalIcon,
-} from "lucide-react";
-import { cn } from "../lib/utils.js";
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
+import { cn } from "../../lib/utils.js";
 import { buttonVariants } from "./button.jsx";
 
 function Pagination({ className, ...props }) {

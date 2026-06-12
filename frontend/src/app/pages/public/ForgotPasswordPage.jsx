@@ -66,8 +66,7 @@ export function ForgotPasswordPage() {
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <p className="text-sm text-gray-600 mb-6">
-              If an account with{" "}
-              <span className="font-medium text-gray-900">{email}</span> exists,
+              If an account with <span className="font-medium text-gray-900">{email}</span> exists,
               password reset instructions will be sent.
             </p>
             <Link
@@ -87,9 +86,7 @@ export function ForgotPasswordPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input

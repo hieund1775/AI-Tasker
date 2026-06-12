@@ -45,7 +45,9 @@ export function EmptyState({
         className,
       )}
     >
-      {Icon && <Icon className={cn("text-gray-300 mx-auto mb-4", s.icon)} />}
+      {Icon && (
+        <Icon className={cn("text-gray-300 mx-auto mb-4", s.icon)} />
+      )}
       {title && (
         <h3 className={cn("font-semibold text-gray-500 mb-2", s.title)}>
           {title}

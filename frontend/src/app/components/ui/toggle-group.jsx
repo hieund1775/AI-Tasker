@@ -1,13 +1,8 @@
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 import { toggleVariants } from "./toggle.jsx";
 
-function ToggleGroup({
-  className,
-  variant = "default",
-  size = "default",
-  ...props
-}) {
+function ToggleGroup({ className, variant = "default", size = "default", ...props }) {
   return (
     <ToggleGroupPrimitive.Root
       data-slot="toggle-group"
@@ -22,13 +17,7 @@ function ToggleGroup({
   );
 }
 
-function ToggleGroupItem({
-  className,
-  children,
-  variant = "default",
-  size = "default",
-  ...props
-}) {
+function ToggleGroupItem({ className, children, variant = "default", size = "default", ...props }) {
   return (
     <ToggleGroupPrimitive.Item
       data-slot="toggle-group-item"

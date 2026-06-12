@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import {
   Send,
@@ -11,8 +11,6 @@ import {
   Eye,
 } from "lucide-react";
 
-import { DEMO_EXPERT_ID, DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
-
 // ---------------------------------------------------------------------------
 // In-memory session messages — appended when user sends a message in the UI
 // ---------------------------------------------------------------------------
@@ -22,14 +20,11 @@ const _sessionMessages = [];
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Detect which demo user to use based on the conversation participants. */
-function detectDemoUser(convId, conversations) {
-  if (!convId) return DEMO_EXPERT_ID;
+/** Detect the current user based on the conversation participants. */
+function detectCurrentUser(convId, conversations) {
+  if (!convId) return null;
   const conv = conversations.find((c) => c.id === convId);
-  if (!conv) return DEMO_EXPERT_ID;
-  // Prefer expert-001 if present, else client-001, else first participant
-  if (conv.participants.includes(DEMO_EXPERT_ID)) return DEMO_EXPERT_ID;
-  if (conv.participants.includes(DEMO_CLIENT_ID)) return DEMO_CLIENT_ID;
+  if (!conv) return null;
   return conv.participants[0];
 }
 
@@ -67,21 +62,21 @@ export function Messenger() {
   const [sessionMsgs, setSessionMsgs] = useState([..._sessionMessages]);
 
   // ---- Determine demo user ----
-  const rawConversations = []; // TODO: Replace with API call when backend is ready
+  const rawConversations = [];
   const allConvIds = new Set(rawConversations.map((c) => c.id));
 
   // If activeConvId is not in expert conversations, try client conversations
   const demoUserId = allConvIds.has(activeConvId)
-    ? detectDemoUser(activeConvId, rawConversations)
-    : DEMO_EXPERT_ID;
+    ? detectCurrentUser(activeConvId, rawConversations)
+    : null;
 
   // ---- Build conversation list ----
-  const demoConvs = []; // TODO: Replace with API call when backend is ready
+  const demoConvs = [];
 
   const conversations = demoConvs.map((conv) => {
     const otherUserId = conv.participants.find((p) => p !== demoUserId);
-    const otherUser = null; // TODO: Replace with API call when backend is ready
-    const msgs = []; // TODO: Replace with API call when backend is ready
+    const otherUser = otherUserId ? null : null;
+    const msgs = [];
 
     // Merge session messages for this conversation
     const extraMsgs = _sessionMessages.filter((m) => m.conversationId === conv.id);
