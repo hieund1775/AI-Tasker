@@ -28,6 +28,19 @@ import api from "../../../services/api.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Check if a project should appear in active contracts (contract accepted/signed) */
+function isContractActive(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  return (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  );
+}
+
 /** Derive a display-only match percentage from the index. */
 function getMatchPct(index) {
   return [96, 89, 84, 78, 92, 88, 81][index % 7];
@@ -70,7 +83,7 @@ export function ExpertDashboard() {
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress"
+            (p) => isContractActive(p)
           )
         );
         setCompletedProjects(
@@ -115,28 +128,24 @@ export function ExpertDashboard() {
       value: activeContracts.length,
       icon: Briefcase,
       color: "text-blue-600 bg-blue-100",
-      link: "/expert/projects",
     },
     {
       label: "Total Earned",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: TrendingUp,
       color: "text-green-600 bg-green-100",
-      link: "/expert/wallet",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       icon: CheckCircle,
       color: "text-emerald-600 bg-emerald-100",
-      link: "/expert/proposals",
     },
     {
       label: "My Wallet",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: Wallet,
       color: "text-amber-600 bg-amber-100",
-      link: "/expert/wallet",
     },
   ];
 
@@ -160,7 +169,7 @@ export function ExpertDashboard() {
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-            className="px-4 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
@@ -206,7 +215,7 @@ export function ExpertDashboard() {
                 </p>
                 <Link
                   to="/expert/find-jobs"
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
                 >
                   Find Jobs
                 </Link>
@@ -401,7 +410,7 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-                        className="px-4 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium text-center transition-colors"
+                        className="px-4 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium text-center transition-colors"
                       >
                         Apply Now
                       </Link>

@@ -316,17 +316,54 @@ export const api = {
 
   notifications: {
     // TODO: Connect to real API — get("/notifications")
-    getList: (_params) => Promise.resolve([]),
+    getList: (_params) => {
+      // Attempt to fetch from backend; fall back to empty array
+      return get("/Notifications").catch(() => []);
+    },
     // TODO: Connect to real API — put("/notifications/{id}/read")
     markRead: (_id) => Promise.resolve(null),
     // TODO: Connect to real API — put("/notifications/read-all")
     markAllRead: () => Promise.resolve(null),
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    send: (data) => {
+      // TODO: Connect to real endpoint e.g. post("/Notifications", data)
+      return post("/Notifications", data).catch(() => null);
+    },
+  },
+
+  contracts: {
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    create: (data) => {
+      // TODO: Connect to real endpoint e.g. post("/Contracts", data)
+      return post("/Contracts", data);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getById: (id) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/${id}`)
+      return get(`/Contracts/${id}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByProject: (projectId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/project/${projectId}`)
+      return get(`/Contracts/project/${projectId}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByExpert: (expertId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/expert/${expertId}`)
+      return get(`/Contracts/expert/${expertId}`).catch(() => []);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    updateStatus: (id, status) => {
+      // TODO: Connect to real endpoint e.g. put(`/Contracts/${id}/status?status=...`)
+      return put(`/Contracts/${id}/status?status=${encodeURIComponent(status)}`);
+    },
   },
 
   proposals: {
     create: (data) => post("/Proposals/submit-proposal", data),
     getByJob: (jobPostId) => get(`/Proposals/job/${jobPostId}`),
     getByExpert: (expertId) => get(`/Proposals/expert/${expertId}`),
+    getById: (id) => get(`/Proposals/${id}`),
     updateStatus: (id, status) => put(`/Proposals/${id}/status?status=${encodeURIComponent(status)}`),
   },
 };

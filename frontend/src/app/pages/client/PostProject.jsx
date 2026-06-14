@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, Plus, Trash2 } from "lucide-react";
 import { AIChatbox } from "../../components/ai/AIChatbox.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
@@ -26,6 +26,7 @@ export function PostProject() {
   const [allAvailableSkills, setAllAvailableSkills] = useState([]);
   const [categories, setCategories] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [useCases, setUseCases] = useState([{ name: "", description: "" }]);
 
   useEffect(() => {
     async function loadOptions() {
@@ -53,6 +54,20 @@ export function PostProject() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const addUseCase = () => {
+    setUseCases((prev) => [...prev, { name: "", description: "" }]);
+  };
+
+  const removeUseCase = (index) => {
+    setUseCases((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateUseCase = (index, field, value) => {
+    setUseCases((prev) =>
+      prev.map((uc, i) => (i === index ? { ...uc, [field]: value } : uc))
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -70,6 +85,7 @@ export function PostProject() {
       aiCategoryDomainId: formData.category || null,
       clientId: user?.id,
       skillIds: selectedSkills,
+      useCases: useCases.filter((uc) => uc.name.trim() || uc.description.trim()),
     };
 
     try {
@@ -232,6 +248,60 @@ export function PostProject() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+
+            {/* Use Cases */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Use Cases
+                </label>
+                <button
+                  type="button"
+                  onClick={addUseCase}
+                  className="px-3 py-1.5 text-xs font-medium text-blue-900 bg-blue-50 rounded-lg hover:bg-blue-100 inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Use Case
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mb-3">
+                Describe how the AI solution will be used in practice.
+              </p>
+              <div className="space-y-3">
+                {useCases.map((uc, index) => (
+                  <div
+                    key={index}
+                    className="bg-gray-50 border border-gray-200 rounded-xl p-4 relative"
+                  >
+                    {useCases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeUseCase(index)}
+                        className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Remove use case"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    <div className="space-y-3 pr-8">
+                      <input
+                        type="text"
+                        value={uc.name}
+                        onChange={(e) => updateUseCase(index, "name", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+                        placeholder="Use case name (e.g., Customer Support Chatbot)"
+                      />
+                      <textarea
+                        value={uc.description}
+                        onChange={(e) => updateUseCase(index, "description", e.target.value)}
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+                        placeholder="Brief description of this use case..."
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

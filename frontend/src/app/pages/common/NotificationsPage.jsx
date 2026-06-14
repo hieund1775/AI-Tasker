@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { timeAgo } from "../../lib/dateUtils.js";
+import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Icons and formatting
@@ -25,6 +26,8 @@ const typeIcons = {
   message: MessageSquare,
   system: AlertCircle,
   dispute: AlertCircle,
+  contract_sent: FileText,
+  contract_rejected: AlertCircle,
 };
 
 const typeColors = {
@@ -35,6 +38,8 @@ const typeColors = {
   message: "bg-indigo-100 text-indigo-700",
   system: "bg-gray-100 text-gray-700",
   dispute: "bg-red-100 text-red-700",
+  contract_sent: "bg-blue-100 text-blue-700",
+  contract_rejected: "bg-red-100 text-red-700",
 };
 
 // ---------------------------------------------------------------------------
@@ -50,9 +55,14 @@ export function NotificationsPage() {
     let cancelled = false;
 
     async function fetchNotifications() {
-            const data = [];
-      if (!cancelled && Array.isArray(data)) {
-        setNotifications(data);
+      try {
+        const data = await api.notifications.getList();
+        if (!cancelled && Array.isArray(data)) {
+          setNotifications(data);
+        }
+      } catch {
+        // API not available — show empty state
+        if (!cancelled) setNotifications([]);
       }
       if (!cancelled) setLoading(false);
     }
@@ -68,13 +78,17 @@ export function NotificationsPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
     );
-      };
+    // Best-effort API call
+    api.notifications.markRead(id).catch(() => {});
+  };
 
   const handleMarkAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     setActionFeedback("All notifications marked as read.");
     setTimeout(() => setActionFeedback(null), 3000);
-      };
+    // Best-effort API call
+    api.notifications.markAllRead().catch(() => {});
+  };
 
   if (loading) {
     return (
@@ -167,10 +181,11 @@ export function NotificationsPage() {
               </div>
             );
 
-            // Wrap in Link if there's an actionUrl, otherwise plain div
-            if (notif.actionUrl) {
+            // Wrap in Link if there's a targetUrl or actionUrl, otherwise plain div
+            const linkUrl = notif.targetUrl || notif.actionUrl;
+            if (linkUrl) {
               return (
-                <Link key={notif.id} to={notif.actionUrl} className="block">
+                <Link key={notif.id} to={linkUrl} className="block">
                   {content}
                 </Link>
               );

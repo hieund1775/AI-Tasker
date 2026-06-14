@@ -42,6 +42,44 @@ function computeExpertRating(_expertId) {
 // Style constants
 // ---------------------------------------------------------------------------
 
+/** Statuses that should NOT appear in My Projects */
+const HIDDEN_FROM_MY_PROJECTS = [
+  "draft",
+  "posted",
+  "waiting_proposal",
+  "proposal_received",
+  "contract_draft",
+  "contract_sent",
+  "contract_rejected",
+  "cancelled",
+];
+
+/** Check if a project should appear in My Projects (contract signed/accepted) */
+function canShowInMyProjects(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  // Show if contract is accepted/signed OR project is in progress/active
+  if (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  ) {
+    return true;
+  }
+  // Explicitly hide these statuses
+  if (HIDDEN_FROM_MY_PROJECTS.some((s) => projectStatus === s || contractStatus === s)) {
+    return false;
+  }
+  // For backward compatibility: if status is not hidden and not explicitly accepted,
+  // still show projects that have an assigned expert (likely already in progress)
+  if (project.assignedExpertId || project.expertId) {
+    return true;
+  }
+  return false;
+}
+
 const SKILL_VISIBLE_COUNT = {
   project: 4,
   expert: 4,
@@ -110,32 +148,28 @@ export function ClientDashboard() {
 
   const dashboardStats = [
     {
-      label: "Active Projects",
+      label: "All Project",
       value: getProjectsByStatus(["in_progress", "in progress", "published", "open"]),
       icon: Briefcase,
       color: "text-blue-600 bg-blue-100",
-      link: "/client/my-projects",
     },
     {
       label: "Billing",
       value: <MoneyDisplay amount={0} />,
       icon: Wallet,
       color: "text-amber-600 bg-amber-100",
-      link: "/client/billing",
     },
     {
       label: "Completed",
       value: getProjectsByStatus(["completed", "complete"]),
       icon: CheckCircle2,
       color: "text-green-600 bg-green-100",
-      link: "/client/my-projects",
     },
     {
-      label: "Cancelled",
+      label: "In Progress",
       value: getProjectsByStatus(["cancelled", "cancel"]),
       icon: Clock,
       color: "text-red-600 bg-red-100",
-      link: "/client/my-projects",
     },
   ];
 
@@ -161,7 +195,7 @@ export function ClientDashboard() {
           </Link>
           <Link
             to="/client/post-project"
-            className="px-4 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-gray-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
           >
             <PlusCircle className="w-4 h-4" /> Post New Project
           </Link>
@@ -196,7 +230,10 @@ export function ClientDashboard() {
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {clientProjects.length === 0 ? (
+            {(() => {
+              const myProjects = clientProjects.filter(canShowInMyProjects);
+              if (myProjects.length === 0) {
+                return (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -207,13 +244,15 @@ export function ClientDashboard() {
                 </p>
                 <Link
                   to="/client/post-project"
-                  className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm font-medium"
+                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
                 >
                   Post a Project
                 </Link>
               </div>
-            ) : (
-              clientProjects.map((p) => {
+                );
+              }
+              return (
+                myProjects.map((p) => {
                 // TODO: Replace with API calls for expert info and proposals
                 const assignedExpert = null;
                 const progress = getProjectProgress(p.id);
@@ -323,7 +362,7 @@ export function ClientDashboard() {
                   </div>
                 );
               })
-            )}
+            )})()}
           </div>
         </section>
 

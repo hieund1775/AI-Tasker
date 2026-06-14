@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
   FileText,
   DollarSign,
   Calendar,
-  Clock,
   User,
   Briefcase,
   Paperclip,
@@ -13,6 +12,7 @@ import {
   File,
   FolderOpen,
   MessageSquare,
+  PenLine,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -20,16 +20,15 @@ import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
-// Status helpers — delegated to shared proposalStatusConfig.js
-function getStatusConfig(status) { return getProposalStatusConfig(status); }
-
-// ---------------------------------------------------------------------------
-// Section wrapper — keeps visual consistency
-// ---------------------------------------------------------------------------
+function getStatusConfig(status) {
+  return getProposalStatusConfig(status);
+}
 
 function DetailSection({ title, children, className = "" }) {
   return (
-    <div className={`border-b border-gray-100 last:border-b-0 py-6 first:pt-0 ${className}`}>
+    <div
+      className={`border-b border-gray-100 last:border-b-0 py-6 first:pt-0 ${className}`}
+    >
       <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
         {title}
       </h3>
@@ -38,77 +37,89 @@ function DetailSection({ title, children, className = "" }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-export function ProposalDetail() {
+/**
+ * ClientProposalDetail — Client views a single proposal in detail.
+ * Includes "Generate Contract" button to initiate the contract flow.
+ *
+ * Route: /client/proposals/:id
+ */
+export function ClientProposalDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [proposal, setProposal] = useState(null);
   const [project, setProject] = useState(null);
-  const [client, setClient] = useState(null);
+  const [expert, setExpert] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.id || !id) return;
     setLoading(true);
-    api.proposals.getByExpert(user.id)
-      .then(async (list) => {
-        const found = list.find((p) => p.id === id);
-        if (found) {
-          let parsedCoverLetter = {};
-          try {
-            parsedCoverLetter = JSON.parse(found.coverLetter);
-          } catch (e) {
-            parsedCoverLetter = {
-              coverLetter: found.coverLetter,
-              professionalIntro: found.coverLetter,
-            };
-          }
 
-          const enrichedProposal = {
-            ...found,
-            proposalTitle: parsedCoverLetter.proposalTitle || "Proposal",
-            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
-            technicalApproach: parsedCoverLetter.technicalApproach || "",
-            timelineMilestones: parsedCoverLetter.timelineMilestones || "",
-            dependencies: parsedCoverLetter.dependencies || "",
-            durationDays: parsedCoverLetter.durationDays || 0,
-            attachments: parsedCoverLetter.attachments || [],
+    async function loadData() {
+      try {
+        // Fetch the proposal directly
+        const found = await api.proposals.getById(id).catch(() => null);
+        if (!found) {
+          setProposal(null);
+          setLoading(false);
+          return;
+        }
+
+        let parsedCoverLetter = {};
+        try {
+          parsedCoverLetter = JSON.parse(found.coverLetter);
+        } catch (e) {
+          parsedCoverLetter = {
+            coverLetter: found.coverLetter,
+            professionalIntro: found.coverLetter,
           };
-          setProposal(enrichedProposal);
+        }
 
-          if (found.jobPostId) {
-            try {
-              const job = await api.jobPosts.getById(found.jobPostId);
-              setProject(job);
-              if (job.clientId) {
-                const cli = await api.users.getById(job.clientId);
-                setClient(cli);
-              }
-            } catch (err) {
-              console.error("Failed to load project/client details:", err);
-            }
+        const enrichedProposal = {
+          ...found,
+          proposalTitle: parsedCoverLetter.proposalTitle || "Proposal",
+          professionalIntro:
+            parsedCoverLetter.professionalIntro ||
+            parsedCoverLetter.coverLetter ||
+            "",
+          technicalApproach: parsedCoverLetter.technicalApproach || "",
+          timelineMilestones: parsedCoverLetter.timelineMilestones || "",
+          dependencies: parsedCoverLetter.dependencies || "",
+          durationDays: parsedCoverLetter.durationDays || 0,
+          attachments: parsedCoverLetter.attachments || [],
+        };
+        setProposal(enrichedProposal);
+
+        // Fetch associated project
+        if (found.jobPostId) {
+          try {
+            const job = await api.jobPosts.getById(found.jobPostId);
+            setProject(job);
+          } catch (err) {
+            console.error("Failed to load project:", err);
           }
         }
-      })
-      .catch((err) => {
-        console.error("Failed to load proposals:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [id, user?.id]);
 
-  // ---- Find conversation for Contact button ----
-  function getConversationId() {
-    if (!proposal) return null;
-    const expertConvs = [];
-    const conv = expertConvs.find((c) => c.projectId === proposal.projectId);
-    return conv ? conv.id : null;
-  }
+        // Fetch expert info
+        if (found.expertId) {
+          try {
+            const exp = await api.users.getById(found.expertId);
+            setExpert(exp);
+          } catch (err) {
+            console.error("Failed to load expert:", err);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load proposal:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [id, user?.id]);
 
   // ---- Loading ----
   if (loading) {
@@ -128,10 +139,14 @@ export function ProposalDetail() {
   if (!proposal) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/proposals" className="mb-6">Back to My Proposals</BackButton>
+        <BackButton fallback="/client/my-projects" className="mb-6">
+          Back to My Projects
+        </BackButton>
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">Proposal not found</h3>
+          <h3 className="text-lg font-semibold text-gray-500 mb-2">
+            Proposal not found
+          </h3>
           <p className="text-sm text-gray-400">
             This proposal may have been removed or is no longer available.
           </p>
@@ -140,24 +155,28 @@ export function ProposalDetail() {
     );
   }
 
-  // ---- Helpers ----
   const statusCfg = getStatusConfig(proposal.status);
   const StatusIcon = statusCfg.icon;
-  const convId = getConversationId();
-  const isSessionProposal = proposal.id?.startsWith("session-prop-");
-  const hasFullFields = isSessionProposal || !!proposal.proposalTitle;
 
   const attachments = proposal.attachments || [];
 
+  const handleGenerateContract = () => {
+    const projectId = proposal.jobPostId || project?.id;
+    const proposalId = proposal.id;
+    const expertId = proposal.expertId;
+    navigate(
+      `/client/contracts/create?projectId=${projectId}&proposalId=${proposalId}&expertId=${expertId}`
+    );
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Back link */}
-      <BackButton fallback="/expert/proposals" className="mb-6">Back to My Proposals</BackButton>
+      <BackButton fallback="/client/my-projects" className="mb-6">
+        Back to My Projects
+      </BackButton>
 
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        {/* ================================================================ */}
-        {/* Header — Project + Status                                         */}
-        {/* ================================================================ */}
+        {/* Header */}
         <div className="p-8 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex-1">
@@ -170,21 +189,22 @@ export function ProposalDetail() {
                 {proposal.proposalTitle || project?.title || "Proposal"}
               </h1>
 
-              {/* Project + Client info */}
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 text-sm text-gray-500">
                 {project && (
                   <span className="inline-flex items-center gap-1.5">
                     <Briefcase className="w-4 h-4 text-gray-400" />
-                    Project: <span className="font-medium text-gray-700">{project.title}</span>
+                    Project:{" "}
+                    <span className="font-medium text-gray-700">
+                      {project.title}
+                    </span>
                   </span>
                 )}
-                {client && (
+                {expert && (
                   <span className="inline-flex items-center gap-1.5">
                     <User className="w-4 h-4 text-gray-400" />
-                    Client:{" "}
+                    Expert:{" "}
                     <span className="font-medium text-gray-700">
-                      {client.fullName}
-                      {client.profile?.company ? ` · ${client.profile.company}` : ""}
+                      {expert.fullName}
                     </span>
                   </span>
                 )}
@@ -200,7 +220,7 @@ export function ProposalDetail() {
               </div>
             </div>
 
-            {/* Status + Submitted date */}
+            {/* Status */}
             <div className="text-right flex-shrink-0">
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${statusCfg.className}`}
@@ -212,9 +232,9 @@ export function ProposalDetail() {
                 Submitted{" "}
                 {proposal.createdAt
                   ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
-                      year: "numeric",
                       month: "long",
                       day: "numeric",
+                      year: "numeric",
                     })
                   : "—"}
               </p>
@@ -231,7 +251,9 @@ export function ProposalDetail() {
             </div>
             <div className="bg-white rounded-xl px-4 py-3 border border-gray-200">
               <p className="text-xs text-gray-500 mb-0.5">Duration</p>
-              <p className="font-semibold text-gray-900">{proposal.durationDays} days</p>
+              <p className="font-semibold text-gray-900">
+                {proposal.durationDays} days
+              </p>
             </div>
             <div className="bg-white rounded-xl px-4 py-3 border border-gray-200">
               <p className="text-xs text-gray-500 mb-0.5">Submitted</p>
@@ -248,11 +270,8 @@ export function ProposalDetail() {
           </div>
         </div>
 
-        {/* ================================================================ */}
-        {/* Detail Sections                                                   */}
-        {/* ================================================================ */}
+        {/* Detail Sections */}
         <div className="p-8">
-          {/* Professional Introduction */}
           <DetailSection title="Professional Introduction">
             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
               {proposal.professionalIntro ||
@@ -261,29 +280,26 @@ export function ProposalDetail() {
             </p>
           </DetailSection>
 
-          {/* Technical Approach & Methodology */}
-          {hasFullFields && (
+          {proposal.technicalApproach && (
             <DetailSection title="Technical Approach & Methodology">
               <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {proposal.technicalApproach || "No technical approach specified."}
+                {proposal.technicalApproach}
               </p>
             </DetailSection>
           )}
 
-          {/* Implementation Timeline & Milestones */}
-          {hasFullFields && (
+          {proposal.timelineMilestones && (
             <DetailSection title="Implementation Timeline & Milestones">
               <pre className="text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
-                {proposal.timelineMilestones || "No timeline specified."}
+                {proposal.timelineMilestones}
               </pre>
             </DetailSection>
           )}
 
-          {/* Dependencies & Client Requirements */}
-          {hasFullFields && (
+          {proposal.dependencies && (
             <DetailSection title="Dependencies & Client Requirements">
               <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {proposal.dependencies || "No dependencies specified."}
+                {proposal.dependencies}
               </p>
             </DetailSection>
           )}
@@ -315,7 +331,9 @@ export function ProposalDetail() {
                       </p>
                       <p className="text-xs text-gray-400">
                         {att.type || att.fileType || "file"}
-                        {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                        {att.size || att.fileSize
+                          ? ` · ${att.size || att.fileSize}`
+                          : ""}
                       </p>
                     </div>
                   </div>
@@ -325,37 +343,36 @@ export function ProposalDetail() {
           </DetailSection>
         </div>
 
-        {/* ================================================================ */}
-        {/* Footer — Actions                                                  */}
-        {/* ================================================================ */}
+        {/* Footer — Actions */}
         <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex flex-wrap items-center gap-3">
-          {convId ? (
-            <Link
-              to={`/messenger/${convId}`}
-              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Contact Client
-            </Link>
-          ) : (
-            <Link
-              to="/messenger"
-              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Contact Client
-            </Link>
-          )}
+          <button
+            type="button"
+            onClick={handleGenerateContract}
+            className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+          >
+            <PenLine className="w-4 h-4" />
+            Generate Contract
+          </button>
 
           <Link
-            to="/expert/proposals"
+            to={`/messenger?expertId=${proposal.expertId}`}
+            className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+          >
+            <MessageSquare className="w-4 h-4" />
+            Contact Expert
+          </Link>
+
+          <Link
+            to={`/client/projects/${proposal.jobPostId || project?.id}/proposals`}
             className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to My Proposals
+            Back to Proposals
           </Link>
         </div>
       </div>
     </div>
   );
 }
+
+export default ClientProposalDetail;
