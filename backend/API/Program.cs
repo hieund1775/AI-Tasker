@@ -3,6 +3,7 @@ using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
+using AITasker_Modular.Modules.JobPostModule; 
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
 using Microsoft.EntityFrameworkCore;
@@ -16,8 +17,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
@@ -28,7 +27,7 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter your token (e.g. mock-jwt-token-for-xxxxx) below.",
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token below.",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
@@ -72,17 +71,20 @@ builder.Services.AddDbContext<DataContext>(options =>
 
 // --- ĐĂNG KÝ CÁC DỊCH VỤ HỆ THỐNG GỐC (DI) ---
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 
-// --- ĐĂNG KÝ HẠ TẦNG AI PROXY ĐỒNG BỘ 100% THEO AIMODULE CỦA MINH ---
-builder.Services.AddHttpClient<GeminiUtil>();
-builder.Services.AddScoped<AiChatService>(); // Gọi đúng class chữ 'i' ngắn viết thường
+// --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
+builder.Services.AddScoped<IJobPostService, JobPostService>(); 
 
+// =================================================================================
+// >>> ĐÃ KHÓA: Comment 2 dòng hạ tầng AI này lại để cô lập phần AI đang lỗi <<<
+// =================================================================================
+// builder.Services.AddHttpClient<GeminiUtil>();
+// builder.Services.AddScoped<AiChatService>(); 
 
 var app = builder.Build();
 
@@ -108,6 +110,7 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Seed Domains
         if (!await db.AICategoryDomains.AnyAsync())
         {
             db.AICategoryDomains.AddRange(new List<AICategoryDomain>
@@ -119,7 +122,6 @@ using (var scope = app.Services.CreateScope())
             });
         }
 
-        // Seed some new test categories if they don't exist yet
         var testCategories = new List<string> { "Deep Learning", "Data Science", "Reinforcement Learning" };
         foreach (var catName in testCategories)
         {
@@ -129,6 +131,7 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Seed Skills
         if (!await db.Skills.AnyAsync())
         {
             db.Skills.AddRange(new List<Skill>
@@ -143,7 +146,6 @@ using (var scope = app.Services.CreateScope())
             });
         }
 
-        // Seed some new test skills if they don't exist yet
         var testSkills = new List<string> { "React.js", "Vue.js", "Node.js", "LangChain", "Semantic Kernel" };
         foreach (var skillName in testSkills)
         {
@@ -170,7 +172,6 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowLocalhost5173");
-
 app.UseAuthorization();
 app.MapControllers();
 

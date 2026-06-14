@@ -1,9 +1,8 @@
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AITasker_Modular.Modules.JobModule; // Giữ lại nếu DTOs vẫn nằm bên folder cũ của Hùng
-using AITasker_Modular.Modules.JobModule.DTOs;
+using AITasker_Modular.Modules.JobModule; 
+using AITasker_Modular.Modules.JobPostModule; 
 
 namespace AITasker_Modular.Modules.JobPostModule
 {
@@ -11,28 +10,20 @@ namespace AITasker_Modular.Modules.JobPostModule
     [Route("api/[controller]")]
     public class JobPostsController : ControllerBase
     {
-        // Gọi chính xác Interface nằm trong JobPostModule của Minh
-        private readonly IJobService _jobService;
+        private readonly IJobPostService _jobService; 
 
-        public JobPostsController(IJobService jobService)
+        public JobPostsController(IJobPostService jobService)
         {
             _jobService = jobService;
         }
 
-        // 1. API Bộ lọc nâng cao động bằng LINQ
         [HttpGet("search-filter")]
-        public async Task<IActionResult> GetFilteredJobs(
-            [FromQuery] string? search,
-            [FromQuery] decimal? minBudget,
-            [FromQuery] decimal? maxBudget,
-            [FromQuery] string? status,
-            [FromQuery] Guid? categoryDomainId)
+        public async Task<IActionResult> GetFilteredJobs([FromQuery] string? search, [FromQuery] decimal? minBudget, [FromQuery] decimal? maxBudget, [FromQuery] string? status, [FromQuery] Guid? categoryDomainId)
         {
             var result = await _jobService.GetFilteredJobsAsync(search, minBudget, maxBudget, status, categoryDomainId);
             return Ok(result);
         }
 
-        // 2. API Lấy tất cả bài đăng gốc
         [HttpGet]
         public async Task<IActionResult> GetAllJobs()
         {
@@ -40,7 +31,6 @@ namespace AITasker_Modular.Modules.JobPostModule
             return Ok(result);
         }
 
-        // 3. API Lấy chi tiết một bài đăng theo ID (Guid sạch)
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetJobById(Guid id)
         {
@@ -49,31 +39,18 @@ namespace AITasker_Modular.Modules.JobPostModule
             return Ok(result);
         }
 
-        // 4. API Đăng bài tuyển dụng mới
         [HttpPost]
-        public async Task<IActionResult> CreateJob([FromBody] CreateJobPostDto dto)
+        public async Task<IActionResult> CreateJob([FromBody] JobPost jobPost)
         {
-            var result = await _jobService.CreateJobAsync(dto);
+            var result = await _jobService.CreateJobAsync(jobPost);
             return Ok(result);
         }
 
-        // 5. API Cập nhật nội dung bài đăng tuyển dụng
         [HttpPut("{id:guid}")]
-        public async Task<IActionResult> UpdateJob(Guid id, [FromBody] UpdateJobPostDto dto)
+        public async Task<IActionResult> UpdateJob(Guid id, [FromBody] JobPost jobPost)
         {
-            var result = await _jobService.UpdateJobPostAsync(id, dto);
+            var result = await _jobService.UpdateJobPostAsync(id, jobPost);
             if (result == null) return NotFound("Không tìm thấy bài đăng để cập nhật.");
-            return Ok(result);
-        }
-
-        [HttpGet("client/{clientId:guid}")]
-        public async Task<IActionResult> GetJobPostsByClientId(Guid clientId)
-        {
-            var result = await _jobService.GetJobPostsByClientIdAsync(clientId);
-            if (result == null || !result.Any())
-            {
-                return NotFound("Không tìm thấy bài đăng nào của client này.");
-            }
             return Ok(result);
         }
     }

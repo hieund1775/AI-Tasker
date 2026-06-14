@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
 using AITasker_Modular.Modules.CategoryTagModule;
 
-namespace AITasker_Modular.Modules.JobModule;
+namespace AITasker_Modular.Modules.JobModule; // <── ĐẢM BẢO DÒNG NÀY LÀ JOBMODULE
 
 [Table("JobPostSkill")]
 public class JobPostSkill
