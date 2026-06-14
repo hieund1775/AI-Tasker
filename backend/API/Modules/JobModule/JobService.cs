@@ -167,4 +167,17 @@ public class JobService : IJobService
 
         return await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
     }
+
+    public async Task<IEnumerable<JobPost>> GetJobPostsByClientIdAsync(Guid clientId)
+    {
+        return await _context.JobPosts
+                             .Include(jp => jp.ClientUser)
+                             .Include(jp => jp.AICategoryDomain)
+                             .Include(jp => jp.JobPostSkills)
+                                 .ThenInclude(jps => jps.Skill)
+                             .Where(x => x.ClientId == clientId)
+                             .OrderByDescending(x => x.CreatedAt)
+                             .ToListAsync();
+    }
+
 }

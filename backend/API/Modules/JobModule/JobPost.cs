@@ -32,4 +32,5 @@ public class JobPost
 
     public AICategoryDomain? AICategoryDomain { get; set; }
     public ICollection<JobPostSkill> JobPostSkills { get; set; } = new List<JobPostSkill>();
+    public ICollection<Proposal> Proposals { get; set; } = new List<Proposal>();
 }

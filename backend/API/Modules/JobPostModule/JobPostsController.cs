@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using AITasker_Modular.Modules.JobModule; // Giữ lại nếu DTOs vẫn nằm bên folder cũ của Hùng
@@ -62,6 +63,17 @@ namespace AITasker_Modular.Modules.JobPostModule
         {
             var result = await _jobService.UpdateJobPostAsync(id, dto);
             if (result == null) return NotFound("Không tìm thấy bài đăng để cập nhật.");
+            return Ok(result);
+        }
+
+        [HttpGet("client/{clientId:guid}")]
+        public async Task<IActionResult> GetJobPostsByClientId(Guid clientId)
+        {
+            var result = await _jobService.GetJobPostsByClientIdAsync(clientId);
+            if (result == null || !result.Any())
+            {
+                return NotFound("Không tìm thấy bài đăng nào của client này.");
+            }
             return Ok(result);
         }
     }

@@ -20,6 +20,14 @@ namespace AITasker_Modular.Modules.ProposalModule
 
         public async Task<Proposal> SubmitProposalAsync(CreateProposalDto dto)
         {
+            var alreadyExists = await _context.Proposals
+                .AnyAsync(x => x.JobPostId == dto.JobPostId && x.ExpertId == dto.ExpertId);
+
+            if (alreadyExists)
+            {
+                throw new InvalidOperationException("Mỗi chuyên gia chỉ có thể gửi một hồ sơ (proposal) cho một công việc (jobpost).");
+            }
+
             var proposal = new Proposal
             {
                 Id = Guid.NewGuid(),
@@ -33,12 +41,17 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             _context.Proposals.Add(proposal);
             await _context.SaveChangesAsync();
-            return proposal;
+            return await _context.Proposals
+                .Include(x => x.JobPost)
+                .Include(x => x.Expert)
+                .FirstAsync(x => x.Id == proposal.Id);
         }
 
         public async Task<IEnumerable<Proposal>> GetProposalsByJobPostIdAsync(Guid jobPostId)
         {
             return await _context.Proposals
+                .Include(x => x.JobPost)
+                .Include(x => x.Expert)
                 .Where(x => x.JobPostId == jobPostId)
                 .ToListAsync();
         }
@@ -46,6 +59,8 @@ namespace AITasker_Modular.Modules.ProposalModule
         public async Task<IEnumerable<Proposal>> GetProposalsByExpertIdAsync(Guid expertId)
         {
             return await _context.Proposals
+                .Include(x => x.JobPost)
+                .Include(x => x.Expert)
                 .Where(x => x.ExpertId == expertId)
                 .ToListAsync();
         }
@@ -54,6 +69,7 @@ namespace AITasker_Modular.Modules.ProposalModule
         {
             var proposal = await _context.Proposals
                 .Include(p => p.JobPost)
+                .Include(p => p.Expert)
                 .FirstOrDefaultAsync(x => x.Id == proposalId);
                 
             if (proposal == null) return null;
