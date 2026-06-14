@@ -256,29 +256,25 @@ export function MyProjectsList() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {/* Secondary: always link to detail page */}
+                  <div className="flex items-center gap-3">
+                    {/* View Detail — outline button */}
                     <Link
                       to={`/client/projects/${project.id}`}
                       state={{ from: location.pathname }}
-                      className="px-3.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-xs font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap"
+                      className="flex-1 min-w-0 px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
                     >
                       <FileText className="w-3.5 h-3.5" />
-                      View Details
+                      View Detail
                     </Link>
 
-                    {/* Primary: status-dependent action */}
+                    {/* View Proposal — primary blue button */}
                     <Link
-                      to={action.to}
+                      to={`/client/projects/${project.id}/proposals`}
                       state={{ from: location.pathname }}
-                      className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors inline-flex items-center gap-1.5 whitespace-nowrap ${
-                        action.variant === "primary"
-                          ? "bg-blue-900 text-white hover:bg-blue-800"
-                          : "bg-gray-900 text-white hover:bg-gray-800"
-                      }`}
+                      className="flex-1 min-w-0 px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
                     >
-                      {action.label}
-                      <ArrowRight className="w-3 h-3" />
+                      <Users className="w-3.5 h-3.5" />
+                      View Proposal
                     </Link>
                   </div>
                 </div>
