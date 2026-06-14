@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
+
 export function JobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,27 +24,29 @@ export function JobDetail() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchJob() {
+    async function fetchJobData() {
       setLoading(true);
       setError(null);
       try {
-        const project = null;
-        if (!project) {
-          if (!cancelled) setError("Project not found.");
+        const jobData = await api.jobPosts.getById(id);
+        if (!jobData) {
+          if (!cancelled) setError("Job not found.");
           return;
         }
-        const category = null;
-        const client = null;
         if (!cancelled) {
           setJob({
-            ...project,
-            categoryLabel: category?.label || project.category,
-            client: client
-              ? {
-                  name: client.fullName,
-                  location: client.profile?.location || "",
-                }
-              : null,
+            id: jobData.id,
+            title: jobData.title,
+            description: jobData.description,
+            budget: jobData.budget,
+            createdAt: jobData.createdAt,
+            category: jobData.category,
+            categoryLabel: jobData.category,
+            requiredSkills: jobData.jobPostSkills?.map(s => s.skill) || [],
+            client: {
+              name: jobData.clientName || "Client",
+              location: jobData.clientLocation || "",
+            },
           });
         }
       } catch (apiError) {
@@ -51,7 +55,7 @@ export function JobDetail() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchJob();
+    fetchJobData();
     return () => {
       cancelled = true;
     };
