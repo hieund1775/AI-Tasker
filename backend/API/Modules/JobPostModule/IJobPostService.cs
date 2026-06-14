@@ -10,7 +10,8 @@ namespace AITasker_Modular.Modules.JobPostModule
         Task<IEnumerable<JobPost>> GetFilteredJobsAsync(string? search, decimal? minBudget, decimal? maxBudget, string? status, Guid? categoryDomainId);
         Task<IReadOnlyList<JobPost>> GetJobsAsync();
         Task<JobPost?> GetJobPostByIdAsync(Guid id);
-        Task<JobPost> CreateJobAsync(JobPost jobPostInput);
-        Task<JobPost?> UpdateJobPostAsync(Guid id, JobPost jobPostInput);
+        Task<JobPost> CreateJobAsync(CreateJobPostDto jobPostDto);
+        Task<JobPost?> UpdateJobPostAsync(Guid id, UpdateJobPostDto jobPostDto);
+        Task<IEnumerable<JobPost>> GetJobPostsByClientIdAsync(Guid clientId);
     }
 }

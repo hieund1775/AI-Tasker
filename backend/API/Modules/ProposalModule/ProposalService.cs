@@ -34,7 +34,13 @@ namespace AITasker_Modular.Modules.ProposalModule
                 JobPostId = dto.JobPostId,
                 ExpertId = dto.ExpertId,
                 BidAmount = dto.BidAmount,
-                CoverLetter = dto.CoverLetter,
+                EstimatedDuration = dto.EstimatedDuration,
+                Title = dto.Title.Trim(),
+                Introduction = dto.Introduction.Trim(),
+                Technical = dto.Technical.Trim(),
+                Implementation = dto.Implementation.Trim(),
+                Dependencies = dto.Dependencies.Trim(),
+                Portfolio = dto.PortfolioUrl,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };

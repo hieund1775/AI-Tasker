@@ -247,7 +247,13 @@ public class UserService : IUserService
                 Id = p.Id.ToString(),
                 JobPostId = p.JobPostId.ToString(),
                 BidAmount = p.BidAmount,
-                CoverLetter = p.CoverLetter,
+                EstimatedDuration = p.EstimatedDuration,
+                Title = p.Title,
+                Introduction = p.Introduction,
+                Technical = p.Technical,
+                Implementation = p.Implementation,
+                Dependencies = p.Dependencies,
+                Portfolio = p.Portfolio,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt
             })

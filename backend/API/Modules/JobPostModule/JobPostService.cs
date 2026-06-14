@@ -17,24 +17,24 @@ public class JobPostService : IJobPostService
         _context = context;
     }
 
-    public async Task<JobPost> CreateJobAsync(JobPost jobPostInput)
+    public async Task<JobPost> CreateJobAsync(CreateJobPostDto jobPostDto)
     {
         var jobPost = new JobPost
         {
             Id = Guid.NewGuid(),
-            ClientId = jobPostInput.ClientId,
-            Title = jobPostInput.Title.Trim(),
-            Description = jobPostInput.Description.Trim(),
-            Budget = jobPostInput.Budget,
-            Deadline = jobPostInput.Deadline,
+            ClientId = jobPostDto.ClientId,
+            Title = jobPostDto.Title.Trim(),
+            Description = jobPostDto.Description.Trim(),
+            Budget = jobPostDto.Budget,
+            Deadline = jobPostDto.Deadline,
             Status = "Open", 
             CreatedAt = DateTime.UtcNow,
-            AICategoryDomainId = jobPostInput.AICategoryDomainId
+            AICategoryDomainId = jobPostDto.AICategoryDomainId
         };
 
-        if (jobPostInput.SkillIds != null && jobPostInput.SkillIds.Any())
+        if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
         {
-            foreach (var sid in jobPostInput.SkillIds)
+            foreach (var sid in jobPostDto.SkillIds)
             {
                 if (Guid.TryParse(sid, out var sguid))
                 {
@@ -43,9 +43,9 @@ public class JobPostService : IJobPostService
             }
         }
 
-        if (jobPostInput.Requirements != null && jobPostInput.Requirements.Any())
+        if (jobPostDto.Requirements != null && jobPostDto.Requirements.Any())
         {
-            foreach (var req in jobPostInput.Requirements)
+            foreach (var req in jobPostDto.Requirements)
             {
                 jobPost.JobRequirements.Add(new JobRequirement
                 {
@@ -86,7 +86,7 @@ public class JobPostService : IJobPostService
                              .FirstOrDefaultAsync(jp => jp.Id == id);
     }
 
-    public async Task<JobPost?> UpdateJobPostAsync(Guid id, JobPost jobPostInput)
+    public async Task<JobPost?> UpdateJobPostAsync(Guid id, UpdateJobPostDto jobPostDto)
     {
         var jobPost = await _context.JobPosts
                                      .Include(jp => jp.JobPostSkills)
@@ -94,18 +94,18 @@ public class JobPostService : IJobPostService
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
 
-        jobPost.Title = jobPostInput.Title.Trim();
-        jobPost.Description = jobPostInput.Description.Trim();
-        jobPost.Budget = jobPostInput.Budget;
-        jobPost.Deadline = jobPostInput.Deadline;
-        jobPost.AICategoryDomainId = jobPostInput.AICategoryDomainId;
+        jobPost.Title = jobPostDto.Title.Trim();
+        jobPost.Description = jobPostDto.Description.Trim();
+        jobPost.Budget = jobPostDto.Budget;
+        jobPost.Deadline = jobPostDto.Deadline;
+        jobPost.AICategoryDomainId = jobPostDto.AICategoryDomainId;
 
         _context.JobPostSkills.RemoveRange(jobPost.JobPostSkills);
         jobPost.JobPostSkills.Clear();
 
-        if (jobPostInput.SkillIds != null && jobPostInput.SkillIds.Any())
+        if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
         {
-            foreach (var sid in jobPostInput.SkillIds)
+            foreach (var sid in jobPostDto.SkillIds)
             {
                 if (Guid.TryParse(sid, out var sguid))
                 {
@@ -120,9 +120,9 @@ public class JobPostService : IJobPostService
             jobPost.JobRequirements.Clear();
         }
 
-        if (jobPostInput.Requirements != null && jobPostInput.Requirements.Any())
+        if (jobPostDto.Requirements != null && jobPostDto.Requirements.Any())
         {
-            foreach (var req in jobPostInput.Requirements)
+            foreach (var req in jobPostDto.Requirements)
             {
                 jobPost.JobRequirements.Add(new JobRequirement
                 {
@@ -178,6 +178,7 @@ public class JobPostService : IJobPostService
                              .Include(jp => jp.AICategoryDomain)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
+                             .Include(jp => jp.JobRequirements)
                              .Where(x => x.ClientId == clientId)
                              .OrderByDescending(x => x.CreatedAt)
                              .ToListAsync();

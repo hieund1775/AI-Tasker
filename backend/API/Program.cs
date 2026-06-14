@@ -172,6 +172,7 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("AllowLocalhost5173");
+app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
 

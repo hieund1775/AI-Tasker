@@ -48,10 +48,4 @@ public class JobPost
     // CÁC THUỘC TÍNH PHỤ TRỢ HỨNG DỮ LIỆU LAI TỪ CONTROLLER
     // =================================================================================
     public ICollection<JobRequirement> JobRequirements { get; set; } = new List<JobRequirement>();
-
-    [NotMapped]
-    public List<string>? SkillIds { get; set; }
-
-    [NotMapped]
-    public List<JobRequirementDto>? Requirements { get; set; }
 }

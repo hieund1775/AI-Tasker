@@ -1,35 +1,62 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Helpers;
 
-namespace AITasker_Modular.Modules.ChatModule;
-
-[ApiController]
-[Route("api/chat")]
-public class ChatController : ControllerBase
+namespace AITasker_Modular.Modules.ChatModule
 {
-    private readonly IChatService _service;
-    private readonly IUserService _userService;
-
-    public ChatController(IChatService service, IUserService userService)
+    [ApiController]
+    [Route("api/chat")]
+    public class ChatController : ControllerBase
     {
-        _service = service;
-        _userService = userService;
-    }
+        private readonly IChatService _service;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
-        if (errorResult != null)
-            return errorResult;
+        public ChatController(IChatService service)
+        {
+            _service = service;
+        }
 
-        return Ok(await _service.GetConversationsAsync());
-    }
+        [HttpPost("conversations")]
+        public async Task<IActionResult> GetOrCreateConversation([FromBody] CreateConversationDto dto)
+        {
+            var result = await _service.GetOrCreateConversationAsync(dto);
+            return Ok(result);
+        }
 
-    [HttpPost("send")]
-    public async Task<IActionResult> Send(Message message)
-    {
-        return Ok(await _service.SendMessageAsync(message));
+        [HttpGet("conversations/user/{userId:guid}")]
+        public async Task<IActionResult> GetUserConversations(Guid userId)
+        {
+            var result = await _service.GetUserConversationsAsync(userId);
+            if (result == null || !result.Any())
+            {
+                return NotFound("Không tìm thấy cuộc hội thoại nào của người dùng này.");
+            }
+            return Ok(result);
+        }
+
+        [HttpPost("messages")]
+        public async Task<IActionResult> SendMessage([FromBody] SendMessageDto dto)
+        {
+            try
+            {
+                var result = await _service.SendMessageAsync(dto);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("conversations/{conversationId:guid}/messages")]
+        public async Task<IActionResult> GetConversationMessages(Guid conversationId)
+        {
+            var result = await _service.GetConversationMessagesAsync(conversationId);
+            if (result == null || !result.Any())
+            {
+                return NotFound("Cuộc hội thoại chưa có tin nhắn nào.");
+            }
+            return Ok(result);
+        }
     }
 }

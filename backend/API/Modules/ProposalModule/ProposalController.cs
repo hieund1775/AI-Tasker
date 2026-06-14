@@ -18,10 +18,27 @@ namespace AITasker_Modular.Modules.JobModule
         }
 
         [HttpPost("submit-proposal")]
-        public async Task<IActionResult> SubmitProposal([FromBody] CreateProposalDto dto)
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> SubmitProposal([FromForm] CreateProposalDto dto)
         {
             try
             {
+                if (dto.Portfolio != null && dto.Portfolio.Length > 0)
+                {
+                    var uploadsFolder = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                    if (!System.IO.Directory.Exists(uploadsFolder))
+                    {
+                        System.IO.Directory.CreateDirectory(uploadsFolder);
+                    }
+                    var uniqueFileName = Guid.NewGuid().ToString() + "_" + System.IO.Path.GetFileName(dto.Portfolio.FileName);
+                    var filePath = System.IO.Path.Combine(uploadsFolder, uniqueFileName);
+                    using (var fileStream = new System.IO.FileStream(filePath, System.IO.FileMode.Create))
+                    {
+                        await dto.Portfolio.CopyToAsync(fileStream);
+                    }
+                    dto.PortfolioUrl = $"/uploads/{uniqueFileName}";
+                }
+
                 var result = await _proposalService.SubmitProposalAsync(dto);
                 return Ok(result);
             }
@@ -72,6 +89,15 @@ namespace AITasker_Modular.Modules.JobModule
         public Guid JobPostId { get; set; }
         public Guid ExpertId { get; set; }
         public decimal BidAmount { get; set; }
-        public string CoverLetter { get; set; } = string.Empty;
+        public int EstimatedDuration { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Introduction { get; set; } = string.Empty;
+        public string Technical { get; set; } = string.Empty;
+        public string Implementation { get; set; } = string.Empty;
+        public string Dependencies { get; set; } = string.Empty;
+        public Microsoft.AspNetCore.Http.IFormFile? Portfolio { get; set; }
+
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string? PortfolioUrl { get; set; }
     }
 }
