@@ -253,6 +253,9 @@ export const api = {
     update: (id, data) => put(`/JobPosts/${id}`, data),
   },
 
+  categoryTags: {
+    getSkills: () => get("/category-tags/skills"),
+  },
   // ===========================================================================
   // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.

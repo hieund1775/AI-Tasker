@@ -25,7 +25,18 @@ export function EditExpertProfile() {
     bio: "",
   });
 
-  const [skills, setSkills] = useState([]);
+ const [skills, setSkills] = useState([]);
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [selectedSkill, setSelectedSkill] = useState("");
+
+  // Load available skills from API
+  useEffect(() => {
+    api.categoryTags.getSkills()
+      .then(res => {
+        setAvailableSkills(Array.isArray(res) ? res : []);
+      })
+      .catch(err => console.error("Failed to load skills:", err));
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -76,7 +87,7 @@ export function EditExpertProfile() {
     try {
       const apiPayload = {
         jobTitle: formData.jobTitle || "Chưa cập nhật",
-        major: formData.major || "Chưa cập nhật",
+        major: skills.length > 0 ? skills.join(", ") : (formData.major || "Chưa cập nhật"),
         bio: formData.bio || "Chưa có giới thiệu",
         portfolioUrls: formData.portfolioUrls || "",
         location: formData.location || "Chưa cập nhật",
@@ -178,10 +189,40 @@ export function EditExpertProfile() {
           />
         </div>
 
-        <div>
+                <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Skills
           </label>
+          
+          {/* Dropdown chọn skill */}
+          <div className="mb-4 flex gap-2">
+            <select
+              value={selectedSkill}
+              onChange={(e) => setSelectedSkill(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+            >
+              <option value="">Select a skill...</option>
+              {availableSkills.map((skill) => (
+                <option key={skill.id} value={skill.name}>
+                  {skill.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedSkill && !skills.includes(selectedSkill)) {
+                  setSkills([...skills, selectedSkill]);
+                  setSelectedSkill("");
+                }
+              }}
+              className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium"
+            >
+              Add
+            </button>
+          </div>
+
+          {/* Hiển thị các skill đã chọn */}
           {skills.length === 0 ? (
             <p className="text-sm text-gray-400">
               No skills added. Add skills to improve your profile visibility.
