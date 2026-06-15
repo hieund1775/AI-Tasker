@@ -95,17 +95,30 @@ export function ClientDashboard() {
 
   const [clientProjects, setClientProjects] = useState([]);
   const [recommendedExperts, setRecommendedExperts] = useState([]);
+  const [allExperts, setAllExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
       setLoading(true);
-      
+
       // Load user projects
       try {
         const userRes = await api.users.getById(user.id);
-        setClientProjects(userRes?.jobPosts || []);
+        const rawPosts = userRes?.jobPosts || [];
+        const chosenMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
+        const mappedPosts = rawPosts.map((p) => {
+          const chosenExpertId = chosenMapping[p.id];
+          if (chosenExpertId) {
+            return {
+              ...p,
+              assignedExpertId: chosenExpertId,
+            };
+          }
+          return p;
+        });
+        setClientProjects(mappedPosts);
       } catch (err) {
         console.error("Error loading client projects:", err);
       }
@@ -129,6 +142,7 @@ export function ClientDashboard() {
             }
           }));
         setRecommendedExperts(expertsOnly.slice(0, 3));
+        setAllExperts(expertsOnly);
       } catch (err) {
         console.warn("Failed to load recommended experts (may lack permission):", err);
       } finally {
@@ -234,135 +248,139 @@ export function ClientDashboard() {
               const myProjects = clientProjects.filter(canShowInMyProjects);
               if (myProjects.length === 0) {
                 return (
-              <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
-                  No projects yet
-                </h3>
-                <p className="text-sm text-gray-400 mb-4">
-                  Post your first project to find the right AI expert.
-                </p>
-                <Link
-                  to="/client/post-project"
-                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
-                >
-                  Post a Project
-                </Link>
-              </div>
+                  <div className="flex flex-col items-center justify-center h-full text-center py-16">
+                    <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                      No projects yet
+                    </h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                      Post your first project to find the right AI expert.
+                    </p>
+                    <Link
+                      to="/client/post-project"
+                      className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
+                    >
+                      Post a Project
+                    </Link>
+                  </div>
                 );
               }
               return (
                 myProjects.map((p) => {
-                // TODO: Replace with API calls for expert info and proposals
-                const assignedExpert = null;
-                const progress = getProjectProgress(p.id);
-                const statusKey = deriveProjectStatusKey(p, {
-                  proposalCount: 0,
-                });
-                const displayStatus = getStatusLabel(statusKey);
-                const badgeClass = getStatusBadgeClass(statusKey);
-                const btnCfg = getClientButtonConfig(statusKey);
-                
-                const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
-                const deadlineText = (() => {
-                  if (!p.deadline) return "N/A";
-                  const num = Number(p.deadline);
-                  if (!isNaN(num) && num < 1000) return `${num} days`;
-                  try {
-                    return new Date(p.deadline).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    });
-                  } catch {
-                    return String(p.deadline);
-                  }
-                })();
+                  // Resolve localStorage chosen expert
+                  const chosenMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
+                  const chosenExpertId = chosenMapping[p.id];
+                  const assignedExpert = chosenExpertId ? (allExperts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
 
-                return (
-                  <div
-                    key={p.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
-                  >
-                    {/* ── Top row: title + status badge ── */}
-                    <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
-                        {p.title}
-                      </h3>
-                      <span
-                        className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
-                      >
-                        {displayStatus}
-                      </span>
-                    </div>
+                  const progress = getProjectProgress(p.id);
+                  const statusKey = deriveProjectStatusKey(p, {
+                    proposalCount: 0,
+                  });
+                  const displayStatus = assignedExpert ? "Pending For Experting" : getStatusLabel(statusKey);
+                  const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
+                  const btnCfg = getClientButtonConfig(statusKey);
 
-                    {/* ── Expert name (if assigned) ── */}
-                    <p className="text-sm text-gray-500 mb-3">
-                      {assignedExpert ? (
-                        <>
-                          with{" "}
-                          <span className="font-medium text-gray-700">
-                            {assignedExpert.fullName}
+                  const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
+                  const deadlineText = (() => {
+                    if (!p.deadline) return "N/A";
+                    const num = Number(p.deadline);
+                    if (!isNaN(num) && num < 1000) return `${num} days`;
+                    try {
+                      return new Date(p.deadline).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      });
+                    } catch {
+                      return String(p.deadline);
+                    }
+                  })();
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    >
+                      {/* ── Top row: title + status badge ── */}
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
+                          {p.title}
+                        </h3>
+                        <span
+                          className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass}`}
+                        >
+                          {displayStatus}
+                        </span>
+                      </div>
+
+                      {/* ── Expert name (if assigned) ── */}
+                      <p className="text-sm text-gray-500 mb-3">
+                        {assignedExpert ? (
+                          <>
+                            with{" "}
+                            <span className="font-medium text-gray-700">
+                              {assignedExpert.fullName}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-gray-400 italic">
+                            No expert assigned yet
                           </span>
-                        </>
-                      ) : (
-                        <span className="text-gray-400 italic">
-                          No expert assigned yet
-                        </span>
+                        )}
+                      </p>
+
+                      {/* ── Skill tags ── */}
+                      {skills.length > 0 && (
+                        <div className="mb-4">
+                          <SkillTags
+                            skills={skills}
+                            maxVisible={SKILL_VISIBLE_COUNT.project}
+                          />
+                        </div>
                       )}
-                    </p>
 
-                    {/* ── Skill tags ── */}
-                    {skills.length > 0 && (
+                      {/* ── Progress bar (always shown) ── */}
                       <div className="mb-4">
-                        <SkillTags
-                          skills={skills}
-                          maxVisible={SKILL_VISIBLE_COUNT.project}
-                        />
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-gray-500">
+                            Milestone Progress
+                          </span>
+                          <span className="text-xs font-bold text-gray-900">
+                            {progress}%
+                          </span>
+                        </div>
+                        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gray-900 rounded-full transition-all"
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
                       </div>
-                    )}
 
-                    {/* ── Progress bar (always shown) ── */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-medium text-gray-500">
-                          Milestone Progress
-                        </span>
-                        <span className="text-xs font-bold text-gray-900">
-                          {progress}%
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gray-900 rounded-full transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
+                      {/* ── Bottom row: due date, budget, action ── */}
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span className="inline-flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            Due {deadlineText}
+                          </span>
+                          <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
+                            <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                            <MoneyDisplay amount={p.budget} />
+                          </span>
+                        </div>
+                        <Link
+                          to={btnCfg.linkTo?.(p) || `/client/projects/${p.id}`}
+                          state={{ from: location.pathname }}
+                          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${btnCfg.className}`}
+                        >
+                          {btnCfg.label}
+                        </Link>
                       </div>
                     </div>
-
-                    {/* ── Bottom row: due date, budget, action ── */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span className="inline-flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          Due {deadlineText}
-                        </span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
-                          <DollarSign className="w-3.5 h-3.5 text-gray-400" />
-                          <MoneyDisplay amount={p.budget} />
-                        </span>
-                      </div>
-                      <Link
-                        to={btnCfg.linkTo?.(p) || `/client/projects/${p.id}`}
-                        state={{ from: location.pathname }}
-                        className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${btnCfg.className}`}
-                      >
-                        {btnCfg.label}
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })
-            )})()}
+                  );
+                })
+              )
+            })()}
           </div>
         </section>
 

@@ -26,6 +26,11 @@ async function request(endpoint, options = {}) {
     timeout = 5000, // 5 s default — fail fast for unavailable backends
     ...rest
   } = options;
+
+  const httpMethod = method || (body ? "POST" : "GET");
+
+  // Mock interceptor disabled - proceed with real API calls
+
   const url = `${API_BASE_URL}${endpoint}`;
 
   const headers = {
@@ -40,7 +45,6 @@ async function request(endpoint, options = {}) {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const httpMethod = method || (body ? "POST" : "GET");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   const init = {

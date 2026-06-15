@@ -66,6 +66,7 @@ export function MyProjectsList() {
   const { user } = useAuth();
 
   const [projects, setProjects] = useState([]);
+  const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -73,8 +74,12 @@ export function MyProjectsList() {
       if (!user?.id) return;
       try {
         setLoading(true);
-        const userRes = await api.users.getById(user.id);
+        const [userRes, expertsRes] = await Promise.all([
+          api.users.getById(user.id),
+          api.experts.list().catch(() => [])
+        ]);
         setProjects(userRes?.jobPosts || []);
+        setExperts(expertsRes || []);
       } catch (err) {
         console.error("Failed to load client projects:", err);
       } finally {
@@ -119,14 +124,20 @@ export function MyProjectsList() {
         <div className="space-y-4">
           {projects.map((project) => {
             const proposalCount = 0;
+
+            // Resolve localStorage chosen expert
+            const chosenExpertsMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
+            const chosenExpertId = chosenExpertsMapping[project.id];
+            const assignedExpert = chosenExpertId ? (experts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
+
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = getStatusLabel(statusKey);
-            const badgeClass = getStatusBadgeClass(statusKey);
+            const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
+            const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
+
             const progress = getProjectProgress(project.id);
-            const assignedExpert = null;
             const category = project.aiCategoryDomain;
             const action = getActionInfo(statusKey, project.id, proposalCount);
-            
+
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
@@ -223,21 +234,21 @@ export function MyProjectsList() {
                   statusKey === "waiting_review" ||
                   statusKey === "needs_revision" ||
                   statusKey === "completed") && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-gray-500">Progress</span>
-                      <span className="text-xs font-bold text-gray-900">
-                        {progress}%
-                      </span>
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">Progress</span>
+                        <span className="text-xs font-bold text-gray-900">
+                          {progress}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-900 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-900 rounded-full transition-all"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+                  )}
 
                 {/* ── Bottom row: expert info + action button ── */}
                 <div className="flex items-center justify-between pt-3 border-t border-gray-100">
