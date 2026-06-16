@@ -1,13 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Eye, EyeOff, X } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js"; // Đảm bảo đường dẫn này đúng với file useAuth của bạn
 
 export function SignUpPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { register } = useAuth();
 
-  const [role, setRole] = useState("client");
+  // Pre-select role from URL query parameter (e.g. /signup?role=expert)
+  const preselectedRole = searchParams.get("role");
+  const initialRole = preselectedRole === "expert" || preselectedRole === "client" ? preselectedRole : "client";
+
+  const [role, setRole] = useState(initialRole);
   const [formData, setFormData] = useState({
     name: "",
     email: "",

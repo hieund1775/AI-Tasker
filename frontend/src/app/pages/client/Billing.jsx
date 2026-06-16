@@ -66,7 +66,7 @@ export function Billing() {
       try {
         const [wallet, transactions, clientProjects] = await Promise.all([
           api.payments.getWallet(user.id).catch(() => null),
-          api.payments.getTransactions().catch(() => []),
+          api.payments.getTransactions(user.id).catch(() => []),
           api.projects.getByClient(user.id).catch(() => []),
         ]);
 
@@ -76,6 +76,7 @@ export function Billing() {
                 id: p.id,
                 title: p.jobPost?.title || "Active Project",
                 escrowAmount: p.escrowBalance || 0,
+                expertId: p.expertId,
               }))
             : [];
 
@@ -112,6 +113,7 @@ export function Billing() {
     try {
       await api.payments.depositEscrow({
         projectId: selectedProject,
+        sourceWalletId: user.id,
         amount: Number(depositAmount),
       });
       setFeedback({ type: "success", message: "Funds deposited to escrow successfully." });
@@ -158,11 +160,43 @@ export function Billing() {
     }
   };
 
-  const handleRelease = async (transactionId) => {
+  const handleRelease = async (projectId, expertId, escrowAmount) => {
+    if (!projectId || !expertId || !escrowAmount || escrowAmount <= 0) {
+      setFeedback({ type: "error", message: "Invalid release parameters." });
+      return;
+    }
+    setSubmitting(true);
+    setFeedback(null);
     try {
-      await api.payments.releaseEscrow({ transactionId });
-    } catch {
-      // Demo — no visual change needed
+      await api.payments.releaseEscrow({
+        projectId,
+        destinationWalletId: expertId,
+        amount: escrowAmount,
+      });
+      setFeedback({ type: "success", message: "Payment released to expert successfully." });
+      // Refresh data
+      const [wallet, transactions, clientProjects] = await Promise.all([
+        api.payments.getWallet(user.id).catch(() => null),
+        api.payments.getTransactions(user.id).catch(() => []),
+        api.projects.getByClient(user.id).catch(() => []),
+      ]);
+      const activeProjects = Array.isArray(clientProjects)
+        ? clientProjects.map((p) => ({
+            id: p.id,
+            title: p.jobPost?.title || "Active Project",
+            escrowAmount: p.escrowBalance || 0,
+            expertId: p.expertId,
+          }))
+        : [];
+      setData({
+        wallet: wallet || { balance: 0, escrowBalance: 0 },
+        transactions: Array.isArray(transactions) ? transactions : [],
+        activeProjects,
+      });
+    } catch (err) {
+      setFeedback({ type: "error", message: err.message || "Failed to release payment." });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -246,6 +280,16 @@ export function Billing() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  {proj.escrowAmount > 0 && proj.expertId && (
+                    <button
+                      type="button"
+                      onClick={() => handleRelease(proj.id, proj.expertId, proj.escrowAmount)}
+                      disabled={submitting}
+                      className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      Release Payment
+                    </button>
+                  )}
                   <Link
                     to={`/client/projects/${proj.id}`}
                     className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"

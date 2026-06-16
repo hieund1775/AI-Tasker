@@ -8,10 +8,12 @@ import {
   Calendar,
   DollarSign,
   Wallet,
+  ArrowRight,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 
 import {
   getProjectProgress,
@@ -39,11 +41,6 @@ function isContractActive(project) {
     projectStatus === "in progress" ||
     projectStatus === "active"
   );
-}
-
-/** Derive a display-only match percentage from the index. */
-function getMatchPct(index) {
-  return [96, 89, 84, 78, 92, 88, 81][index % 7];
 }
 
 // ---------------------------------------------------------------------------
@@ -97,15 +94,30 @@ export function ExpertDashboard() {
         console.error("Error loading expert dashboard details:", err);
       }
 
-      // Load recommended/open jobs
+      // Load recommended jobs from recommendation API
       try {
-        const jobsList = await api.jobPosts.list();
-        const openJobs = (jobsList || []).filter(
-          (j) => j.status?.toLowerCase() === "open" || j.status?.toLowerCase() === "published"
-        );
-        setRecommendedProjects(openJobs.slice(0, 5));
+        const recs = await api.get("/recommendations/jobs", {
+          params: { expertId: user.id, limit: 10 },
+        });
+        const jobsList = (Array.isArray(recs) ? recs : []).map((r) => ({
+          id: r.jobId || r.id,
+          title: r.title,
+          description: r.description,
+          budget: r.budget,
+          deadline: r.deadline,
+          status: r.status,
+          createdAt: r.createdAt,
+          client: r.clientName,
+          category: r.categoryName || r.matchedCategory,
+          matchScore: r.score != null ? Math.round(Number(r.score)) : null,
+          jobPostSkills: (r.matchedSkills || []).map((s) => ({
+            skill: { name: typeof s === "string" ? s : s.name || s },
+          })),
+          requiredSkills: [],
+        }));
+        setRecommendedProjects(jobsList);
       } catch (err) {
-        console.error("Error loading open jobs:", err);
+        console.error("Error loading recommended jobs:", err);
       } finally {
         setLoading(false);
       }
@@ -204,7 +216,27 @@ export function ExpertDashboard() {
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {activeContracts.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+                  <div className="flex justify-between mb-3">
+                    <LoadingSkeleton className="h-5 w-2/3" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <LoadingSkeleton className="h-3 w-1/3 mb-3" />
+                  <div className="flex gap-2 mb-3">
+                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
+                    <LoadingSkeleton className="h-5 w-14 rounded-md" />
+                  </div>
+                  <LoadingSkeleton className="h-2 w-full rounded-full mb-3" />
+                  <div className="flex justify-between">
+                    <LoadingSkeleton className="h-4 w-32" />
+                    <LoadingSkeleton className="h-8 w-24 rounded-lg" />
+                  </div>
+                </div>
+              ))
+            ) : activeContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -332,16 +364,45 @@ export function ExpertDashboard() {
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-              Recommended Projects
-            </h2>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Recommended Projects
+              </h2>
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+            </div>
+            {recommendedProjects.length > 0 && (
+              <Link
+                to="/expert/find-jobs"
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+              >
+                View All <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {recommendedProjects.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+                  <div className="flex justify-between mb-3">
+                    <LoadingSkeleton className="h-5 w-2/3" />
+                    <LoadingSkeleton className="h-5 w-14 rounded-full" />
+                  </div>
+                  <LoadingSkeleton className="h-3 w-1/2 mb-2" />
+                  <LoadingSkeleton className="h-4 w-full mb-3" />
+                  <div className="flex gap-2 mb-3">
+                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
+                  </div>
+                  <div className="flex justify-between">
+                    <LoadingSkeleton className="h-4 w-20" />
+                    <LoadingSkeleton className="h-4 w-16" />
+                  </div>
+                </div>
+              ))
+            ) : recommendedProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -354,7 +415,7 @@ export function ExpertDashboard() {
             ) : (
               recommendedProjects.map((p, idx) => {
                 const clientName = p.client || "Client";
-                const matchPct = getMatchPct(idx);
+                const matchPct = p.matchScore != null ? `${p.matchScore}%` : "—";
                 const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
 
                 return (
@@ -368,7 +429,7 @@ export function ExpertDashboard() {
                         {p.title}
                       </h3>
                       <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
-                        {matchPct}% match
+                        {p.matchScore != null ? `${p.matchScore}% match` : "—"}
                       </span>
                     </div>
 

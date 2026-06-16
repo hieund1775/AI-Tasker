@@ -15,10 +15,10 @@ import api from "./api.js";
 // ---------------------------------------------------------------------------
 
 const DISPUTE_ENDPOINTS = {
-  pauseProjectAsDisputed: "", // PUT — change project status to "Disputed"
-  continueProject: "",        // PUT — resume project after dispute resolved
-  stopProject: "",            // PUT — stop project permanently
-  createDisputeChat: "",      // POST — create 3-party confrontation group chat
+  pauseProjectAsDisputed: "/reports/{id}/accept", // PUT — accept report changes project to "Disputed"
+  continueProject: "/projects/{id}/status",       // PUT — resume project (status=InProgress)
+  stopProject: "/projects/{id}/status",           // PUT — stop project permanently (status=Cancelled)
+  createDisputeChat: "/chat/conversations",        // POST — create 3-party confrontation group chat
 };
 
 // ---------------------------------------------------------------------------

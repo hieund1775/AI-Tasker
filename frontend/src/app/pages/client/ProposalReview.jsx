@@ -70,12 +70,14 @@ export function ProposalReview() {
               .toUpperCase()
               .slice(0, 2);
 
+            const matchResult = getMatchPercentage(proposal);
             return {
               ...proposal,
               proposalTitle: parsed.proposalTitle || "Proposal",
               coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
               durationDays: parsed.durationDays || 0,
-              matchPct: getMatchPercentage(proposal.id),
+              matchPct: matchResult.score,
+              matchLabel: matchResult.label,
               expert: {
                 name,
                 title: expertDetail?.expertProfile?.jobTitle || "AI Expert",
@@ -114,7 +116,7 @@ export function ProposalReview() {
         prev.map((p) =>
           p.id === proposalId
             ? { ...p, status: "Accepted" }
-            : p.status === "Pending"
+            : p.status?.toLowerCase() === "pending"
             ? { ...p, status: "Declined" }
             : p
         )
@@ -311,8 +313,9 @@ export function ProposalReview() {
       ) : (
         <div className="space-y-4">
           {visibleProposals.map((proposal) => {
-            const isAccepted = proposal.status === "accepted";
-            const isDeclined = proposal.status === "declined";
+            const statusLower = (proposal.status || "").toLowerCase();
+            const isAccepted = statusLower === "accepted";
+            const isDeclined = statusLower === "declined";
             const hasBeenActed = isAccepted || isDeclined || actedIds.has(proposal.id);
 
             return (

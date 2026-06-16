@@ -13,10 +13,12 @@ import {
   TrendingUp,
   FileText,
   Wallet,
+  ArrowRight,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
@@ -110,27 +112,31 @@ export function ClientDashboard() {
         console.error("Error loading client projects:", err);
       }
 
-      // Load recommended experts (handle 403 gracefully)
+      // Load recommended experts from recommendation API
       try {
-        const allUsersRes = await api.experts.list();
-        const expertsOnly = (allUsersRes || [])
-          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-          .map((u) => ({
-            id: u.id,
-            fullName: u.fullName,
-            avgRating: 4.8,
-            profile: {
-              title: u.expertProfile.jobTitle,
-              location: u.expertProfile.location,
-              bio: u.expertProfile.bio,
-              hourlyRate: 65,
-              completedProjects: 8,
-              skills: u.expertProfile.skills || ["Python", "Semantic Kernel"]
-            }
-          }));
-        setRecommendedExperts(expertsOnly.slice(0, 3));
+        const recs = await api.get("/recommendations/experts", {
+          params: { clientId: user.id, limit: 10 },
+        });
+        const expertsList = (Array.isArray(recs) ? recs : []).map((r) => ({
+          id: r.userId || r.id,
+          fullName: r.fullName,
+          avgRating: typeof r.successRate === "number" ? Number(r.successRate.toFixed(1)) : null,
+          matchScore: r.score != null ? Math.round(Number(r.score)) : null,
+          profile: {
+            title: r.jobTitle || r.major || "AI Expert",
+            location: r.location || "",
+            bio: "",
+            hourlyRate: r.reputationCredit || 0,
+            completedProjects: r.completedProjects || 0,
+            skills: (r.matchedSkills || []).map((s) =>
+              typeof s === "string" ? s : s.name || s
+            ),
+            reputationCredit: r.reputationCredit || 0,
+          },
+        }));
+        setRecommendedExperts(expertsList);
       } catch (err) {
-        console.warn("Failed to load recommended experts (may lack permission):", err);
+        console.warn("Failed to load recommended experts:", err);
       } finally {
         setLoading(false);
       }
@@ -167,9 +173,9 @@ export function ClientDashboard() {
     },
     {
       label: "In Progress",
-      value: getProjectsByStatus(["cancelled", "cancel"]),
+      value: getProjectsByStatus(["in_progress", "in progress", "active"]),
       icon: Clock,
-      color: "text-red-600 bg-red-100",
+      color: "text-purple-600 bg-purple-100",
     },
   ];
 
@@ -230,7 +236,26 @@ export function ClientDashboard() {
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {(() => {
+            {loading ? (
+              Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+                  <div className="flex justify-between mb-3">
+                    <LoadingSkeleton className="h-5 w-2/3" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-full" />
+                  </div>
+                  <LoadingSkeleton className="h-3 w-1/3 mb-3" />
+                  <div className="flex gap-2 mb-3">
+                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
+                  </div>
+                  <LoadingSkeleton className="h-2 w-full rounded-full mb-3" />
+                  <div className="flex justify-between">
+                    <LoadingSkeleton className="h-4 w-32" />
+                    <LoadingSkeleton className="h-8 w-24 rounded-lg" />
+                  </div>
+                </div>
+              ))
+            ) : (() => {
               const myProjects = clientProjects.filter(canShowInMyProjects);
               if (myProjects.length === 0) {
                 return (
@@ -377,16 +402,45 @@ export function ClientDashboard() {
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-              Recommended Experts
-            </h2>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+                Recommended Experts
+              </h2>
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+            </div>
+            {recommendedExperts.length > 0 && (
+              <Link
+                to="/client/experts"
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
+              >
+                View All <ArrowRight className="w-3 h-3" />
+              </Link>
+            )}
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {recommendedExperts.length === 0 ? (
+            {loading ? (
+              Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
+                  <div className="flex justify-between mb-2">
+                    <LoadingSkeleton className="h-5 w-2/3" />
+                    <LoadingSkeleton className="h-5 w-10 rounded-full" />
+                  </div>
+                  <LoadingSkeleton className="h-3 w-1/2 mb-2" />
+                  <LoadingSkeleton className="h-4 w-full mb-3" />
+                  <div className="flex gap-2 mb-3">
+                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
+                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
+                  </div>
+                  <div className="flex justify-between">
+                    <LoadingSkeleton className="h-4 w-20" />
+                    <LoadingSkeleton className="h-8 w-full rounded-lg" />
+                  </div>
+                </div>
+              ))
+            ) : recommendedExperts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -409,7 +463,9 @@ export function ClientDashboard() {
                     </h3>
                     <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold inline-flex items-center gap-1">
                       <Star className="w-3 h-3 fill-emerald-500 text-emerald-500" />
-                      {expert.avgRating}
+                      {expert.matchScore != null
+                        ? `${expert.matchScore}%`
+                        : (expert.avgRating ?? "—")}
                     </span>
                   </div>
 

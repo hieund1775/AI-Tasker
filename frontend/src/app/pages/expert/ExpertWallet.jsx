@@ -67,7 +67,7 @@ export function ExpertWallet() {
 
         const [wallet, transactions] = await Promise.all([
           api.users.getWallet(currentUserId).catch(() => null),
-          api.payments.getTransactions().catch(() => []),
+          api.payments.getTransactions(currentUserId).catch(() => []),
         ]);
 
         if (!cancelled) {
@@ -110,7 +110,7 @@ export function ExpertWallet() {
     setSubmitting(true);
     setFeedback(null);
     try {
-      await api.payments.withdraw({ amount, method: paymentMethod });
+      await api.payments.withdraw({ sourceWalletId: user.id, amount, method: paymentMethod });
       setFeedback({
         type: "success",
         message: "Withdrawal request submitted successfully.",

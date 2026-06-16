@@ -174,17 +174,17 @@ export const api = {
 
   // ĐÃ SỬA CHUẨN BACKEND CHO NHÓM USERS
   users: {
-    getById: (id) => get(`/Users/${id}`),
+    getById: (id) => get(`/users/${id}`),
     list: (params) => {
       const query = buildQuery(params);
-      return get(`/Users${query}`);
+      return get(`/users${query}`);
     },
     update: (id, data) => put(`/users/${id}`, data),
-    getWallet: (id) => get(`/Users/${id}`).then(u => u?.wallet || { balance: 0 }),
-    getJobPosts: (id) => get("/JobPosts").then(posts => (Array.isArray(posts) ? posts.filter(p => p.clientId === id) : [])),
-    getProposals: (id) => get(`/Proposals/expert/${id}`).catch(() => []),
-    getClientProjects: (id) => get(`/Projects/client/${id}`).catch(() => []),
-    getExpertProjects: (id) => get(`/Projects/expert/${id}`).catch(() => []),
+    getWallet: (id) => get(`/users/${id}`).then(u => u?.wallet || { balance: 0 }),
+    getJobPosts: (id) => get("/jobposts").then(posts => (Array.isArray(posts) ? posts.filter(p => p.clientId === id) : [])),
+    getProposals: (id) => get(`/proposals/expert/${id}`).catch(() => []),
+    getClientProjects: (id) => get(`/projects/client/${id}`).catch(() => []),
+    getExpertProjects: (id) => get(`/projects/expert/${id}`).catch(() => []),
 
     // Resolved from auth user profile on the frontend
     getMe: () => {
@@ -193,9 +193,9 @@ export const api = {
 
     getStats: (userId) => {
       return Promise.all([
-        get(`/Projects/client/${userId}`).catch(() => []),
-        get("/JobPosts").catch(() => []),
-        get(`/Proposals/expert/${userId}`).catch(() => [])
+        get(`/projects/client/${userId}`).catch(() => []),
+        get("/jobposts").catch(() => []),
+        get(`/proposals/expert/${userId}`).catch(() => [])
       ]).then(([clientProjects, allJobPosts, expertProposals]) => {
         const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === userId) : [];
         return {
@@ -212,41 +212,41 @@ export const api = {
   // ĐÃ SỬA LẠI ĐỂ GỌI SANG ĐƯỜNG DẪN /Users THAY VÌ /experts
   experts: {
     // API Check Profile
-    checkProfile: () => get("/Users/test-expert-profile"),
+    checkProfile: () => get("/users/test-expert-profile"),
 
     // Lấy thông tin profile của chuyên gia
-    getProfile: (id) => get(`/Users/${id}/expert-profile`),
+    getProfile: (id) => get(`/users/${id}`),
 
-    // TODO: Backend endpoint not yet confirmed — placeholder
+    // Lấy thông tin chi tiết chuyên gia
     getById: (id) => {
-      // TODO: Replace with real endpoint e.g. get(`/experts/${id}`) or get(`/Users/${id}`)
-      return get(`/Users/${id}`).catch(() => null);
+      return get(`/users/${id}`).catch(() => null);
     },
 
-    // Lấy danh sách chuyên gia cũng sẽ gọi xuống Users (kèm filter nếu BE yêu cầu)
+    // Lấy danh sách chuyên gia
     list: (params) => {
       const query = buildQuery(params);
-      return get(`/Users${query}`);
+      return get(`/users${query}`);
     },
   },
 
   projects: {
-    create: (data) => post("/Projects", data),
+    create: (data) => post("/projects", data),
     list: (params) => {
       const query = buildQuery(params);
-      return get(`/Projects${query}`);
+      return get(`/projects${query}`);
     },
-    getByClient: (clientId) => get(`/Projects/client/${clientId}`),
-    getByExpert: (expertId) => get(`/Projects/expert/${expertId}`),
-    updateStatus: (id, status) => put(`/Projects/${id}/status?status=${encodeURIComponent(status)}`),
-    submitWork: (id, projectLink) => put(`/Projects/${id}/submit-work?projectLink=${encodeURIComponent(projectLink)}`),
+    getById: (id) => get(`/projects/${id}`),
+    getByClient: (clientId) => get(`/projects/client/${clientId}`),
+    getByExpert: (expertId) => get(`/projects/expert/${expertId}`),
+    updateStatus: (id, status) => put(`/projects/${id}/status?status=${encodeURIComponent(status)}`),
+    submitWork: (id, projectLink) => put(`/projects/${id}/submit-work?projectLink=${encodeURIComponent(projectLink)}`),
   },
 
   jobPosts: {
     list: () => get("/JobPosts"),
     search: (params) => {
       const query = buildQuery(params);
-      return get(`/JobPosts/search-filter${query}`);
+      return get(`/jobposts/search${query}`);
     },
     getById: (id) => get(`/JobPosts/${id}`),
     create: (data) => post("/JobPosts", data),
@@ -257,60 +257,45 @@ export const api = {
     getSkills: () => get("/category-tags/skills"),
   },
   // ===========================================================================
-  // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
-  // All functions return null or resolve to null so callers never crash.
-  // TODO: Connect each function to its real backend endpoint when available.
+  // REVIEWS API — real backend endpoints
   // ===========================================================================
-
-  timeline: {
-    // TODO: Connect to real API — get("/timeline/{projectId}")
-    get: (_projectId) => Promise.resolve(null),
-    // TODO: Connect to real API — get("/timeline/{projectId}/activity")
-    getActivityLogs: (_projectId) => Promise.resolve(null),
-    // TODO: Connect to real API — get("/timeline/{projectId}/progress")
-    getProgress: (_projectId) => Promise.resolve(0),
+  reviews: {
+    getByExpert: (expertId) => get(`/experts/${expertId}/reviews`).catch(() => []),
+    getRatingSummary: (expertId) => get(`/experts/${expertId}/rating-summary`).catch(() => null),
+    create: (data) => post("/interactions/reviews", data),
   },
 
-  tasks: {
-    // TODO: Connect to real API — post("/tasks/{taskId}/submit", data)
-    submit: (_taskId, _data) => Promise.resolve(null),
-    // TODO: Connect to real API — post("/tasks/submissions/{submissionId}/review", data)
-    reviewSubmission: (_submissionId, _data) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/tasks/{taskId}", updates)
-    update: (_taskId, _updates) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/tasks/{taskId}/mini-tasks/{miniTaskId}", updates)
-    updateMiniTask: (_taskId, _miniTaskId, _updates) => Promise.resolve(null),
-    // TODO: Connect to real API — post("/tasks/{taskId}/logs", log)
-    addLog: (_taskId, _log) => Promise.resolve(null),
-    // TODO: Connect to real API — post("/tasks/{taskId}/feedback", feedback)
-    addFeedback: (_taskId, _feedback) => Promise.resolve(null),
-    // TODO: Connect to real API — get("/tasks/{taskId}/progress")
-    getProgress: (_taskId) => Promise.resolve(0),
-  },
-
-  extensions: {
-    // TODO: Connect to real API — post("/extensions", { projectId, ...data })
-    request: (_projectId, _data) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/extensions/{extensionId}", data)
-    resolve: (_projectId, _extensionId, _data) => Promise.resolve(null),
+  // ===========================================================================
+  // CHAT API — real backend endpoints
+  // ===========================================================================
+  chat: {
+    getConversations: () => get("/chat/conversations").catch(() => []),
+    getConversation: (id) => get(`/chat/conversations/${id}`),
+    createConversation: (data) => post("/chat/conversations", data),
+    getMessages: (conversationId) => get(`/chat/conversations/${conversationId}/messages`).catch(() => []),
+    sendMessage: (data) => post("/chat/send", data),
+    markRead: (conversationId) => put(`/chat/conversations/${conversationId}/read`),
   },
 
   payments: {
     getWallet: (userId) => get(`/Users/${userId}`).then(u => u?.wallet || { balance: 0 }),
-    getTransactions: () => get("/interactions").catch(() => []),
+    getTransactions: (userId) => get(`/interactions/transactions/user/${userId}`).catch(() => []),
+    getProjectTransactions: (projectId) => get(`/interactions/transactions/project/${projectId}`).catch(() => []),
+    deposit: (userId, amount) => post(`/users/${userId}/deposit`, { amount }),
+    withdraw: (userId, amount) => post(`/users/${userId}/withdraw`, { amount }),
     depositEscrow: (data) => post("/interactions/transaction", {
       projectId: data.projectId,
+      sourceWalletId: data.sourceWalletId,
+      destinationWalletId: null,
       amount: data.amount,
       type: "escrow_deposit"
     }),
     releaseEscrow: (data) => post("/interactions/transaction", {
       projectId: data.projectId,
+      sourceWalletId: null,
+      destinationWalletId: data.destinationWalletId,
       amount: data.amount,
       type: "escrow_release"
-    }),
-    withdraw: (data) => post("/interactions/transaction", {
-      amount: data.amount,
-      type: "withdrawal"
     }),
   },
 
@@ -360,11 +345,11 @@ export const api = {
   },
 
   proposals: {
-    create: (data) => post("/Proposals/submit-proposal", data),
-    getByJob: (jobPostId) => get(`/Proposals/job/${jobPostId}`),
-    getByExpert: (expertId) => get(`/Proposals/expert/${expertId}`),
-    getById: (id) => get(`/Proposals/${id}`),
-    updateStatus: (id, status) => put(`/Proposals/${id}/status?status=${encodeURIComponent(status)}`),
+    create: (data) => post("/proposals/submit-proposal", data),
+    getByJob: (jobPostId) => get(`/proposals/job/${jobPostId}`),
+    getByExpert: (expertId) => get(`/proposals/expert/${expertId}`),
+    getById: (id) => get(`/proposals/${id}`),
+    updateStatus: (id, status) => put(`/proposals/${id}/status?status=${encodeURIComponent(status)}`),
   },
 };
 

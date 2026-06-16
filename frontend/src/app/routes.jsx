@@ -1,10 +1,13 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layout/RootLayout.jsx";
+import { PublicLayout } from "./components/layout/PublicLayout.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 
 import { HomePage } from "./pages/public/HomePage.jsx";
 import { LoginPage } from "./pages/public/LoginPage.jsx";
 import { SignUpPage } from "./pages/public/SignUpPage.jsx";
+import { ExpertsPage } from "./pages/public/ExpertsPage.jsx";
+import { JobList } from "./pages/expert/JobList.jsx";
 
 // Client Pages
 import { ClientDashboard } from "./pages/client/ClientDashboard.jsx";
@@ -22,7 +25,6 @@ import { ClientProposalDetail } from "./pages/client/ClientProposalDetail.jsx";
 
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
-import { JobList } from "./pages/expert/JobList.jsx";
 import { JobDetail } from "./pages/expert/JobDetail.jsx";
 import { SendProposal } from "./pages/expert/SendProposal.jsx";
 import { ProposalStatus } from "./pages/expert/ProposalStatus.jsx";
@@ -72,6 +74,13 @@ export const router = createBrowserRouter([
       { path: "login", Component: LoginPage },
       { path: "signup", Component: SignUpPage },
       { path: "unauthorized", Component: UnauthorizedPage },
+      {
+        Component: PublicLayout,
+        children: [
+          { path: "experts", Component: ExpertsPage },
+          { path: "jobs", Component: JobList },
+        ],
+      },
     ],
   },
 
