@@ -53,8 +53,13 @@ export function ProposalCard({
               <h3 className="font-semibold text-gray-900">
                 {proposal.expert?.name}
               </h3>
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
-                {proposal.matchPct}% match
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                (proposal.matchPct || 0) >= 90 ? "bg-emerald-100 text-emerald-700" :
+                (proposal.matchPct || 0) >= 75 ? "bg-green-50 text-green-700" :
+                (proposal.matchPct || 0) >= 60 ? "bg-blue-50 text-blue-700" :
+                "bg-gray-100 text-gray-600"
+              }`}>
+                {proposal.matchPct}% {proposal.matchLabel ? `· ${proposal.matchLabel}` : "match"}
               </span>
               {isAccepted && (
                 <span className="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium inline-flex items-center gap-1">

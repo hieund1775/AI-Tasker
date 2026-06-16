@@ -15,11 +15,11 @@ import api from "./api.js";
 // ---------------------------------------------------------------------------
 
 const REPORT_ENDPOINTS = {
-  create: "",        // POST   — Expert submits a dispute report
-  list: "",          // GET    — Admin/Owner fetches report list
-  detail: "",        // GET    — Admin/Owner fetches single report detail
-  accept: "",        // PUT    — Admin accepts a report
-  reject: "",        // PUT    — Admin rejects a report (reason required)
+  create: "/reports",        // POST   — Expert/client submits a dispute report
+  list: "/reports",          // GET    — Admin/Owner fetches report list
+  detail: "/reports/{id}",    // GET    — Admin/Owner fetches single report detail
+  accept: "/reports/{id}/accept",   // PUT    — Admin accepts a report
+  reject: "/reports/{id}/reject",   // PUT    — Admin rejects a report (reason required)
 };
 
 // ---------------------------------------------------------------------------

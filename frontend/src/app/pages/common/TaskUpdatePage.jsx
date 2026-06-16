@@ -201,11 +201,11 @@ export function TaskUpdatePage() {
           </div>
         )}
 
-        {/* Mini Tasks */}
+        {/* Sub-tasks */}
         {task.miniTasks?.length > 0 && (
           <div className="border-t pt-6 mb-6">
             <h3 className="font-semibold text-gray-900 mb-4">
-              Mini Tasks ({completedMiniTasks}/{totalMiniTasks})
+              Sub-tasks ({completedMiniTasks}/{totalMiniTasks})
             </h3>
             <div className="space-y-3">
               {task.miniTasks.map((mt) => {
@@ -309,7 +309,7 @@ export function TaskUpdatePage() {
             </div>
             {!allMiniTasksDone && (
               <p className="text-xs text-gray-400 mt-2">
-                Complete all mini tasks ({completedMiniTasks}/{totalMiniTasks}) to enable Done.
+                Complete all sub-tasks ({completedMiniTasks}/{totalMiniTasks}) to enable Done.
               </p>
             )}
           </div>

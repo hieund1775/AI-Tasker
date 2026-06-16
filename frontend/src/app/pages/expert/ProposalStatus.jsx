@@ -187,7 +187,7 @@ export function ProposalStatus() {
                     </Link>
 
                     {/* Contact — only for accepted proposals */}
-                    {proposal.status === "accepted" && (
+                    {proposal.status?.toLowerCase() === "accepted" && (
                       convId ? (
                         <Link
                           to={`/messenger/${convId}`}
