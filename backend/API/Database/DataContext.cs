@@ -119,6 +119,7 @@ public class DataContext : DbContext
         modelBuilder.Entity<Project>().HasOne(x => x.Expert).WithMany().HasForeignKey(x => x.ExpertId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Project>().HasOne(x => x.JobPost).WithMany().HasForeignKey(x => x.JobPostId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Proposal>().HasOne(x => x.Expert).WithMany().HasForeignKey(x => x.ExpertId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Proposal>().HasIndex(x => new { x.JobPostId, x.ExpertId }).IsUnique();
         modelBuilder.Entity<Review>().HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Review>().HasOne(x => x.TargetUser).WithMany().HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TransactionLog>().HasOne(x => x.SourceWallet).WithMany().HasForeignKey(x => x.SourceWalletId).OnDelete(DeleteBehavior.NoAction);

@@ -4,6 +4,7 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker_Modular.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260613122733_MakeExpertProposalUniquePerJob")]
+    partial class MakeExpertProposalUniquePerJob
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -292,8 +295,7 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<string>("UseCaseName")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -311,42 +313,20 @@ namespace AITasker_Modular.Migrations
                     b.Property<decimal>("BidAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Dependencies")
+                    b.Property<string>("CoverLetter")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("EstimatedDuration")
-                        .HasColumnType("int");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("ExpertId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Implementation")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Introduction")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<Guid>("JobPostId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Portfolio")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Technical")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -742,7 +722,7 @@ namespace AITasker_Modular.Migrations
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobRequirement", b =>
                 {
                     b.HasOne("AITasker_Modular.Modules.JobModule.JobPost", "JobPost")
-                        .WithMany("JobRequirements")
+                        .WithMany()
                         .HasForeignKey("JobPostId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
@@ -759,7 +739,7 @@ namespace AITasker_Modular.Migrations
                         .IsRequired();
 
                     b.HasOne("AITasker_Modular.Modules.JobModule.JobPost", "JobPost")
-                        .WithMany()
+                        .WithMany("Proposals")
                         .HasForeignKey("JobPostId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
@@ -881,7 +861,7 @@ namespace AITasker_Modular.Migrations
                 {
                     b.Navigation("JobPostSkills");
 
-                    b.Navigation("JobRequirements");
+                    b.Navigation("Proposals");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Project", b =>
