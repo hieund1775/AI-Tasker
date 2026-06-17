@@ -80,11 +80,10 @@ builder.Services.AddScoped<IProposalService, ProposalService>();
 // --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
 builder.Services.AddScoped<IJobPostService, JobPostService>(); 
 
-// =================================================================================
-// >>> ĐÃ KHÓA: Comment 2 dòng hạ tầng AI này lại để cô lập phần AI đang lỗi <<<
-// =================================================================================
-// builder.Services.AddHttpClient<GeminiUtil>();
-// builder.Services.AddScoped<AiChatService>(); 
+// --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
+builder.Services.AddHttpClient<GeminiUtil>();
+builder.Services.AddScoped<AiChatService>(); 
+builder.Services.AddScoped<AiRecommendationService>();
 
 var app = builder.Build();
 
