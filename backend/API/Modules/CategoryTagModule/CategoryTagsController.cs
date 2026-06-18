@@ -65,7 +65,7 @@ public class CategoryTagsController : ControllerBase
     }
 
     [HttpPost("categories")]
-    public async Task<IActionResult> CreateCategory([FromBody] CreateAICategoryDomainDto dto)
+    public async Task<IActionResult> CreateCategory([FromBody] CreateDomainDto dto)
     {
         var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
         if (errorResult != null)
@@ -90,5 +90,48 @@ public class CategoryTagsController : ControllerBase
             return NotFound(new { message = "Category not found." });
 
         return Ok(new { message = "Category deleted successfully." });
+    }
+
+    [HttpGet("specializations")]
+    public async Task<IActionResult> GetSpecializations()
+    {
+        return Ok(await _service.GetSpecializationsAsync());
+    }
+
+    [HttpGet("specializations/domain/{domainId:guid}")]
+    public async Task<IActionResult> GetSpecializationsByDomain(Guid domainId)
+    {
+        return Ok(await _service.GetSpecializationsByDomainIdAsync(domainId));
+    }
+
+    [HttpPost("specializations")]
+    public async Task<IActionResult> CreateSpecialization([FromBody] CreateSpecializationDto dto)
+    {
+        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { message = "Specialization name cannot be empty." });
+
+        if (!Guid.TryParse(dto.DomainId, out var domainGuid))
+            return BadRequest(new { message = "Invalid DomainId format." });
+
+        var spec = await _service.CreateSpecializationAsync(dto.Name, domainGuid);
+        return CreatedAtAction(nameof(Get), new { id = spec.Id }, spec);
+    }
+
+    [HttpDelete("specializations/{id:guid}")]
+    public async Task<IActionResult> DeleteSpecialization(Guid id)
+    {
+        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
+        var success = await _service.DeleteSpecializationAsync(id);
+        if (!success)
+            return NotFound(new { message = "Specialization not found." });
+
+        return Ok(new { message = "Specialization deleted successfully." });
     }
 }

@@ -4,6 +4,7 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker_Modular.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260618014245_AddDurationUnitToJobPost")]
+    partial class AddDurationUnitToJobPost
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -34,7 +37,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Domains", (string)null);
+                    b.ToTable("Domains");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.CategoryTagModule.DomainExpertProfile", b =>
@@ -49,7 +52,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("ExpertProfilesUserId");
 
-                    b.ToTable("DomainExpertProfiles", (string)null);
+                    b.ToTable("DomainExpertProfiles");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.CategoryTagModule.ExpertProfileSkill", b =>
@@ -64,7 +67,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SkillsId");
 
-                    b.ToTable("ExpertProfileSkill", (string)null);
+                    b.ToTable("ExpertProfileSkill");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.CategoryTagModule.Skill", b =>
@@ -79,7 +82,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Skills", (string)null);
+                    b.ToTable("Skills");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.CategoryTagModule.Specialization", b =>
@@ -99,7 +102,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("DomainId");
 
-                    b.ToTable("Specializations", (string)null);
+                    b.ToTable("Specializations");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ChatModule.Conversation", b =>
@@ -128,7 +131,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("OriginJobPostId");
 
-                    b.ToTable("Conversations", (string)null);
+                    b.ToTable("Conversations");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ChatModule.Message", b =>
@@ -159,7 +162,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Messages", (string)null);
+                    b.ToTable("Messages");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.InteractionModule.Review", b =>
@@ -194,7 +197,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("TargetUserId");
 
-                    b.ToTable("Reviews", (string)null);
+                    b.ToTable("Reviews");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.InteractionModule.TransactionLog", b =>
@@ -230,7 +233,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SourceWalletId");
 
-                    b.ToTable("TransactionLogs", (string)null);
+                    b.ToTable("TransactionLogs");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobPost", b =>
@@ -280,7 +283,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SpecializationId");
 
-                    b.ToTable("JobPosts", (string)null);
+                    b.ToTable("JobPosts");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobPostSkill", b =>
@@ -295,7 +298,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SkillsId");
 
-                    b.ToTable("JobPostSkill", (string)null);
+                    b.ToTable("JobPostSkill");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobRequirement", b =>
@@ -318,7 +321,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("JobPostId");
 
-                    b.ToTable("JobRequirements", (string)null);
+                    b.ToTable("JobRequirements");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.Proposal", b =>
@@ -353,7 +356,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("JobPostId");
 
-                    b.ToTable("Proposals", (string)null);
+                    b.ToTable("Proposals");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.MiniTask", b =>
@@ -387,7 +390,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("TaskId");
 
-                    b.ToTable("MiniTasks", (string)null);
+                    b.ToTable("MiniTasks");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Project", b =>
@@ -434,7 +437,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("JobPostId");
 
-                    b.ToTable("Projects", (string)null);
+                    b.ToTable("Projects");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectSkill", b =>
@@ -449,7 +452,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("SkillsId");
 
-                    b.ToTable("ProjectSkill", (string)null);
+                    b.ToTable("ProjectSkill");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Task", b =>
@@ -476,7 +479,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasIndex("ProjectId");
 
-                    b.ToTable("Tasks", (string)null);
+                    b.ToTable("Tasks");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.ApplicationUser", b =>
@@ -513,7 +516,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.ExpertProfile", b =>
@@ -550,7 +553,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("ExpertProfiles", (string)null);
+                    b.ToTable("ExpertProfiles");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.Wallet", b =>
@@ -563,7 +566,7 @@ namespace AITasker_Modular.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("Wallets", (string)null);
+                    b.ToTable("Wallets");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.CategoryTagModule.DomainExpertProfile", b =>

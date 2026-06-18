@@ -19,7 +19,10 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public int Deadline { get; set; }
 
-        public Guid? AICategoryDomainId { get; set; }
+        public Guid? DomainId { get; set; }
+        public Guid? SpecializationId { get; set; }
+        public int DurationValue { get; set; }
+        public string? DurationUnit { get; set; }
 
         [Required(ErrorMessage = "Client ID is required.")]
         public Guid ClientId { get; set; }
@@ -43,7 +46,10 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public int Deadline { get; set; }
 
-        public Guid? AICategoryDomainId { get; set; }
+        public Guid? DomainId { get; set; }
+        public Guid? SpecializationId { get; set; }
+        public int DurationValue { get; set; }
+        public string? DurationUnit { get; set; }
 
         public List<string>? SkillIds { get; set; }
 

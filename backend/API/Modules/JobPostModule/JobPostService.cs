@@ -19,6 +19,17 @@ public class JobPostService : IJobPostService
 
     public async Task<JobPost> CreateJobAsync(CreateJobPostDto jobPostDto)
     {
+        int deadlineDays = jobPostDto.Deadline;
+        if (jobPostDto.DurationValue > 0)
+        {
+            deadlineDays = jobPostDto.DurationValue;
+            var unitLower = jobPostDto.DurationUnit?.ToLowerInvariant();
+            if (unitLower == "weeks" || unitLower == "week")
+                deadlineDays *= 7;
+            else if (unitLower == "months" || unitLower == "month")
+                deadlineDays *= 30;
+        }
+
         var jobPost = new JobPost
         {
             Id = Guid.NewGuid(),
@@ -26,10 +37,12 @@ public class JobPostService : IJobPostService
             Title = jobPostDto.Title.Trim(),
             Description = jobPostDto.Description.Trim(),
             Budget = jobPostDto.Budget,
-            Deadline = jobPostDto.Deadline,
+            Deadline = deadlineDays,
+            DurationUnit = jobPostDto.DurationUnit,
             Status = "Open", 
             CreatedAt = DateTime.UtcNow,
-            AICategoryDomainId = jobPostDto.AICategoryDomainId
+            DomainId = jobPostDto.DomainId,
+            SpecializationId = jobPostDto.SpecializationId
         };
 
         if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
@@ -66,7 +79,8 @@ public class JobPostService : IJobPostService
     {
         return await _context.JobPosts
                              .Include(jp => jp.ClientUser)
-                             .Include(jp => jp.AICategoryDomain) 
+                             .Include(jp => jp.Domain) 
+                             .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .Include(jp => jp.JobRequirements)
@@ -78,7 +92,8 @@ public class JobPostService : IJobPostService
     {
         return await _context.JobPosts
                              .Include(jp => jp.ClientUser)
-                             .Include(jp => jp.AICategoryDomain)
+                             .Include(jp => jp.Domain)
+                             .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .Include(jp => jp.JobRequirements)
@@ -94,11 +109,24 @@ public class JobPostService : IJobPostService
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
 
+        int deadlineDays = jobPostDto.Deadline;
+        if (jobPostDto.DurationValue > 0)
+        {
+            deadlineDays = jobPostDto.DurationValue;
+            var unitLower = jobPostDto.DurationUnit?.ToLowerInvariant();
+            if (unitLower == "weeks" || unitLower == "week")
+                deadlineDays *= 7;
+            else if (unitLower == "months" || unitLower == "month")
+                deadlineDays *= 30;
+        }
+
         jobPost.Title = jobPostDto.Title.Trim();
         jobPost.Description = jobPostDto.Description.Trim();
         jobPost.Budget = jobPostDto.Budget;
-        jobPost.Deadline = jobPostDto.Deadline;
-        jobPost.AICategoryDomainId = jobPostDto.AICategoryDomainId;
+        jobPost.Deadline = deadlineDays;
+        jobPost.DurationUnit = jobPostDto.DurationUnit;
+        jobPost.DomainId = jobPostDto.DomainId;
+        jobPost.SpecializationId = jobPostDto.SpecializationId;
 
         _context.JobPostSkills.RemoveRange(jobPost.JobPostSkills);
         jobPost.JobPostSkills.Clear();
@@ -122,6 +150,7 @@ public class JobPostService : IJobPostService
 
         if (jobPostDto.Requirements != null && jobPostDto.Requirements.Any())
         {
+            jobPost.JobRequirements ??= new List<JobRequirement>();
             foreach (var req in jobPostDto.Requirements)
             {
                 jobPost.JobRequirements.Add(new JobRequirement
@@ -142,7 +171,8 @@ public class JobPostService : IJobPostService
     {
         var query = _context.JobPosts
                             .Include(jp => jp.ClientUser)
-                            .Include(jp => jp.AICategoryDomain)
+                            .Include(jp => jp.Domain)
+                            .Include(jp => jp.Specialization)
                             .Include(jp => jp.JobPostSkills)
                                 .ThenInclude(jps => jps.Skill)
                             .Include(jp => jp.JobRequirements)
@@ -165,7 +195,7 @@ public class JobPostService : IJobPostService
 
         if (categoryDomainId.HasValue && categoryDomainId.Value != Guid.Empty)
         {
-            query = query.Where(x => x.AICategoryDomainId == categoryDomainId.Value);
+            query = query.Where(x => x.DomainId == categoryDomainId.Value);
         }
 
         return await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
@@ -175,7 +205,8 @@ public class JobPostService : IJobPostService
     {
         return await _context.JobPosts
                              .Include(jp => jp.ClientUser)
-                             .Include(jp => jp.AICategoryDomain)
+                             .Include(jp => jp.Domain)
+                             .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .Include(jp => jp.JobRequirements)
@@ -183,5 +214,4 @@ public class JobPostService : IJobPostService
                              .OrderByDescending(x => x.CreatedAt)
                              .ToListAsync();
     }
-
 }
