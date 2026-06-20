@@ -29,6 +29,10 @@ public class AiRecommendationService
         string description = string.Empty;
         decimal budget = 0m;
         int deadline = 0;
+        string? domainName = null;
+        string? specializationName = null;
+        Guid? domainId = null;
+        Guid? specializationId = null;
         List<string> requiredSkills = new();
         List<string> detailedRequirements = new();
 
@@ -37,6 +41,8 @@ public class AiRecommendationService
             var jobPost = await _context.JobPosts
                 .Include(j => j.JobPostSkills).ThenInclude(js => js.Skill)
                 .Include(j => j.JobRequirements)
+                .Include(j => j.Domain)
+                .Include(j => j.Specialization)
                 .FirstOrDefaultAsync(j => j.Id == dto.JobPostId.Value);
 
             if (jobPost == null)
@@ -48,6 +54,10 @@ public class AiRecommendationService
             description = jobPost.Description;
             budget = jobPost.Budget;
             deadline = jobPost.Deadline;
+            domainId = jobPost.DomainId;
+            specializationId = jobPost.SpecializationId;
+            domainName = jobPost.Domain?.Name;
+            specializationName = jobPost.Specialization?.Name;
             requiredSkills = jobPost.JobPostSkills
                 .Select(js => js.Skill?.Name ?? string.Empty)
                 .Where(name => !string.IsNullOrEmpty(name))
@@ -63,6 +73,19 @@ public class AiRecommendationService
             description = dto.Description ?? string.Empty;
             budget = dto.Budget ?? 0m;
             deadline = dto.Deadline ?? 0;
+            domainId = dto.DomainId;
+            specializationId = dto.SpecializationId;
+
+            if (domainId.HasValue)
+            {
+                var domain = await _context.Domains.FindAsync(domainId.Value);
+                domainName = domain?.Name;
+            }
+            if (specializationId.HasValue)
+            {
+                var spec = await _context.Specializations.FindAsync(specializationId.Value);
+                specializationName = spec?.Name;
+            }
 
             if (dto.SkillIds != null && dto.SkillIds.Any())
             {
@@ -97,6 +120,18 @@ public class AiRecommendationService
 
         var expertProfileMap = expertProfiles.ToDictionary(p => p.UserId);
 
+        var domainExpertProfiles = await _context.DomainExpertProfiles
+            .Where(dep => expertIds.Contains(dep.ExpertProfilesUserId))
+            .Include(dep => dep.Domain)
+            .ToListAsync();
+
+        var expertDomainsMap = domainExpertProfiles
+            .GroupBy(dep => dep.ExpertProfilesUserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(dep => dep.Domain?.Name ?? string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
+            );
+
         // 3. Score and Filter candidates in memory to select top 10
         var candidateList = new List<ExpertCandidateInternal>();
         var jobWords = TokenizeText(title + " " + description);
@@ -122,19 +157,32 @@ public class AiRecommendationService
             var expertBioWords = TokenizeText(profile.JobTitle + " " + profile.Major + " " + profile.Bio);
             int keywordMatchCount = jobWords.Intersect(expertBioWords, StringComparer.OrdinalIgnoreCase).Count();
 
+            // Resolve domains
+            expertDomainsMap.TryGetValue(expert.Id, out var expertDomains);
+            expertDomains ??= new List<string>();
+
+            bool expertHasMatchingDomain = false;
+            if (domainId.HasValue)
+            {
+                expertHasMatchingDomain = domainExpertProfiles.Any(dep => dep.ExpertProfilesUserId == expert.Id && dep.DomainId == domainId.Value);
+            }
+
             candidateList.Add(new ExpertCandidateInternal
             {
                 User = expert,
                 Profile = profile,
                 Skills = expertSkills,
+                Domains = expertDomains,
                 MatchingSkillsCount = matchingSkillsCount,
-                KeywordMatchCount = keywordMatchCount
+                KeywordMatchCount = keywordMatchCount,
+                HasMatchingDomain = expertHasMatchingDomain
             });
         }
 
-        // Rank by matching skills count -> keyword matches -> success rate -> reputation credit
+        // Rank by matching domain -> matching skills count -> keyword matches -> success rate -> reputation credit
         var topCandidates = candidateList
-            .OrderByDescending(c => c.MatchingSkillsCount)
+            .OrderByDescending(c => c.HasMatchingDomain)
+            .ThenByDescending(c => c.MatchingSkillsCount)
             .ThenByDescending(c => c.KeywordMatchCount)
             .ThenByDescending(c => c.Profile.SuccessRate)
             .ThenByDescending(c => c.Profile.ReputationCredit)
@@ -149,7 +197,7 @@ public class AiRecommendationService
         // 4. Try AI Recommendation
         try
         {
-            var result = await GenerateAiRecommendationsAsync(title, description, budget, deadline, requiredSkills, detailedRequirements, topCandidates);
+            var result = await GenerateAiRecommendationsAsync(title, description, budget, deadline, domainName, specializationName, requiredSkills, detailedRequirements, topCandidates);
             if (result != null && result.Any())
             {
                 return result;
@@ -166,12 +214,13 @@ public class AiRecommendationService
 
     private async Task<List<ExpertRecommendationResultDto>?> GenerateAiRecommendationsAsync(
         string title, string description, decimal budget, int deadline,
+        string? domainName, string? specializationName,
         List<string> requiredSkills, List<string> detailedRequirements,
         List<ExpertCandidateInternal> candidates)
     {
         // Build prompt contents
         var systemPrompt = BuildSystemPrompt();
-        var userPrompt = BuildUserPrompt(title, description, budget, deadline, requiredSkills, detailedRequirements, candidates);
+        var userPrompt = BuildUserPrompt(title, description, budget, deadline, domainName, specializationName, requiredSkills, detailedRequirements, candidates);
 
         var payload = new
         {
@@ -260,14 +309,14 @@ public class AiRecommendationService
                 ? (double)c.MatchingSkillsCount / requiredSkills.Count 
                 : 0.5;
 
-            // score components: skill ratio (50%), success rate (40%), reputation credit (10%)
-            double skillScore = skillRatio * 50;
-            double successScore = (c.Profile.SuccessRate / 100.0) * 40;
-            // reputation credit is between 0 and 5, so reputation credit / 5.0 * 10
+            // score components: domain match (20%), skill ratio (40%), success rate (30%), reputation credit (10%)
+            double domainScore = c.HasMatchingDomain ? 20 : 0;
+            double skillScore = skillRatio * 40;
+            double successScore = (c.Profile.SuccessRate / 100.0) * 30;
             double reputationScore = ((double)c.Profile.ReputationCredit / 5.0) * 10;
             if (reputationScore > 10) reputationScore = 10;
 
-            int matchScore = (int)Math.Round(skillScore + successScore + reputationScore);
+            int matchScore = (int)Math.Round(domainScore + skillScore + successScore + reputationScore);
             matchScore = Math.Clamp(matchScore, 20, 100); // base min match is 20%
 
             // Construct Vietnamese explanation
@@ -275,7 +324,11 @@ public class AiRecommendationService
                 ? string.Join(", ", c.Skills.Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase))
                 : "không trùng khớp kỹ năng trực tiếp";
 
-            string explanation = $"[Đề xuất tự động] Chuyên gia có chuyên ngành {c.Profile.Major} và chức danh \"{c.Profile.JobTitle}\". " +
+            string domainInfo = c.HasMatchingDomain 
+                ? "Chuyên gia hoạt động trong lĩnh vực trùng khớp với công việc. " 
+                : string.Empty;
+
+            string explanation = $"[Đề xuất tự động] {domainInfo}Chuyên gia có chuyên ngành {c.Profile.Major} và chức danh \"{c.Profile.JobTitle}\". " +
                                   $"Có {c.MatchingSkillsCount} kỹ năng phù hợp ({matchedSkillsList}). " +
                                   $"Tỷ lệ hoàn thành công việc xuất sắc đạt {c.Profile.SuccessRate}%.";
 
@@ -321,6 +374,7 @@ Mỗi phần tử trong mảng đại diện cho một chuyên gia với cấu t
 
     private static string BuildUserPrompt(
         string title, string description, decimal budget, int deadline,
+        string? domainName, string? specializationName,
         List<string> requiredSkills, List<string> detailedRequirements,
         List<ExpertCandidateInternal> candidates)
     {
@@ -330,6 +384,7 @@ Mỗi phần tử trong mảng đại diện cho một chuyên gia với cấu t
             fullName = c.User.FullName,
             jobTitle = c.Profile.JobTitle,
             major = c.Profile.Major,
+            domains = c.Domains,
             bio = c.Profile.Bio,
             certifications = c.Profile.Certifications,
             successRate = c.Profile.SuccessRate,
@@ -343,6 +398,8 @@ Mỗi phần tử trong mảng đại diện cho một chuyên gia với cấu t
             description,
             budget,
             deadlineDays = deadline,
+            domain = domainName,
+            specialization = specializationName,
             requiredSkills,
             detailedRequirements
         };
@@ -403,7 +460,9 @@ Hãy phân tích và chấm điểm cho tất cả {candidates.Count} chuyên gi
         public ApplicationUser User { get; set; } = null!;
         public ExpertProfile Profile { get; set; } = null!;
         public List<string> Skills { get; set; } = new();
+        public List<string> Domains { get; set; } = new();
         public int MatchingSkillsCount { get; set; }
         public int KeywordMatchCount { get; set; }
+        public bool HasMatchingDomain { get; set; }
     }
 }

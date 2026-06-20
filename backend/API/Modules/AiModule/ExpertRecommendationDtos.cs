@@ -14,6 +14,8 @@ public class ExpertRecommendationRequestDto
     public List<string>? SkillIds { get; set; }
     public decimal? Budget { get; set; }
     public int? Deadline { get; set; }
+    public Guid? DomainId { get; set; }
+    public Guid? SpecializationId { get; set; }
 }
 
 public class ExpertRecommendationResultDto

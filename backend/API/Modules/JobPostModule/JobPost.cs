@@ -30,8 +30,9 @@ public class JobPost
     public string Status { get; set; } = string.Empty;
     
     public DateTime CreatedAt { get; set; }
-    
-    public Guid? AICategoryDomainId { get; set; }
+    public Guid? DomainId { get; set; }
+    public Guid? SpecializationId { get; set; }
+    public string? DurationUnit { get; set; }
 
     [ForeignKey("ClientId")]
     [JsonIgnore]
@@ -40,12 +41,11 @@ public class JobPost
     [NotMapped]
     public string Client => ClientUser?.FullName ?? string.Empty;
 
-    public AICategoryDomain? AICategoryDomain { get; set; }
+    public Domain? Domain { get; set; }
     
-    public ICollection<JobPostSkill> JobPostSkills { get; set; } = new List<JobPostSkill>();
+    [ForeignKey("SpecializationId")]
+    public Specialization? Specialization { get; set; }
 
-    // =================================================================================
-    // CÁC THUỘC TÍNH PHỤ TRỢ HỨNG DỮ LIỆU LAI TỪ CONTROLLER
-    // =================================================================================
+    public ICollection<JobPostSkill> JobPostSkills { get; set; } = new List<JobPostSkill>();
     public ICollection<JobRequirement> JobRequirements { get; set; } = new List<JobRequirement>();
 }

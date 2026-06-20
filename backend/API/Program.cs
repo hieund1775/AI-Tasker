@@ -110,24 +110,29 @@ using (var scope = app.Services.CreateScope())
         }
 
         // Seed Domains
-        if (!await db.AICategoryDomains.AnyAsync())
+        if (!await db.Domains.AnyAsync())
         {
-            db.AICategoryDomains.AddRange(new List<AICategoryDomain>
-            {
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Natural Language Processing (NLP)" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Computer Vision" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Generative AI" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Machine Learning Engineering" }
-            });
-        }
+            var nlp = new Domain { Id = Guid.NewGuid(), Name = "Natural Language Processing (NLP)" };
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Chatbots & Conversational Agents", DomainId = nlp.Id });
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Text Classification & Sentiment Analysis", DomainId = nlp.Id });
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Machine Translation", DomainId = nlp.Id });
 
-        var testCategories = new List<string> { "Deep Learning", "Data Science", "Reinforcement Learning" };
-        foreach (var catName in testCategories)
-        {
-            if (!await db.AICategoryDomains.AnyAsync(c => c.Name == catName))
-            {
-                db.AICategoryDomains.Add(new AICategoryDomain { Id = Guid.NewGuid(), Name = catName });
-            }
+            var cv = new Domain { Id = Guid.NewGuid(), Name = "Computer Vision" };
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Object Detection & Tracking", DomainId = cv.Id });
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Image Generation & Editing", DomainId = cv.Id });
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Face Recognition", DomainId = cv.Id });
+
+            var genai = new Domain { Id = Guid.NewGuid(), Name = "Generative AI" };
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "LLM Fine-tuning", DomainId = genai.Id });
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Prompt Engineering", DomainId = genai.Id });
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Retrieval-Augmented Generation (RAG)", DomainId = genai.Id });
+
+            var mle = new Domain { Id = Guid.NewGuid(), Name = "Machine Learning Engineering" };
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Model Deployment & MLOps", DomainId = mle.Id });
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Recommendation Systems", DomainId = mle.Id });
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Anomaly Detection", DomainId = mle.Id });
+
+            db.Domains.AddRange(new List<Domain> { nlp, cv, genai, mle });
         }
 
         // Seed Skills
