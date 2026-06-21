@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router";
 import { Clock, CheckCircle2, MessageSquare, User, ArrowLeft, Check, Loader2 } from "lucide-react";
 
@@ -6,33 +6,12 @@ import {
   deriveTaskStatus,
   deriveTaskProgress,
   getTaskStatusClass,
+  getTaskById,
+  updateMiniTask,
+  submitTask,
+  approveSubmission,
+  requestRevision,
 } from "../../lib/projectTimelineStore.js";
-
-// TODO: Replace with API calls when backend is connected
-// These are local stubs for the task update workflow
-function toggleMockMiniTask(taskId, miniTaskId) {
-  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { status: ... })
-  return null;
-}
-function updateMockMiniTaskNote(taskId, miniTaskId, value) {
-  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { note: value })
-}
-function markTaskSubmitted(taskId) {
-  // TODO: Replace with api.tasks.submit(taskId)
-  return null;
-}
-function approveTaskInMockDb(taskId) {
-  // TODO: Replace with api.tasks.approve(taskId)
-  return null;
-}
-function requestTaskRevisionInMockDb(taskId, feedback) {
-  // TODO: Replace with api.tasks.requestRevision(taskId, { feedback })
-  return null;
-}
-
-function findTaskById(taskId) {
-  return null;
-}
 
 export function TaskUpdatePage() {
   const { taskId } = useParams();
@@ -41,11 +20,53 @@ export function TaskUpdatePage() {
   const role = searchParams.get("role") || "expert";
   const action = searchParams.get("action") || "view";
 
-    const result = findTaskById(taskId);
-  const task = result?.task ?? null;
-  const timeline = result?.timeline ?? null;
-  const project = task ? null : null;
-  const assignedUser = task ? null : null;
+  const [task, setTask] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // ---- Local state ----
+  const [feedbackText, setFeedbackText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  // Controlled note inputs — seeded on task load
+  const [miniTaskNotes, setMiniTaskNotes] = useState({});
+  // Debounce timers for note auto-save
+  const noteTimers = useRef({});
+
+  // ---- Fetch task and timeline data on mount ----
+  useEffect(() => {
+    let active = true;
+    async function fetchTask() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getTaskById(taskId);
+        if (active) {
+          if (data) {
+            setTask(data);
+            // Pre-seed notes
+            const notes = {};
+            data.miniTasks?.forEach((mt) => {
+              notes[mt.id] = mt.feedbackContent || "";
+            });
+            setMiniTaskNotes(notes);
+          } else {
+            setError("Task not found");
+          }
+        }
+      } catch (err) {
+        if (active) {
+          setError(err.message || "Failed to load task details");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    fetchTask();
+    return () => {
+      active = false;
+    };
+  }, [taskId]);
 
   // ---- Derived values (recomputed on every render) ----
   const { completed: completedMiniTasks, total: totalMiniTasks, percent: progress } =
@@ -53,89 +74,150 @@ export function TaskUpdatePage() {
   const derivedStatus = deriveTaskStatus(task);
   const allMiniTasksDone = totalMiniTasks > 0 && completedMiniTasks >= totalMiniTasks;
 
-  // ---- Local state ----
-  const [feedbackText, setFeedbackText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  // Controlled note inputs — seeded on first render
-  const [miniTaskNotes, setMiniTaskNotes] = useState(() => {
-    const notes = {};
-    task?.miniTasks?.forEach((mt) => {
-      notes[mt.id] = mt.note || "";
-    });
-    return notes;
-  });
-  // Debounce timers for note auto-save
-  const noteTimers = useRef({});
-
   // ---- Mini task checkbox toggle (immediate auto-save) ----
-  const handleToggleMiniTask = useCallback((miniTaskId) => {
-    const updated = toggleMockMiniTask(taskId, miniTaskId);
-    if (updated) {
-      // Force re-render — React reads fresh mock DB on next render
-      setMiniTaskNotes((prev) => ({ ...prev }));
+  const handleToggleMiniTask = useCallback(async (miniTaskId) => {
+    if (!task) return;
+    const mt = task.miniTasks?.find((m) => m.id === miniTaskId);
+    if (!mt) return;
+
+    const newCompleted = !mt.isCompleted;
+
+    // Optimistic update
+    setTask((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        miniTasks: prev.miniTasks.map((m) =>
+          m.id === miniTaskId ? { ...m, isCompleted: newCompleted } : m
+        ),
+      };
+    });
+
+    try {
+      await updateMiniTask(task.id, miniTaskId, {
+        isCompleted: newCompleted,
+        feedbackContent: miniTaskNotes[miniTaskId] || "",
+        feedbackSenderId: null
+      });
+    } catch (err) {
+      console.error("Failed to toggle mini task:", err);
+      // Revert optimistic update
+      setTask((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          miniTasks: prev.miniTasks.map((m) =>
+            m.id === miniTaskId ? { ...m, isCompleted: !newCompleted } : m
+          ),
+        };
+      });
     }
-  }, [taskId]);
+  }, [task, miniTaskNotes]);
 
   // ---- Mini task note change (debounced auto-save) ----
   const handleNoteChange = useCallback((miniTaskId, value) => {
     setMiniTaskNotes((prev) => ({ ...prev, [miniTaskId]: value }));
 
-    // Debounce the mock-DB write (300ms after last keystroke)
+    // Debounce the backend write (300ms after last keystroke)
     if (noteTimers.current[miniTaskId]) {
       clearTimeout(noteTimers.current[miniTaskId]);
     }
-    noteTimers.current[miniTaskId] = setTimeout(() => {
-      updateMockMiniTaskNote(taskId, miniTaskId, value);
+    noteTimers.current[miniTaskId] = setTimeout(async () => {
+      if (!task) return;
+      const mt = task.miniTasks?.find((m) => m.id === miniTaskId);
+      if (!mt) return;
+
+      try {
+        await updateMiniTask(task.id, miniTaskId, {
+          isCompleted: mt.isCompleted,
+          feedbackContent: value,
+          feedbackSenderId: null
+        });
+      } catch (err) {
+        console.error("Failed to auto-save mini task note:", err);
+      }
     }, 300);
-  }, [taskId]);
+  }, [task]);
 
   // ---- Done button — mark task as submitted ----
-  const handleDone = useCallback(() => {
-    if (!allMiniTasksDone || submitting) return;
+  const handleDone = useCallback(async () => {
+    if (!allMiniTasksDone || submitting || !task) return;
     setSubmitting(true);
-    setTimeout(() => {
-      const updated = markTaskSubmitted(taskId);
+    try {
+      const updated = await submitTask(taskId, { projectId: task.projectId });
       if (updated) {
         setSubmitted(true);
         try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
         setTimeout(() => navigate(-1), 800);
       }
+    } catch (err) {
+      console.error("Error submitting task:", err);
+    } finally {
       setSubmitting(false);
-    }, 400);
-  }, [taskId, allMiniTasksDone, submitting, navigate]);
+    }
+  }, [taskId, allMiniTasksDone, submitting, task, navigate]);
 
   // ---- Client approve ----
-  const handleClientApprove = useCallback(() => {
+  const handleClientApprove = useCallback(async () => {
+    if (submitting || !task) return;
     setSubmitting(true);
-    setTimeout(() => {
-      approveTaskInMockDb(taskId);
+    try {
+      await approveSubmission(taskId, { projectId: task.projectId });
       setSubmitted(true);
       try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
       setTimeout(() => navigate(-1), 800);
+    } catch (err) {
+      console.error("Error approving task:", err);
+    } finally {
       setSubmitting(false);
-    }, 300);
-  }, [taskId, navigate]);
+    }
+  }, [taskId, task, navigate, submitting]);
 
   // ---- Client request changes ----
-  const handleClientRequestChanges = useCallback(() => {
-    if (!feedbackText.trim()) return;
+  const handleClientRequestChanges = useCallback(async () => {
+    if (!feedbackText.trim() || submitting || !task) return;
     setSubmitting(true);
-    setTimeout(() => {
-      requestTaskRevisionInMockDb(taskId, feedbackText.trim());
+    try {
+      await requestRevision(taskId, { projectId: task.projectId });
       setSubmitted(true);
       try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
       setTimeout(() => navigate(-1), 800);
+    } catch (err) {
+      console.error("Error requesting changes:", err);
+    } finally {
       setSubmitting(false);
-    }, 300);
-  }, [taskId, feedbackText, navigate]);
+    }
+  }, [taskId, feedbackText, task, navigate, submitting]);
 
   // ---- Back button ----
   const handleBack = useCallback(() => {
     navigate(-1);
   }, [navigate]);
 
-  if (!task) {
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+        <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-900 mb-2" />
+        <p className="text-gray-500 text-sm">Loading task details...</p>
+      </div>
+    );
+  }
+
+  if (error || !task) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+          <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-500 mb-2">{error || "Task not found"}</h3>
+          <p className="text-sm text-gray-400">The task you are looking for may have been removed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const project = task.project ?? null;
+  const assignedUser = null; // No assigned user stored on task model
+
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">

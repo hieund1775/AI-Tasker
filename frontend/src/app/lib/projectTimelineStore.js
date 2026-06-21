@@ -146,11 +146,23 @@ function buildTimelineFromMockDb(projectId) {
  */
 export async function getProjectTimeline(projectId) {
   try {
-    const data = await api.timeline.get(projectId);
+    const data = await api.projects.getById(projectId);
     return data;
-  } catch {
-    // Backend unavailable — return null (no fake data fallback)
-    // TODO: Connect to real API — api.timeline.get(projectId)
+  } catch (err) {
+    console.error("Error getting project timeline:", err);
+    return null;
+  }
+}
+
+/**
+ * Fetch a single task by ID.
+ */
+export async function getTaskById(taskId) {
+  try {
+    const data = await api.projects.getTaskById(taskId);
+    return data;
+  } catch (err) {
+    console.error("Error getting task by ID:", err);
     return null;
   }
 }
@@ -162,49 +174,36 @@ export async function getProjectTimeline(projectId) {
  */
 export async function submitTask(taskId, data) {
   try {
-    await api.tasks.submit(taskId, data);
-    return getProjectTimeline();
-  } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.submit(taskId, data)
+    await api.projects.updateTaskStatus(taskId, "Pending Review");
+    return getProjectTimeline(data?.projectId);
+  } catch (err) {
+    console.error("Error submitting task:", err);
     return null;
   }
 }
 
 /**
  * Approve a task submission.
- *
- * TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, { status: "approved", feedback })
  */
 export async function approveSubmission(submissionId, data) {
   try {
-    await api.tasks.reviewSubmission(submissionId, {
-      status: "approved",
-      feedback: data?.feedback || "",
-    });
-    return getProjectTimeline();
-  } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
+    await api.projects.updateTaskStatus(submissionId, "Completed");
+    return getProjectTimeline(data?.projectId);
+  } catch (err) {
+    console.error("Error approving submission:", err);
     return null;
   }
 }
 
 /**
  * Request a revision on a task submission.
- *
- * TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, { status: "needs_revision", feedback })
  */
 export async function requestRevision(submissionId, data) {
   try {
-    await api.tasks.reviewSubmission(submissionId, {
-      status: "needs_revision",
-      feedback: data?.feedback || "",
-    });
-    return getProjectTimeline();
-  } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
+    await api.projects.updateTaskStatus(submissionId, "Needs Revision");
+    return getProjectTimeline(data?.projectId);
+  } catch (err) {
+    console.error("Error requesting revision:", err);
     return null;
   }
 }
@@ -284,15 +283,18 @@ export async function updateTask(taskId, updates) {
 
 /**
  * Update a mini-task state.
- *
- * TODO: Connect to real API — api.tasks.updateMiniTask(taskId, miniTaskId, updates)
  */
 export async function updateMiniTask(taskId, miniTaskId, updates) {
   try {
-    // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, updates)
-    return getProjectTimeline();
-  } catch {
-    // Backend unavailable — return null
+    const payload = {
+      isCompleted: updates.isCompleted,
+      feedbackContent: updates.feedbackContent,
+      feedbackSenderId: updates.feedbackSenderId || null
+    };
+    const data = await api.projects.updateMiniTask(miniTaskId, payload);
+    return data;
+  } catch (err) {
+    console.error("Error updating mini task:", err);
     return null;
   }
 }

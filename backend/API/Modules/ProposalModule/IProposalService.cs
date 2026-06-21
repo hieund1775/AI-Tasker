@@ -11,5 +11,6 @@ namespace AITasker_Modular.Modules.ProposalModule
         Task<IEnumerable<Proposal>> GetProposalsByJobPostIdAsync(Guid jobPostId);
         Task<IEnumerable<Proposal>> GetProposalsByExpertIdAsync(Guid expertId);
         Task<Proposal?> UpdateProposalStatusAsync(Guid proposalId, string status);
+        Task<Proposal?> UpdateProposalAsync(Guid proposalId, UpdateProposalDto dto);
     }
-}
+}

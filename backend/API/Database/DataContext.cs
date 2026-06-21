@@ -126,6 +126,7 @@ public class DataContext : DbContext
         modelBuilder.Entity<Review>().HasOne(x => x.TargetUser).WithMany().HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TransactionLog>().HasOne(x => x.SourceWallet).WithMany().HasForeignKey(x => x.SourceWalletId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TransactionLog>().HasOne(x => x.DestinationWallet).WithMany().HasForeignKey(x => x.DestinationWalletId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ProjectTask>().HasOne(x => x.FeedbackSender).WithMany().HasForeignKey(x => x.FeedbackSenderId).OnDelete(DeleteBehavior.NoAction);
         
         // Domain / Specialization mappings
         modelBuilder.Entity<Specialization>()

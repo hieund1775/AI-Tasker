@@ -9,7 +9,9 @@ using AITasker_Modular.Modules.UserModule;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
+using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 using System;
+
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,7 +71,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<DataContext>(options =>
     options.UseMySql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        new MySqlServerVersion(new Version(8, 0, 30))
+        new MySqlServerVersion(new Version(8, 0, 30)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure()
     ));
 
 // --- ĐĂNG KÝ CÁC DỊCH VỤ HỆ THỐNG GỐC (DI) ---
@@ -162,7 +165,222 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Seed Test Users (Client & Expert)
+        var clientId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var expertId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        if (!await db.Users.AnyAsync(u => u.Id == clientId))
+        {
+            var testClient = new ApplicationUser
+            {
+                Id = clientId,
+                Email = "client@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "Nguyễn Văn Client",
+                Role = "Client",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testClient);
+            db.Wallets.Add(new Wallet { UserId = clientId, Balance = 5000m });
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Id == expertId))
+        {
+            var testExpert = new ApplicationUser
+            {
+                Id = expertId,
+                Email = "expert@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "Lê Văn Expert",
+                Role = "Expert",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testExpert);
+            db.Wallets.Add(new Wallet { UserId = expertId, Balance = 0m });
+            db.ExpertProfiles.Add(new ExpertProfile
+            {
+                UserId = expertId,
+                JobTitle = "Chuyên gia Trí tuệ Nhân tạo (AI Expert)",
+                Major = "Khoa học Máy tính",
+                Bio = "Tôi là chuyên gia AI với 5 năm kinh nghiệm phát triển các giải pháp NLP, Generative AI và RAG.",
+                ReputationCredit = 5.0m,
+                SuccessRate = 1.0
+            });
+        }
+
+        // Seed a Test JobPost
+        var jobId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        if (!await db.JobPosts.AnyAsync(j => j.Id == jobId))
+        {
+            var nlpDomain = await db.Domains.FirstOrDefaultAsync(d => d.Name.Contains("Natural Language Processing"));
+            var chatbotSpec = await db.Specializations.FirstOrDefaultAsync(s => s.Name.Contains("Chatbots"));
+
+            var testJob = new JobPost
+            {
+                Id = jobId,
+                ClientId = clientId,
+                Title = "Xây dựng Chatbot AI tích hợp RAG",
+                Description = "Dự án xây dựng chatbot hỗ trợ hỏi đáp dựa trên tài liệu nội bộ sử dụng LangChain và GPT-4o.",
+                Budget = 1500m,
+                Deadline = 15,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                DomainId = nlpDomain?.Id,
+                SpecializationId = chatbotSpec?.Id,
+                DurationValue = 15,
+                DurationUnit = "Days"
+            };
+            db.JobPosts.Add(testJob);
+
+            // Seed JobRequirements (usecases)
+            db.JobRequirements.AddRange(new List<JobRequirement>
+            {
+                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444441"), JobPostId = jobId, UseCaseName = "Thiết lập cơ sở dữ liệu Vector (ChromaDB)", Description = "Cấu hình DB vector để indexing tài liệu." },
+                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444442"), JobPostId = jobId, UseCaseName = "Tích hợp mô hình ngôn ngữ lớn (GPT-4o)", Description = "Xử lý prompt template và kết nối LLM API." },
+                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444443"), JobPostId = jobId, UseCaseName = "Xây dựng API Endpoint hỏi đáp", Description = "Tạo RESTful endpoint kết nối frontend." }
+            });
+        }
+
+        // Seed a Test Proposal
+        var proposalId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        if (!await db.Proposals.AnyAsync(p => p.Id == proposalId))
+        {
+            var testProposal = new Proposal
+            {
+                Id = proposalId,
+                JobPostId = jobId,
+                ExpertId = expertId,
+                BidAmount = 1200m,
+                EstimatedDuration = 12,
+                Title = "Hồ sơ đấu thầu thiết kế Chatbot RAG hiệu năng cao",
+                Introduction = "Chào anh/chị, tôi là chuyên gia AI với 3 năm kinh nghiệm phát triển các hệ thống RAG và LLM.",
+                Technical = "Sử dụng Python, LangChain, Pinecone vector database, và GPT-4o API.",
+                Implementation = "Tuần 1: Thiết lập Vector DB và tiền xử lý data. Tuần 2: Tích hợp LLM và hoàn thiện API.",
+                Dependencies = "Cần tài khoản OpenAI API và server lưu trữ ChromaDB.",
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Proposals.Add(testProposal);
+        }
+
+        // Seed an Already Accepted Proposal and Active Project for testing
+        var acceptedJobId = Guid.Parse("33333333-3333-3333-3333-333333333334");
+        if (!await db.JobPosts.AnyAsync(j => j.Id == acceptedJobId))
+        {
+            var nlpDomain = await db.Domains.FirstOrDefaultAsync(d => d.Name.Contains("Natural Language Processing"));
+            var testJob2 = new JobPost
+            {
+                Id = acceptedJobId,
+                ClientId = clientId,
+                Title = "Xây dựng Hệ thống Gợi ý Sản phẩm",
+                Description = "Hệ thống gợi ý sản phẩm cho trang e-commerce sử dụng collaborative filtering.",
+                Budget = 2000m,
+                Deadline = 30,
+                Status = "In Progress",
+                CreatedAt = DateTime.UtcNow,
+                DomainId = nlpDomain?.Id,
+                DurationValue = 30,
+                DurationUnit = "Days"
+            };
+            db.JobPosts.Add(testJob2);
+        }
+
+        var acceptedProposalId = Guid.Parse("55555555-5555-5555-5555-555555555556");
+        if (!await db.Proposals.AnyAsync(p => p.Id == acceptedProposalId))
+        {
+            var testProposal2 = new Proposal
+            {
+                Id = acceptedProposalId,
+                JobPostId = acceptedJobId,
+                ExpertId = expertId,
+                BidAmount = 1800m,
+                EstimatedDuration = 25,
+                Title = "Đề xuất xây dựng hệ thống gợi ý sản phẩm",
+                Introduction = "Tôi có nhiều kinh nghiệm làm Recommendation System.",
+                Technical = "Collaborative Filtering, Python, TensorFlow.",
+                Implementation = "Huấn luyện mô hình và deploy lên AWS.",
+                Dependencies = "Server AWS GPU.",
+                Status = "Accepted",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Proposals.Add(testProposal2);
+        }
+
+        var testProjectId = Guid.Parse("66666666-6666-6666-6666-666666666666");
+        if (!await db.Projects.AnyAsync(p => p.Id == testProjectId))
+        {
+            var testProject = new Project
+            {
+                Id = testProjectId,
+                JobPostId = acceptedJobId,
+                ClientId = clientId,
+                ExpertId = expertId,
+                EscrowBalance = 1800m,
+                Status = "In Progress",
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddDays(25)
+            };
+            db.Projects.Add(testProject);
+
+            // Copy a skill to ProjectSkill
+            var pythonSkill = await db.Skills.FirstOrDefaultAsync(s => s.Name == "Python");
+            if (pythonSkill != null)
+            {
+                db.ProjectSkills.Add(new ProjectSkill
+                {
+                    ProjectsId = testProjectId,
+                    SkillsId = pythonSkill.Id
+                });
+            }
+        }
+
+        var task1Id = Guid.Parse("77777777-7777-7777-7777-777777777771");
+        if (!await db.ProjectTasks.AnyAsync(t => t.Id == task1Id))
+        {
+            var task1 = new ProjectTask
+            {
+                Id = task1Id,
+                ProjectId = testProjectId,
+                Title = "Thu thập và tiền xử lý dữ liệu hành vi người dùng",
+                Status = "In Progress",
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ProjectTasks.Add(task1);
+        }
+
+        var task2Id = Guid.Parse("77777777-7777-7777-7777-777777777772");
+        if (!await db.ProjectTasks.AnyAsync(t => t.Id == task2Id))
+        {
+            var task2 = new ProjectTask
+            {
+                Id = task2Id,
+                ProjectId = testProjectId,
+                Title = "Xây dựng và huấn luyện mô hình Matrix Factorization",
+                Status = "In Progress",
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ProjectTasks.Add(task2);
+        }
+
+        var miniTaskId = Guid.Parse("88888888-8888-8888-8888-888888888881");
+        if (!await db.MiniTasks.AnyAsync(mt => mt.Id == miniTaskId))
+        {
+            db.MiniTasks.Add(new MiniTask
+            {
+                Id = miniTaskId,
+                TaskId = task1Id,
+                Title = "Viết script python cào log click",
+                IsCompleted = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         await db.SaveChangesAsync();
+
+
+
     }
     catch (Exception ex)
     {

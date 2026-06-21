@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.UserModule;
@@ -24,8 +25,22 @@ public class Project
     public Guid? ConversationId { get; set; }
 
     public JobPost? JobPost { get; set; }
+
+    [JsonIgnore]
     public ApplicationUser? Client { get; set; }
+
+    [JsonIgnore]
     public ApplicationUser? Expert { get; set; }
+
+    [NotMapped]
+    [JsonPropertyName("client")]
+    public string ClientName => Client?.FullName ?? string.Empty;
+
+    [NotMapped]
+    [JsonPropertyName("expert")]
+    public string ExpertName => Expert?.FullName ?? string.Empty;
+
     public Conversation? Conversation { get; set; }
     public ICollection<ProjectSkill> ProjectSkills { get; set; } = new List<ProjectSkill>();
+    public ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using AITasker_Modular.Modules.UserModule;
 
 namespace AITasker_Modular.Modules.ProjectModule;
@@ -17,6 +18,8 @@ public class MiniTask
     public Guid? FeedbackSenderId { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    [JsonIgnore]
     public Task? Task { get; set; }
     public ApplicationUser? FeedbackSender { get; set; }
 }
+

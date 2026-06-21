@@ -82,7 +82,41 @@ namespace AITasker_Modular.Modules.JobModule
 
             return Ok(result);
         }
+
+        [HttpPut("{id:guid}")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UpdateProposal(Guid id, [FromForm] UpdateProposalDto dto)
+        {
+            try
+            {
+                if (dto.Portfolio != null && dto.Portfolio.Length > 0)
+                {
+                    var uploadsFolder = System.IO.Path.Combine(System.IO.Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                    if (!System.IO.Directory.Exists(uploadsFolder))
+                    {
+                        System.IO.Directory.CreateDirectory(uploadsFolder);
+                    }
+                    var uniqueFileName = Guid.NewGuid().ToString() + "_" + System.IO.Path.GetFileName(dto.Portfolio.FileName);
+                    var filePath = System.IO.Path.Combine(uploadsFolder, uniqueFileName);
+                    using (var fileStream = new System.IO.FileStream(filePath, System.IO.FileMode.Create))
+                    {
+                        await dto.Portfolio.CopyToAsync(fileStream);
+                    }
+                    dto.PortfolioUrl = $"/uploads/{uniqueFileName}";
+                }
+
+                var result = await _proposalService.UpdateProposalAsync(id, dto);
+                if (result == null) return NotFound("Không tìm thấy hồ sơ đấu thầu tương ứng.");
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
     }
+
 
     public class CreateProposalDto
     {

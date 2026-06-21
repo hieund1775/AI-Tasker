@@ -169,6 +169,9 @@ export const api = {
     getById: (id) => get(`/projects/${id}`),
     update: (id, data) => put(`/projects/${id}`, data),
     delete: (id) => del(`/projects/${id}`),
+    updateMiniTask: (miniTaskId, data) => put(`/projects/minitasks/${miniTaskId}`, data),
+    getTaskById: (taskId) => get(`/projects/tasks/${taskId}`),
+    updateTaskStatus: (taskId, status) => put(`/projects/tasks/${taskId}/status?status=${status}`),
   },
 };
 
