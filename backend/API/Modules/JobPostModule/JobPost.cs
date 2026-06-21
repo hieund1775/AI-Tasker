@@ -33,6 +33,7 @@ public class JobPost
     public Guid? DomainId { get; set; }
     public Guid? SpecializationId { get; set; }
     public string? DurationUnit { get; set; }
+    public int DurationValue { get; set; }
 
     [ForeignKey("ClientId")]
     [JsonIgnore]

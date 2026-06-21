@@ -104,7 +104,7 @@ public class DataContext : DbContext
             if ((property.Name.EndsWith("Id") || property.Name == "Id") && 
                 property.ClrType != typeof(Guid) && property.ClrType != typeof(Guid?))
             {
-                property.SetColumnType("nvarchar(450)");
+                property.SetColumnType("varchar(255)");
             }
         }
 

@@ -39,6 +39,7 @@ public class JobPostService : IJobPostService
             Budget = jobPostDto.Budget,
             Deadline = deadlineDays,
             DurationUnit = jobPostDto.DurationUnit,
+            DurationValue = jobPostDto.DurationValue,
             Status = "Open", 
             CreatedAt = DateTime.UtcNow,
             DomainId = jobPostDto.DomainId,
@@ -125,6 +126,7 @@ public class JobPostService : IJobPostService
         jobPost.Budget = jobPostDto.Budget;
         jobPost.Deadline = deadlineDays;
         jobPost.DurationUnit = jobPostDto.DurationUnit;
+        jobPost.DurationValue = jobPostDto.DurationValue;
         jobPost.DomainId = jobPostDto.DomainId;
         jobPost.SpecializationId = jobPostDto.SpecializationId;
 
