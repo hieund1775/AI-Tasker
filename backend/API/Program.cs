@@ -254,11 +254,8 @@ using (var scope = app.Services.CreateScope())
                 ExpertId = expertId,
                 BidAmount = 1200m,
                 EstimatedDuration = 12,
-                Title = "Hồ sơ đấu thầu thiết kế Chatbot RAG hiệu năng cao",
                 Introduction = "Chào anh/chị, tôi là chuyên gia AI với 3 năm kinh nghiệm phát triển các hệ thống RAG và LLM.",
-                Technical = "Sử dụng Python, LangChain, Pinecone vector database, và GPT-4o API.",
                 Implementation = "Tuần 1: Thiết lập Vector DB và tiền xử lý data. Tuần 2: Tích hợp LLM và hoàn thiện API.",
-                Dependencies = "Cần tài khoản OpenAI API và server lưu trữ ChromaDB.",
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
@@ -297,11 +294,8 @@ using (var scope = app.Services.CreateScope())
                 ExpertId = expertId,
                 BidAmount = 1800m,
                 EstimatedDuration = 25,
-                Title = "Đề xuất xây dựng hệ thống gợi ý sản phẩm",
                 Introduction = "Tôi có nhiều kinh nghiệm làm Recommendation System.",
-                Technical = "Collaborative Filtering, Python, TensorFlow.",
                 Implementation = "Huấn luyện mô hình và deploy lên AWS.",
-                Dependencies = "Server AWS GPU.",
                 Status = "Accepted",
                 CreatedAt = DateTime.UtcNow
             };

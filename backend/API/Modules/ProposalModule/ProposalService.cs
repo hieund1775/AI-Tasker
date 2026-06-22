@@ -41,11 +41,8 @@ namespace AITasker_Modular.Modules.ProposalModule
                 ExpertId = dto.ExpertId,
                 BidAmount = dto.BidAmount,
                 EstimatedDuration = dto.EstimatedDuration,
-                Title = dto.Title.Trim(),
                 Introduction = dto.Introduction.Trim(),
-                Technical = dto.Technical.Trim(),
                 Implementation = dto.Implementation.Trim(),
-                Dependencies = dto.Dependencies.Trim(),
                 Portfolio = dto.PortfolioUrl,
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
@@ -125,20 +122,11 @@ namespace AITasker_Modular.Modules.ProposalModule
             proposal.BidAmount = dto.BidAmount;
             proposal.EstimatedDuration = dto.EstimatedDuration;
             
-            if (!string.IsNullOrWhiteSpace(dto.Title))
-                proposal.Title = dto.Title.Trim();
-                
             if (!string.IsNullOrWhiteSpace(dto.Introduction))
                 proposal.Introduction = dto.Introduction.Trim();
                 
-            if (!string.IsNullOrWhiteSpace(dto.Technical))
-                proposal.Technical = dto.Technical.Trim();
-                
             if (!string.IsNullOrWhiteSpace(dto.Implementation))
                 proposal.Implementation = dto.Implementation.Trim();
-                
-            if (!string.IsNullOrWhiteSpace(dto.Dependencies))
-                proposal.Dependencies = dto.Dependencies.Trim();
 
             if (dto.PortfolioUrl != null)
             {

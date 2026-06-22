@@ -16,19 +16,10 @@ public class Proposal
     public int EstimatedDuration { get; set; }
 
     [Required]
-    public string Title { get; set; } = string.Empty;
-
-    [Required]
     public string Introduction { get; set; } = string.Empty;
 
     [Required]
-    public string Technical { get; set; } = string.Empty;
-
-    [Required]
     public string Implementation { get; set; } = string.Empty;
-
-    [Required]
-    public string Dependencies { get; set; } = string.Empty;
 
     public string? Portfolio { get; set; }
 
