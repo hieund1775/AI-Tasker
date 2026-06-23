@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.UserModule;
 
-namespace AITasker_Modular.Modules.JobModule; // <── ĐẢM BẢO ÉP CỨNG DÒNG NÀY ĐỂ FIX TOÀN CỤC PROJECT
+namespace AITasker_Modular.Modules.JobModule;
 
 [Table("JobPosts")]
 public class JobPost
@@ -34,6 +34,9 @@ public class JobPost
     public Guid? SpecializationId { get; set; }
     public string? DurationUnit { get; set; }
     public int DurationValue { get; set; }
+
+    // THAO TÁC CƠ HỌC: ĐỤC THÊM TRƯỜNG LƯU ĐƯỜNG DẪN TỆP TIN ĐÍNH KÈM CỦA BÀI POST
+    public string? AttachmentUrl { get; set; }
 
     [ForeignKey("ClientId")]
     [JsonIgnore]

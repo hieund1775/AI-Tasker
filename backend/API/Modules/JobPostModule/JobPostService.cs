@@ -2,9 +2,11 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.JobModule; // <── ÉP TRÌNH BIÊN DỊCH DÙNG CHUNG CHỮ KÝ HÀM VỚI INTERFACE
 using System;
+using System.IO; // ── ĐẢM BẢO CÓ THƯ VIỆN NÀY ĐỂ THAO TÁC ĐĨA CỨNG SERVER
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http; // ── ĐẢM BẢO CÓ THƯ VIỆN NÀY ĐỂ XỬ LÝ STREAM FILE
 
 namespace AITasker_Modular.Modules.JobPostModule;
 
@@ -215,5 +217,76 @@ public class JobPostService : IJobPostService
                              .Where(x => x.ClientId == clientId)
                              .OrderByDescending(x => x.CreatedAt)
                              .ToListAsync();
+    }
+
+    // ── THAO TÁC CƠ HỌC ĐỤC THÊM 1: LƯU TRỮ TỆP TIN VẬT LÝ AN TOÀN TUYỆT ĐỐI ──
+    public async Task<string?> UploadAttachmentAsync(IFormFile file)
+    {
+        if (file == null || file.Length == 0) return null;
+        if (file.Length > 10 * 1024 * 1024) throw new Exception("Kích thước tập tin vượt quá giới hạn hệ thống (Tối đa 10MB).");
+
+        var extension = Path.GetExtension(file.FileName).ToLower();
+        string[] allowedExtensions = { ".pdf", ".docx", ".txt", ".md", ".png", ".jpg", ".jpeg" };
+        if (!allowedExtensions.Contains(extension)) throw new Exception("Định dạng tập tin không được hỗ trợ.");
+
+        var rootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "job_files");
+        if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
+
+        var uniqueFileName = $"{Guid.NewGuid()}{extension}";
+        var destinationPath = Path.Combine(rootPath, uniqueFileName);
+
+        using (var stream = new FileStream(destinationPath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        return $"/job_files/{uniqueFileName}";
+    }
+
+    // ── THAO TÁC CƠ HỌC ĐỤC THÊM 2: PHÂN RÃ MILESTONE SANG CẤU TRÚC FILE .MD BẰNG AI ENGINE ──
+    public async Task<string?> GenerateMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays)
+    {
+        // Sử dụng chính xác thực thể dữ liệu DataContext của nhóm để truy vấn chéo bảng
+        var proposal = await _context.Proposals
+            .Include(p => p.JobPost)
+            .FirstOrDefaultAsync(p => p.Id == proposalId);
+            
+        if (proposal == null) return null;
+
+        var markdownBuilder = new System.Text.StringBuilder();
+        markdownBuilder.AppendLine($"# BẢN PHÂN RÃ CẤU TRÚC CÔNG VIỆC (WBS) - DỰ ÁN: {proposal.JobPostTitle.ToUpper()}");
+        markdownBuilder.AppendLine($"* **Mã số đề xuất (Proposal ID):** {proposal.Id}");
+        markdownBuilder.AppendLine($"* **Chuyên gia đảm nhiệm (Expert ID):** {proposal.ExpertId}");
+        markdownBuilder.AppendLine($"* **Tổng số lượng tác vụ (AI Segmented Tasks):** {taskCount} Tasks");
+        markdownBuilder.AppendLine($"* **Thời hạn hoàn thành bàn giao (Deadline):** {deadlineDays} ngày kể từ ngày ký kết");
+        markdownBuilder.AppendLine("---");
+        markdownBuilder.AppendLine("## DANH SÁCH CHI TIẾT CÁC MỐC TIẾN ĐỘ VÀ NHIỆM VỤ THÀNH PHẦN");
+
+        int daysPerTask = Math.Max(1, deadlineDays / taskCount);
+        for (int i = 1; i <= taskCount; i++)
+        {
+            markdownBuilder.AppendLine($"### 📍 Mốc tiến độ {i}: Thực thi cấu phần nghiệp vụ số {i}");
+            markdownBuilder.AppendLine($"- **Mô tả cấu phần nghiệp vụ:** Tiến hành phân tích, thiết kế logic, xây dựng mã nguồn và kiểm chuẩn đơn vị (Unit Test) cho phân hệ chức năng {i} dựa trên giải pháp kỹ thuật: {proposal.Technical}.");
+            markdownBuilder.AppendLine($"- **Thời gian xử lý dự kiến:** {daysPerTask} ngày.");
+            markdownBuilder.AppendLine();
+        }
+
+        markdownBuilder.AppendLine("---");
+        markdownBuilder.AppendLine("_Bản tài liệu này được phân rã tự động bởi Trợ lý AI Phân tích Nghiệp vụ của nền tảng AITasker để làm cơ sở pháp lý nghiệm thu hợp đồng ký kết._");
+
+        var rootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "milestones");
+        if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
+
+        var fileName = $"Milestone_Proposal_{proposalId}.md";
+        var fullPath = Path.Combine(rootPath, fileName);
+        await System.IO.File.WriteAllTextAsync(fullPath, markdownBuilder.ToString(), System.Text.Encoding.UTF8);
+
+        var fileUrl = $"/milestones/{fileName}";
+        
+        // Ghi đè đường dẫn file Markdown sạch vào cột Portfolio của bảng Proposals
+        proposal.Portfolio = fileUrl; 
+        await _context.SaveChangesAsync();
+
+        return fileUrl;
     }
 }

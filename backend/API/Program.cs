@@ -6,6 +6,7 @@ using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.JobPostModule; 
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Modules.AdminModule; // Đồng bộ cấu trúc AdminModule của Minh
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
@@ -80,6 +81,9 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 
+// --- TÍCH HỢP HỆ THỐNG QUẢN TRỊ ADMIN ĐỘC LẬP ---
+builder.Services.AddScoped<IAdminService, AdminService>();
+
 // --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
 builder.Services.AddScoped<IJobPostService, JobPostService>(); 
 
@@ -99,7 +103,6 @@ using (var scope = app.Services.CreateScope())
         var db = services.GetRequiredService<DataContext>();
         await db.Database.MigrateAsync();
 
-        // Check and update JobPosts.Deadline column type in DB
         using (var command = db.Database.GetDbConnection().CreateCommand())
         {
             await db.Database.OpenConnectionAsync();

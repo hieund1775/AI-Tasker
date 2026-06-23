@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json.Serialization;
@@ -31,6 +32,9 @@ public class Proposal
     public string Dependencies { get; set; } = string.Empty;
 
     public string? Portfolio { get; set; }
+
+    // THAO TÁC CƠ HỌC: ĐỤC THÊM TRƯỜNG LƯU ĐƯỜNG DẪN TỆP TIN ĐÍNH KÈM CỦA PROPOSAL
+    public string? AttachmentUrl { get; set; }
 
     [Required]
     public string Status { get; set; } = string.Empty;

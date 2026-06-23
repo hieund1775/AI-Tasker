@@ -4,7 +4,11 @@ using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Modules.AdminModule;
+using AITasker_Modular.Modules.DisputeModule; // CHỐT CHẶN: Đảm bảo 100% nhận diện được Dispute và Report ở thư mục mới
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
 using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 
 namespace AITasker_Modular.Database;
@@ -33,6 +37,12 @@ public class DataContext : DbContext
     public DbSet<ExpertProfileSkill> ExpertProfileSkills { get; set; }
     public DbSet<JobPostSkill> JobPostSkills { get; set; }
     public DbSet<ProjectSkill> ProjectSkills { get; set; }
+    public DbSet<ProposalAiChat> ProposalAiChats { get; set; }
+    
+    // Đăng ký các bảng phân hệ mới vào DbContext
+    public DbSet<Admin> Admins { get; set; }
+    public DbSet<Dispute> Disputes { get; set; }
+    public DbSet<Report> Reports { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +64,12 @@ public class DataContext : DbContext
         modelBuilder.Entity<Message>().HasKey(x => x.Id);
         modelBuilder.Entity<Review>().HasKey(x => x.Id);
         modelBuilder.Entity<TransactionLog>().HasKey(x => x.Id);
+        modelBuilder.Entity<ProposalAiChat>().HasKey(x => x.Id);
+        
+        // Khởi tạo khóa chính vật lý
+        modelBuilder.Entity<Admin>().HasKey(x => x.Id);
+        modelBuilder.Entity<Dispute>().HasKey(x => x.Id);
+        modelBuilder.Entity<Report>().HasKey(x => x.Id);
 
         modelBuilder.Entity<DomainExpertProfile>().HasKey(x => new { x.DomainId, x.ExpertProfilesUserId });
 
@@ -95,6 +111,7 @@ public class DataContext : DbContext
             .WithMany(x => x.ProjectSkills)
             .HasForeignKey(x => x.SkillsId)
             .OnDelete(DeleteBehavior.Cascade);
+
         foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetProperties()))
         {
             if (property.ClrType == typeof(decimal) || property.ClrType == typeof(decimal?))
@@ -112,6 +129,7 @@ public class DataContext : DbContext
         {
             relationship.DeleteBehavior = DeleteBehavior.NoAction;
         }
+
         modelBuilder.Entity<ExpertProfile>().HasOne<ApplicationUser>().WithOne().HasForeignKey<ExpertProfile>(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Wallet>().HasOne<ApplicationUser>().WithOne().HasForeignKey<Wallet>(x => x.UserId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<JobPost>().HasOne(x => x.ClientUser).WithMany().HasForeignKey(x => x.ClientId).OnDelete(DeleteBehavior.NoAction);
@@ -127,23 +145,35 @@ public class DataContext : DbContext
         modelBuilder.Entity<TransactionLog>().HasOne(x => x.SourceWallet).WithMany().HasForeignKey(x => x.SourceWalletId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<TransactionLog>().HasOne(x => x.DestinationWallet).WithMany().HasForeignKey(x => x.DestinationWalletId).OnDelete(DeleteBehavior.NoAction);
         
-        // Domain / Specialization mappings
-        modelBuilder.Entity<Specialization>()
-            .HasOne(x => x.Domain)
-            .WithMany(x => x.Specializations)
-            .HasForeignKey(x => x.DomainId)
-            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ProposalAiChat>().HasOne(x => x.JobPost).WithMany().HasForeignKey(x => x.JobPostId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<ProposalAiChat>().HasOne(x => x.Expert).WithMany().HasForeignKey(x => x.ExpertId).OnDelete(DeleteBehavior.NoAction);
 
-        modelBuilder.Entity<DomainExpertProfile>()
-            .HasOne(x => x.Domain)
-            .WithMany()
-            .HasForeignKey(x => x.DomainId)
-            .OnDelete(DeleteBehavior.NoAction);
+        // --- CẤU HÌNH KHÓA NGOẠI LIÊN KẾT CHO PHÂN HỆ DISPUTEMODULE ĐỘC LẬP ---
+        modelBuilder.Entity<Dispute>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Dispute>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
+        
+        modelBuilder.Entity<Report>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Report>().HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Report>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
 
-        modelBuilder.Entity<DomainExpertProfile>()
-            .HasOne(x => x.ExpertProfile)
-            .WithMany()
-            .HasForeignKey(x => x.ExpertProfilesUserId)
-            .OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<Specialization>().HasOne(x => x.Domain).WithMany(x => x.Specializations).HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<DomainExpertProfile>().HasOne(x => x.Domain).WithMany().HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.NoAction);
+        modelBuilder.Entity<DomainExpertProfile>().HasOne(x => x.ExpertProfile).WithMany().HasForeignKey(x => x.ExpertProfilesUserId).OnDelete(DeleteBehavior.NoAction);
     }
+}
+
+public class ProposalAiChat
+{
+    public Guid Id { get; set; }
+    public Guid JobPostId { get; set; }
+    public Guid ExpertId { get; set; }
+    public string UserMessage { get; set; } = string.Empty;
+    public string AiResponse { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public JobPost? JobPost { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ApplicationUser? Expert { get; set; }
 }
