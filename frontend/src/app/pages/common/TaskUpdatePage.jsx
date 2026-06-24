@@ -8,30 +8,70 @@ import {
   getTaskStatusClass,
 } from "../../lib/projectTimelineStore.js";
 
-// TODO: Replace with API calls when backend is connected
-// These are local stubs for the task update workflow
-function toggleMockMiniTask(taskId, miniTaskId) {
-  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { status: ... })
-  return null;
-}
-function updateMockMiniTaskNote(taskId, miniTaskId, value) {
-  // TODO: Replace with api.tasks.updateMiniTask(taskId, miniTaskId, { note: value })
-}
-function markTaskSubmitted(taskId) {
-  // TODO: Replace with api.tasks.submit(taskId)
-  return null;
-}
-function approveTaskInMockDb(taskId) {
-  // TODO: Replace with api.tasks.approve(taskId)
-  return null;
-}
-function requestTaskRevisionInMockDb(taskId, feedback) {
-  // TODO: Replace with api.tasks.requestRevision(taskId, { feedback })
-  return null;
+// Import real mock DB functions for data persistence
+import {
+  getTaskById,
+  toggleMiniTaskCompletion,
+  updateMiniTaskInTask,
+  submitTaskForReview,
+  approveTaskSubmission,
+  requestTaskRevision,
+  listProjects,
+  listUsers,
+} from "../../../data/mockDatabase.js";
+
+/**
+ * Find a task by ID and enrich with project and assigned user data.
+ * Returns { task, project, assignedUser } or null.
+ */
+function findTaskById(taskId) {
+  const task = getTaskById(taskId);
+  if (!task) return null;
+
+  const project = task.projectId
+    ? listProjects().find((p) => p.id === task.projectId) || null
+    : null;
+
+  const assignedUser = task.assignedTo
+    ? listUsers().find((u) => u.id === task.assignedTo) || null
+    : null;
+
+  return { task, project, assignedUser };
 }
 
-function findTaskById(taskId) {
-  return null;
+/**
+ * Toggle a mini task's completion state. Persists to mock DB immediately.
+ */
+function toggleMockMiniTask(taskId, miniTaskId, actorName) {
+  return toggleMiniTaskCompletion(taskId, miniTaskId, actorName);
+}
+
+/**
+ * Update a mini task's note. Persists to mock DB immediately.
+ */
+function updateMockMiniTaskNote(taskId, miniTaskId, value) {
+  return updateMiniTaskInTask(taskId, miniTaskId, { note: value });
+}
+
+/**
+ * Mark a task as submitted for client review. Persists to mock DB.
+ */
+function markTaskSubmitted(taskId, actorName) {
+  return submitTaskForReview(taskId, actorName);
+}
+
+/**
+ * Client approves a task submission. Persists to mock DB.
+ */
+function approveTaskInMockDb(taskId, actorName) {
+  return approveTaskSubmission(taskId, actorName);
+}
+
+/**
+ * Client requests revision on a task. Persists to mock DB.
+ */
+function requestTaskRevisionInMockDb(taskId, feedback, actorName) {
+  return requestTaskRevision(taskId, actorName, feedback);
 }
 
 export function TaskUpdatePage() {
@@ -41,11 +81,11 @@ export function TaskUpdatePage() {
   const role = searchParams.get("role") || "expert";
   const action = searchParams.get("action") || "view";
 
-    const result = findTaskById(taskId);
+  const result = findTaskById(taskId);
   const task = result?.task ?? null;
-  const timeline = result?.timeline ?? null;
-  const project = task ? null : null;
-  const assignedUser = task ? null : null;
+  const project = result?.project ?? null;
+  const assignedUser = result?.assignedUser ?? null;
+  const actorName = assignedUser?.fullName || task?.assignedTo || role;
 
   // ---- Derived values (recomputed on every render from mock DB) ----
   const { completed: completedMiniTasks, total: totalMiniTasks, percent: progress } =
@@ -70,12 +110,12 @@ export function TaskUpdatePage() {
 
   // ---- Mini task checkbox toggle (immediate auto-save) ----
   const handleToggleMiniTask = useCallback((miniTaskId) => {
-    const updated = toggleMockMiniTask(taskId, miniTaskId);
+    const updated = toggleMockMiniTask(taskId, miniTaskId, actorName);
     if (updated) {
       // Force re-render — React reads fresh mock DB on next render
       setMiniTaskNotes((prev) => ({ ...prev }));
     }
-  }, [taskId]);
+  }, [taskId, actorName]);
 
   // ---- Mini task note change (debounced auto-save) ----
   const handleNoteChange = useCallback((miniTaskId, value) => {
@@ -94,35 +134,35 @@ export function TaskUpdatePage() {
   const handleDone = useCallback(() => {
     if (!allMiniTasksDone || submitting) return;
     setSubmitting(true);
-    const updated = markTaskSubmitted(taskId);
+    const updated = markTaskSubmitted(taskId, actorName);
     if (updated) {
       setSubmitted(true);
       try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
       navigate(-1);
     }
     setSubmitting(false);
-  }, [taskId, allMiniTasksDone, submitting, navigate]);
+  }, [taskId, allMiniTasksDone, submitting, navigate, actorName]);
 
   // ---- Client approve ----
   const handleClientApprove = useCallback(() => {
     setSubmitting(true);
-    approveTaskInMockDb(taskId);
+    approveTaskInMockDb(taskId, actorName);
     setSubmitted(true);
     try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
     navigate(-1);
     setSubmitting(false);
-  }, [taskId, navigate]);
+  }, [taskId, navigate, actorName]);
 
   // ---- Client request changes ----
   const handleClientRequestChanges = useCallback(() => {
     if (!feedbackText.trim()) return;
     setSubmitting(true);
-    requestTaskRevisionInMockDb(taskId, feedbackText.trim());
+    requestTaskRevisionInMockDb(taskId, feedbackText.trim(), actorName);
     setSubmitted(true);
     try { sessionStorage.setItem("lastSubmittedTaskId", taskId); } catch { /* noop */ }
     navigate(-1);
     setSubmitting(false);
-  }, [taskId, feedbackText, navigate]);
+  }, [taskId, feedbackText, navigate, actorName]);
 
   // ---- Back button ----
   const handleBack = useCallback(() => {
@@ -147,7 +187,7 @@ export function TaskUpdatePage() {
         {/* Header */}
         <div className="mb-6">
           {project && (
-            <p className="text-sm text-blue-600 font-medium mb-1">{project.title}</p>
+            <p className="text-sm text-brand-primary font-medium mb-1">{project.title}</p>
           )}
           <h1 className="text-2xl font-bold text-gray-900 mb-2">{task.title}</h1>
           <p className="text-gray-600">{task.description}</p>
@@ -176,7 +216,7 @@ export function TaskUpdatePage() {
         {/* Progress bar */}
         <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
           <div
-            className="bg-blue-900 h-2 rounded-full transition-all"
+            className="bg-brand-primary h-2 rounded-full transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -197,7 +237,7 @@ export function TaskUpdatePage() {
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Client Feedback
             </h3>
-            <p className="text-sm text-gray-600 bg-blue-50 rounded-lg p-4">{task.clientFeedback}</p>
+            <p className="text-sm text-gray-600 bg-brand-primary-light rounded-lg p-4">{task.clientFeedback}</p>
           </div>
         )}
 
@@ -215,7 +255,7 @@ export function TaskUpdatePage() {
                     key={mt.id}
                     className={`border rounded-xl p-4 transition ${
                       isDone
-                        ? "bg-green-50 border-green-200"
+                        ? "bg-brand-green/10 border-brand-green/20"
                         : "bg-white border-gray-200"
                     }`}
                   >
@@ -226,8 +266,8 @@ export function TaskUpdatePage() {
                         onClick={() => handleToggleMiniTask(mt.id)}
                         className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
                           isDone
-                            ? "bg-green-600 border-green-600 text-white"
-                            : "border-gray-300 hover:border-blue-500 text-transparent"
+                            ? "bg-brand-green border-brand-green text-white"
+                            : "border-gray-300 hover:border-brand-primary/50 text-transparent"
                         }`}
                         title={isDone ? "Mark as incomplete" : "Mark as done"}
                       >
@@ -246,7 +286,7 @@ export function TaskUpdatePage() {
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               isDone
-                                ? "bg-green-200 text-green-800"
+                                ? "bg-brand-green/20 text-brand-green"
                                 : "bg-gray-100 text-gray-600"
                             }`}
                           >
@@ -260,7 +300,7 @@ export function TaskUpdatePage() {
                           onChange={(e) => handleNoteChange(mt.id, e.target.value)}
                           placeholder="Add a note..."
                           rows={2}
-                          className="mt-2 w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-400 resize-none bg-white"
+                          className="mt-2 w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-primary/50 resize-none bg-white"
                         />
                       </div>
                     </div>
@@ -278,7 +318,7 @@ export function TaskUpdatePage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition"
+                className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -288,9 +328,9 @@ export function TaskUpdatePage() {
                 type="button"
                 onClick={handleDone}
                 disabled={!allMiniTasksDone || submitting}
-                className={`px-6 py-2.5 rounded-xl text-sm font-medium inline-flex items-center gap-2 transition ${
+                className={`h-11 px-5 rounded-[14px] text-base font-semibold inline-flex items-center gap-2 transition ${
                   allMiniTasksDone && !submitting
-                    ? "bg-blue-900 text-white hover:bg-blue-800"
+                    ? "bg-brand-primary text-white hover:bg-brand-primary-hover"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
                 }`}
               >
@@ -317,7 +357,7 @@ export function TaskUpdatePage() {
 
         {/* ── Submitted toast ── */}
         {submitted && (
-          <div className="fixed bottom-6 right-6 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 animate-bounce">
+          <div className="fixed bottom-6 right-6 bg-brand-green text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 animate-bounce">
             <CheckCircle2 className="w-4 h-4 inline mr-2" />
             Task submitted for client review!
           </div>
@@ -331,21 +371,21 @@ export function TaskUpdatePage() {
               rows={3}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
               placeholder="Add feedback (required for requesting changes)..."
             />
             <div className="flex gap-3 mt-3">
               <button
                 onClick={handleClientApprove}
                 disabled={submitting}
-                className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium disabled:opacity-50"
+                className="h-11 px-5 bg-brand-green text-white rounded-[14px] hover:bg-brand-green/90 text-base font-semibold disabled:opacity-50"
               >
                 {submitting ? "..." : "Approve"}
               </button>
               <button
                 onClick={handleClientRequestChanges}
                 disabled={!feedbackText.trim() || submitting}
-                className="px-5 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium disabled:opacity-50"
+                className="h-11 px-5 bg-orange-600 text-white rounded-[14px] hover:bg-orange-700 text-base font-semibold disabled:opacity-50"
               >
                 {submitting ? "..." : "Request Changes"}
               </button>

@@ -3,15 +3,26 @@ import { useNavigate } from "react-router";
 import { Save } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { listUsers } from "../../../data/mockDatabase.js";
+
 // ---------------------------------------------------------------------------
 // Resolve admin user from mock DB
 // ---------------------------------------------------------------------------
 function resolveAdmin(userFromAuth) {
   if (userFromAuth?.email) {
-    const mockUser = null;
-    if (mockUser) return mockUser;
+    const found = listUsers().find(
+      (u) => u.email === userFromAuth.email && u.role === "admin"
+    );
+    if (found) return found;
   }
-  return null || null;
+  if (userFromAuth?.id) {
+    const found = listUsers().find(
+      (u) => u.id === userFromAuth.id && u.role === "admin"
+    );
+    if (found) return found;
+  }
+  // Fallback: return demo admin
+  return listUsers().find((u) => u.id === "user-002") || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +126,7 @@ export function EditAdminProfile() {
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
@@ -128,21 +139,21 @@ export function EditAdminProfile() {
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
+            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
           <button
             type="button"
             onClick={() => navigate("/admin/profile")}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+            className="h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition-colors"
           >
             Cancel
           </button>

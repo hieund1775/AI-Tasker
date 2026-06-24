@@ -1,0 +1,27 @@
+/* =============================================================================
+   AI-Tasker Font Stack
+   Inter for English + Latin · Noto Sans for Vietnamese diacritics
+   Both loaded via Google Fonts in index.html
+   ============================================================================= */
+
+@layer base {
+  :root {
+    --font-sans: "Inter", "Noto Sans", ui-sans-serif, system-ui, -apple-system,
+      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, "Cascadia Code",
+      "Consolas", monospace;
+  }
+
+  html {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Vietnamese diacritic optimization */
+  .vietnamese-text,
+  [lang="vi"] {
+    font-family: "Noto Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  }
+}

@@ -69,14 +69,14 @@ export function ProposalCard({
 
             {/* Title */}
             {proposal.expert?.title && (
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-base text-gray-500 mb-2">
                 {proposal.expert.title}
               </p>
             )}
 
             {/* Cover letter / message */}
             {(proposal.coverLetter || proposal.message) && (
-              <p className="text-gray-700 text-sm leading-relaxed mb-3">
+              <p className="text-gray-700 text-base leading-relaxed mb-3">
                 {proposal.coverLetter || proposal.message}
               </p>
             )}
@@ -87,7 +87,7 @@ export function ProposalCard({
                 {proposal.expert.skills.slice(0, 5).map((skill) => (
                   <span
                     key={skill}
-                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
+                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[13px] font-medium"
                   >
                     {skill}
                   </span>
@@ -121,10 +121,10 @@ export function ProposalCard({
             <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Link
                 to="/messenger"
-                className="px-3.5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[140px] justify-center h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
                 title="Message expert"
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <MessageSquare className="w-4 h-4" />
                 Message
               </Link>
               <button
@@ -135,9 +135,9 @@ export function ProposalCard({
                     proposal.expert?.name,
                   )
                 }
-                className="px-3.5 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[140px] justify-center h-11 px-5 border border-red-200 text-red-600 rounded-[14px] hover:bg-red-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
-                <XCircle className="w-3.5 h-3.5" />
+                <XCircle className="w-4 h-4" />
                 Decline
               </button>
               <button
@@ -148,9 +148,9 @@ export function ProposalCard({
                     proposal.expert?.name,
                   )
                 }
-                className="px-3.5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[140px] justify-center h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
-                <CheckCircle className="w-3.5 h-3.5" />
+                <CheckCircle className="w-4 h-4" />
                 Accept
               </button>
             </div>

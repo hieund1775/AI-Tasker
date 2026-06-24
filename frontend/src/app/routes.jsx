@@ -9,7 +9,7 @@ import { SignUpPage } from "./pages/public/SignUpPage.jsx";
 // Client Pages
 import { ClientDashboard } from "./pages/client/ClientDashboard.jsx";
 import { PostProject } from "./pages/client/PostProject.jsx";
-import { ProjectDetail } from "./pages/client/ProjectDetail.jsx";
+import ProjectDetail from "./pages/client/ClientProjectManagement.jsx";
 import { ProposalReview } from "./pages/client/ProposalReview.jsx";
 import { ExpertList } from "./pages/client/ExpertList.jsx";
 import { ClientProfile } from "./pages/client/ClientProfile.jsx";
@@ -25,9 +25,10 @@ import { JobDetail } from "./pages/expert/JobDetail.jsx";
 import { SendProposal } from "./pages/expert/SendProposal.jsx";
 import { ProposalStatus } from "./pages/expert/ProposalStatus.jsx";
 import { ProposalDetail } from "./pages/expert/ProposalDetail.jsx";
-import { ExpertProjectDetail } from "./pages/expert/ExpertProjectDetail.jsx";
+import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
+import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -58,6 +59,7 @@ import OwnerCategoryTags from "./pages/owner/OwnerCategoryTags.jsx";
 // Common Pages (shared components)
 import { Messenger } from "./pages/common/Messenger.jsx";
 import { TaskUpdatePage } from "./pages/common/TaskUpdatePage.jsx";
+import TaskDetailPage from "./pages/common/TaskDetailPage.jsx";
 import { NotificationsPage } from "./pages/common/NotificationsPage.jsx";
 
 export const router = createBrowserRouter([
@@ -88,6 +90,7 @@ export const router = createBrowserRouter([
               { path: "client/post-project", Component: PostProject },
               { path: "client/my-projects", Component: MyProjectsList },
               { path: "client/projects/:id", Component: ProjectDetail },
+              { path: "client/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
               { path: "client/projects/:projectId/proposals", Component: ProposalReview },
               { path: "client/experts", Component: ExpertList },
               { path: "client/experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
@@ -109,7 +112,8 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/profile", element: <PublicExpertProfile viewerRole="expert" /> },
+              { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
+              { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
             ],
@@ -203,7 +207,7 @@ function UnauthorizedPage() {
         </p>
         <a
           href="/"
-          className="inline-block px-6 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors"
+          className="inline-block px-6 py-2.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
         >
           Go to Home
         </a>

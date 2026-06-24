@@ -89,7 +89,7 @@ export function AdminRevenue() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { label: "Total Revenue", value: <MoneyDisplay amount={s.totalRevenue} />, icon: TrendingUp, color: "text-green-600 bg-green-100" },
-          { label: "This Month", value: <MoneyDisplay amount={s.thisMonth} />, icon: BarChart3, color: "text-blue-600 bg-blue-100", trend: "+10.5%" },
+          { label: "This Month", value: <MoneyDisplay amount={s.thisMonth} />, icon: BarChart3, color: "text-brand-primary bg-brand-primary-light", trend: "+10.5%" },
           { label: "In Escrow", value: <MoneyDisplay amount={s.escrowHeld} />, icon: DollarSign, color: "text-purple-600 bg-purple-100" },
           { label: "Paid to Experts", value: <MoneyDisplay amount={s.paidToExperts} />, icon: ArrowUpRight, color: "text-orange-600 bg-orange-100" },
         ].map((card, i) => (

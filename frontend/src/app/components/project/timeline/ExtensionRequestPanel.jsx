@@ -46,13 +46,13 @@ export function ExtensionRequestPanel({
     <>
       {/* Expert: extension request form */}
       {role === "expert" && showExtensionForm && (
-        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-6">
-          <h3 className="font-semibold text-blue-900 text-lg">
+        <div className="mb-8 bg-brand-primary-light border border-blue-200 rounded-2xl p-6">
+          <h3 className="font-semibold text-brand-primary text-lg">
             Request Project Extension
           </h3>
           <div className="grid md:grid-cols-3 gap-4 mt-5">
             <div>
-              <label className="block text-sm font-medium text-blue-900 mb-2">
+              <label className="block text-sm font-medium text-brand-primary mb-2">
                 Days
               </label>
               <input
@@ -64,7 +64,7 @@ export function ExtensionRequestPanel({
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-blue-900 mb-2">
+              <label className="block text-sm font-medium text-brand-primary mb-2">
                 Reason
               </label>
               <input
@@ -84,14 +84,14 @@ export function ExtensionRequestPanel({
                 submitting
               }
               onClick={onSubmitRequest}
-              className="px-5 py-2 bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed text-[15px] font-medium inline-flex items-center justify-center"
             >
               {submitting ? "Submitting..." : "Submit Request"}
             </button>
             <button
               type="button"
               onClick={onToggleForm}
-              className="px-5 py-2 border border-blue-200 rounded-xl hover:bg-blue-100"
+              className="h-11 px-5 border border-gray-300 rounded-xl hover:bg-gray-50 text-[15px] font-medium inline-flex items-center justify-center"
             >
               Cancel
             </button>
@@ -106,7 +106,7 @@ export function ExtensionRequestPanel({
             extensionRequest.status === "pending"
               ? "bg-yellow-50 border-yellow-200"
               : extensionRequest.status === "approved"
-                ? "bg-green-50 border-green-200"
+                ? "bg-brand-green/10 border-brand-green/20"
                 : "bg-red-50 border-red-200"
           }`}
         >
@@ -144,7 +144,7 @@ export function ExtensionRequestPanel({
                     type="button"
                     onClick={onApproveExtension}
                     disabled={submitting}
-                    className="px-5 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 disabled:opacity-50"
+                    className="h-11 px-5 bg-brand-green text-white rounded-xl hover:bg-brand-green/90 disabled:opacity-50 text-[15px] font-medium inline-flex items-center justify-center"
                   >
                     {submitting ? "..." : "Approve Extension"}
                   </button>
@@ -152,7 +152,7 @@ export function ExtensionRequestPanel({
                     type="button"
                     onClick={onRejectExtension}
                     disabled={submitting}
-                    className="px-5 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50"
+                    className="h-11 px-5 bg-red-600 text-white rounded-xl hover:bg-red-700 disabled:opacity-50 text-[15px] font-medium inline-flex items-center justify-center"
                   >
                     {submitting ? "..." : "Reject Extension"}
                   </button>

@@ -77,7 +77,7 @@ export function SignUpPage() {
 
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">AI</span>
             </div>
             <span className="text-2xl font-bold text-gray-900">Tasker</span>
@@ -106,7 +106,7 @@ export function SignUpPage() {
                 }}
                 className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
                   role === "client"
-                    ? "border-blue-900 bg-blue-50 text-blue-900"
+                    ? "border-brand-primary bg-brand-primary-light text-brand-primary"
                     : "border-gray-300 text-gray-700 hover:border-gray-400"
                 }`}
               >
@@ -120,7 +120,7 @@ export function SignUpPage() {
                 }}
                 className={`py-3 px-4 rounded-lg border-2 font-medium transition-colors ${
                   role === "expert"
-                    ? "border-blue-900 bg-blue-50 text-blue-900"
+                    ? "border-brand-primary bg-brand-primary-light text-brand-primary"
                     : "border-gray-300 text-gray-700 hover:border-gray-400"
                 }`}
               >
@@ -139,7 +139,7 @@ export function SignUpPage() {
                 setFormData({ ...formData, name: e.target.value });
                 setError("");
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
               placeholder="John Doe"
               required
             />
@@ -155,7 +155,7 @@ export function SignUpPage() {
                 setFormData({ ...formData, email: e.target.value });
                 setError("");
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
               placeholder="your@email.com"
               required
             />
@@ -172,7 +172,7 @@ export function SignUpPage() {
                   setFormData({ ...formData, password: e.target.value });
                   setError("");
                 }}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                 placeholder="••••••••"
                 required
               />
@@ -202,7 +202,7 @@ export function SignUpPage() {
                   setFormData({ ...formData, confirmPassword: e.target.value });
                   setError("");
                 }}
-                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                 placeholder="••••••••"
                 required
               />
@@ -223,7 +223,7 @@ export function SignUpPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {submitting ? "Creating Account..." : "Create Account"}
           </button>
@@ -234,7 +234,7 @@ export function SignUpPage() {
             Already have an account?{" "}
             <Link
               to="/login"
-              className="text-blue-900 hover:text-blue-800 font-medium"
+              className="text-brand-primary hover:text-brand-primary-hover font-medium"
             >
               Sign in
             </Link>

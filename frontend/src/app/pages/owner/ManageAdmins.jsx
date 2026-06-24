@@ -184,7 +184,7 @@ export function ManageAdmins() {
           placeholder="Search by name or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+          className="w-full max-w-md pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
         />
       </div>
 
@@ -206,7 +206,7 @@ export function ManageAdmins() {
                 })
               }
               disabled={actionLoading}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 transition ${
                 isBanned
                   ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                   : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
@@ -214,12 +214,12 @@ export function ManageAdmins() {
             >
               {isBanned ? (
                 <>
-                  <Shield className="w-3.5 h-3.5" />
+                  <Shield className="w-4 h-4" />
                   Unlock
                 </>
               ) : (
                 <>
-                  <ShieldOff className="w-3.5 h-3.5" />
+                  <ShieldOff className="w-4 h-4" />
                   Lock
                 </>
               )}

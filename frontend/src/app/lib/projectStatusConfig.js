@@ -25,6 +25,7 @@ export const STATUS_LABELS = {
   needs_revision: "Needs Revision",
   completed: "Completed",
   cancelled: "Cancelled",
+  pending_escrow: "Pending Payment",
 };
 
 // ---------------------------------------------------------------------------
@@ -33,11 +34,12 @@ export const STATUS_LABELS = {
 
 export const STATUS_BADGE_CLASSES = {
   reviewing_proposals: "bg-purple-100 text-purple-700",
-  in_progress: "bg-blue-100 text-blue-700",
+  in_progress: "bg-brand-primary-light text-brand-primary",
   waiting_review: "bg-yellow-100 text-yellow-700",
   needs_revision: "bg-orange-100 text-orange-700",
-  completed: "bg-green-100 text-green-700",
+  completed: "bg-brand-green/10 text-brand-green",
   cancelled: "bg-red-100 text-red-700",
+  pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
@@ -79,17 +81,17 @@ export function getExpertDisplayInfo(project, getUserById) {
 const CLIENT_BUTTON_MAP = {
   reviewing_proposals: {
     label: "View Project Details",
-    className: "bg-gray-900 text-white hover:bg-gray-800",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   in_progress: {
     label: "Manage Project",
-    className: "bg-gray-900 text-white hover:bg-gray-800",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   waiting_review: {
     label: "Review Submission",
-    className: "bg-gray-900 text-white hover:bg-gray-800",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   needs_revision: {
@@ -99,7 +101,7 @@ const CLIENT_BUTTON_MAP = {
   },
   completed: {
     label: "View Summary",
-    className: "bg-green-600 text-white hover:bg-green-700",
+    className: "bg-brand-green text-white hover:bg-brand-green/90",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   cancelled: {
@@ -121,7 +123,7 @@ export function getClientButtonConfig(statusKey) {
 const EXPERT_BUTTON_MAP = {
   in_progress: {
     label: "Update Progress",
-    className: "bg-gray-900 text-white hover:bg-gray-800",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   waiting_review: {
@@ -136,7 +138,7 @@ const EXPERT_BUTTON_MAP = {
   },
   completed: {
     label: "View Completed Project",
-    className: "bg-green-600 text-white hover:bg-green-700",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
 };
@@ -181,9 +183,10 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   // Completed / cancelled pass through directly
   if (raw === "completed") return "completed";
   if (raw === "cancelled") return "cancelled";
+  if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
 
-  // in_progress → check task states for waiting_review / needs_revision
-  if (raw === "in_progress") return "in_progress";
+  // in_progress or active → check task states for waiting_review / needs_revision
+  if (raw === "in_progress" || raw === "active") return "in_progress";
 
   // open → determine based on assigned expert and proposals
   if (raw === "open") {
@@ -217,11 +220,15 @@ export function deriveProjectDisplayStatus(project, options) {
 // ---------------------------------------------------------------------------
 
 export const TASK_STATUS_CONFIG = {
-  "In Progress":    { className: "bg-blue-100 text-blue-700",   label: "In Progress" },
-  "Pending Review": { className: "bg-purple-100 text-purple-700", label: "Waiting for Client Review" },
-  "Completed":      { className: "bg-green-100 text-green-700",  label: "Completed" },
-  "Needs Revision": { className: "bg-orange-100 text-orange-700", label: "Needs Revision" },
-  "Cancelled":      { className: "bg-red-100 text-red-700",     label: "Cancelled" },
+  "Not Started":         { className: "bg-gray-100 text-gray-600",   label: "Not Started" },
+  "In Progress":         { className: "bg-brand-primary-light text-brand-primary",   label: "In Progress" },
+  "Pending Review":      { className: "bg-purple-100 text-purple-700", label: "Waiting for Client Review" },
+  "Waiting For Approval":{ className: "bg-purple-100 text-purple-700", label: "Waiting For Approval" },
+  "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
+  "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
+  "Needs Revision":      { className: "bg-orange-100 text-orange-700", label: "Needs Revision" },
+  "Reopen Requested":    { className: "bg-red-100 text-red-700",     label: "Reopen Requested" },
+  "Cancelled":           { className: "bg-red-100 text-red-700",     label: "Cancelled" },
 };
 
 /** Get the badge class for a task-level display status. */
@@ -232,4 +239,33 @@ export function getTaskStatusClass(status) {
 /** Get the display label for a task-level display status. */
 export function getTaskStatusLabel(status) {
   return TASK_STATUS_CONFIG[status]?.label || status;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Deadline status config — used by TaskProgressCard and TaskDetailPage
+// ---------------------------------------------------------------------------
+
+export const DEADLINE_STATUS_CONFIG = {
+  normal: {
+    className: "bg-brand-primary-light text-brand-primary",
+    label: "Due in X days",
+  },
+  warning: {
+    className: "bg-orange-50 text-orange-700",
+    label: "Due soon",
+  },
+  overdue: {
+    className: "bg-red-50 text-red-700",
+    label: "Overdue",
+  },
+};
+
+/** Get the badge class for a deadline urgency level. */
+export function getDeadlineStatusClass(urgency) {
+  return DEADLINE_STATUS_CONFIG[urgency]?.className || DEADLINE_STATUS_CONFIG.normal.className;
+}
+
+/** Get the display label for a deadline urgency level. */
+export function getDeadlineStatusLabel(urgency) {
+  return DEADLINE_STATUS_CONFIG[urgency]?.label || DEADLINE_STATUS_CONFIG.normal.label;
 }
