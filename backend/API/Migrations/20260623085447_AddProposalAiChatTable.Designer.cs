@@ -4,6 +4,7 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker_Modular.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260623085447_AddProposalAiChatTable")]
+    partial class AddProposalAiChatTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -343,6 +346,10 @@ namespace AITasker_Modular.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Dependencies")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int>("EstimatedDuration")
                         .HasColumnType("int");
 
@@ -364,6 +371,14 @@ namespace AITasker_Modular.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Technical")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -479,12 +494,6 @@ namespace AITasker_Modular.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("FeedbackContent")
-                        .HasColumnType("longtext");
-
-                    b.Property<Guid?>("FeedbackSenderId")
-                        .HasColumnType("char(36)");
-
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("char(36)");
 
@@ -500,8 +509,6 @@ namespace AITasker_Modular.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FeedbackSenderId");
 
                     b.HasIndex("ProjectId");
 
@@ -822,7 +829,7 @@ namespace AITasker_Modular.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("AITasker_Modular.Modules.ProjectModule.Task", "Task")
-                        .WithMany("MiniTasks")
+                        .WithMany()
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
@@ -886,18 +893,11 @@ namespace AITasker_Modular.Migrations
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Task", b =>
                 {
-                    b.HasOne("AITasker_Modular.Modules.UserModule.ApplicationUser", "FeedbackSender")
-                        .WithMany()
-                        .HasForeignKey("FeedbackSenderId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("AITasker_Modular.Modules.ProjectModule.Project", "Project")
-                        .WithMany("Tasks")
+                        .WithMany()
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.Navigation("FeedbackSender");
 
                     b.Navigation("Project");
                 });
@@ -944,13 +944,6 @@ namespace AITasker_Modular.Migrations
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Project", b =>
                 {
                     b.Navigation("ProjectSkills");
-
-                    b.Navigation("Tasks");
-                });
-
-            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.Task", b =>
-                {
-                    b.Navigation("MiniTasks");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.ExpertProfile", b =>
