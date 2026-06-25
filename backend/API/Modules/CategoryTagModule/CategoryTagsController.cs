@@ -27,7 +27,7 @@ public class CategoryTagsController : ControllerBase
     [HttpPost("skills")]
     public async Task<IActionResult> CreateSkill([FromBody] CreateSkillDto dto)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -47,7 +47,7 @@ public class CategoryTagsController : ControllerBase
     [HttpDelete("skills/{id}")]
     public async Task<IActionResult> DeleteSkill(Guid id)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -67,7 +67,7 @@ public class CategoryTagsController : ControllerBase
     [HttpPost("categories")]
     public async Task<IActionResult> CreateCategory([FromBody] CreateDomainDto dto)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -81,7 +81,7 @@ public class CategoryTagsController : ControllerBase
     [HttpDelete("categories/{id}")]
     public async Task<IActionResult> DeleteCategory(Guid id)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -107,7 +107,7 @@ public class CategoryTagsController : ControllerBase
     [HttpPost("specializations")]
     public async Task<IActionResult> CreateSpecialization([FromBody] CreateSpecializationDto dto)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -124,7 +124,7 @@ public class CategoryTagsController : ControllerBase
     [HttpDelete("specializations/{id:guid}")]
     public async Task<IActionResult> DeleteSpecialization(Guid id)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 

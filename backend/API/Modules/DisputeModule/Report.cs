@@ -22,6 +22,6 @@ namespace AITasker_Modular.Modules.DisputeModule
         public ApplicationUser? Reporter { get; set; }
 
         [System.Text.Json.Serialization.JsonIgnore]
-        public AdminModule.Admin? HandlerStaff { get; set; }
+        public ApplicationUser? HandlerStaff { get; set; }
     }
 }

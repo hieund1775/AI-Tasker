@@ -18,6 +18,12 @@ public class UserService : IUserService
 
     public async Task<string> RegisterAsync(string email, string password, string fullName, string role)
     {
+        var normalizedRole = role?.Trim().ToLowerInvariant();
+        if (normalizedRole != "client" && normalizedRole != "expert")
+        {
+            throw new ArgumentException("Chỉ chấp nhận đăng ký vai trò Client hoặc Expert.");
+        }
+
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
         if (await _context.Users.AnyAsync(x => x.Email == normalizedEmail))
@@ -192,7 +198,7 @@ public class UserService : IUserService
             return (null, "Requester not found.");
         }
 
-        if (!requester.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) && 
+        if (!requester.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase) && 
             !requester.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase))
         {
             return (null, "Unauthorized");
@@ -299,7 +305,7 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<bool> IsAdminOrOwnerAsync(string userId)
+    public async Task<bool> IsStaffOrOwnerAsync(string userId)
     {
         if (!Guid.TryParse(userId, out var guid))
             return false;
@@ -308,8 +314,20 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        return user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
+        return user.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase) || 
                user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task<bool> IsOwnerAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var guid))
+            return false;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
+        if (user == null)
+            return false;
+
+        return user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string HashPassword(string password)
@@ -356,6 +374,12 @@ public class UserService : IUserService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
         if (user == null)
             return false;
+
+        var role = user.Role.Trim().ToLowerInvariant();
+        if (role != "client" && role != "expert")
+        {
+            throw new InvalidOperationException("Chỉ có thể thay đổi trạng thái hoạt động của tài khoản Client hoặc Expert.");
+        }
 
         user.Status = isActive ? "Active" : "Inactive";
         await _context.SaveChangesAsync();

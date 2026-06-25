@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Database;
 using AITasker_Modular.Modules.ProjectModule;
+using AITasker_Modular.Modules.UserModule;
 
 namespace AITasker_Modular.Modules.DisputeModule
 {
@@ -44,7 +45,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<List<Report>> GetSharedReportsQueueAsync(Guid staffId)
         {
-            var isStaff = await _context.Admins.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.IsActive);
+            var isStaff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
             if (!isStaff) throw new UnauthorizedAccessException("Cổng thông tin này chỉ dành riêng cho Staff đang hoạt động.");
 
             return await _context.Reports
@@ -55,7 +56,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> TriggerProjectDisputeLockAsync(Guid projectId, string reason, Guid staffId)
         {
-            var staff = await _context.Admins.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.IsActive);
+            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
             if (!staff) throw new UnauthorizedAccessException("Chỉ Staff vận hành có quyền kích hoạt lệnh đóng băng tài chính.");
 
             // TỰ THỰC THI THAY VÌ GỌI QUA PROJECTSERVICE
@@ -87,7 +88,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> ExecuteDisputeVerdictAsync(Guid disputeId, string winnerRole, string verdictReason, Guid staffId)
         {
-            var staff = await _context.Admins.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.IsActive);
+            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
             if (!staff) throw new UnauthorizedAccessException("Chỉ Staff có quyền thực thi phán quyết tài chính.");
 
             var dispute = await _context.Disputes.FirstOrDefaultAsync(x => x.Id == disputeId);

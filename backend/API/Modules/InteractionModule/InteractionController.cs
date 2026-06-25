@@ -20,7 +20,7 @@ public class InteractionController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 

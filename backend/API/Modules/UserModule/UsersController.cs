@@ -21,10 +21,23 @@ public class UsersController : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var result = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role);
-        return result.Contains("already exists", StringComparison.OrdinalIgnoreCase)
-            ? BadRequest(new { message = result })
-            : Ok(new { message = result });
+        var normalizedRole = dto.Role?.Trim().ToLowerInvariant();
+        if (normalizedRole != "client" && normalizedRole != "expert")
+        {
+            return BadRequest(new { message = "Chỉ chấp nhận đăng ký vai trò Client hoặc Expert." });
+        }
+
+        try
+        {
+            var result = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role!);
+            return result.Contains("already exists", StringComparison.OrdinalIgnoreCase)
+                ? BadRequest(new { message = result })
+                : Ok(new { message = result });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("login")]
@@ -75,7 +88,7 @@ public class UsersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllUsers()
     {
-        var (requesterId, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (requesterId, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
@@ -101,15 +114,22 @@ public class UsersController : ControllerBase
     [HttpPut("{id}/set-active")]
     public async Task<IActionResult> SetUserActive(string id, [FromBody] SetUserActiveDto dto)
     {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
+        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
         if (errorResult != null)
             return errorResult;
 
-        var success = await _userService.SetUserActiveStatusAsync(id, dto.IsActive);
-        if (!success)
-            return NotFound(new { message = "User not found." });
+        try
+        {
+            var success = await _userService.SetUserActiveStatusAsync(id, dto.IsActive);
+            if (!success)
+                return NotFound(new { message = "User not found." });
 
-        return Ok(new { message = $"User status set to {(dto.IsActive ? "Active" : "Inactive")} successfully." });
+            return Ok(new { message = $"User status set to {(dto.IsActive ? "Active" : "Inactive")} successfully." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }
 

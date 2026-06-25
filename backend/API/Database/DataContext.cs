@@ -1,11 +1,10 @@
 using AITasker_Modular.Modules.CategoryTagModule;
+using AITasker_Modular.Modules.DisputeModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Modules.AdminModule;
-using AITasker_Modular.Modules.DisputeModule; // CHỐT CHẶN: Đảm bảo 100% nhận diện được Dispute và Report ở thư mục mới
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
@@ -40,7 +39,6 @@ public class DataContext : DbContext
     public DbSet<ProposalAiChat> ProposalAiChats { get; set; }
     
     // Đăng ký các bảng phân hệ mới vào DbContext
-    public DbSet<Admin> Admins { get; set; }
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<Report> Reports { get; set; }
 
@@ -67,7 +65,6 @@ public class DataContext : DbContext
         modelBuilder.Entity<ProposalAiChat>().HasKey(x => x.Id);
         
         // Khởi tạo khóa chính vật lý
-        modelBuilder.Entity<Admin>().HasKey(x => x.Id);
         modelBuilder.Entity<Dispute>().HasKey(x => x.Id);
         modelBuilder.Entity<Report>().HasKey(x => x.Id);
 
