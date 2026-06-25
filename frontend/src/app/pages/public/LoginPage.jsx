@@ -79,7 +79,7 @@ export function LoginPage() {
 
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">AI</span>
             </div>
             <span className="text-2xl font-bold text-gray-900">Tasker</span>
@@ -116,7 +116,7 @@ export function LoginPage() {
                     setResetEmail("");
                     setResetError("");
                   }}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-900 hover:text-blue-800 transition-colors"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-brand-primary hover:text-brand-primary-hover transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" /> Back to Login
                 </button>
@@ -138,7 +138,7 @@ export function LoginPage() {
                       type="email"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                       placeholder="your@email.com"
                       required
                     />
@@ -146,7 +146,7 @@ export function LoginPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors"
+                  className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
                 >
                   Send Reset Link
                 </button>
@@ -190,7 +190,7 @@ export function LoginPage() {
                     setEmail(e.target.value);
                     setError("");
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                   placeholder="your@email.com"
                   required
                 />
@@ -207,7 +207,7 @@ export function LoginPage() {
                       setPassword(e.target.value);
                       setError("");
                     }}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                     placeholder="••••••••"
                     required
                   />
@@ -232,7 +232,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setView("forgotPassword")}
-                  className="text-sm text-blue-900 hover:text-blue-800 bg-transparent border-none p-0 cursor-pointer"
+                  className="text-sm text-brand-primary hover:text-brand-primary-hover bg-transparent border-none p-0 cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -240,7 +240,7 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? "Signing in..." : "Sign In"}
               </button>
@@ -250,7 +250,7 @@ export function LoginPage() {
                 Don&apos;t have an account?{" "}
                 <Link
                   to="/signup"
-                  className="text-blue-900 hover:text-blue-800 font-medium"
+                  className="text-brand-primary hover:text-brand-primary-hover font-medium"
                 >
                   Sign up
                 </Link>

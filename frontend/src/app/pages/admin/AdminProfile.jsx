@@ -9,16 +9,27 @@ import {
 } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { listUsers } from "../../../data/mockDatabase.js";
+
 /**
  * Resolve the full admin user object from auth email → mock DB.
- * Falls back to the demo admin ID.
+ * Falls back to the demo admin user-002 if email lookup fails.
  */
 function resolveAdmin(userFromAuth) {
   if (userFromAuth?.email) {
-    const mockUser = null;
-    if (mockUser) return mockUser;
+    const found = listUsers().find(
+      (u) => u.email === userFromAuth.email && u.role === "admin"
+    );
+    if (found) return found;
   }
-  return null || null;
+  if (userFromAuth?.id) {
+    const found = listUsers().find(
+      (u) => u.id === userFromAuth.id && u.role === "admin"
+    );
+    if (found) return found;
+  }
+  // Fallback: return demo admin (user-002)
+  return listUsers().find((u) => u.id === "user-002") || null;
 }
 
 export function AdminProfile() {
@@ -60,7 +71,7 @@ export function AdminProfile() {
           <p className="text-sm text-gray-400 mb-4">Complete your profile to get started.</p>
           <Link
             to="/admin/profile/edit"
-            className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2"
+            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
@@ -107,7 +118,7 @@ export function AdminProfile() {
 
           <Link
             to="/admin/profile/edit"
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+            className="h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition-colors flex-shrink-0"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>

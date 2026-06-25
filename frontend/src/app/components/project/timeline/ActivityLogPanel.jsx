@@ -24,7 +24,7 @@ export function ActivityLogPanel({ projectLogs, getActorIcon }) {
             key={`${log.time || log.id}-${index}`}
             className="flex gap-4 border border-gray-200 rounded-2xl p-4"
           >
-            <div className="w-10 h-10 bg-blue-50 text-blue-700 rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-brand-primary-light text-brand-primary rounded-xl flex items-center justify-center flex-shrink-0">
               {iconFn(log.actor)}
             </div>
             <div>

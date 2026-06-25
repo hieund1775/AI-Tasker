@@ -150,7 +150,7 @@ export function CreateAdmin() {
               value={formData.fullName}
               onChange={(e) => updateField("fullName", e.target.value)}
               placeholder="Enter Admin full name"
-              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 ${
+              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
                 errors.fullName ? "border-red-300" : "border-gray-300"
               }`}
               disabled={loading}
@@ -170,7 +170,7 @@ export function CreateAdmin() {
               value={formData.email}
               onChange={(e) => updateField("email", e.target.value)}
               placeholder="admin@example.com"
-              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 ${
+              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
                 errors.email ? "border-red-300" : "border-gray-300"
               }`}
               disabled={loading}
@@ -191,7 +191,7 @@ export function CreateAdmin() {
                 value={formData.password}
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="At least 6 characters"
-                className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 pr-10 ${
+                className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary pr-10 ${
                   errors.password ? "border-red-300" : "border-gray-300"
                 }`}
                 disabled={loading}
@@ -224,7 +224,7 @@ export function CreateAdmin() {
               value={formData.confirmPassword}
               onChange={(e) => updateField("confirmPassword", e.target.value)}
               placeholder="Re-enter password"
-              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 ${
+              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
                 errors.confirmPassword ? "border-red-300" : "border-gray-300"
               }`}
               disabled={loading}
@@ -240,7 +240,7 @@ export function CreateAdmin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition mt-2"
+            className="w-full h-11 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mt-2"
           >
             {loading ? (
               <>
@@ -265,7 +265,7 @@ export function CreateAdmin() {
             <button
               type="button"
               onClick={() => navigate("/owner/manage-admins")}
-              className="w-full py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm font-medium transition"
+              className="w-full h-11 border border-blue-200 bg-brand-primary-light text-brand-primary rounded-[14px] hover:bg-brand-primary-light text-base font-semibold transition"
             >
               View Admin List
             </button>

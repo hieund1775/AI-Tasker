@@ -23,22 +23,20 @@ import { getReports } from "../../../services/reportService.js";
 // ---------------------------------------------------------------------------
 
 const REPORT_STATUS_CONFIG = {
-  Pending: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
-  Accepted: { color: "bg-blue-100 text-blue-700", label: "Accepted" },
-  Rejected: { color: "bg-red-100 text-red-700", label: "Rejected" },
-  "Under Review": { color: "bg-purple-100 text-purple-700", label: "Under Review" },
-  Resolved: { color: "bg-green-100 text-green-700", label: "Resolved" },
-  Closed: { color: "bg-gray-100 text-gray-700", label: "Closed" },
+  "Pending Admin": { color: "bg-yellow-100 text-yellow-750 border border-yellow-250", label: "Pending Admin" },
+  "Awaiting Expert": { color: "bg-amber-100 text-amber-750 border border-amber-250", label: "Awaiting Expert" },
+  "Awaiting Client": { color: "bg-blue-100 text-blue-750 border border-blue-250", label: "Awaiting Client" },
+  Resolved: { color: "bg-green-100 text-green-750 border border-green-250", label: "Resolved" },
+  Rejected: { color: "bg-red-100 text-red-750 border border-red-250", label: "Rejected" },
 };
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "Pending", label: "Pending" },
-  { value: "Accepted", label: "Accepted" },
-  { value: "Under Review", label: "Under Review" },
-  { value: "Rejected", label: "Rejected" },
+  { value: "Pending Admin", label: "Pending Admin" },
+  { value: "Awaiting Expert", label: "Awaiting Expert" },
+  { value: "Awaiting Client", label: "Awaiting Client" },
   { value: "Resolved", label: "Resolved" },
-  { value: "Closed", label: "Closed" },
+  { value: "Rejected", label: "Rejected" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -76,35 +74,10 @@ export function AdminDisputes() {
 
   const columns = [
     {
-      key: "reportName",
-      label: "Report Name",
+      key: "projectTitle",
+      label: "Project Name",
       render: (val, row) => (
-        <div>
-          <p className="font-medium text-gray-900 text-sm">{val || row.projectTitle || "—"}</p>
-          <p className="text-xs text-gray-500">
-            {row.clientName || row.expertName
-              ? `Client: ${row.clientName || "—"}  •  Expert: ${row.expertName || "—"}`
-              : `Project: ${row.projectId || "—"}`}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      render: (val) => (
-        <span className="text-sm font-medium">
-          {val != null ? <MoneyDisplay amount={val} /> : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "disputeType",
-      label: "Type",
-      render: (val) => (
-        <span className="text-xs px-2 py-0.5 bg-gray-100 rounded-full">
-          {val || "—"}
-        </span>
+        <span className="font-semibold text-gray-900 text-sm">{val || row.reportName || "—"}</span>
       ),
     },
     {
@@ -112,19 +85,39 @@ export function AdminDisputes() {
       label: "Status",
       render: (val) => (
         <StatusBadge
-          status={val || "Pending"}
+          status={val || "Pending Admin"}
           config={REPORT_STATUS_CONFIG}
         />
       ),
     },
     {
-      key: "submittedAt",
-      label: "Submitted",
+      key: "amount",
+      label: "Amount",
       render: (val) => (
-        <span className="text-xs text-gray-500">
-          {val ? formatDateTime(val) : "—"}
+        <span className="text-sm font-medium text-gray-900">
+          {val != null ? <MoneyDisplay amount={val} /> : "—"}
         </span>
       ),
+    },
+    {
+      key: "reporter",
+      label: "Reporter",
+      render: (val, row) => {
+        const isClientReporter = row.reporterRole === "client";
+        return (
+          <div>
+            <p className="font-semibold text-gray-905 text-sm">
+              {isClientReporter ? row.clientName : row.expertName}
+            </p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+              {isClientReporter ? "Khách hàng (Client)" : "Chuyên gia (Expert)"}
+            </p>
+            <p className="text-xs text-gray-500 italic mt-0.5 line-clamp-1" title={row.reason || row.description}>
+              Lý do: {row.reason || row.description || "—"}
+            </p>
+          </div>
+        );
+      },
     },
   ];
 
@@ -157,7 +150,7 @@ export function AdminDisputes() {
             placeholder="Search by report name, project..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
@@ -165,7 +158,7 @@ export function AdminDisputes() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -185,7 +178,7 @@ export function AdminDisputes() {
         actions={(row) => (
           <Link
             to={`/admin/disputes/${row.id}`}
-            className="px-3 py-1.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center gap-1.5 transition"
+            className="px-3 py-1.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />
             View Detail

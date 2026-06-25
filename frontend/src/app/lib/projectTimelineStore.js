@@ -1,15 +1,26 @@
 // =============================================================================
-// Project Timeline Store — API-first, no fake data fallback.
+// Project Timeline Store — API-first with mock DB fallbacks.
 // =============================================================================
 //
-// All functions delegate to the API service layer. When the backend is
-// unavailable, null is returned — no mock data, no hardcoded fallback.
+// All functions attempt the API first; when the backend is unavailable,
+// they fall back to the mock DB (in-memory + localStorage persistence).
 //
 // Status derivation delegates to the centralized projectStatusConfig
 // so both Client and Expert sides use the same logic and labels.
 // =============================================================================
 
 import { api } from "../../services/api.js";
+import {
+  listTasks,
+  listProjects,
+  submitTaskForReview,
+  approveTaskSubmission,
+  requestTaskRevision,
+  requestTaskReopen,
+  updateMiniTaskInTask,
+  addAuditEntry,
+  updateTask as updateTaskInMockDb,
+} from "../../data/mockDatabase.js";
 
 // Re-export centralized status functions — all pages should import these from
 // this file (or directly from projectStatusConfig.js) rather than defining
@@ -158,57 +169,83 @@ export async function getProjectTimeline(projectId) {
 /**
  * Submit a completed task for client review.
  *
- * TODO: Connect to real API — api.tasks.submit(taskId, data)
+ * Attempts API first; falls back to mock DB (which persists in memory + localStorage).
  */
 export async function submitTask(taskId, data) {
   try {
-    await api.tasks.submit(taskId, data);
-    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
-    return null;
+    return await api.tasks.submit(taskId, data);
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.submit(taskId, data)
-    return null;
+    // Backend unavailable — fall back to mock DB
+    try {
+      const actorName = data?.actorName || data?.submittedBy || "Expert";
+      const result = submitTaskForReview(taskId, actorName);
+      if (result) {
+        addProjectActivity(result.projectId || "", {
+          actor: "Expert",
+          message: `[Expert] submitted task "${result.title || taskId}" for review`,
+        });
+      }
+      return result;
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] submitTask mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
 /**
  * Approve a task submission.
- *
- * TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, { status: "approved", feedback })
  */
 export async function approveSubmission(submissionId, data) {
   try {
-    await api.tasks.reviewSubmission(submissionId, {
+    return await api.tasks.reviewSubmission(submissionId, {
       status: "approved",
       feedback: data?.feedback || "",
     });
-    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
-    return null;
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
-    return null;
+    // Backend unavailable — fall back to mock DB
+    try {
+      const actorName = data?.actorName || data?.reviewedBy || "Client";
+      const result = approveTaskSubmission(submissionId, actorName);
+      if (result) {
+        addProjectActivity(result.projectId || "", {
+          actor: "Client",
+          message: `[Client] approved task "${result.title || submissionId}"`,
+        });
+      }
+      return result;
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] approveSubmission mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
 /**
  * Request a revision on a task submission.
- *
- * TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, { status: "needs_revision", feedback })
  */
 export async function requestRevision(submissionId, data) {
   try {
-    await api.tasks.reviewSubmission(submissionId, {
+    return await api.tasks.reviewSubmission(submissionId, {
       status: "needs_revision",
       feedback: data?.feedback || "",
     });
-    // TODO: Return updated timeline when API is connected — getProjectTimeline(projectId)
-    return null;
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.reviewSubmission(submissionId, ...)
-    return null;
+    // Backend unavailable — fall back to mock DB
+    try {
+      const actorName = data?.actorName || data?.reviewedBy || "Client";
+      const result = requestTaskRevision(submissionId, actorName, data?.feedback || "");
+      if (result) {
+        addProjectActivity(result.projectId || "", {
+          actor: "Client",
+          message: `[Client] requested revision on task "${result.title || submissionId}": "${data?.feedback || ""}"`,
+        });
+      }
+      return result;
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] requestRevision mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
@@ -272,61 +309,88 @@ export async function resolveExtension(projectId, extensionId, data) {
 
 /**
  * Update a task's state (for internal use by the timeline manager).
- *
- * TODO: Connect to real API — api.tasks.update(taskId, updates)
  */
 export async function updateTask(taskId, updates) {
   try {
     return await api.tasks.update(taskId, updates);
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.update(taskId, updates)
-    return null;
+    // Backend unavailable — fall back to mock DB
+    try {
+      const result = updateTaskInMockDb(taskId, updates);
+      if (result && updates.status) {
+        addProjectActivity(result.projectId || "", {
+          actor: updates.actor || "System",
+          message: `Task "${result.title || taskId}" status changed to "${updates.status}"`,
+        });
+      }
+      return result;
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] updateTask mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
 /**
  * Update a mini-task state.
- *
- * TODO: Connect to real API — api.tasks.updateMiniTask(taskId, miniTaskId, updates)
  */
 export async function updateMiniTask(taskId, miniTaskId, updates) {
   try {
     return await api.tasks.updateMiniTask(taskId, miniTaskId, updates);
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.updateMiniTask(taskId, miniTaskId, updates)
-    return null;
+    // Backend unavailable — fall back to mock DB (updateMiniTaskInTask already imported)
+    try {
+      return updateMiniTaskInTask(taskId, miniTaskId, updates);
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] updateMiniTask mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
 /**
  * Add a log entry to a task.
- *
- * TODO: Connect to real API — api.tasks.addLog(taskId, log)
  */
 export async function addTaskLog(taskId, log) {
   try {
     return await api.tasks.addLog(taskId, log);
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.addLog(taskId, log)
-    return null;
+    // Backend unavailable — fall back to audit entry
+    try {
+      return addAuditEntry({
+        taskId,
+        action: log.action || "task_log",
+        actor: log.actor || "System",
+        actorName: log.actorName || log.actor || "System",
+        details: log.message || log.details || "",
+      });
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] addTaskLog mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
 /**
  * Add feedback to a task.
- *
- * TODO: Connect to real API — api.tasks.addFeedback(taskId, feedback)
  */
 export async function addTaskFeedback(taskId, feedback) {
   try {
     return await api.tasks.addFeedback(taskId, feedback);
   } catch {
-    // Backend unavailable — return null
-    // TODO: Connect to real API — api.tasks.addFeedback(taskId, feedback)
-    return null;
+    // Backend unavailable — fall back to audit entry
+    try {
+      return addAuditEntry({
+        taskId,
+        action: "task_feedback",
+        actor: feedback.actor || "Client",
+        actorName: feedback.actorName || feedback.actor || "Client",
+        details: feedback.message || feedback.feedback || "",
+      });
+    } catch (mockErr) {
+      console.error("[projectTimelineStore] addTaskFeedback mock fallback failed:", mockErr);
+      return null;
+    }
   }
 }
 
@@ -350,8 +414,15 @@ export function resetProjectTimeline() {
  * @param {string} projectId
  * @returns {number} 0–100
  */
-export function getProjectProgress(_projectId) {
-  // TODO: Replace with API call — api.timeline.getProgress(projectId)
+export function getProjectProgress(projectId) {
+  if (typeof window !== "undefined" && import.meta.env.VITE_USE_MOCK_DB === "true") {
+    try {
+      const tasks = listTasks((t) => t.projectId === projectId);
+      return getOverallProgress(tasks);
+    } catch (err) {
+      console.error("Failed to compute progress:", err);
+    }
+  }
   return 0;
 }
 
@@ -421,20 +492,25 @@ export function deriveTaskProgress(task) {
   const total = miniTasks.length;
   if (total === 0) return { completed: 0, total: 0, percent: 0 };
   const completed = miniTasks.filter(
-    (mt) => mt.status === "done" || mt.status === "completed",
+    (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed",
   ).length;
   return { completed, total, percent: Math.round((completed / total) * 100) };
 }
 
 /**
  * Get mini-task progress for a given task ID.
- * Returns 0 when the timeline is unavailable (no fake data fallback).
- *
- * TODO: Connect to real API — api.tasks.getProgress(taskId)
+ * Falls back to mock DB when API is unavailable.
  */
 export function getTaskMiniTaskProgress(taskId) {
-  // TODO: Replace with API call — api.tasks.getProgress(taskId)
-  // No fake data fallback — returns 0 when API is unavailable.
+  try {
+    // Try to read from mock DB if available
+    const task = listTasks().find((t) => t.id === taskId);
+    if (task) {
+      return deriveTaskProgress(task).percent;
+    }
+  } catch {
+    // ignore
+  }
   return 0;
 }
 
@@ -447,9 +523,20 @@ export function getOverallProgress(tasks) {
   return Math.round(totalProgress / tasks.length);
 }
 
+/**
+ * Get deadline info with urgency classification.
+ *
+ * Urgency levels:
+ *   - "overdue": deadline has passed
+ *   - "warning": due today or tomorrow (0-1 days remaining)
+ *   - "normal": due in 2+ days
+ *
+ * @param {string|Date} deadlineDate
+ * @returns {{ formattedDate: string, remainingText: string, isOverdue: boolean, urgency: string, daysRemaining: number }}
+ */
 export function getDeadlineInfo(deadlineDate) {
   if (!deadlineDate) {
-    return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false };
+    return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false, urgency: "normal", daysRemaining: null };
   }
   const deadline = new Date(deadlineDate);
   const now = new Date();
@@ -457,15 +544,34 @@ export function getDeadlineInfo(deadlineDate) {
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   const isOverdue = diffMs < 0;
 
+  let urgency = "normal";
+  if (isOverdue) {
+    urgency = "overdue";
+  } else if (diffDays <= 1) {
+    urgency = "warning";
+  }
+
+  let remainingText;
+  if (isOverdue) {
+    const absDays = Math.abs(diffDays);
+    remainingText = absDays === 1 ? "Overdue by 1 day" : `Overdue by ${absDays} days`;
+  } else if (diffDays === 0) {
+    remainingText = "Due today";
+  } else if (diffDays === 1) {
+    remainingText = "Due tomorrow";
+  } else {
+    remainingText = `Due in ${diffDays} days`;
+  }
+
   return {
     formattedDate: deadline.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     }),
-    remainingText: isOverdue
-      ? `${Math.abs(diffDays)} days overdue`
-      : `${diffDays} days remaining`,
+    remainingText,
     isOverdue,
+    urgency,
+    daysRemaining: isOverdue ? -Math.abs(diffDays) : diffDays,
   };
 }

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import {
   Wallet,
   TrendingUp,
-  ArrowDownCircle,
   Clock,
   DollarSign,
 } from "lucide-react";
@@ -42,13 +41,7 @@ export function ExpertWallet() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  // Withdrawal form
-  const [showWithdrawForm, setShowWithdrawForm] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState("bank");
-  const [submitting, setSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState(null);
+  const [activeProjects, setActiveProjects] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,28 +54,47 @@ export function ExpertWallet() {
           // No user ID available — show empty state
           if (!cancelled) {
             setData({ wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 }, transactions: [] });
+            setActiveProjects([]);
           }
           return;
         }
 
-        const [wallet, transactions] = await Promise.all([
+        const [wallet, transactions, projects] = await Promise.all([
           api.users.getWallet(currentUserId).catch(() => null),
           api.payments.getTransactions().catch(() => []),
+          api.projects.getByExpert(currentUserId).catch(() => []),
         ]);
 
         if (!cancelled) {
+          const expertProjects = Array.isArray(projects) ? projects : [];
+          const activeProj = expertProjects.filter(
+            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "active"
+          );
+          
+          const sumEscrow = activeProj.reduce((acc, p) => acc + (p.escrowAmount || p.budget || 0), 0);
+
+          setActiveProjects(
+            activeProj.map((p) => ({
+              id: p.id,
+              title: p.title || "Active Project",
+              escrowAmount: p.escrowAmount || p.budget || 0,
+            }))
+          );
+
           setData({
             wallet: {
               balance: wallet?.balance ?? 0,
-              pendingBalance: 0,
-              totalEarned: wallet?.balance ?? 0,
+              pendingBalance: sumEscrow,
+              totalEarned: wallet?.totalEarned ?? (wallet?.balance ?? 0),
             },
-            transactions: Array.isArray(transactions) ? transactions : [],
+            transactions: Array.isArray(transactions) ? transactions.filter(t => t.toUserId === currentUserId || t.expertId === currentUserId) : [],
           });
         }
-      } catch {
+      } catch (err) {
+        console.error("Failed to fetch expert wallet data:", err);
         if (!cancelled) {
           setData({ wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 }, transactions: [] });
+          setActiveProjects([]);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -95,58 +107,6 @@ export function ExpertWallet() {
     };
   }, [user?.id]);
 
-  const handleWithdraw = async (e) => {
-    e.preventDefault();
-    const amount = Number(withdrawAmount);
-    if (!amount || amount <= 0) return;
-    if (amount > (data?.wallet?.balance ?? 0)) {
-      setFeedback({
-        type: "error",
-        message: "Insufficient balance for this withdrawal.",
-      });
-      return;
-    }
-
-    setSubmitting(true);
-    setFeedback(null);
-    try {
-      await api.payments.withdraw({ amount, method: paymentMethod });
-      setFeedback({
-        type: "success",
-        message: "Withdrawal request submitted successfully.",
-      });
-    } catch {
-      // Demo fallback
-    }
-
-    // Update local state (demo)
-    setData((prev) => ({
-      ...prev,
-      wallet: {
-        ...prev.wallet,
-        balance: prev.wallet.balance - amount,
-      },
-      transactions: [
-        {
-          id: `wt-${Date.now()}`,
-          type: "withdrawal",
-          amount,
-          description: `Withdrawal via ${paymentMethod}`,
-          status: "completed",
-          createdAt: new Date().toISOString(),
-        },
-        ...prev.transactions,
-      ],
-    }));
-
-    setFeedback({
-      type: "success",
-      message: "Withdrawal processed (demo mode).",
-    });
-    setShowWithdrawForm(false);
-    setWithdrawAmount(0);
-    setSubmitting(false);
-  };
 
   if (loading) {
     return (
@@ -170,98 +130,13 @@ export function ExpertWallet() {
       </BackButton>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Wallet</h1>
+          <p className="text-gray-600 mb-8">
             Manage your earnings and withdrawals.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setShowWithdrawForm(!showWithdrawForm);
-            setFeedback(null);
-          }}
-          className="px-5 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
-        >
-          <ArrowDownCircle className="w-4 h-4" /> Withdraw
-        </button>
       </div>
 
-      {/* Feedback banner */}
-      {feedback && (
-        <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${
-            feedback.type === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
-
-      {/* Withdrawal form */}
-      {showWithdrawForm && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Request Withdrawal
-          </h2>
-          <form onSubmit={handleWithdraw} className="space-y-4 max-w-md">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount (USD)
-              </label>
-              <input
-                type="number"
-                min="1"
-                step="1"
-                value={withdrawAmount || ""}
-                onChange={(e) =>
-                  setWithdrawAmount(
-                    e.target.value === "" ? 0 : Number(e.target.value),
-                  )
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
-                placeholder="500"
-                required
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                Available: <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
-              </p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Payment Method
-              </label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 bg-white"
-              >
-                <option value="bank">Bank Transfer</option>
-                <option value="paypal">PayPal</option>
-                <option value="crypto">Cryptocurrency</option>
-              </select>
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={submitting || !withdrawAmount || withdrawAmount <= 0}
-                className="px-5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-              >
-                {submitting ? "Processing..." : "Request Withdrawal"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowWithdrawForm(false)}
-                className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Wallet stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -272,7 +147,7 @@ export function ExpertWallet() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Available Balance</p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
               </p>
             </div>
@@ -286,7 +161,7 @@ export function ExpertWallet() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Pending / In Escrow</p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 <MoneyDisplay amount={data?.wallet?.pendingBalance ?? 0} />
               </p>
             </div>
@@ -300,13 +175,34 @@ export function ExpertWallet() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Total Earned</p>
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 <MoneyDisplay amount={data?.wallet?.totalEarned ?? 0} />
               </p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Active projects with escrow */}
+      {activeProjects.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
+          <div className="p-6 border-b border-gray-100">
+            <h2 className="text-lg font-semibold text-gray-900">Active Projects</h2>
+          </div>
+          <div className="divide-y">
+            {activeProjects.map((proj) => (
+              <div key={proj.id} className="p-6 flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">{proj.title}</p>
+                  <p className="text-sm text-gray-500">
+                    Escrow: <MoneyDisplay amount={proj.escrowAmount} />
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Transaction history */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
@@ -326,16 +222,16 @@ export function ExpertWallet() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
                     Description
                   </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
                     Amount
                   </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
                     Status
                   </th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
                     Date
                   </th>
                 </tr>

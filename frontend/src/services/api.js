@@ -18,6 +18,14 @@ function clearToken() {
 }
 
 async function request(endpoint, options = {}) {
+  // ── Mock DB short-circuit — bypass network entirely when enabled ──
+  if (import.meta.env.VITE_USE_MOCK_DB === "true") {
+    const { handleMockRequest } = await import("../data/mockApiHandler.js");
+    const method = options.method || (options.body ? "POST" : "GET");
+    return handleMockRequest(endpoint, method, options.body, options.authenticated !== false, getToken());
+  }
+  // ── End mock DB guard ──
+
   const {
     authenticated = true,
     body,
@@ -312,19 +320,24 @@ export const api = {
   },
 
   notifications: {
-    // TODO: Connect to real API — get("/notifications")
-    getList: (_params) => Promise.resolve([]),
-    // TODO: Connect to real API — put("/notifications/{id}/read")
-    markRead: (_id) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/notifications/read-all")
-    markAllRead: () => Promise.resolve(null),
+    getList: (params) => get(`/notifications${buildQuery(params)}`),
+    markRead: (id) => put(`/notifications/${id}/read`),
+    markAllRead: () => put("/notifications/read-all"),
   },
 
   proposals: {
     create: (data) => post("/Proposals/submit-proposal", data),
     getByJob: (jobPostId) => get(`/Proposals/job/${jobPostId}`),
     getByExpert: (expertId) => get(`/Proposals/expert/${expertId}`),
+    update: (id, data) => put(`/Proposals/${id}`, data),
     updateStatus: (id, status) => put(`/Proposals/${id}/status?status=${encodeURIComponent(status)}`),
+    delete: (id) => del(`/Proposals/${id}`),
+  },
+
+  // TODO: Connect to real AI backend when available
+  ai: {
+    // Generate project tasks & milestones from chat messages and file context
+    chat: (_messages, _fileNames, _projectContext) => Promise.resolve(null),
   },
 };
 

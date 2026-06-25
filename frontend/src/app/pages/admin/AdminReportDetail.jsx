@@ -32,6 +32,7 @@ import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
+import api from "../../../services/api.js";
 import {
   getReportDetail,
   acceptReport,
@@ -53,12 +54,11 @@ import {
 // ---------------------------------------------------------------------------
 
 const REPORT_STATUS_CONFIG = {
-  Pending: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
-  Accepted: { color: "bg-blue-100 text-blue-700", label: "Accepted" },
-  Rejected: { color: "bg-red-100 text-red-700", label: "Rejected" },
-  "Under Review": { color: "bg-purple-100 text-purple-700", label: "Under Review" },
-  Resolved: { color: "bg-green-100 text-green-700", label: "Resolved" },
-  Closed: { color: "bg-gray-100 text-gray-700", label: "Closed" },
+  "Pending Admin": { color: "bg-yellow-100 text-yellow-750 border border-yellow-250", label: "Pending Admin" },
+  "Awaiting Expert": { color: "bg-amber-100 text-amber-750 border border-amber-250", label: "Awaiting Expert" },
+  "Awaiting Client": { color: "bg-blue-100 text-blue-750 border border-blue-250", label: "Awaiting Client" },
+  Resolved: { color: "bg-green-100 text-green-750 border border-green-250", label: "Resolved" },
+  Rejected: { color: "bg-red-100 text-red-750 border border-red-250", label: "Rejected" },
 };
 
 // ---------------------------------------------------------------------------
@@ -109,6 +109,143 @@ export function AdminReportDetail() {
     setFeedback(message);
     setTimeout(() => setFeedback(null), 5000);
   }, []);
+
+  const [timeLeft, setTimeLeft] = useState("");
+  const [isDeadlineExpired, setIsDeadlineExpired] = useState(false);
+
+  // Evidence modal states
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
+  const [evidenceNote, setEvidenceNote] = useState("");
+  const [evidenceNoteError, setEvidenceNoteError] = useState("");
+
+  // Force modals states
+  const [showForcePayoutModal, setShowForcePayoutModal] = useState(false);
+  const [showForceRefundModal, setShowForceRefundModal] = useState(false);
+  const [forceReason, setForceReason] = useState("");
+  const [forceReasonError, setForceReasonError] = useState("");
+
+  useEffect(() => {
+    if (!report?.replyDeadline || (report.status !== "Awaiting Expert" && report.status !== "Awaiting Client")) {
+      setTimeLeft("");
+      setIsDeadlineExpired(false);
+      return;
+    }
+
+    function calculateTime() {
+      const now = new Date().getTime();
+      const deadline = new Date(report.replyDeadline).getTime();
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        setTimeLeft("HẾT HẠN PHẢN HỒI (Deadline Expired)");
+        setIsDeadlineExpired(true);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        setTimeLeft(`${hours}h ${minutes}m ${seconds}s remaining`);
+        setIsDeadlineExpired(false);
+      }
+    }
+
+    calculateTime();
+    const interval = setInterval(calculateTime, 1000);
+    return () => clearInterval(interval);
+  }, [report?.replyDeadline, report?.status]);
+
+  const handleDefaultSettle = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      if (report.status === "Awaiting Expert") {
+        await api.put(`/reports/${report.id}`, {
+          action: "stop",
+          moneyAction: "refund",
+          reason: "Expert quá hạn phản hồi giải trình. Hệ thống tự động hoàn tiền cho Khách hàng."
+        });
+        showToast("Đã xử thắng mặc định cho Khách hàng: Hoàn trả toàn bộ số tiền ký quỹ.");
+      } else if (report.status === "Awaiting Client") {
+        await api.put(`/reports/${report.id}`, {
+          action: "force_payout",
+          reason: "Khách hàng quá hạn phản hồi giải trình. Hệ thống tự động giải ngân cho Chuyên gia."
+        });
+        showToast("Đã xử thắng mặc định cho Chuyên gia: Giải ngân toàn bộ số tiền ký quỹ.");
+      }
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi xử lý mặc định.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [report, fetchReport, showToast]);
+
+  const handleRequestMoreEvidence = useCallback(async () => {
+    if (!evidenceNote.trim()) {
+      setEvidenceNoteError("Vui lòng nhập lý do/nội dung yêu cầu bằng chứng.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}`, {
+        action: "requestMoreEvidence",
+        adminNote: evidenceNote
+      });
+      showToast("Đã gửi yêu cầu bổ sung bằng chứng và gia hạn thêm 48 giờ phản hồi.");
+      setEvidenceNote("");
+      setEvidenceNoteError("");
+      setShowEvidenceModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi yêu cầu bằng chứng.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [report, evidenceNote, fetchReport, showToast]);
+
+  const handleForcePayout = useCallback(async () => {
+    if (!forceReason.trim()) {
+      setForceReasonError("Please enter the reason for force payout.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}`, {
+        action: "force_payout",
+        reason: forceReason
+      });
+      showToast("Đã cưỡng chế giải ngân cho Chuyên gia thành công.");
+      setForceReason("");
+      setForceReasonError("");
+      setShowForcePayoutModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi cưỡng chế giải ngân.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [report, forceReason, fetchReport, showToast]);
+
+  const handleForceRefund = useCallback(async () => {
+    if (!forceReason.trim()) {
+      setForceReasonError("Please enter the reason for force refund.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}`, {
+        action: "force_refund",
+        reason: forceReason
+      });
+      showToast("Đã hoàn tiền cưỡng chế cho Khách hàng thành công.");
+      setForceReason("");
+      setForceReasonError("");
+      setShowForceRefundModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi hoàn tiền cưỡng chế.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [report, forceReason, fetchReport, showToast]);
 
   // -----------------------------------------------------------------------
   // Accept Report
@@ -289,12 +426,11 @@ export function AdminReportDetail() {
   // -----------------------------------------------------------------------
   const isPending = report.status === "Pending";
   const isAccepted = report.status === "Accepted";
-  const isUnderReview = report.status === "Under Review";
   const isResolved = report.status === "Resolved";
-  const isClosed = report.status === "Closed";
   const isRejected = report.status === "Rejected";
-  const canAct = isPending || isAccepted || isUnderReview;
-  const canHandleMoney = isAccepted || isUnderReview;
+  const isType1 = report.reportType !== "type2";
+  const isType2 = report.reportType === "type2";
+  const canHandleMoney = report.status === "Pending Admin";
 
   // -----------------------------------------------------------------------
   // Render
@@ -332,6 +468,38 @@ export function AdminReportDetail() {
         </p>
       </div>
 
+      {/* Deadline warning banner */}
+      {(report.status === "Awaiting Expert" || report.status === "Awaiting Client") && (
+        <div className="mb-6 p-4 bg-red-55/70 border border-red-200 text-red-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-105 rounded-lg text-red-650">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold font-sans">ĐANG TRONG THỜI GIAN GIẢI TRÌNH TRANH CHẤP</p>
+              <p className="text-xs text-red-755 font-sans mt-0.5">
+                Bên bị cáo có tối đa 48 giờ để gửi báo cáo giải trình. Trạng thái: <strong>{report.status}</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-mono font-bold">
+              {timeLeft}
+            </div>
+            {isDeadlineExpired && (
+              <button
+                type="button"
+                onClick={handleDefaultSettle}
+                disabled={actionLoading}
+                className="h-10 px-4 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg shadow transition-all cursor-pointer flex items-center gap-1"
+              >
+                Default Settle (Xử thua mặc định)
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ---- Rejection notification preview ---- */}
       {isRejected && report.rejectionReason && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
@@ -359,7 +527,7 @@ export function AdminReportDetail() {
               <DetailItem
                 label="Funds in Escrow"
                 value={
-                  <span className="font-semibold text-blue-700">
+                  <span className="font-semibold text-brand-primary">
                     <MoneyDisplay
                       amount={report.amount || report.escrowAmount || 0}
                     />
@@ -392,27 +560,90 @@ export function AdminReportDetail() {
           {/* Client & Expert info */}
           <SectionCard title="Parties Involved" icon={User}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <p className="text-xs font-semibold text-blue-700 uppercase mb-1">
-                  Client
-                </p>
-                <p className="text-sm font-medium">
-                  {report.clientName || report.clientId || "—"}
-                </p>
-                {report.clientEmail && (
-                  <p className="text-xs text-gray-500">{report.clientEmail}</p>
+              {/* Client Panel */}
+              <div className={`p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col justify-between transition-all relative ${
+                report.status === "Awaiting Client" ? "filter blur-[1.5px] opacity-50 pointer-events-none select-none" : ""
+              }`}>
+                {report.status === "Awaiting Client" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
+                    <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                      Chờ giải trình...
+                    </span>
+                  </div>
                 )}
+                <div>
+                  <p className="text-xs font-bold text-blue-750 uppercase tracking-wider mb-1">
+                    Client
+                  </p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {report.clientName || report.clientId || "—"}
+                  </p>
+                  {report.clientEmail && (
+                    <p className="text-xs text-gray-500 mb-3">{report.clientEmail}</p>
+                  )}
+                  
+                  {/* Explanation */}
+                  {report.reportType === "type2" ? (
+                    <div className="mt-3 pt-3 border-t border-blue-100/50 text-xs">
+                      <strong className="block text-gray-700 font-semibold mb-1">Giải trình phản hồi:</strong>
+                      <p className="text-gray-655 italic leading-relaxed">
+                        {report.clientExplanation || "Chưa gửi giải trình."}
+                      </p>
+                      {report.clientExplanationEvidence && report.clientExplanationEvidence.length > 0 && (
+                        <div className="mt-2 text-[11px] text-gray-500">
+                          <strong>Tài liệu:</strong> {report.clientExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 pt-3 border-t border-blue-100/50 text-xs">
+                      <span className="text-gray-550 italic">Bên báo cáo (Khởi tố vi phạm)</span>
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-                <p className="text-xs font-semibold text-purple-700 uppercase mb-1">
-                  Expert (Report Sender)
-                </p>
-                <p className="text-sm font-medium">
-                  {report.expertName || report.expertId || "—"}
-                </p>
-                {report.expertEmail && (
-                  <p className="text-xs text-gray-500">{report.expertEmail}</p>
+
+              {/* Expert Panel */}
+              <div className={`p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col justify-between transition-all relative ${
+                report.status === "Awaiting Expert" ? "filter blur-[1.5px] opacity-50 pointer-events-none select-none" : ""
+              }`}>
+                {report.status === "Awaiting Expert" && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
+                    <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                      Chờ giải trình...
+                    </span>
+                  </div>
                 )}
+                <div>
+                  <p className="text-xs font-bold text-purple-750 uppercase tracking-wider mb-1">
+                    Expert
+                  </p>
+                  <p className="text-base font-semibold text-gray-900">
+                    {report.expertName || report.expertId || "—"}
+                  </p>
+                  {report.expertEmail && (
+                    <p className="text-xs text-gray-500 mb-3">{report.expertEmail}</p>
+                  )}
+
+                  {/* Explanation */}
+                  {report.reportType === "type1" ? (
+                    <div className="mt-3 pt-3 border-t border-purple-100/50 text-xs">
+                      <strong className="block text-gray-700 font-semibold mb-1">Giải trình phản hồi:</strong>
+                      <p className="text-gray-655 italic leading-relaxed">
+                        {report.expertExplanation || "Chưa gửi giải trình."}
+                      </p>
+                      {report.expertExplanationEvidence && report.expertExplanationEvidence.length > 0 && (
+                        <div className="mt-2 text-[11px] text-gray-500">
+                          <strong>Tài liệu:</strong> {report.expertExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="mt-3 pt-3 border-t border-purple-100/50 text-xs">
+                      <span className="text-gray-550 italic">Bên báo cáo (Khởi tố vi phạm)</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </SectionCard>
@@ -474,7 +705,7 @@ export function AdminReportDetail() {
                         href={item.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-shrink-0 p-1.5 text-blue-600 hover:text-blue-800 transition"
+                        className="flex-shrink-0 p-1.5 text-brand-primary hover:text-brand-primary-hover transition"
                         title="Download"
                       >
                         <Download className="w-4 h-4" />
@@ -490,7 +721,7 @@ export function AdminReportDetail() {
         {/* ---- Right: Actions sidebar ---- */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-4 animate-none">
               Admin Actions
             </h3>
 
@@ -501,7 +732,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowAcceptModal(true)}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -514,7 +745,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowRejectModal(true)}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -526,14 +757,14 @@ export function AdminReportDetail() {
               </div>
             )}
 
-            {/* ---- Accepted / Under Review: Continue / Stop ---- */}
-            {canHandleMoney && (
+            {/* ---- Awaiting Expert / Client: Chat / Evidence ---- */}
+            {(report.status === "Awaiting Expert" || report.status === "Awaiting Client") && (
               <div className="space-y-3">
                 <button
                   type="button"
                   onClick={handleCreateChat}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -542,62 +773,125 @@ export function AdminReportDetail() {
                   )}
                   Create Dispute Chat
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEvidenceModal(true)}
+                  disabled={actionLoading}
+                  className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Yêu cầu bằng chứng
+                </button>
+              </div>
+            )}
+
+            {/* ---- Pending Admin: Settle Options ---- */}
+            {report.status === "Pending Admin" && (
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={handleCreateChat}
+                  disabled={actionLoading}
+                  className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <MessageCircle className="w-4 h-4" />
+                  )}
+                  Create Dispute Chat
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEvidenceModal(true)}
+                  disabled={actionLoading}
+                  className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                  Yêu cầu bằng chứng
+                </button>
 
                 <div className="border-t border-gray-100 pt-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-3">
-                    Final Decision:
+                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+                    Settle Decision:
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowContinueModal(true)}
-                    disabled={actionLoading}
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition mb-2"
-                  >
-                    <Play className="w-4 h-4" />
-                    Continue Project
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowStopModal(true)}
-                    disabled={actionLoading}
-                    className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
-                  >
-                    <StopCircle className="w-4 h-4" />
-                    Stop Project
-                  </button>
+                  {isType2 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowForcePayoutModal(true)}
+                        disabled={actionLoading}
+                        className="w-full h-11 px-5 bg-green-600 text-white rounded-[14px] hover:bg-green-700 disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
+                      >
+                        ✓ Force Payout
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowForceRefundModal(true)}
+                        disabled={actionLoading}
+                        className="w-full h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        ✗ Force Refund
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setShowContinueModal(true)}
+                        disabled={actionLoading}
+                        className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Continue Project
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowStopModal(true)}
+                        disabled={actionLoading}
+                        className="w-full h-11 px-5 bg-red-65 text-red-705 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        <StopCircle className="w-4 h-4" />
+                        Stop Project
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             )}
 
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
-            {(isResolved || isClosed || isRejected) && (
-              <div className="p-4 bg-gray-50 rounded-lg text-center">
-                <p className="text-sm text-gray-500">
+            {(isResolved || isRejected) && (
+              <div className="p-4 bg-gray-50 rounded-lg text-center font-sans border border-gray-150">
+                <p className="text-sm font-semibold text-gray-700">
                   {isResolved
                     ? `Resolved — ${
-                        report.moneyAction === "refund"
-                          ? "Refunded to Client"
-                          : report.moneyAction === "release"
-                            ? "Released to Expert"
-                            : report.resolution === "continued"
-                              ? "Project continued"
-                              : "Handled"
+                        report.resolution === "force_payout"
+                          ? "Forced Payout to Expert"
+                          : report.resolution === "force_refund"
+                            ? "Forced Refund to Client"
+                            : report.moneyAction === "refund"
+                              ? "Refunded to Client"
+                              : report.moneyAction === "release"
+                                ? "Released to Expert"
+                                : report.resolution === "continued"
+                                  ? "Project continued"
+                                  : "Handled"
                       }`
                     : isRejected
                       ? "Report rejected"
                       : "Report closed"}
                 </p>
+                {report.adminNote && (
+                  <p className="text-xs text-gray-500 mt-2 border-t border-gray-100 pt-2 italic">
+                    Ghi chú: {report.adminNote}
+                  </p>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* ================================================================== */}
-      {/* CONFIRMATION MODALS                                                */}
-      {/* ================================================================== */}
-
-      {/* Accept Report Modal */}
       <ConfirmationModal
         open={showAcceptModal}
         onOpenChange={setShowAcceptModal}
@@ -744,6 +1038,93 @@ export function AdminReportDetail() {
             </div>
           </div>
         </div>
+      </ConfirmationModal>
+
+      {/* Request More Evidence Modal */}
+      <ConfirmationModal
+        open={showEvidenceModal}
+        onOpenChange={setShowEvidenceModal}
+        title="Yêu cầu bổ sung bằng chứng"
+        description="Gửi thông báo yêu cầu cung cấp thêm bằng chứng. Thời gian phản hồi sẽ được gia hạn thêm 48 giờ kể từ lúc gửi."
+        confirmLabel="Gửi yêu cầu"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={handleRequestMoreEvidence}
+      >
+        <textarea
+          value={evidenceNote}
+          onChange={(e) => {
+            setEvidenceNote(e.target.value);
+            if (evidenceNoteError) setEvidenceNoteError("");
+          }}
+          placeholder="Nhập nội dung/lý do chi tiết yêu cầu bổ sung bằng chứng..."
+          rows={3}
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
+            evidenceNoteError ? "border-red-300" : "border-gray-300"
+          }`}
+          disabled={actionLoading}
+        />
+        {evidenceNoteError && (
+          <p className="text-xs text-red-500 mt-1">{evidenceNoteError}</p>
+        )}
+      </ConfirmationModal>
+
+      {/* Force Payout Modal */}
+      <ConfirmationModal
+        open={showForcePayoutModal}
+        onOpenChange={setShowForcePayoutModal}
+        title="Cưỡng chế giải ngân (Force Payout)"
+        description="Quyết định cưỡng chế chuyển toàn bộ số tiền ký quỹ trong Escrow cho Chuyên gia. Dự án sẽ chuyển thành trạng thái Hoàn thành."
+        confirmLabel="✓ Xác nhận Force Payout"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={handleForcePayout}
+      >
+        <textarea
+          value={forceReason}
+          onChange={(e) => {
+            setForceReason(e.target.value);
+            if (forceReasonError) setForceReasonError("");
+          }}
+          placeholder="Nhập lý do cưỡng chế giải ngân..."
+          rows={3}
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
+            forceReasonError ? "border-red-300" : "border-gray-300"
+          }`}
+          disabled={actionLoading}
+        />
+        {forceReasonError && (
+          <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
+        )}
+      </ConfirmationModal>
+
+      {/* Force Refund Modal */}
+      <ConfirmationModal
+        open={showForceRefundModal}
+        onOpenChange={setShowForceRefundModal}
+        title="Cưỡng chế hoàn tiền (Force Refund)"
+        description="Quyết định cưỡng chế hoàn trả toàn bộ số tiền ký quỹ trong Escrow cho Khách hàng. Dự án sẽ chuyển thành trạng thái Bị hủy."
+        confirmLabel="✗ Xác nhận Force Refund"
+        variant="danger"
+        loading={actionLoading}
+        onConfirm={handleForceRefund}
+      >
+        <textarea
+          value={forceReason}
+          onChange={(e) => {
+            setForceReason(e.target.value);
+            if (forceReasonError) setForceReasonError("");
+          }}
+          placeholder="Nhập lý do cưỡng chế hoàn tiền..."
+          rows={3}
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${
+            forceReasonError ? "border-red-300" : "border-gray-300"
+          }`}
+          disabled={actionLoading}
+        />
+        {forceReasonError && (
+          <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
+        )}
       </ConfirmationModal>
     </div>
   );

@@ -28,7 +28,7 @@ export function ReportButton({
   // Hide if already reported
   if (hasReported) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium cursor-not-allowed ${className}`}>
+      <div className={`inline-flex items-center gap-2 h-11 px-5 bg-gray-100 text-gray-500 rounded-[14px] text-base font-semibold cursor-not-allowed ${className}`}>
         <AlertTriangle className="w-4 h-4" />
         Report Submitted
       </div>
@@ -38,7 +38,7 @@ export function ReportButton({
   // Disable if disputed
   if (isDisputed) {
     return (
-      <div className={`inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed ${className}`}>
+      <div className={`inline-flex items-center gap-2 h-11 px-5 bg-gray-100 text-gray-400 rounded-[14px] text-base font-semibold cursor-not-allowed ${className}`}>
         <AlertTriangle className="w-4 h-4" />
         Project Disputed
       </div>
@@ -49,7 +49,7 @@ export function ReportButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-sm font-medium transition ${className}`}
+      className={`inline-flex items-center gap-2 h-11 px-5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-[14px] text-base font-semibold transition ${className}`}
     >
       <AlertTriangle className="w-4 h-4" />
       Report Dispute
