@@ -266,7 +266,7 @@ public class JobPostService : IJobPostService
         for (int i = 1; i <= taskCount; i++)
         {
             markdownBuilder.AppendLine($"### 📍 Mốc tiến độ {i}: Thực thi cấu phần nghiệp vụ số {i}");
-            markdownBuilder.AppendLine($"- **Mô tả cấu phần nghiệp vụ:** Tiến hành phân tích, thiết kế logic, xây dựng mã nguồn và kiểm chuẩn đơn vị (Unit Test) cho phân hệ chức năng {i} dựa trên giải pháp kỹ thuật: {proposal.Technical}.");
+            markdownBuilder.AppendLine($"- **Mô tả cấu phần nghiệp vụ:** Tiến hành phân tích, thiết kế logic, xây dựng mã nguồn và kiểm chuẩn đơn vị (Unit Test) cho phân hệ chức năng {i} dựa trên giải pháp kỹ thuật: {proposal.Implementation}.");
             markdownBuilder.AppendLine($"- **Thời gian xử lý dự kiến:** {daysPerTask} ngày.");
             markdownBuilder.AppendLine();
         }

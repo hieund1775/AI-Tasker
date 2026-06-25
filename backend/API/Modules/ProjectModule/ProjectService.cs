@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +7,6 @@ using AITasker_Modular.Database;
 using AITasker_Modular.Modules.JobModule;
 
 namespace AITasker_Modular.Modules.ProjectModule
-
 {
     public class ProjectService : IProjectService
     {
@@ -47,7 +45,6 @@ namespace AITasker_Modular.Modules.ProjectModule
                 .ToListAsync();
         }
 
-
         public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status)
         {
             var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
@@ -82,7 +79,6 @@ namespace AITasker_Modular.Modules.ProjectModule
                     .ThenInclude(t => t.MiniTasks)
                 .FirstOrDefaultAsync(x => x.Id == projectId);
         }
-
 
         public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId)
         {
@@ -346,65 +342,6 @@ namespace AITasker_Modular.Modules.ProjectModule
             await _context.SaveChangesAsync();
             return await GetProjectByIdAsync(newProject.Id);
         }
-    }
-}
-
-=======
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using AITasker_Modular.Database;
-
-namespace AITasker_Modular.Modules.ProjectModule
-{
-    public class ProjectService : IProjectService
-    {
-        private readonly DataContext _context;
-
-        public ProjectService(DataContext context)
-        {
-            _context = context;
-        }
-
-        public async Task<IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId)
-        {
-            return await _context.Projects
-                .Where(x => x.ClientId == clientId)
-                .Include(x => x.JobPost)
-                .ToListAsync();
-        }
-
-        public async Task<IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId)
-        {
-            return await _context.Projects
-                .Where(x => x.ExpertId == expertId)
-                .Include(x => x.JobPost)
-                .ToListAsync();
-        }
-
-        public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status)
-        {
-            var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
-            if (project == null) return null;
-
-            project.Status = status.Trim();
-            await _context.SaveChangesAsync();
-            return project;
-        }
-
-        public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink)
-        {
-            var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
-            if (project == null) return null;
-
-            project.ProjectLink = projectLink;
-            project.Status = "Submitted"; // Chuyển sang trạng thái chờ Client duyệt nghiệm thu
-            
-            await _context.SaveChangesAsync();
-            return project;
-        }
 
         // ======================================================================
         // ĐỤC THÊM LOGIC ĐẶC QUYỀN TÀI PHÁN ĐỂ ĐỒNG BỘ LIÊN MODULE VỚI DISPUTEMODULE
@@ -442,4 +379,3 @@ namespace AITasker_Modular.Modules.ProjectModule
         }
     }
 }
->>>>>>> Minh

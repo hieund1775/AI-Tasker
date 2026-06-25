@@ -110,7 +110,6 @@ namespace AITasker_Modular.Modules.JobModule
             return Ok(result);
         }
 
-<<<<<<< HEAD
         [HttpPut("{id:guid}")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UpdateProposal(Guid id, [FromForm] UpdateProposalDto dto)
@@ -143,7 +142,7 @@ namespace AITasker_Modular.Modules.JobModule
                 return BadRequest(ex.Message);
             }
         }
-=======
+
         [HttpPost("{id:guid}/generate-milestone-md")]
         public async Task<IActionResult> GenerateMilestoneMarkdown(Guid id, [FromQuery] int taskCount, [FromQuery] int deadlineDays)
         {
@@ -237,7 +236,6 @@ namespace AITasker_Modular.Modules.JobModule
         public Guid JobPostId { get; set; }
         public Guid ExpertId { get; set; }
         public string Message { get; set; } = string.Empty;
->>>>>>> Minh
     }
 
 
