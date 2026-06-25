@@ -65,6 +65,44 @@ const getDeadlineDate = (createdAt, deadline) => {
 // Style constants
 // ---------------------------------------------------------------------------
 
+/** Statuses that should NOT appear in My Projects */
+const HIDDEN_FROM_MY_PROJECTS = [
+  "draft",
+  "posted",
+  "waiting_proposal",
+  "proposal_received",
+  "contract_draft",
+  "contract_sent",
+  "contract_rejected",
+  "cancelled",
+];
+
+/** Check if a project should appear in My Projects (contract signed/accepted) */
+function canShowInMyProjects(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  // Show if contract is accepted/signed OR project is in progress/active
+  if (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  ) {
+    return true;
+  }
+  // Explicitly hide these statuses
+  if (HIDDEN_FROM_MY_PROJECTS.some((s) => projectStatus === s || contractStatus === s)) {
+    return false;
+  }
+  // For backward compatibility: if status is not hidden and not explicitly accepted,
+  // still show projects that have an assigned expert (likely already in progress)
+  if (project.assignedExpertId || project.expertId) {
+    return true;
+  }
+  return false;
+}
+
 const SKILL_VISIBLE_COUNT = {
   project: 4,
   expert: 4,
@@ -166,7 +204,7 @@ export function ClientDashboard() {
       color: "text-green-600 bg-green-100",
     },
     {
-      label: "Cancelled",
+      label: "In Progress",
       value: getProjectsByStatus(["cancelled", "cancel"]),
       icon: Clock,
       color: "text-red-600 bg-red-100",

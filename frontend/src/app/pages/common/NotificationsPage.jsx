@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { timeAgo } from "../../lib/dateUtils.js";
+import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Icons and formatting
@@ -28,6 +29,8 @@ const typeIcons = {
   message: MessageSquare,
   system: AlertCircle,
   dispute: AlertCircle,
+  contract_sent: FileText,
+  contract_rejected: AlertCircle,
 };
 
 const typeColors = {
@@ -38,6 +41,8 @@ const typeColors = {
   message: "bg-brand-primary-light text-brand-primary",
   system: "bg-gray-100 text-gray-700",
   dispute: "bg-red-100 text-red-700",
+  contract_sent: "bg-blue-100 text-blue-700",
+  contract_rejected: "bg-red-100 text-red-700",
 };
 
 // ---------------------------------------------------------------------------
@@ -56,6 +61,7 @@ export function NotificationsPage() {
       if (Array.isArray(data)) {
         data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setNotifications(data);
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);

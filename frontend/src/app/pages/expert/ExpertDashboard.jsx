@@ -34,6 +34,20 @@ import { getRecommendedProjects } from "../../lib/recommendationHelper.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Check if a project should appear in active contracts (contract accepted/signed) */
+function isContractActive(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  return (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  );
+}
+
+/** Derive a display-only match percentage from the index. */
 /** Derive a display-only match percentage from the index. */
 /** Derive a display-only match percentage from the index. */
 function getMatchPct(index) {

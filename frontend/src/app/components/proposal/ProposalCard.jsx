@@ -3,6 +3,7 @@ import {
   MessageSquare,
   CheckCircle,
   XCircle,
+  Eye,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 
@@ -118,8 +119,54 @@ export function ProposalCard({
 
           {/* Actions */}
           {!hasBeenActed && (
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="flex flex-col gap-2 w-full md:w-auto">
+              {/* View Proposal button */}
               <Link
+<<<<<<< HEAD
+                to={`/client/proposals/${proposal.id}`}
+                className="px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors w-full"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                View Proposal
+              </Link>
+              {/* Contact + Accept/Decline row */}
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  to={`/messenger?expertId=${proposal.expertId}`}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                  title="Contact expert"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  Contact
+                </Link>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onDecline(
+                      proposal.id,
+                      proposal.expert?.name,
+                    )
+                  }
+                  className="flex-1 px-3 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  Decline
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAccept(
+                      proposal.id,
+                      proposal.expert?.name,
+                    )
+                  }
+                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  Accept
+                </button>
+              </div>
+=======
                 to="/messenger"
                 className="min-w-[140px] justify-center h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
                 title="Message expert"
@@ -153,6 +200,7 @@ export function ProposalCard({
                 <CheckCircle className="w-4 h-4" />
                 Accept
               </button>
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             </div>
           )}
         </div>
