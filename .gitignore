@@ -67,3 +67,6 @@ frontend/.env.production
 
 # IDE
 .vscode/
+
+# Ignore local Doc folder
+Doc/

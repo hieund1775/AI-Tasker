@@ -1,7 +1,12 @@
+<<<<<<< HEAD
+﻿import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router";
+=======
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
 import {
   Send,
   Plus,
@@ -47,8 +52,12 @@ const ATTACH_OPTIONS = [
 export function Messenger() {
   const { id: activeConvId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
+
+  // When navigated with ?expertId=X, we can use it to find/create conversation
+  const targetExpertId = searchParams.get("expertId");
 
   // ---- Plus menu state ----
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -152,6 +161,8 @@ export function Messenger() {
     console.log(
       "[Messenger] activeConvId:",
       activeConvId,
+      "| targetExpertId:",
+      targetExpertId,
       "| demoUserId:",
       demoUserId,
       "| conversations:",
@@ -159,7 +170,7 @@ export function Messenger() {
       "| activeConversation:",
       activeConversation?.name || "NONE"
     );
-  }, [activeConvId, demoUserId, conversations.length, activeConversation]);
+  }, [activeConvId, targetExpertId, demoUserId, conversations.length, activeConversation]);
 
   // ---- Scroll to bottom ----
   const messagesContainerRef = useRef(null);

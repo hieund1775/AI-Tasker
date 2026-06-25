@@ -273,8 +273,13 @@ export function ExpertProjectDetail() {
             {/* Message Client */}
             {client && !isDisputed && (
               <Link
+<<<<<<< HEAD
+                to={`/messenger?expertId=${project.clientId}`}
+                className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+=======
                 to="/messenger"
                 className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
               >
                 <User className="w-4 h-4" /> Message Client
               </Link>

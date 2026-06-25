@@ -29,6 +29,19 @@ import { getRecommendedProjects } from "../../lib/recommendationHelper.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Check if a project should appear in active contracts (contract accepted/signed) */
+function isContractActive(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  return (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  );
+}
+
 /** Derive a display-only match percentage from the index. */
 /** Derive a display-only match percentage from the index. */
 function getMatchPct(index) {
@@ -119,7 +132,11 @@ export function ExpertDashboard() {
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
+<<<<<<< HEAD
+            (p) => isContractActive(p)
+=======
             (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress" || p.status?.toLowerCase() === "active"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
           )
         );
         setCompletedProjects(
@@ -185,7 +202,11 @@ export function ExpertDashboard() {
       label: "Active Contracts",
       value: activeContracts.length,
       icon: Briefcase,
+<<<<<<< HEAD
+      color: "text-blue-600 bg-blue-100",
+=======
       color: "text-brand-primary bg-brand-primary-light",
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
     },
     {
       label: "Total Earned",
@@ -227,7 +248,11 @@ export function ExpertDashboard() {
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
+<<<<<<< HEAD
+            className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+=======
             className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
@@ -273,7 +298,11 @@ export function ExpertDashboard() {
                 </p>
                 <Link
                   to="/expert/find-jobs"
+<<<<<<< HEAD
+                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
+=======
                   className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                 >
                   Find Jobs
                 </Link>
@@ -468,7 +497,11 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
+<<<<<<< HEAD
+                        className="px-4 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium text-center transition-colors"
+=======
                         className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                       >
                         Apply Now
                       </Link>

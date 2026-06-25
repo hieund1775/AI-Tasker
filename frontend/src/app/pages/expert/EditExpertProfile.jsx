@@ -271,7 +271,18 @@ export function EditExpertProfile() {
     industry: "",
   });
 
-  const [skills, setSkills] = useState([]);
+ const [skills, setSkills] = useState([]);
+  const [availableSkills, setAvailableSkills] = useState([]);
+  const [selectedSkill, setSelectedSkill] = useState("");
+
+  // Load available skills from API
+  useEffect(() => {
+    api.categoryTags.getSkills()
+      .then(res => {
+        setAvailableSkills(Array.isArray(res) ? res : []);
+      })
+      .catch(err => console.error("Failed to load skills:", err));
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -331,10 +342,14 @@ export function EditExpertProfile() {
     try {
       const apiPayload = {
         jobTitle: formData.jobTitle || "Chưa cập nhật",
+<<<<<<< HEAD
+        major: skills.length > 0 ? skills.join(", ") : (formData.major || "Chưa cập nhật"),
+=======
         major: formData.specialization || "Chưa cập nhật",
         category: formData.category,
         specialization: formData.specialization,
         skills: skills,
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
         bio: formData.bio || "Chưa có giới thiệu",
         portfolioUrls: formData.portfolioUrls || "",
         location: formData.location || "Chưa cập nhật",
@@ -632,7 +647,70 @@ export function EditExpertProfile() {
           />
         </div>
 
+<<<<<<< HEAD
+                <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Skills
+          </label>
+          
+          {/* Dropdown chọn skill */}
+          <div className="mb-4 flex gap-2">
+            <select
+              value={selectedSkill}
+              onChange={(e) => setSelectedSkill(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+            >
+              <option value="">Select a skill...</option>
+              {availableSkills.map((skill) => (
+                <option key={skill.id} value={skill.name}>
+                  {skill.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                if (selectedSkill && !skills.includes(selectedSkill)) {
+                  setSkills([...skills, selectedSkill]);
+                  setSelectedSkill("");
+                }
+              }}
+              className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium"
+            >
+              Add
+            </button>
+          </div>
+
+          {/* Hiển thị các skill đã chọn */}
+          {skills.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No skills added. Add skills to improve your profile visibility.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm inline-flex items-center gap-2"
+                >
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => removeSkill(skill)}
+                    className="text-blue-400 hover:text-blue-600"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+=======
         <div className="flex gap-3 pt-2">
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
           <button
             type="submit"
             disabled={loading}

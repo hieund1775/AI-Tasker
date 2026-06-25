@@ -25,6 +25,7 @@ export function MyProjectsList() {
   const location = useLocation();
 
   const [projects, setProjects] = useState([]);
+  const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Sub-view page states: "list" | "details" | "proposals"
@@ -73,6 +74,22 @@ export function MyProjectsList() {
   const [dbUpdateVersion, setDbUpdateVersion] = useState(0);
 
   useEffect(() => {
+<<<<<<< HEAD
+    async function loadProjects() {
+      if (!user?.id) return;
+      try {
+        setLoading(true);
+        const [userRes, expertsRes] = await Promise.all([
+          api.users.getById(user.id),
+          api.experts.list().catch(() => [])
+        ]);
+        setProjects(userRes?.jobPosts || []);
+        setExperts(expertsRes || []);
+      } catch (err) {
+        console.error("Failed to load client projects:", err);
+      } finally {
+        setLoading(false);
+=======
     loadProjects();
 
     const handleUpdate = () => {
@@ -91,6 +108,7 @@ export function MyProjectsList() {
       const updated = projects.find((p) => p.id === selectedProject.id);
       if (updated) {
         setSelectedProject(updated);
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
       }
     }
   }, [projects]);
@@ -751,14 +769,31 @@ export function MyProjectsList() {
         </div>
       ) : (
         <div className="space-y-4">
+<<<<<<< HEAD
+          {projects.map((project) => {
+            const proposalCount = 0;
+
+            // Resolve localStorage chosen expert
+            const chosenExpertsMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
+            const chosenExpertId = chosenExpertsMapping[project.id];
+            const assignedExpert = chosenExpertId ? (experts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
+
+=======
           {filteredProjects.map((project) => {
             const proposalCount = project.proposalCount || 0;
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = getStatusLabel(statusKey);
-            const badgeClass = getStatusBadgeClass(statusKey);
+            const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
+            const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
+
             const progress = getProjectProgress(project.id);
             const category = project.aiCategoryDomain;
+<<<<<<< HEAD
+            const action = getActionInfo(statusKey, project.id, proposalCount);
+
+=======
             
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
@@ -827,6 +862,67 @@ export function MyProjectsList() {
                     View Details
                   </button>
 
+<<<<<<< HEAD
+                {/* ── Progress bar (for in_progress/completed projects) ── */}
+                {(statusKey === "in_progress" ||
+                  statusKey === "waiting_review" ||
+                  statusKey === "needs_revision" ||
+                  statusKey === "completed") && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-500">Progress</span>
+                        <span className="text-xs font-bold text-gray-900">
+                          {progress}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-900 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                {/* ── Bottom row: expert info + action button ── */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div>
+                    {assignedExpert ? (
+                      <span className="text-sm text-gray-500">
+                        Expert:{" "}
+                        <span className="font-medium text-gray-700">
+                          {assignedExpert.fullName}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-sm text-gray-400 italic">
+                        No expert assigned yet
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* View Detail — outline button */}
+                    <Link
+                      to={`/client/projects/${project.id}`}
+                      state={{ from: location.pathname }}
+                      className="flex-1 min-w-0 px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      View Detail
+                    </Link>
+
+                    {/* View Proposal — primary blue button */}
+                    <Link
+                      to={`/client/projects/${project.id}/proposals`}
+                      state={{ from: location.pathname }}
+                      className="flex-1 min-w-0 px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      View Proposal
+                    </Link>
+                  </div>
+=======
                   {/* View Proposal green button — opening proposals list inline view */}
                   <button
                     onClick={() => {
@@ -838,6 +934,7 @@ export function MyProjectsList() {
                     <Users className="w-4 h-4" />
                     View Proposal
                   </button>
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                 </div>
               </div>
             );

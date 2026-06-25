@@ -34,6 +34,11 @@ async function request(endpoint, options = {}) {
     timeout = 5000, // 5 s default — fail fast for unavailable backends
     ...rest
   } = options;
+
+  const httpMethod = method || (body ? "POST" : "GET");
+
+  // Mock interceptor disabled - proceed with real API calls
+
   const url = `${API_BASE_URL}${endpoint}`;
 
   const headers = {
@@ -48,7 +53,6 @@ async function request(endpoint, options = {}) {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const httpMethod = method || (body ? "POST" : "GET");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   const init = {
@@ -261,6 +265,9 @@ export const api = {
     update: (id, data) => put(`/JobPosts/${id}`, data),
   },
 
+  categoryTags: {
+    getSkills: () => get("/category-tags/skills"),
+  },
   // ===========================================================================
   // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.
@@ -320,16 +327,65 @@ export const api = {
   },
 
   notifications: {
+<<<<<<< HEAD
+    // TODO: Connect to real API — get("/notifications")
+    getList: (_params) => {
+      // Attempt to fetch from backend; fall back to empty array
+      return get("/Notifications").catch(() => []);
+    },
+    // TODO: Connect to real API — put("/notifications/{id}/read")
+    markRead: (_id) => Promise.resolve(null),
+    // TODO: Connect to real API — put("/notifications/read-all")
+    markAllRead: () => Promise.resolve(null),
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    send: (data) => {
+      // TODO: Connect to real endpoint e.g. post("/Notifications", data)
+      return post("/Notifications", data).catch(() => null);
+    },
+  },
+
+  contracts: {
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    create: (data) => {
+      // TODO: Connect to real endpoint e.g. post("/Contracts", data)
+      return post("/Contracts", data);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getById: (id) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/${id}`)
+      return get(`/Contracts/${id}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByProject: (projectId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/project/${projectId}`)
+      return get(`/Contracts/project/${projectId}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByExpert: (expertId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/expert/${expertId}`)
+      return get(`/Contracts/expert/${expertId}`).catch(() => []);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    updateStatus: (id, status) => {
+      // TODO: Connect to real endpoint e.g. put(`/Contracts/${id}/status?status=...`)
+      return put(`/Contracts/${id}/status?status=${encodeURIComponent(status)}`);
+    },
+=======
     getList: (params) => get(`/notifications${buildQuery(params)}`),
     markRead: (id) => put(`/notifications/${id}/read`),
     markAllRead: () => put("/notifications/read-all"),
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
   },
 
   proposals: {
     create: (data) => post("/Proposals/submit-proposal", data),
     getByJob: (jobPostId) => get(`/Proposals/job/${jobPostId}`),
     getByExpert: (expertId) => get(`/Proposals/expert/${expertId}`),
+<<<<<<< HEAD
+    getById: (id) => get(`/Proposals/${id}`),
+=======
     update: (id, data) => put(`/Proposals/${id}`, data),
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
     updateStatus: (id, status) => put(`/Proposals/${id}/status?status=${encodeURIComponent(status)}`),
     delete: (id) => del(`/Proposals/${id}`),
   },

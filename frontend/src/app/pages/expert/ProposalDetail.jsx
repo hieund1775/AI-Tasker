@@ -353,7 +353,11 @@ export function ProposalDetail() {
           {convId ? (
             <Link
               to={`/messenger/${convId}`}
+<<<<<<< HEAD
+              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+=======
               className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
@@ -361,7 +365,11 @@ export function ProposalDetail() {
           ) : (
             <Link
               to="/messenger"
+<<<<<<< HEAD
+              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+=======
               className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client

@@ -29,10 +29,31 @@ export function JobDetail() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchJob() {
+    async function fetchJobData() {
       setLoading(true);
       setError(null);
       try {
+<<<<<<< HEAD
+        const jobData = await api.jobPosts.getById(id);
+        if (!jobData) {
+          if (!cancelled) setError("Job not found.");
+          return;
+        }
+        if (!cancelled) {
+          setJob({
+            id: jobData.id,
+            title: jobData.title,
+            description: jobData.description,
+            budget: jobData.budget,
+            createdAt: jobData.createdAt,
+            category: jobData.category,
+            categoryLabel: jobData.category,
+            requiredSkills: jobData.jobPostSkills?.map(s => s.skill) || [],
+            client: {
+              name: jobData.clientName || "Client",
+              location: jobData.clientLocation || "",
+            },
+=======
         const project = await api.jobPosts.getById(id);
         if (!project) {
           if (!cancelled) setError("Project not found.");
@@ -81,6 +102,7 @@ export function JobDetail() {
           setJob({
             ...project,
             client: clientInfo,
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
           });
           setInvitation(invitationProposal);
           setHasSubmitted(hasSubmittedProp);
@@ -91,7 +113,7 @@ export function JobDetail() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchJob();
+    fetchJobData();
     return () => {
       cancelled = true;
     };
