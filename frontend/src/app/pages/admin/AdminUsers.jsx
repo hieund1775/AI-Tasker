@@ -21,7 +21,7 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  client: "bg-blue-100 text-blue-700",
+  client: "bg-brand-primary-light text-brand-primary",
   expert: "bg-purple-100 text-purple-700",
   admin: "bg-red-100 text-red-700",
   owner: "bg-yellow-100 text-yellow-700",
@@ -218,7 +218,7 @@ export function AdminUsers({ excludeRoles = [] }) {
             placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
@@ -226,7 +226,7 @@ export function AdminUsers({ excludeRoles = [] }) {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
           >
             {ROLE_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -261,7 +261,7 @@ export function AdminUsers({ excludeRoles = [] }) {
                   })
                 }
                 disabled={actionLoading}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition ${
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${
                   isLocked
                     ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
                     : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"

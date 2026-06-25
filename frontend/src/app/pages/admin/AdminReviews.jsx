@@ -87,7 +87,7 @@ export function AdminReviews() {
     async (reviewId) => {
       setActionLoading(true);
       try {
-        // TODO: add API endpoint — PUT /reviews/{id}/hide
+        await api.put(`/reviews/${reviewId}`, { status: "Hidden" });
         setReviews((prev) =>
           prev.map((r) =>
             r.id === reviewId ? { ...r, status: "Hidden" } : r,
@@ -108,7 +108,7 @@ export function AdminReviews() {
     async (reviewId) => {
       setActionLoading(true);
       try {
-        // TODO: add API endpoint — DELETE /reviews/{id}
+        await api.put(`/reviews/${reviewId}`, { status: "Deleted" });
         setReviews((prev) =>
           prev.map((r) =>
             r.id === reviewId ? { ...r, status: "Deleted" } : r,
@@ -200,7 +200,7 @@ export function AdminReviews() {
             placeholder="Search by content or user..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
@@ -208,7 +208,7 @@ export function AdminReviews() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
           >
             {REVIEW_STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -235,7 +235,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setHideModal(row.id)}
                 disabled={actionLoading}
-                className="px-2.5 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Hide review"
               >
                 <EyeOff className="w-3.5 h-3.5" />
@@ -247,7 +247,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setDeleteModal(row.id)}
                 disabled={actionLoading}
-                className="px-2.5 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Delete review"
               >
                 <Trash2 className="w-3.5 h-3.5" />

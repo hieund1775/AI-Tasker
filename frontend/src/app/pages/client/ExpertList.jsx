@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
-import { Search, Star, MapPin, ArrowRight, SlidersHorizontal, X } from "lucide-react";
+import { Search, Star, MapPin, SlidersHorizontal, X } from "lucide-react";
+import { SkillTags } from "../../components/shared/SkillTags.jsx";
+import { Button } from "../../components/ui/button.jsx";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
@@ -12,7 +14,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
 
   return (
     <div className="mb-5">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">
+      <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2.5">
         {title}
       </h4>
       <div className="space-y-1.5">
@@ -27,7 +29,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
                 type="checkbox"
                 checked={checked}
                 onChange={() => onToggle(opt.value)}
-                className="w-4 h-4 rounded border-gray-300 text-blue-900 focus:ring-blue-900 accent-blue-900"
+                className="w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/50 accent-brand-primary"
               />
               <span className="text-sm text-gray-700 group-hover:text-gray-900">
                 {opt.label}
@@ -52,6 +54,7 @@ export function ExpertList() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Multi-select checkbox filters
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [selectedDomains, setSelectedDomains] = useState(new Set());
   const [selectedTech, setSelectedTech] = useState(new Set());
   const [selectedRatings, setSelectedRatings] = useState(new Set());
@@ -65,19 +68,26 @@ export function ExpertList() {
       try {
         setLoading(true);
         const res = await api.experts.list();
-        // Filter out experts with a completed profile
+        // Filter out experts (even if they don't have a complete profile)
         const expertsOnly = (res || [])
-          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-          .map((u) => ({
-            id: u.id,
-            name: u.fullName,
-            specialization: u.expertProfile.major || "AI Specialist",
-            location: u.expertProfile.location || "N/A",
-            rating: 4.8,
-            completedProjects: 5,
-            skills: u.expertProfile.skills || ["Python", "Semantic Kernel"],
-            avatar: null,
-          }));
+          .filter((u) => u.role?.toLowerCase() === "expert")
+          .map((u) => {
+            const profile = u.expertProfile || {};
+            return {
+              id: u.id,
+              name: u.fullName,
+              title: profile.jobTitle || profile.major || u.specialization || "AI Specialist",
+              specialization: profile.major || u.specialization || "AI Specialist",
+              category: profile.category || u.category || "AI & Computing",
+              location: profile.location || "N/A",
+              bio: profile.bio || u.bio || "No biography provided.",
+              rating: 4.8,
+              completedProjects: profile.completedProjects || 0,
+              hourlyRate: profile.hourlyRate || 50,
+              skills: profile.skills || [],
+              avatar: null,
+            };
+          });
         setExperts(expertsOnly);
       } catch (err) {
         console.error("Failed to load experts list:", err);
@@ -89,6 +99,19 @@ export function ExpertList() {
   }, []);
 
   // ---- Filter options derived from expert data -----------------------------
+
+  // Category options: unique category items
+  const categoryOptions = useMemo(() => {
+    const items = new Set();
+    experts.forEach((e) => {
+      if (e.category) items.add(e.category);
+    });
+    return [...items].sort().map((cat) => ({
+      value: cat,
+      label: cat,
+      count: experts.filter((e) => e.category === cat).length,
+    }));
+  }, [experts]);
 
   // Domain expertise: unique items from expert specializations (split by comma)
   const domainOptions = useMemo(() => {
@@ -146,6 +169,7 @@ export function ExpertList() {
   };
 
   const clearAllFilters = () => {
+    setSelectedCategories(new Set());
     setSelectedDomains(new Set());
     setSelectedTech(new Set());
     setSelectedRatings(new Set());
@@ -153,6 +177,7 @@ export function ExpertList() {
   };
 
   const hasActiveFilters =
+    selectedCategories.size > 0 ||
     selectedDomains.size > 0 ||
     selectedTech.size > 0 ||
     selectedRatings.size > 0 ||
@@ -167,6 +192,11 @@ export function ExpertList() {
       !e.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
     ) {
       return false;
+    }
+
+    // Category filter
+    if (selectedCategories.size > 0) {
+      if (!selectedCategories.has(e.category)) return false;
     }
 
     // Domain filter (OR within group)
@@ -199,7 +229,7 @@ export function ExpertList() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Find AI Experts</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Recommended Experts</h1>
         <p className="text-gray-600">Browse and connect with skilled AI professionals</p>
       </div>
 
@@ -212,7 +242,7 @@ export function ExpertList() {
             placeholder="Search by name or specialization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-900"
+            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-brand-primary"
           />
         </div>
         <button
@@ -220,14 +250,14 @@ export function ExpertList() {
           onClick={() => setShowFilters(!showFilters)}
           className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition ${
             showFilters || hasActiveFilters
-              ? "border-blue-900 bg-blue-50 text-blue-900"
+              ? "border-brand-primary bg-brand-primary-light text-brand-primary"
               : "border-gray-300 text-gray-700 hover:bg-gray-50"
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           Filters
           {hasActiveFilters && (
-            <span className="w-2 h-2 bg-blue-600 rounded-full" />
+            <span className="w-2 h-2 bg-brand-primary rounded-full" />
           )}
         </button>
       </div>
@@ -235,8 +265,14 @@ export function ExpertList() {
       {/* Active filter chips */}
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
+          {[...selectedCategories].map((v) => (
+            <span key={v} className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+              {v}
+              <button onClick={() => toggleFilter(setSelectedCategories)(v)}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
           {[...selectedDomains].map((v) => (
-            <span key={v} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+            <span key={v} className="px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
               <button onClick={() => toggleFilter(setSelectedDomains)(v)}><X className="w-3 h-3" /></button>
             </span>
@@ -272,15 +308,21 @@ export function ExpertList() {
       {/* Filter panel — checkbox groups */}
       {showFilters && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             <CheckboxGroup
-              title="Domain Expertise"
+              title="Select A category"
+              options={categoryOptions}
+              selected={selectedCategories}
+              onToggle={toggleFilter(setSelectedCategories)}
+            />
+            <CheckboxGroup
+              title="Area of expertise or Specialization"
               options={domainOptions}
               selected={selectedDomains}
               onToggle={toggleFilter(setSelectedDomains)}
             />
             <CheckboxGroup
-              title="Core Technology"
+              title="Required Skills"
               options={techOptions}
               selected={selectedTech}
               onToggle={toggleFilter(setSelectedTech)}
@@ -315,7 +357,7 @@ export function ExpertList() {
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
           <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-500 mb-2">No experts found</h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-base text-gray-400">
             {searchTerm || hasActiveFilters
               ? "Try adjusting your search or filters."
               : "No AI experts are currently available."}
@@ -324,40 +366,82 @@ export function ExpertList() {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((expert) => (
-            <Link
-              to={`/client/experts/${expert.id}`}
+            <div
               key={expert.id}
-              className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg hover:border-purple-200 transition-all"
+              className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-all shadow-sm flex flex-col justify-between"
             >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${
-                    expert.avatar || "from-blue-400 to-purple-500"
-                  } flex items-center justify-center flex-shrink-0`}
-                >
-                  <span className="text-white font-bold text-lg">
-                    {expert.name?.[0] || "?"}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 truncate">
+              <div>
+                {/* ── Top: name + rating badge ── */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
                     {expert.name}
                   </h3>
-                  <p className="text-sm text-gray-600">{expert.specialization}</p>
-                  <div className="flex items-center gap-3 mt-2 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" />
-                      {expert.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-yellow-400" />
-                      {expert.rating}
-                    </span>
-                  </div>
+                  <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold inline-flex items-center gap-1">
+                    <Star className="w-3.5 h-3.5 fill-emerald-500 text-emerald-500" />
+                    {expert.rating}
+                  </span>
                 </div>
-                <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
+
+                {/* ── Title + location ── */}
+                <p className="text-sm text-gray-500 mb-2.5">
+                  {expert.title}
+                  {expert.location ? (
+                    <>
+                      {" · "}
+                      <span className="font-medium text-gray-600">
+                        {expert.location}
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+
+                {/* ── Bio ── */}
+                {expert.bio && (
+                  <p className="text-base text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                    {expert.bio}
+                  </p>
+                )}
+
+                {/* ── Skill tags ── */}
+                {expert.skills?.length > 0 && (
+                  <div className="mb-3">
+                    <SkillTags
+                      skills={expert.skills}
+                      maxVisible={4}
+                    />
+                  </div>
+                )}
+
+                {/* ── Stats ── */}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-sm text-gray-500">
+                    <span className="font-semibold text-gray-900">
+                      {expert.completedProjects}
+                    </span>{" "}
+                    projects
+                  </span>
+                  <span className="text-gray-300">·</span>
+                  <span className="text-sm text-gray-500">
+                    <span className="font-semibold text-gray-900">
+                      ${expert.hourlyRate}
+                    </span>
+                    /hr
+                  </span>
+                </div>
               </div>
-            </Link>
+
+              {/* ── Action ── */}
+              <Button
+                variant="default"
+                size="default"
+                className="w-full mt-auto"
+                asChild
+              >
+                <Link to={`/client/experts/${expert.id}`}>
+                  View Profile
+                </Link>
+              </Button>
+            </div>
           ))}
         </div>
       )}

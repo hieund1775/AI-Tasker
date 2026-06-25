@@ -78,6 +78,26 @@ export function useProjectTimeline(role, projectId) {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen to DB update events to refresh timeline in real-time
+  useEffect(() => {
+    let cancelled = false;
+    const handleDbUpdate = async () => {
+      try {
+        const data = await loadTimeline();
+        if (!cancelled && data) {
+          setProject(data);
+        }
+      } catch (err) {
+        console.error("Silent timeline update failed:", err);
+      }
+    };
+    window.addEventListener("aitasker_db_update", handleDbUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aitasker_db_update", handleDbUpdate);
+    };
+  }, [projectId]);
+
   // ---- Derived values ----
   const tasks = project?.tasks || [];
   const overallProgress = getOverallProgress(tasks);

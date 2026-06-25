@@ -1,5 +1,12 @@
+<<<<<<< HEAD
 ﻿import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
+=======
+import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth.js";
+import api from "../../../services/api.js";
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
 import {
   Send,
   Plus,
@@ -33,7 +40,7 @@ function detectCurrentUser(convId, conversations) {
 // ---------------------------------------------------------------------------
 
 const ATTACH_OPTIONS = [
-  { key: "image", label: "Upload Image", icon: Image, color: "text-blue-500", ext: ".png", mime: "image/png" },
+  { key: "image", label: "Upload Image", icon: Image, color: "text-brand-primary", ext: ".png", mime: "image/png" },
   { key: "file", label: "Upload File", icon: File, color: "text-gray-600", ext: ".pdf", mime: "application/pdf" },
   { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-amber-500", ext: "/", mime: "folder" },
 ];
@@ -62,55 +69,94 @@ export function Messenger() {
   // ---- Sent attachments tracker ----
   const [sentAttachments, setSentAttachments] = useState([]);
 
-  // ---- Session messages state (re-render trigger) ----
-  const [sessionMsgs, setSessionMsgs] = useState([..._sessionMessages]);
+  const { user } = useAuth();
+  const demoUserId = user?.id;
 
-  // ---- Determine demo user ----
-  const rawConversations = [];
-  const allConvIds = new Set(rawConversations.map((c) => c.id));
+  const [allMessages, setAllMessages] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // If activeConvId is not in expert conversations, try client conversations
-  const demoUserId = allConvIds.has(activeConvId)
-    ? detectCurrentUser(activeConvId, rawConversations)
-    : null;
+  // Fetch messages and users
+  const loadMessagesData = async () => {
+    if (!demoUserId) return;
+    try {
+      const [msgs, usersList] = await Promise.all([
+        api.get("/messages"),
+        api.get("/Users")
+      ]);
+      setAllMessages(msgs || []);
+      setAllUsers(usersList || []);
+    } catch (err) {
+      console.error("Failed to load messenger data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // ---- Build conversation list ----
-  const demoConvs = [];
+  useEffect(() => {
+    loadMessagesData();
+    const timer = setInterval(loadMessagesData, 3000);
+    return () => clearInterval(timer);
+  }, [demoUserId]);
 
-  const conversations = demoConvs.map((conv) => {
-    const otherUserId = conv.participants.find((p) => p !== demoUserId);
-    const otherUser = otherUserId ? null : null;
-    const msgs = [];
+  // Construct conversation list from messages
+  useEffect(() => {
+    if (!demoUserId || allUsers.length === 0) return;
 
-    // Merge session messages for this conversation
-    const extraMsgs = _sessionMessages.filter((m) => m.conversationId === conv.id);
+    const groups = {};
+    allMessages.forEach((m) => {
+      if (m.senderId === demoUserId || m.receiverId === demoUserId) {
+        const otherId = m.senderId === demoUserId ? m.receiverId : m.senderId;
+        if (!groups[otherId]) {
+          groups[otherId] = [];
+        }
+        groups[otherId].push(m);
+      }
+    });
 
-    const allMsgs = [...msgs, ...extraMsgs].sort(
-      (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
-    );
+    const list = Object.entries(groups).map(([otherId, msgs]) => {
+      const otherUser = allUsers.find((u) => u.id === otherId);
+      const sortedMsgs = [...msgs].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
+      );
+      const lastMsg = sortedMsgs[sortedMsgs.length - 1];
+      const lastText = lastMsg?.content || lastMsg?.text || "No messages yet";
 
-    const lastMsg = allMsgs.length > 0 ? allMsgs[allMsgs.length - 1] : null;
-    const lastText = lastMsg?.text || (lastMsg?.attachment ? "📎 Attachment" : "No messages yet");
+      return {
+        id: otherId,
+        name: otherUser?.fullName || "User",
+        role: otherUser?.expertProfile?.jobTitle || (otherUser?.role === "expert" ? "Expert" : "Client"),
+        lastMessage: lastText,
+        messages: sortedMsgs.map((m) => ({
+          id: m.id,
+          text: m.content || m.text || "",
+          attachment: m.attachment || null,
+          time: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          isOwn: m.senderId === demoUserId,
+        })),
+      };
+    });
 
-    return {
-      id: conv.id,
-      projectId: conv.projectId,
-      name: otherUser?.fullName || otherUserId || "Unknown",
-      role: otherUser?.profile?.title || otherUser?.role || "",
-      lastMessage: lastText,
-      messages: allMsgs.map((m) => ({
-        id: m.id,
-        text: m.text || "",
-        attachment: m.attachment || null,
-        time: new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        isOwn: m.senderId === demoUserId,
-      })),
-    };
-  });
+    if (activeConvId && !groups[activeConvId]) {
+      const activeUser = allUsers.find((u) => u.id === activeConvId);
+      if (activeUser) {
+        list.push({
+          id: activeConvId,
+          name: activeUser.fullName || "User",
+          role: activeUser.expertProfile?.jobTitle || (activeUser.role === "expert" ? "Expert" : "Client"),
+          lastMessage: "No messages yet",
+          messages: [],
+        });
+      }
+    }
+
+    setConversations(list);
+  }, [allMessages, allUsers, demoUserId, activeConvId]);
 
   const activeConversation = conversations.find((c) => c.id === activeConvId) || null;
 
-  // ---- Debug: log state changes to help diagnose "no input box" issues ----
+  // ---- Debug: log state changes ----
   useEffect(() => {
     console.log(
       "[Messenger] activeConvId:",
@@ -122,11 +168,11 @@ export function Messenger() {
       "| conversations:",
       conversations.length,
       "| activeConversation:",
-      activeConversation?.name || "NONE (empty state)",
+      activeConversation?.name || "NONE"
     );
   }, [activeConvId, targetExpertId, demoUserId, conversations.length, activeConversation]);
 
-  // ---- Scroll to bottom — only when new messages are added, NOT on initial load ----
+  // ---- Scroll to bottom ----
   const messagesContainerRef = useRef(null);
   const prevMessageCountRef = useRef(0);
   const didInitialLoadRef = useRef(false);
@@ -138,19 +184,16 @@ export function Messenger() {
     const currentCount = activeConversation?.messages?.length || 0;
     const prevCount = prevMessageCountRef.current;
 
-    // Only scroll if messages were added AFTER the conversation was already loaded
     if (didInitialLoadRef.current && currentCount > prevCount) {
       container.scrollTop = container.scrollHeight;
     }
 
-    // Mark initial load complete and update count tracker
     if (activeConversation && !didInitialLoadRef.current) {
       didInitialLoadRef.current = true;
     }
     prevMessageCountRef.current = currentCount;
   }, [activeConversation?.messages?.length]);
 
-  // Reset initial-load tracker when conversation changes
   useEffect(() => {
     didInitialLoadRef.current = false;
     prevMessageCountRef.current = 0;
@@ -163,7 +206,6 @@ export function Messenger() {
       setShowPlusMenu(false);
       setShowSentFiles(false);
     };
-    // Small delay to avoid catching the click that opened the menu
     const id = setTimeout(() => document.addEventListener("click", handler), 50);
     return () => {
       clearTimeout(id);
@@ -190,31 +232,27 @@ export function Messenger() {
   };
 
   // ---- Send message ----
-  const handleSend = () => {
+  const handleSend = async () => {
     const hasText = message.trim().length > 0;
     const hasAttachments = pendingAttachments.length > 0;
     if (!hasText && !hasAttachments) return;
     if (!activeConvId) return;
 
-    const newMsg = {
-      id: `session-msg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-      conversationId: activeConvId,
-      senderId: demoUserId,
-      receiverId: activeConversation?.name || "recipient",
-      text: message.trim(),
-      attachment: hasAttachments ? { ...pendingAttachments[0] } : null,
-      createdAt: new Date().toISOString(),
-      isRead: false,
-    };
+    try {
+      const payload = {
+        senderId: demoUserId,
+        receiverId: activeConvId,
+        content: message.trim(),
+        attachment: hasAttachments ? { ...pendingAttachments[0] } : null,
+      };
 
-    _sessionMessages.push(newMsg);
-    if (hasAttachments) {
-      setSentAttachments((prev) => [...prev, ...pendingAttachments.map((a) => ({ ...a, messageId: newMsg.id }))]);
+      await api.post("/messages", payload);
+      setMessage("");
+      setPendingAttachments([]);
+      loadMessagesData();
+    } catch (err) {
+      console.error("Failed to send message:", err);
     }
-
-    setMessage("");
-    setPendingAttachments([]);
-    setSessionMsgs([..._sessionMessages]);
   };
 
   // ---- Handle Enter key ----
@@ -254,12 +292,12 @@ export function Messenger() {
                   onClick={() => navigate(`/messenger/${conv.id}`)}
                   key={conv.id}
                   className={`w-full text-left block p-4 hover:bg-gray-50 border-b border-gray-50 transition-colors ${
-                    conv.id === activeConvId ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+                    conv.id === activeConvId ? "bg-brand-primary-light border-l-2 border-l-brand-primary" : ""
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-blue-700">
+                    <div className="w-10 h-10 bg-brand-primary-light rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-brand-primary">
                         {conv.name?.[0] || "?"}
                       </span>
                     </div>
@@ -295,8 +333,8 @@ export function Messenger() {
               {/* Chat header */}
               <div className="p-4 border-b border-gray-100 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-blue-700">
+                  <div className="w-10 h-10 bg-brand-primary-light rounded-full flex items-center justify-center">
+                    <span className="text-sm font-bold text-brand-primary">
                       {activeConversation.name?.[0] || "?"}
                     </span>
                   </div>
@@ -321,7 +359,7 @@ export function Messenger() {
                     <div
                       className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
                         msg.isOwn
-                          ? "bg-blue-900 text-white rounded-br-md"
+                          ? "bg-brand-primary text-white rounded-br-md"
                           : "bg-gray-100 text-gray-900 rounded-bl-md"
                       }`}
                     >
@@ -329,7 +367,7 @@ export function Messenger() {
                       {msg.attachment && (
                         <div
                           className={`mb-2 p-2 rounded-lg flex items-center gap-2 ${
-                            msg.isOwn ? "bg-blue-800" : "bg-gray-200"
+                            msg.isOwn ? "bg-brand-primary" : "bg-gray-200"
                           }`}
                         >
                           {msg.attachment.type === "image/png" ? (
@@ -343,7 +381,7 @@ export function Messenger() {
                             <p className="text-xs font-medium truncate">
                               {msg.attachment.name}
                             </p>
-                            <p className="text-[10px] opacity-70">
+                            <p className="text-xs opacity-70">
                               {msg.attachment.size}
                             </p>
                           </div>
@@ -356,7 +394,7 @@ export function Messenger() {
 
                       {/* Time */}
                       <p
-                        className={`text-[10px] mt-1.5 ${
+                        className={`text-xs mt-1.5 ${
                           msg.isOwn ? "text-blue-200" : "text-gray-400"
                         }`}
                       >
@@ -378,10 +416,10 @@ export function Messenger() {
                   {pendingAttachments.map((att) => (
                     <div
                       key={att.id}
-                      className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5"
+                      className="inline-flex items-center gap-2 bg-brand-primary-light border border-blue-200 rounded-lg px-3 py-1.5"
                     >
                       {att.type === "image/png" ? (
-                        <Image className="w-4 h-4 text-blue-500" />
+                        <Image className="w-4 h-4 text-brand-primary" />
                       ) : att.type === "folder" ? (
                         <FolderOpen className="w-4 h-4 text-amber-500" />
                       ) : (
@@ -443,7 +481,7 @@ export function Messenger() {
                           }}
                           className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 inline-flex items-center gap-3 transition-colors"
                         >
-                          <Eye className="w-4 h-4 text-green-500" />
+                          <Eye className="w-4 h-4 text-brand-green" />
                           View Sent Attachments
                         </button>
                       </div>
@@ -477,7 +515,7 @@ export function Messenger() {
                                 className="flex items-center gap-2 bg-gray-50 rounded-lg p-2"
                               >
                                 {att.type === "image/png" ? (
-                                  <Image className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                  <Image className="w-4 h-4 text-brand-primary flex-shrink-0" />
                                 ) : att.type === "folder" ? (
                                   <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
                                 ) : (
@@ -487,7 +525,7 @@ export function Messenger() {
                                   <p className="text-xs font-medium text-gray-700 truncate">
                                     {att.name}
                                   </p>
-                                  <p className="text-[10px] text-gray-400">{att.size}</p>
+                                  <p className="text-xs text-gray-400">{att.size}</p>
                                 </div>
                               </div>
                             ))}
@@ -505,7 +543,7 @@ export function Messenger() {
                       onKeyDown={handleKeyDown}
                       placeholder="Type a message... (Enter to send)"
                       rows={1}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none min-h-10 max-h-[120px]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-none min-h-10 max-h-[120px]"
                     />
                   </div>
 
@@ -514,7 +552,7 @@ export function Messenger() {
                     type="button"
                     onClick={handleSend}
                     disabled={!message.trim() && pendingAttachments.length === 0}
-                    className="h-10 w-10 flex items-center justify-center bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    className="h-10 w-10 flex items-center justify-center bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     title="Send message"
                   >
                     <Send className="w-5 h-5" />

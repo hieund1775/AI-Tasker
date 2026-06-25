@@ -70,14 +70,14 @@ export function ProposalCard({
 
             {/* Title */}
             {proposal.expert?.title && (
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-base text-gray-500 mb-2">
                 {proposal.expert.title}
               </p>
             )}
 
             {/* Cover letter / message */}
             {(proposal.coverLetter || proposal.message) && (
-              <p className="text-gray-700 text-sm leading-relaxed mb-3">
+              <p className="text-gray-700 text-base leading-relaxed mb-3">
                 {proposal.coverLetter || proposal.message}
               </p>
             )}
@@ -88,7 +88,7 @@ export function ProposalCard({
                 {proposal.expert.skills.slice(0, 5).map((skill) => (
                   <span
                     key={skill}
-                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
+                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[13px] font-medium"
                   >
                     {skill}
                   </span>
@@ -122,6 +122,7 @@ export function ProposalCard({
             <div className="flex flex-col gap-2 w-full md:w-auto">
               {/* View Proposal button */}
               <Link
+<<<<<<< HEAD
                 to={`/client/proposals/${proposal.id}`}
                 className="px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors w-full"
               >
@@ -165,6 +166,41 @@ export function ProposalCard({
                   Accept
                 </button>
               </div>
+=======
+                to="/messenger"
+                className="min-w-[140px] justify-center h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+                title="Message expert"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Message
+              </Link>
+              <button
+                type="button"
+                onClick={() =>
+                  onDecline(
+                    proposal.id,
+                    proposal.expert?.name,
+                  )
+                }
+                className="min-w-[140px] justify-center h-11 px-5 border border-red-200 text-red-600 rounded-[14px] hover:bg-red-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <XCircle className="w-4 h-4" />
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onAccept(
+                    proposal.id,
+                    proposal.expert?.name,
+                  )
+                }
+                className="min-w-[140px] justify-center h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Accept
+              </button>
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             </div>
           )}
         </div>

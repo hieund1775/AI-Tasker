@@ -1,4 +1,4 @@
-import { getStatusBadgeClass, getStatusLabel } from "../../lib/projectStatusConfig.js";
+import { getStatusBadgeClass, getStatusLabel, getTaskStatusClass, getTaskStatusLabel } from "../../lib/projectStatusConfig.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // =============================================================================
@@ -19,6 +19,10 @@ const ENTITY_CONFIG = {
     getClass: getProposalStatusConfig,
     getLabel: (key) => getProposalStatusConfig(key).label,
   },
+  task: {
+    getClass: getTaskStatusClass,
+    getLabel: getTaskStatusLabel,
+  },
 };
 
 export function StatusBadge({ status, entity = "project", className = "" }) {
@@ -28,7 +32,7 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
     // Fallback for entities not yet mapped
     const label = String(status || "Unknown");
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 ${className}`}>
+      <span className={`px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-700 ${className}`}>
         {label}
       </span>
     );
@@ -47,7 +51,7 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
   }
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass} ${className}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-[13px] font-medium ${badgeClass} ${className}`}>
       {label}
     </span>
   );

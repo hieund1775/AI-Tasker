@@ -15,7 +15,7 @@ export const PROPOSAL_STATUS = {
   },
   accepted: {
     label: "Accepted",
-    className: "bg-green-100 text-green-700",
+    className: "bg-brand-green/10 text-brand-green",
     icon: CheckCircle,
     meaning: "The client accepted this proposal. The expert is now assigned to the project.",
   },
@@ -25,6 +25,12 @@ export const PROPOSAL_STATUS = {
     icon: XCircle,
     meaning: "The client declined this proposal.",
   },
+  rejected: {
+    label: "Rejected",
+    className: "bg-red-100 text-red-700",
+    icon: XCircle,
+    meaning: "The client rejected this proposal.",
+  },
   withdrawn: {
     label: "Withdrawn",
     className: "bg-gray-100 text-gray-600",
@@ -33,23 +39,50 @@ export const PROPOSAL_STATUS = {
   },
   under_review: {
     label: "Under Review",
-    className: "bg-blue-100 text-blue-700",
+    className: "bg-brand-primary-light text-brand-primary",
     icon: AlertCircle,
     meaning: "The client is actively reviewing this proposal.",
+  },
+  pending_escrow: {
+    label: "Pending Payment",
+    className: "bg-amber-100 text-amber-750",
+    icon: Clock,
+    meaning: "The client accepted the proposal, pending escrow payment.",
+  },
+  pending_pay: {
+    label: "Pending Pay",
+    className: "bg-amber-100 text-amber-750",
+    icon: Clock,
+    meaning: "The client accepted the proposal, pending escrow payment.",
+  },
+  report: {
+    label: "Reported",
+    className: "bg-red-105 text-red-700",
+    icon: AlertCircle,
+    meaning: "This proposal/project has been reported.",
+  },
+  reported: {
+    label: "Reported",
+    className: "bg-red-105 text-red-700",
+    icon: AlertCircle,
+    meaning: "This proposal/project has been reported.",
   },
 };
 
 /** Get the full config object for a proposal status key, with fallback. */
 export function getProposalStatusConfig(status) {
-  return PROPOSAL_STATUS[status] || PROPOSAL_STATUS.pending;
+  const key = String(status || "").toLowerCase();
+  return PROPOSAL_STATUS[key] || PROPOSAL_STATUS.pending;
 }
 
 /** Get the display label for a proposal status key. */
 export function getProposalStatusLabel(status) {
-  return PROPOSAL_STATUS[status]?.label || PROPOSAL_STATUS.pending.label;
+  const key = String(status || "").toLowerCase();
+  return PROPOSAL_STATUS[key]?.label || PROPOSAL_STATUS.pending.label;
 }
 
 /** Get the badge CSS class for a proposal status key. */
 export function getProposalStatusClass(status) {
-  return PROPOSAL_STATUS[status]?.className || PROPOSAL_STATUS.pending.className;
+  const key = String(status || "").toLowerCase();
+  return PROPOSAL_STATUS[key]?.className || PROPOSAL_STATUS.pending.className;
 }

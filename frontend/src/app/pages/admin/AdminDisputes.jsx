@@ -24,7 +24,7 @@ import { getReports } from "../../../services/reportService.js";
 
 const REPORT_STATUS_CONFIG = {
   Pending: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
-  Accepted: { color: "bg-blue-100 text-blue-700", label: "Accepted" },
+  Accepted: { color: "bg-brand-primary-light text-brand-primary", label: "Accepted" },
   Rejected: { color: "bg-red-100 text-red-700", label: "Rejected" },
   "Under Review": { color: "bg-purple-100 text-purple-700", label: "Under Review" },
   Resolved: { color: "bg-green-100 text-green-700", label: "Resolved" },
@@ -157,7 +157,7 @@ export function AdminDisputes() {
             placeholder="Search by report name, project..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
@@ -165,7 +165,7 @@ export function AdminDisputes() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -185,7 +185,7 @@ export function AdminDisputes() {
         actions={(row) => (
           <Link
             to={`/admin/disputes/${row.id}`}
-            className="px-3 py-1.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center gap-1.5 transition"
+            className="px-3 py-1.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />
             View Detail

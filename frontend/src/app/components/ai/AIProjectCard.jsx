@@ -4,8 +4,8 @@ export function AIProjectCard() {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
       <div className="flex items-center gap-2 mb-4">
-        <Bot className="w-5 h-5 text-blue-600" />
-        <span className="text-sm font-semibold text-blue-900">AI Project Analysis</span>
+        <Bot className="w-5 h-5 text-brand-primary" />
+        <span className="text-sm font-semibold text-brand-primary">AI Project Analysis</span>
       </div>
 
       <div className="text-center py-8">

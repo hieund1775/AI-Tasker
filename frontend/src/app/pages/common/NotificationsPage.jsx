@@ -1,5 +1,8 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
+import { useAuth } from "../../hooks/useAuth.js";
+import { Button } from "../../components/ui/button.jsx";
+import api from "../../../services/api.js";
 import {
   Bell,
   CheckCheck,
@@ -32,10 +35,10 @@ const typeIcons = {
 
 const typeColors = {
   proposal: "bg-purple-100 text-purple-700",
-  task: "bg-blue-100 text-blue-700",
-  payment: "bg-green-100 text-green-700",
+  task: "bg-brand-primary-light text-brand-primary",
+  payment: "bg-brand-green/10 text-brand-green",
   extension: "bg-orange-100 text-orange-700",
-  message: "bg-indigo-100 text-indigo-700",
+  message: "bg-brand-primary-light text-brand-primary",
   system: "bg-gray-100 text-gray-700",
   dispute: "bg-red-100 text-red-700",
   contract_sent: "bg-blue-100 text-blue-700",
@@ -47,10 +50,12 @@ const typeColors = {
 // ---------------------------------------------------------------------------
 
 export function NotificationsPage() {
+  const { role } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState(null);
 
+<<<<<<< HEAD
   useEffect(() => {
     let cancelled = false;
 
@@ -63,16 +68,37 @@ export function NotificationsPage() {
       } catch {
         // API not available — show empty state
         if (!cancelled) setNotifications([]);
+=======
+  const fetchNotifications = async () => {
+    try {
+      const data = await api.notifications.getList();
+      if (Array.isArray(data)) {
+        data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setNotifications(data);
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
       }
-      if (!cancelled) setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchNotifications();
-    return () => { cancelled = true; };
+
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
+<<<<<<< HEAD
   const handleMarkRead = (id) => {
     // Optimistic update
     setNotifications((prev) =>
@@ -88,6 +114,28 @@ export function NotificationsPage() {
     setTimeout(() => setActionFeedback(null), 3000);
     // Best-effort API call
     api.notifications.markAllRead().catch(() => {});
+=======
+  const handleMarkRead = async (id) => {
+    try {
+      await api.notifications.markRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.notifications.markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setActionFeedback("All notifications marked as read.");
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
   };
 
   if (loading) {
@@ -103,12 +151,26 @@ export function NotificationsPage() {
     );
   }
 
+  const theme = role === "client" ? {
+    unreadBorder: "bg-red-50/40 border-red-200 hover:border-red-300",
+    dot: "bg-red-600",
+    iconColor: "bg-red-100 text-red-700"
+  } : role === "expert" ? {
+    unreadBorder: "bg-brand-green/10 border-brand-green/20 hover:border-brand-green/30",
+    dot: "bg-brand-green",
+    iconColor: "bg-brand-green/10 text-brand-green"
+  } : {
+    unreadBorder: "bg-brand-primary-light/40 border-blue-200 hover:border-blue-300",
+    dot: "bg-brand-primary",
+    iconColor: "bg-brand-primary-light text-brand-primary"
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Notifications</h1>
           <p className="text-gray-600 mt-1">
             {unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
@@ -116,42 +178,43 @@ export function NotificationsPage() {
           </p>
         </div>
         {unreadCount > 0 && (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            size="sm"
+            icon={CheckCheck}
             onClick={handleMarkAllRead}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2"
           >
-            <CheckCheck className="w-4 h-4" /> Mark All as Read
-          </button>
+            Mark All as Read
+          </Button>
         )}
       </div>
 
       {/* Feedback */}
       {actionFeedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="mb-4 p-3 bg-brand-green/10 border border-brand-green/20 rounded-lg text-sm text-brand-green">
           {actionFeedback}
         </div>
       )}
 
       {/* Notification list */}
       {notifications.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm">
           <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">No notifications</h3>
+          <h3 className="text-lg font-medium text-gray-500 mb-2">No notifications</h3>
           <p className="text-sm text-gray-400">You&apos;re all caught up!</p>
         </div>
       ) : (
         <div className="space-y-2">
           {notifications.map((notif) => {
             const Icon = typeIcons[notif.type] || Bell;
-            const colorClass = typeColors[notif.type] || "bg-gray-100 text-gray-700";
+            const colorClass = notif.isRead ? "bg-gray-100 text-gray-700" : theme.iconColor;
 
             const content = (
               <div
-                className={`flex items-start gap-4 p-5 rounded-xl border transition cursor-pointer ${
+                className={`flex items-start gap-4 p-5 rounded-2xl border transition cursor-pointer ${
                   notif.isRead
                     ? "bg-white border-gray-200 hover:border-gray-300"
-                    : "bg-blue-50/40 border-blue-200 hover:border-blue-300"
+                    : theme.unreadBorder
                 }`}
                 onClick={() => !notif.isRead && handleMarkRead(notif.id)}
               >
@@ -166,7 +229,7 @@ export function NotificationsPage() {
                     <h3 className={`text-sm ${notif.isRead ? "font-medium text-gray-700" : "font-semibold text-gray-900"}`}>
                       {notif.title}
                       {!notif.isRead && (
-                        <span className="inline-block w-2 h-2 bg-blue-600 rounded-full ml-2 align-middle" />
+                        <span className={`inline-block w-2 h-2 ${theme.dot} rounded-full ml-2 align-middle`} />
                       )}
                     </h3>
                     <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
@@ -175,17 +238,24 @@ export function NotificationsPage() {
                     </span>
                   </div>
                   <p className={`text-sm mt-1 ${notif.isRead ? "text-gray-500" : "text-gray-700"}`}>
-                    {notif.description || notif.message}
+                    {notif.message || notif.description}
                   </p>
                 </div>
               </div>
             );
 
+<<<<<<< HEAD
             // Wrap in Link if there's a targetUrl or actionUrl, otherwise plain div
             const linkUrl = notif.targetUrl || notif.actionUrl;
             if (linkUrl) {
               return (
                 <Link key={notif.id} to={linkUrl} className="block">
+=======
+            const redirectUrl = notif.linkTo || notif.actionUrl;
+            if (redirectUrl) {
+              return (
+                <Link key={notif.id} to={redirectUrl} className="block">
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                   {content}
                 </Link>
               );

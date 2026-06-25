@@ -54,7 +54,7 @@ import {
 
 const REPORT_STATUS_CONFIG = {
   Pending: { color: "bg-yellow-100 text-yellow-700", label: "Pending" },
-  Accepted: { color: "bg-blue-100 text-blue-700", label: "Accepted" },
+  Accepted: { color: "bg-brand-primary-light text-brand-primary", label: "Accepted" },
   Rejected: { color: "bg-red-100 text-red-700", label: "Rejected" },
   "Under Review": { color: "bg-purple-100 text-purple-700", label: "Under Review" },
   Resolved: { color: "bg-green-100 text-green-700", label: "Resolved" },
@@ -359,7 +359,7 @@ export function AdminReportDetail() {
               <DetailItem
                 label="Funds in Escrow"
                 value={
-                  <span className="font-semibold text-blue-700">
+                  <span className="font-semibold text-brand-primary">
                     <MoneyDisplay
                       amount={report.amount || report.escrowAmount || 0}
                     />
@@ -392,8 +392,8 @@ export function AdminReportDetail() {
           {/* Client & Expert info */}
           <SectionCard title="Parties Involved" icon={User}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                <p className="text-xs font-semibold text-blue-700 uppercase mb-1">
+              <div className="p-3 bg-brand-primary-light rounded-lg border border-brand-primary/20">
+                <p className="text-xs font-semibold text-brand-primary uppercase mb-1">
                   Client
                 </p>
                 <p className="text-sm font-medium">
@@ -474,7 +474,7 @@ export function AdminReportDetail() {
                         href={item.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-shrink-0 p-1.5 text-blue-600 hover:text-blue-800 transition"
+                        className="flex-shrink-0 p-1.5 text-brand-primary hover:text-brand-primary-hover transition"
                         title="Download"
                       >
                         <Download className="w-4 h-4" />
@@ -501,7 +501,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowAcceptModal(true)}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -514,7 +514,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowRejectModal(true)}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -533,7 +533,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={handleCreateChat}
                   disabled={actionLoading}
-                  className="w-full px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                  className="w-full h-11 px-5 bg-purple-600 text-white rounded-[14px] hover:bg-purple-700 disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -551,7 +551,7 @@ export function AdminReportDetail() {
                     type="button"
                     onClick={() => setShowContinueModal(true)}
                     disabled={actionLoading}
-                    className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition mb-2"
+                    className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mb-2"
                   >
                     <Play className="w-4 h-4" />
                     Continue Project
@@ -560,7 +560,7 @@ export function AdminReportDetail() {
                     type="button"
                     onClick={() => setShowStopModal(true)}
                     disabled={actionLoading}
-                    className="w-full px-4 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium inline-flex items-center justify-center gap-2 transition"
+                    className="w-full h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition"
                   >
                     <StopCircle className="w-4 h-4" />
                     Stop Project

@@ -79,7 +79,7 @@ export function AdminDashboard() {
       label: "Total Users",
       value: loadingStats ? <SkeletonValue /> : stats.totalUsers,
       icon: Users,
-      color: "text-blue-600 bg-blue-100",
+      color: "text-brand-primary bg-brand-primary-light",
       link: "/admin/users",
     },
     {
@@ -147,7 +147,7 @@ export function AdminDashboard() {
       </div>
 
       {/* API note */}
-      <div className="p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
+      <div className="p-4 bg-brand-primary-light border border-brand-primary/20 rounded-xl text-sm text-brand-primary">
         <strong>Note:</strong> Statistics will update when backend APIs are complete.
         Currently displaying data from available APIs.
       </div>

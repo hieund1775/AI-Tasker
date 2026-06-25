@@ -14,9 +14,9 @@ export function AIChatbox() {
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col h-full">
-      <div className="p-4 bg-blue-50 border-b border-blue-100 flex items-center gap-2 shrink-0">
-        <Bot className="w-5 h-5 text-blue-600" />
-        <span className="font-semibold text-blue-900">AI Assistant</span>
+      <div className="p-4 bg-brand-primary-light border-b border-brand-primary/20 flex items-center gap-2 shrink-0">
+        <Bot className="w-5 h-5 text-brand-primary" />
+        <span className="font-semibold text-brand-primary">AI Assistant</span>
       </div>
 
       <div className="p-4 flex-1 overflow-y-auto space-y-3">
@@ -28,7 +28,7 @@ export function AIChatbox() {
         ) : (
           messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.isUser ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] px-4 py-2 rounded-xl ${msg.isUser ? "bg-blue-900 text-white" : "bg-gray-100 text-gray-900"}`}>
+              <div className={`max-w-[80%] px-4 py-2 rounded-xl ${msg.isUser ? "bg-brand-primary text-white" : "bg-gray-100 text-gray-900"}`}>
                 <p className="text-sm">{msg.text}</p>
               </div>
             </div>
@@ -43,9 +43,9 @@ export function AIChatbox() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") handleSend(); }}
           placeholder="Type a message..."
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
         />
-        <button onClick={handleSend} className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800">
+        <button onClick={handleSend} className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover">
           <Send className="w-4 h-4" />
         </button>
       </div>
