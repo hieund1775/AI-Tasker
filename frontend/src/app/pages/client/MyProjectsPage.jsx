@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   Briefcase,
   PlusCircle,
@@ -8,68 +8,113 @@ import {
   Tag,
   FileText,
   Users,
-  ArrowRight,
+  ArrowLeft,
+  X,
+  MessageSquare,
+  File,
+  Image,
+  FolderOpen,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { toast } from "sonner";
 import api from "../../../services/api.js";
 
-import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getClientButtonConfig } from "../../lib/projectTimelineStore.js";
+import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass } from "../../lib/projectTimelineStore.js";
 
-// ---------------------------------------------------------------------------
-// Status-specific helper: what button label + route for a status key
-// ---------------------------------------------------------------------------
-function getActionInfo(statusKey, projectId, proposalCount) {
-  // Projects that are reviewing proposals → show "Review Proposals" button
-  // that goes to the proposal review page (if there are proposals)
-  if (statusKey === "reviewing_proposals" && proposalCount > 0) {
-    return {
-      label: `Review Proposals (${proposalCount})`,
-      to: `/client/projects/${projectId}/proposals`,
-      variant: "primary", // dark bg
-    };
+function renderStructuredTasks(tasks) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
   }
-  // Projects that are in_progress, waiting_review, or needs_revision
-  // → show "Manage Project" that goes to project detail
-  if (
-    statusKey === "in_progress" ||
-    statusKey === "waiting_review" ||
-    statusKey === "needs_revision"
-  ) {
-    return {
-      label: "Manage Project",
-      to: `/client/projects/${projectId}`,
-      variant: "primary",
-    };
-  }
-  // Completed
-  if (statusKey === "completed") {
-    return {
-      label: "View Summary",
-      to: `/client/projects/${projectId}`,
-      variant: "outline",
-    };
-  }
-  // Fallback (cancelled, unknown)
-  return {
-    label: "View Details",
-    to: `/client/projects/${projectId}`,
-    variant: "outline",
-  };
+  return (
+    <div className="space-y-4 mt-3">
+      {tasks.map((task, idx) => (
+        <div key={task.id || idx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-2.5 text-sm text-left">
+          <div className="flex justify-between items-start flex-wrap gap-2">
+            <div>
+              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
+                {task.useCaseTitle || `Use Case #${task.useCaseIndex + 1}`}
+              </span>
+              <h4 className="font-bold text-gray-900 text-sm mt-1.5">{task.title || "Không có tiêu đề"}</h4>
+            </div>
+            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-100 rounded-lg shadow-sm">
+              <span className="font-semibold text-brand-primary">{task.durationDays} ngày</span>
+              <span className="mx-1.5 text-gray-300">|</span>
+              <span className="font-bold text-gray-900">${task.amount}</span>
+            </div>
+          </div>
+          {task.miniTasks && task.miniTasks.length > 0 && (
+            <div className="pt-2 border-t border-gray-100 space-y-1.5">
+              <span className="text-[10px] font-bold text-gray-405 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
+              <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
+                {task.miniTasks.map((mt, mtIdx) => (
+                  <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 export function MyProjectsList() {
-  const location = useLocation();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [projects, setProjects] = useState([]);
   const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Sub-view page states: "list" | "details" | "proposals"
+  const [view, setView] = useState("list");
+  const [selectedProject, setSelectedProject] = useState(null);
+
+  // Proposal states for proposals sub-view
+  const [proposal, setProposal] = useState(null);
+  const [proposalsList, setProposalsList] = useState([]);
+  const [viewedProposal, setViewedProposal] = useState(null);
+  const [propLoading, setPropLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showEscrowConfirm, setShowEscrowConfirm] = useState(false);
+
+  const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
+
+  async function loadProjects() {
+    if (!user?.id) return;
+    try {
+      setLoading(true);
+      const userRes = await api.users.getById(user.id);
+      
+      const rawProjects = userRes?.jobPosts || [];
+      const projectsWithCounts = await Promise.all(
+        rawProjects.map(async (project) => {
+          try {
+            const proposals = await api.proposals.getByJob(project.id);
+            return {
+              ...project,
+              proposalCount: proposals.length,
+            };
+          } catch {
+            return { ...project, proposalCount: 0 };
+          }
+        })
+      );
+      
+      setProjects(projectsWithCounts);
+    } catch (err) {
+      console.error("Failed to load client projects:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const [dbUpdateVersion, setDbUpdateVersion] = useState(0);
+
   useEffect(() => {
+<<<<<<< Updated upstream
     async function loadProjects() {
       if (!user?.id) return;
       try {
@@ -84,10 +129,687 @@ export function MyProjectsList() {
         console.error("Failed to load client projects:", err);
       } finally {
         setLoading(false);
+=======
+    loadProjects();
+
+    const handleUpdate = () => {
+      loadProjects();
+      setDbUpdateVersion((prev) => prev + 1);
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
+  }, [user?.id]);
+
+  // Keep selectedProject in sync when projects updates
+  useEffect(() => {
+    if (selectedProject && projects.length > 0) {
+      const updated = projects.find((p) => p.id === selectedProject.id);
+      if (updated) {
+        setSelectedProject(updated);
+>>>>>>> Stashed changes
       }
     }
-    loadProjects();
-  }, [user?.id]);
+  }, [projects]);
+
+  // Handle deep-linking from notifications
+  useEffect(() => {
+    if (projects.length === 0) return;
+    const params = new URLSearchParams(location.search);
+    const pId = params.get("projectId");
+    const vType = params.get("view");
+    if (pId && vType) {
+      const proj = projects.find((p) => String(p.id) === String(pId));
+      if (proj) {
+        setSelectedProject(proj);
+        setView(vType);
+      }
+    }
+  }, [projects, location.search]);
+
+  // Check for successful invite parameter
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("inviteSuccess") === "true") {
+      setShowInviteSuccessBanner(true);
+    } else {
+      setShowInviteSuccessBanner(false);
+    }
+  }, [location.search]);
+
+  // Load a single connected proposal when switching to proposals view
+  useEffect(() => {
+    if (view !== "proposals" || !selectedProject?.id) {
+      setProposal(null);
+      setProposalsList([]);
+      setViewedProposal(null);
+      return;
+    }
+    let cancelled = false;
+
+    async function fetchProposals() {
+      setPropLoading(true);
+      try {
+        const list = await api.proposals.getByJob(selectedProject.id);
+        const submittedList = list.filter(p => p.isSubmitted !== false);
+        if (submittedList.length === 0) {
+          if (!cancelled) {
+            setProposal(null);
+            setProposalsList([]);
+          }
+          return;
+        }
+
+        const enrichedList = await Promise.all(
+          submittedList.map(async (targetProp) => {
+            let expUser = null;
+            try {
+              expUser = await api.users.getById(targetProp.expertId);
+            } catch (err) {
+              console.error("Failed to load expert info:", err);
+            }
+
+            let parsed = {};
+            try {
+              parsed = JSON.parse(targetProp.coverLetter);
+            } catch (e) {
+              parsed = {
+                coverLetter: targetProp.coverLetter,
+                professionalIntro: targetProp.coverLetter,
+              };
+            }
+
+            return {
+              ...targetProp,
+              proposalTitle: parsed.proposalTitle || "Proposal",
+              coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
+              technicalApproach: parsed.technicalApproach || "",
+              timelineMilestones: parsed.timelineMilestones || "",
+              dependencies: parsed.dependencies || "",
+              durationDays: parsed.durationDays || targetProp.estimatedDays || 0,
+              expertName: expUser?.fullName || "AI Expert",
+              expertTitle: expUser?.expertProfile?.jobTitle || "AI Expert",
+              tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+              attachments: Array.isArray(parsed.attachments) ? parsed.attachments : [],
+            };
+          })
+        );
+
+        if (!cancelled) {
+          const accepted = enrichedList.find(p => ["accepted", "pending_escrow", "pending_pay", "in_progress", "completed", "active"].includes(p.status?.toLowerCase()));
+          if (accepted) {
+            setProposal(accepted);
+          } else {
+            setProposal(null);
+          }
+          setProposalsList(enrichedList);
+        }
+      } catch (err) {
+        console.error("Failed to fetch proposals:", err);
+      } finally {
+        if (!cancelled) setPropLoading(false);
+      }
+    }
+
+    fetchProposals();
+    return () => { cancelled = true; };
+  }, [view, selectedProject?.id, dbUpdateVersion]);
+
+  const handleUpdateStatus = async (proposalId, status) => {
+    setActionLoading(true);
+    try {
+      await api.proposals.updateStatus(proposalId, status);
+      toast.success(`Proposal has been successfully ${status.toLowerCase()}!`);
+      
+      setProposal((prev) => prev ? { ...prev, status: status } : null);
+      
+      // Reload projects to update counts and statuses
+      await loadProjects();
+    } catch (err) {
+      toast.error(err.message || "Failed to update proposal status.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeclineProposal = async (proposalId) => {
+    setActionLoading(true);
+    try {
+      await api.proposals.delete(proposalId);
+      toast.success("Proposal has been declined and deleted successfully!");
+      if (viewedProposal?.id === proposalId) {
+        setViewedProposal(null);
+      }
+      await loadProjects();
+      setDbUpdateVersion(prev => prev + 1);
+    } catch (err) {
+      toast.error(err.message || "Failed to decline proposal.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAcceptProposal = async (p) => {
+    setActionLoading(true);
+    try {
+      // Update project status to "pending_pay"
+      await api.jobPosts.update(selectedProject.id, { status: "pending_pay" });
+      // Update proposal status to "pending_pay"
+      await api.proposals.updateStatus(p.id, "pending_pay");
+      
+      toast.success("Proposal has been accepted successfully!");
+      setViewedProposal(null);
+      setShowEscrowConfirm(false);
+      await loadProjects();
+      setDbUpdateVersion(prev => prev + 1);
+    } catch (err) {
+      toast.error(err.message || "Failed to accept proposal.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const getProposalStatusBadgeClass = (status) => {
+    const s = status?.toLowerCase();
+    if (s === "accepted") return "bg-green-50 text-green-700 border-green-200 border";
+    if (s === "declined") return "bg-red-50 text-red-700 border-red-200 border";
+    if (s === "under_review" || s === "under review") return "bg-brand-primary-light text-brand-primary border-blue-200 border";
+    if (s === "pending_escrow" || s === "pending escrow" || s === "pending_pay" || s === "pending pay") return "bg-amber-50 text-amber-700 border-amber-200 border";
+    return "bg-yellow-50 text-yellow-700 border-yellow-200 border";
+  };
+
+  const handleBackToList = () => {
+    setView("list");
+    setSelectedProject(null);
+    setProposal(null);
+    setProposalsList([]);
+    setViewedProposal(null);
+    setShowEscrowConfirm(false);
+    navigate("/client/my-projects", { replace: true });
+  };
+
+  // =========================================================================
+  // VIEW: DETAILS
+  // =========================================================================
+  if (view === "details" && selectedProject) {
+    const skills = selectedProject.jobPostSkills?.map((s) => s.skill?.name) || selectedProject.requiredSkills || [];
+    const deadlineText = (() => {
+      if (!selectedProject.deadline) return "N/A";
+      const num = Number(selectedProject.deadline);
+      if (!isNaN(num) && num < 1000) return `${num} days`;
+      try {
+        return new Date(selectedProject.deadline).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return String(selectedProject.deadline);
+      }
+    })();
+
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back Button */}
+        <button
+          onClick={handleBackToList}
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to My Projects
+        </button>
+
+        {showInviteSuccessBanner && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+            <span className="font-semibold text-sm">bạn đã thêm chuyên gia mới thành công</span>
+            <button
+              onClick={() => setShowInviteSuccessBanner(false)}
+              className="text-green-650 hover:text-green-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden p-8 space-y-6">
+          <div className="flex items-start justify-between flex-wrap gap-4 border-b border-gray-100 pb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">{selectedProject.title}</h1>
+              <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary">
+                Status: {selectedProject.status}
+              </span>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Description</h4>
+            <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap">{selectedProject.description}</p>
+          </div>
+
+          {selectedProject.useCases && selectedProject.useCases.length > 0 && (
+            <div className="border-t border-gray-100 pt-6">
+              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Project Use Cases</h4>
+              <div className="space-y-3">
+                {selectedProject.useCases.map((uc, i) => (
+                  <div key={i} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-sm text-left">
+                    <p className="font-bold text-gray-900">
+                      Use Case #{i + 1}: <span className="font-semibold text-gray-750">{uc.nameAndDeadline}</span>
+                    </p>
+                    {uc.durationValue && (
+                      <p className="text-xs text-brand-primary font-semibold pl-3">
+                        Timeline gốc: {uc.durationValue} {uc.durationUnit === "days" ? "ngày" : uc.durationUnit === "weeks" ? "tuần" : uc.durationUnit === "months" ? "tháng" : uc.durationUnit === "years" ? "năm" : uc.durationUnit}
+                      </p>
+                    )}
+                    <p className="text-gray-600 leading-relaxed pl-3 border-l-2 border-slate-350">
+                      {uc.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Category</h4>
+              <p className="text-base text-gray-900 font-medium">{selectedProject.aiCategoryDomain?.name || selectedProject.category || "N/A"}</p>
+            </div>
+            {selectedProject.specialization && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Specialization / Area of expertise</h4>
+                <p className="text-base text-gray-900 font-medium">{selectedProject.specialization}</p>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Required Skills</h4>
+            {skills.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {skills.map((skill) => (
+                  <span key={skill} className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium">
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No required skills listed.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border-t border-gray-100 pt-6">
+            <div>
+              <h4 className="text-sm text-gray-400 mb-0.5">Budget</h4>
+              <p className="font-semibold text-gray-900"><MoneyDisplay amount={selectedProject.budget} /></p>
+            </div>
+            <div>
+              <h4 className="text-sm text-gray-400 mb-0.5">Timeline gốc</h4>
+              <p className="font-semibold text-gray-900">
+                {selectedProject.originalUseCaseDays || selectedProject.deadline || "—"} ngày
+              </p>
+            </div>
+            <div>
+              <h4 className="text-sm text-gray-400 mb-0.5">Deadline</h4>
+              <p className="font-semibold text-gray-900">{deadlineText}</p>
+            </div>
+            <div>
+              <h4 className="text-sm text-gray-400 mb-0.5">Posted On</h4>
+              <p className="font-semibold text-gray-900">
+                {selectedProject.createdAt ? new Date(selectedProject.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-6">
+            <h4 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Expert</h4>
+            <p className="text-base text-gray-900 font-semibold">{selectedProject.assignedExpert ? selectedProject.assignedExpert.fullName : ""}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW: PROPOSALS
+  // =========================================================================
+  if (view === "proposals" && selectedProject) {
+    const isAcceptedView = !!proposal;
+
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back Button */}
+        <button
+          onClick={handleBackToList}
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to My Projects
+        </button>
+
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden p-8">
+          <div className="border-b border-gray-100 pb-4 mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isAcceptedView 
+                ? `Proposal connected to: ${selectedProject.title}`
+                : `Proposals list for: ${selectedProject.title}`
+              }
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {isAcceptedView
+                ? "Reviewing the single expert connection for this project"
+                : "Select an expert's proposal to review and accept/decline"
+              }
+            </p>
+          </div>
+
+          {propLoading ? (
+            <div className="py-12 text-center text-gray-500 animate-pulse font-medium">
+              Loading proposals information...
+            </div>
+          ) : isAcceptedView ? (
+            <div className="space-y-6">
+              {/* Proposal Header Card */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-100 pb-6 gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{proposal.proposalTitle}</h3>
+                  <p className="text-base text-gray-600 mt-1">
+                    Expert: <span className="font-semibold text-gray-700">{proposal.expertName}</span>
+                  </p>
+                  <p className="text-sm text-gray-400">{proposal.expertTitle}</p>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-1.5">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getProposalStatusBadgeClass(proposal.status)}`}>
+                    {proposal.status === "pending_escrow" || proposal.status === "pending escrow" || proposal.status === "pending_pay" || proposal.status === "pending pay" ? "Pending Payment" : proposal.status}
+                  </span>
+                  <p className="text-xs text-gray-400">
+                    Submitted {proposal.createdAt ? new Date(proposal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick stats row */}
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <div>
+                  <p className="text-sm text-gray-500 mb-0.5 font-medium">Bid Amount</p>
+                  <p className="font-semibold text-gray-900"><MoneyDisplay amount={proposal.bidAmount} /></p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-0.5 font-medium">Estimated Duration</p>
+                  <p className="font-semibold text-gray-900">{proposal.durationDays} days</p>
+                </div>
+              </div>
+
+              {/* Sections */}
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Professional Introduction</h4>
+                  <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap">
+                    {proposal.coverLetter || "No introduction provided."}
+                  </p>
+                </div>
+
+                {proposal.technicalApproach && (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Technical Approach & Methodology</h4>
+                    <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap">
+                      {proposal.technicalApproach}
+                    </p>
+                  </div>
+                )}
+
+                {(proposal.tasks && proposal.tasks.length > 0) ? (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Nhiệm vụ chi tiết (Tasks & Milestones)</h4>
+                    {renderStructuredTasks(proposal.tasks)}
+                  </div>
+                ) : proposal.timelineMilestones ? (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Timeline & Milestones</h4>
+                    <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap font-sans">
+                      {proposal.timelineMilestones}
+                    </p>
+                  </div>
+                ) : null}
+
+                {proposal.dependencies && (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Dependencies & Requirements</h4>
+                    <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap">
+                      {proposal.dependencies}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Escrow payment direct button for single accepted proposal */}
+              {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
+                <div className="bg-white border border-gray-250 rounded-xl p-6 space-y-4 shadow-sm text-left">
+                  <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Hình thức ký quỹ (Escrow Setup)</h3>
+                  
+                  <div className="flex items-start gap-2.5 pt-2">
+                    <input
+                      type="checkbox"
+                      id="agreeEscrowSingle"
+                      defaultChecked={true}
+                      className="mt-1 w-4 h-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/50"
+                    />
+                    <label htmlFor="agreeEscrowSingle" className="text-sm text-gray-700 font-medium">
+                      Ký xác nhận rằng bạn có muốn ký quỹ số tiền <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> để thực hiện dự án này.
+                    </label>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const checked = document.getElementById("agreeEscrowSingle")?.checked;
+                      if (!checked) {
+                        toast.error("Vui lòng tích chọn ký xác nhận trước khi tiếp tục!");
+                        return;
+                      }
+                      navigate("/client/billing", {
+                        state: {
+                          escrowRedirect: true,
+                          projectId: selectedProject.id,
+                          projectTitle: selectedProject.title,
+                          amount: proposal.bidAmount,
+                          proposalId: proposal.id
+                        }
+                      });
+                    }}
+                    className="h-11 px-5 bg-brand-primary text-white rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
+                  >
+                    Xác nhận ký quỹ
+                  </button>
+                </div>
+              )}
+              
+              {proposal.status?.toLowerCase() === "accepted" && (
+                <div className="pt-6 border-t border-gray-100 flex items-center justify-end">
+                  <Link
+                    to="/messenger"
+                    className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" /> Contact Expert
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : proposalsList.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 italic font-medium">
+              Chưa có proposal nào được gửi cho dự án này.
+            </div>
+          ) : viewedProposal === null ? (
+            /* Proposals list view */
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-450 uppercase tracking-wider mb-2 text-left">
+                Submitted Proposals ({proposalsList.length})
+              </h3>
+              <div className="space-y-3">
+                {proposalsList.map((p) => {
+                  const diffTime = Math.abs(Date.now() - new Date(p.createdAt).getTime());
+                  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                  const isNearExpired = diffDays >= 6 && diffDays < 7 && ["pending", "under_review", "pending_pay", "pending_escrow"].includes(p.status?.toLowerCase());
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-5 rounded-2xl border bg-white border-gray-200 hover:border-gray-300 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                    >
+                      <div className="text-left">
+                        <h4 className="font-bold text-gray-900 text-base">Tên expert: {p.expertName} - {p.expertTitle}</h4>
+                        <p className="text-sm text-gray-450 font-medium mt-0.5">Gửi lúc: {new Date(p.createdAt).toLocaleString("vi-VN")}</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          Giá thầu: <span className="font-bold text-brand-primary"><MoneyDisplay amount={p.bidAmount} /></span> · Hạn chót: <span className="font-semibold text-gray-900">{p.durationDays} ngày</span>
+                        </p>
+                        {isNearExpired && (
+                          <div className="mt-2.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 inline-flex items-center gap-1.5 animate-pulse">
+                            ⚠️ Đề xuất này sắp quá hạn 7 ngày phản hồi và sẽ bị tự động từ chối vào ngày mai!
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setViewedProposal(p);
+                            setShowEscrowConfirm(false);
+                          }}
+                          className="h-11 px-4 bg-brand-primary hover:bg-brand-primary-hover text-white text-sm font-semibold rounded-xl transition-colors border border-brand-primary"
+                        >
+                          View Proposal
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* Proposal Details page (swapped flow, replaces the list view) */
+            <div className="space-y-6 text-left">
+              <button
+                onClick={() => {
+                  setViewedProposal(null);
+                  setShowEscrowConfirm(false);
+                }}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 mb-2 transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back to proposals list
+              </button>
+
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-100 pb-6 gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">{viewedProposal.proposalTitle}</h3>
+                  <p className="text-base text-gray-600 mt-1">
+                    Expert: <span className="font-semibold text-gray-700">{viewedProposal.expertName}</span>
+                  </p>
+                  <p className="text-sm text-gray-400">{viewedProposal.expertTitle}</p>
+                </div>
+                <div className="flex flex-col items-start md:items-end gap-1.5">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getProposalStatusBadgeClass(viewedProposal.status)}`}>
+                    {viewedProposal.status}
+                  </span>
+                  <p className="text-xs text-gray-400">
+                    Submitted {viewedProposal.createdAt ? new Date(viewedProposal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quick stats row */}
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <div>
+                  <p className="text-sm text-gray-500 mb-0.5 font-medium">Bid Amount</p>
+                  <p className="font-semibold text-gray-900"><MoneyDisplay amount={viewedProposal.bidAmount} /></p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500 mb-0.5 font-medium">Estimated Duration</p>
+                  <p className="font-semibold text-gray-900">{viewedProposal.durationDays} days</p>
+                </div>
+              </div>
+
+              {/* Sections */}
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Professional Introduction</h4>
+                  <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap">
+                    {viewedProposal.coverLetter || "No introduction provided."}
+                  </p>
+                </div>
+
+                {(viewedProposal.tasks && viewedProposal.tasks.length > 0) ? (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Nhiệm vụ chi tiết (Tasks & Milestones)</h4>
+                    {renderStructuredTasks(viewedProposal.tasks)}
+                  </div>
+                ) : viewedProposal.timelineMilestones ? (
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Timeline & Milestones</h4>
+                    <p className="text-base text-gray-700 leading-relaxed mt-2 whitespace-pre-wrap font-sans">
+                      {viewedProposal.timelineMilestones}
+                    </p>
+                  </div>
+                ) : null}
+
+                <div>
+                  <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Portfolio & Attachments</h4>
+                  {(!viewedProposal.attachments || viewedProposal.attachments.length === 0) ? (
+                    <p className="text-sm text-gray-400 mt-2">None</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      {viewedProposal.attachments.map((att, idx) => (
+                        <div key={att.id || idx} className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
+                          {att.type === "image/png" || att.fileType === "image/png" ? (
+                            <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
+                          ) : att.type === "folder" ? (
+                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                          ) : (
+                            <File className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                          )}
+                          <div className="min-w-0 text-left">
+                            <p className="text-sm font-medium text-gray-700 truncate font-sans">{att.name || att.fileName || "Attachment"}</p>
+                            <p className="text-xs text-gray-400 font-sans">{att.type || att.fileType || "file"}{att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="pt-6 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleDeclineProposal(viewedProposal.id)}
+                  className="h-11 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[15px] font-semibold transition-all"
+                >
+                  Decline Proposal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAcceptProposal(viewedProposal)}
+                  className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl text-[15px] font-semibold transition-all"
+                >
+                  Accept Proposal
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW: LIST
+  // =========================================================================
+  const filteredProjects = projects.filter((project) => {
+    const proposalCount = project.proposalCount || 0;
+    const statusKey = deriveProjectStatusKey(project, { proposalCount });
+    const s = project.status?.toLowerCase() || "";
+    const isActive = (statusKey === "in_progress" || s === "in_progress" || s === "in progress" || s === "active" || s === "hired" || s === "closed") && s !== "open";
+    return !isActive;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -98,30 +820,35 @@ export function MyProjectsList() {
         </div>
         <Link
           to="/client/post-project"
-          className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
+          className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
         >
           <PlusCircle className="w-4 h-4" /> Post New Project
         </Link>
       </div>
 
-      {projects.length === 0 ? (
+      {loading ? (
+        <div className="py-12 text-center text-gray-500 animate-pulse">
+          Loading projects...
+        </div>
+      ) : filteredProjects.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
           <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-500 mb-2">
             No projects yet
           </h3>
-          <p className="text-sm text-gray-400 mb-4">
+          <p className="text-base text-gray-400 mb-4">
             Post your first project to find the right AI expert.
           </p>
           <Link
             to="/client/post-project"
-            className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
+            className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium"
           >
             Post a Project
           </Link>
         </div>
       ) : (
         <div className="space-y-4">
+<<<<<<< Updated upstream
           {projects.map((project) => {
             const proposalCount = 0;
 
@@ -130,14 +857,22 @@ export function MyProjectsList() {
             const chosenExpertId = chosenExpertsMapping[project.id];
             const assignedExpert = chosenExpertId ? (experts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
 
+=======
+          {filteredProjects.map((project) => {
+            const proposalCount = project.proposalCount || 0;
+>>>>>>> Stashed changes
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
             const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
             const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
 
             const progress = getProjectProgress(project.id);
             const category = project.aiCategoryDomain;
+<<<<<<< Updated upstream
             const action = getActionInfo(statusKey, project.id, proposalCount);
 
+=======
+            
+>>>>>>> Stashed changes
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
@@ -160,7 +895,7 @@ export function MyProjectsList() {
                 className="bg-white rounded-xl border border-gray-200 p-6 hover:border-gray-300 transition-colors"
               >
                 {/* ── Top row: title + status badge ── */}
-                <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className="font-semibold text-gray-900 text-lg leading-snug">
                     {project.title}
                   </h3>
@@ -171,64 +906,42 @@ export function MyProjectsList() {
                   </span>
                 </div>
 
-                {/* ── Description ── */}
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2 leading-relaxed">
-                  {project.description}
-                </p>
-
-                {/* ── Meta row: category, posted date ── */}
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
-                  {category && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-                      <Tag className="w-3.5 h-3.5" />
-                      {category.name}
-                    </span>
-                  )}
-                  {project.createdAt && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-                      <Calendar className="w-3.5 h-3.5" />
-                      Posted{" "}
-                      {new Date(project.createdAt).toLocaleDateString("en-US", {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-                    <DollarSign className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="font-semibold text-gray-900">
-                      <MoneyDisplay amount={project.budget} />
-                    </span>
-                  </span>
+                {/* ── Simplified info ── */}
+                <div className="space-y-1 text-base text-gray-600 mb-6">
+                  <p className="font-medium text-brand-primary">
+                    {project.aiCategoryDomain?.name || project.category || "Artificial Intelligence"}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Posted {project.createdAt ? new Date(project.createdAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : "May 1, 2026"}
+                  </p>
+                  <p className="font-bold text-gray-900 mt-1">
+                    <MoneyDisplay amount={project.budget} />
+                  </p>
                   {deadlineText && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-                      <Calendar className="w-3.5 h-3.5" />
+                    <p className="text-sm text-gray-500">
                       Deadline: {deadlineText}
-                    </span>
+                    </p>
                   )}
-                  {proposalCount > 0 && (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">
-                      <Users className="w-3 h-3" />
-                      {proposalCount} proposal{proposalCount !== 1 ? "s" : ""}
-                    </span>
-                  )}
+                  <p className="text-sm text-gray-655 font-medium pt-1">
+                    Expert: <span className="text-gray-900 font-semibold">{project.assignedExpert ? project.assignedExpert.fullName : ""}</span>
+                  </p>
                 </div>
 
-                {/* ── Required skills ── */}
-                {skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {skills.map((skill) => (
-                      <span
-                        key={skill}
-                        className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
-                      >
-                        {skill}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                {/* ── Bottom row: actions ── */}
+                <div className="flex items-center justify-end pt-3 border-t border-gray-100 gap-3">
+                  {/* View Details white button — opening details inline view */}
+                  <button
+                    onClick={() => {
+                      setSelectedProject(project);
+                      setView("details");
+                    }}
+                    className="h-11 px-5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-[15px] font-medium transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View Details
+                  </button>
 
+<<<<<<< Updated upstream
                 {/* ── Progress bar (for in_progress/completed projects) ── */}
                 {(statusKey === "in_progress" ||
                   statusKey === "waiting_review" ||
@@ -288,6 +1001,19 @@ export function MyProjectsList() {
                       View Proposal
                     </Link>
                   </div>
+=======
+                  {/* View Proposal green button — opening proposals list inline view */}
+                  <button
+                    onClick={() => {
+                      setSelectedProject(project);
+                      setView("proposals");
+                    }}
+                    className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium transition-all inline-flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Users className="w-4 h-4" />
+                    View Proposal
+                  </button>
+>>>>>>> Stashed changes
                 </div>
               </div>
             );

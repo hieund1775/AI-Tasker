@@ -46,39 +46,43 @@ export function ProjectDetail() {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Load project by id
-  useEffect(() => {
+  const loadProject = useCallback(async (isSilent = false) => {
     if (!user?.id || !id) return;
-    let cancelled = false;
-
-    async function loadProject() {
-      setLoading(true);
-      setError(null);
-      try {
-        const list = await api.projects.getByClient(user.id);
-        const data = Array.isArray(list) ? list.find((p) => p.id === id) : null;
-        if (!cancelled) {
-          if (data) {
-            setProject(data);
-            // Derive escrow/payment state from project data
-            setEscrowPaid(data.escrowPaid || data.escrowStatus === "paid" || false);
-            setPaymentReleased(data.paymentReleased || data.status === "completed" || false);
-          } else {
-            setError("not_found");
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load project details:", err);
-        if (!cancelled) {
-          setError("load_failed");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+    if (!isSilent) setLoading(true);
+    setError(null);
+    try {
+      const list = await api.projects.getByClient(user.id);
+      const data = Array.isArray(list) ? list.find((p) => p.id === id) : null;
+      if (data) {
+        setProject(data);
+        // Derive escrow/payment state from project data
+        setEscrowPaid(data.escrowPaid || data.escrowStatus === "paid" || false);
+        setPaymentReleased(data.paymentReleased || data.status === "completed" || false);
+      } else {
+        setError("not_found");
       }
+    } catch (err) {
+      console.error("Failed to load project details:", err);
+      setError("load_failed");
+    } finally {
+      if (!isSilent) setLoading(false);
     }
-
-    loadProject();
-    return () => { cancelled = true; };
   }, [id, user?.id]);
+
+  useEffect(() => {
+    loadProject(false);
+  }, [loadProject]);
+
+  // Listen to DB update events to refresh UI in real-time
+  useEffect(() => {
+    const handleDbUpdate = () => {
+      loadProject(true); // refresh silently in background
+    };
+    window.addEventListener("aitasker_db_update", handleDbUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleDbUpdate);
+    };
+  }, [loadProject]);
 
   // Derived display status
   const displayStatus = project
@@ -102,6 +106,8 @@ export function ProjectDetail() {
       toast.success(
         "Your project funds have been transferred to the platform's secure intermediary system.",
       );
+      // Dispatch database update event to trigger refresh across Header / Billing / client pages
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error(err.message || "Payment error. Please try again.");
     } finally {
@@ -125,6 +131,8 @@ export function ProjectDetail() {
       toast.success(
         "Payment has been released to the Expert. Project is now complete.",
       );
+      // Dispatch database update event to trigger refresh across Header / Billing / client pages
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error(err.message || "Acceptance error. Please try again.");
     } finally {
@@ -169,7 +177,7 @@ export function ProjectDetail() {
           <h3 className="text-lg font-semibold text-gray-500">
             Unable to Load Project
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-base text-gray-400 mt-1">
             An error occurred while loading project details. Please try again later.
           </p>
         </div>
@@ -190,7 +198,7 @@ export function ProjectDetail() {
           <h3 className="text-lg font-semibold text-gray-500">
             Project Not Found
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-base text-gray-400 mt-1">
             The project you are looking for may have been removed.
           </p>
         </div>
@@ -230,6 +238,14 @@ export function ProjectDetail() {
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
+            Timeline gốc: {project.originalUseCaseDays || project.deadline || "—"} ngày
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
+            Deadline: {project.deadline || "—"} ngày
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="w-4 h-4" />
             Status: {displayStatus}
           </span>
           {project.assignedExpertId && (
@@ -242,13 +258,13 @@ export function ProjectDetail() {
 
         {/* ---- Escrow status indicator ---- */}
         {escrowPaid && !paymentReleased && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-blue-600" />
+          <div className="mb-4 p-3 bg-brand-primary-light border border-blue-200 rounded-xl flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-brand-primary" />
             <div>
-              <p className="text-sm font-medium text-blue-700">
+              <p className="text-sm font-medium text-brand-primary">
                 Funds Held / Project Active
               </p>
-              <p className="text-xs text-blue-600">
+              <p className="text-sm text-brand-primary">
                 <MoneyDisplay amount={project.budget} /> is securely held in the intermediary system.
               </p>
             </div>
@@ -262,7 +278,7 @@ export function ProjectDetail() {
               <p className="text-sm font-medium text-green-700">
                 Paid to Expert
               </p>
-              <p className="text-xs text-green-600">
+              <p className="text-sm text-green-600">
                 Project is complete and payment has been released.
               </p>
             </div>
@@ -276,7 +292,7 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowPayModal(true)}
-              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <ShieldCheck className="w-4 h-4" />
               Pay Project
@@ -288,7 +304,7 @@ export function ProjectDetail() {
             <button
               type="button"
               disabled
-              className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4" />
               Funds Held / Project Active
@@ -300,7 +316,7 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowAcceptModal(true)}
-              className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <CheckCircle className="w-4 h-4" />
               Complete & Accept
@@ -312,7 +328,7 @@ export function ProjectDetail() {
             <button
               type="button"
               disabled
-              className="px-5 py-2.5 bg-gray-300 text-gray-500 rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <CheckCircle className="w-4 h-4" />
               Completed
@@ -325,7 +341,7 @@ export function ProjectDetail() {
       {isDisputed ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
           <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-base">
             Project actions are temporarily locked during dispute resolution.
           </p>
         </div>

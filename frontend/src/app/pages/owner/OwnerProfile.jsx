@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { listUsers } from "../../../data/mockDatabase.js";
 
 /**
  * Resolve the full owner user object from auth email → mock DB.
@@ -22,10 +23,19 @@ import { useAuth } from "../../hooks/useAuth.js";
  */
 function resolveOwner(userFromAuth) {
   if (userFromAuth?.email) {
-    const mockUser = null;
-    if (mockUser) return mockUser;
+    const found = listUsers().find(
+      (u) => u.email === userFromAuth.email && u.role === "owner"
+    );
+    if (found) return found;
   }
-  return null || null;
+  if (userFromAuth?.id) {
+    const found = listUsers().find(
+      (u) => u.id === userFromAuth.id && u.role === "owner"
+    );
+    if (found) return found;
+  }
+  // Fallback: return demo owner
+  return listUsers().find((u) => u.id === "user-001") || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,7 +81,7 @@ export function OwnerProfile() {
           <p className="text-sm text-gray-400 mb-4">Complete your profile to get started.</p>
           <Link
             to="/owner/profile/edit"
-            className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium inline-flex items-center gap-2"
+            className="h-10 px-4 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium inline-flex items-center gap-2"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
@@ -118,7 +128,7 @@ export function OwnerProfile() {
 
           <Link
             to="/owner/profile/edit"
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+            className="h-10 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>

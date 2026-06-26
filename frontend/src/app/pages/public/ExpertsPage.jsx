@@ -50,7 +50,7 @@ export function ExpertsPage() {
           placeholder="Search by name or specialization..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-900 text-sm"
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:border-brand-primary text-sm"
         />
       </div>
 

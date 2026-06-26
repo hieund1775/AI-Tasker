@@ -36,7 +36,7 @@ const variantStyles = {
   warning:
     "bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500",
   default:
-    "bg-blue-900 text-white hover:bg-blue-800 focus:ring-blue-500",
+    "bg-brand-primary text-white hover:bg-brand-primary-hover focus:ring-brand-primary/50",
 };
 
 export function ConfirmationModal({

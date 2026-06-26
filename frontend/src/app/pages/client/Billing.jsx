@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import {
   Wallet,
   Shield,
@@ -47,14 +47,18 @@ const statusColors = {
 
 export function Billing() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const isEscrowRedirect = location.state?.escrowRedirect === true;
+
   // Escrow deposit form
-  const [showDepositForm, setShowDepositForm] = useState(false);
-  const [depositAmount, setDepositAmount] = useState(0);
-  const [selectedProject, setSelectedProject] = useState("");
+  const [showDepositForm, setShowDepositForm] = useState(location.state?.escrowRedirect || false);
+  const [depositAmount, setDepositAmount] = useState(location.state?.amount || 0);
+  const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -107,6 +111,15 @@ export function Billing() {
     e.preventDefault();
     if (!depositAmount || depositAmount <= 0 || !selectedProject) return;
 
+    // Balance check
+    if (data?.wallet?.balance < depositAmount) {
+      setFeedback({
+        type: "error",
+        message: "Không đủ số dư khả dụng trong ví. Vui lòng nạp thêm tiền để thực hiện ký quỹ."
+      });
+      return;
+    }
+
     setSubmitting(true);
     setFeedback(null);
     try {
@@ -114,27 +127,53 @@ export function Billing() {
         projectId: selectedProject,
         amount: Number(depositAmount),
       });
-      setFeedback({ type: "success", message: "Funds deposited to escrow successfully." });
+
+      if (isEscrowRedirect) {
+        // Update project status to "Accepted"
+        await api.jobPosts.update(selectedProject, { status: "Accepted" });
+        // Update proposal status to "accepted"
+        const proposalId = location.state.proposalId;
+        if (proposalId) {
+          await api.proposals.updateStatus(proposalId, "accepted");
+        }
+      }
+
+      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Chấp nhận (Accepted)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
-      // Refresh data
+      
+      // Update local wallet state
       setData((prev) => ({
         ...prev,
         wallet: {
           ...prev.wallet,
           balance: prev.wallet.balance - Number(depositAmount),
-          escrowBalance: prev.wallet.escrowBalance + Number(depositAmount),
+          escrowBalance: (prev.wallet.escrowBalance || 0) + Number(depositAmount),
         },
       }));
+
+      setTimeout(() => {
+        navigate("/client/my-projects");
+      }, 2000);
+
     } catch {
       // Demo fallback — update locally
+      if (isEscrowRedirect) {
+        await api.jobPosts.update(selectedProject, { status: "Accepted" });
+        const proposalId = location.state.proposalId;
+        if (proposalId) {
+          await api.proposals.updateStatus(proposalId, "accepted");
+        }
+      }
+
       setData((prev) => ({
         ...prev,
         wallet: {
           ...prev.wallet,
           balance: prev.wallet.balance - Number(depositAmount),
-          escrowBalance: prev.wallet.escrowBalance + Number(depositAmount),
+          escrowBalance: (prev.wallet.escrowBalance || 0) + Number(depositAmount),
+          pendingBalance: (prev.wallet.pendingBalance || 0) + Number(depositAmount),
         },
         transactions: [
           {
@@ -142,17 +181,21 @@ export function Billing() {
             type: "escrow_deposit",
             amount: Number(depositAmount),
             description: `Escrow deposit for project`,
-            projectTitle: selectedProject,
+            projectTitle: isEscrowRedirect ? location.state.projectTitle : selectedProject,
             status: "completed",
             createdAt: new Date().toISOString(),
           },
           ...prev.transactions,
         ],
       }));
-      setFeedback({ type: "success", message: "Funds deposited to escrow (demo mode)." });
+      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Chấp nhận (Accepted)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
+
+      setTimeout(() => {
+        navigate("/client/my-projects");
+      }, 2000);
     } finally {
       setSubmitting(false);
     }
@@ -203,8 +246,8 @@ export function Billing() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-blue-700" />
+            <div className="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-brand-primary" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Available Balance</p>
@@ -246,12 +289,6 @@ export function Billing() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <Link
-                    to={`/client/projects/${proj.id}`}
-                    className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-                  >
-                    View Project
-                  </Link>
                 </div>
               </div>
             ))}
@@ -260,68 +297,73 @@ export function Billing() {
       )}
 
       {/* Deposit to escrow */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Deposit to Escrow</h2>
-          <button
-            type="button"
-            onClick={() => setShowDepositForm(!showDepositForm)}
-            className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2"
-          >
-            <PlusCircle className="w-4 h-4" /> New Deposit
-          </button>
-        </div>
-
-        {showDepositForm && (
-          <div className="p-6">
-            <form onSubmit={handleDeposit} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Project</label>
-                <select
-                  value={selectedProject}
-                  onChange={(e) => setSelectedProject(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 bg-white"
-                  required
-                >
-                  <option value="">Select a project</option>
-                  {(data?.activeProjects || []).map((p) => (
-                    <option key={p.id} value={p.id}>{p.title}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amount (USD)</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={depositAmount || ""}
-                  onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
-                  placeholder="500"
-                  required
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
-                  className="px-5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                >
-                  {submitting ? "Processing..." : "Deposit to Escrow"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowDepositForm(false)}
-                  className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
+      {isEscrowRedirect && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
+          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-900">Deposit to Escrow</h2>
           </div>
-        )}
-      </div>
+
+          {showDepositForm && (
+            <div className="p-6">
+              <form onSubmit={handleDeposit} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-2">Project</label>
+                  <select
+                    value={selectedProject}
+                    onChange={(e) => setSelectedProject(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-gray-50 cursor-not-allowed text-gray-600 font-medium"
+                    required
+                    disabled={isEscrowRedirect}
+                  >
+                    {isEscrowRedirect ? (
+                      <option value={location.state.projectId}>{location.state.projectTitle}</option>
+                    ) : (
+                      <>
+                        <option value="">Select a project</option>
+                        {(data?.activeProjects || []).map((p) => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-600 mb-2">Amount</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={depositAmount || ""}
+                    onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-gray-50 cursor-not-allowed text-gray-600 font-medium"
+                    placeholder="500"
+                    required
+                    disabled={isEscrowRedirect}
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="submit"
+                    disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
+                    className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold shadow-sm transition-all"
+                  >
+                    {submitting ? "Processing..." : "Xác nhận ký quỹ"}
+                  </button>
+                  {!isEscrowRedirect && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDepositForm(false)}
+                      className="h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Transaction history */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
@@ -339,11 +381,11 @@ export function Billing() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Description</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Amount</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Type</th>
+                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Description</th>
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Amount</th>
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Status</th>
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">

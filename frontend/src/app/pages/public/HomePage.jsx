@@ -74,16 +74,29 @@ export function HomePage() {
       <nav className="bg-white border-b border-slate-100 sticky top-0 z-40 shadow-sm flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
           <div className="flex items-center gap-2.5">
+<<<<<<< Updated upstream
             <div className="w-10 h-10 bg-gradient-to-br from-blue-900 to-purple-800 rounded-lg flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-lg">AI</span>
+=======
+            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-xl">AI</span>
+>>>>>>> Stashed changes
             </div>
             <span className="text-xl font-bold bg-gradient-to-r from-blue-900 to-purple-800 bg-clip-text text-transparent">Tasker</span>
           </div>
+<<<<<<< Updated upstream
           <div className="flex items-center gap-3">
             <Link to="/login" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-950 transition-colors">
               Login
             </Link>
             <Link to="/signup" className="px-5 py-2 bg-blue-900 hover:bg-blue-950 text-white rounded-lg font-semibold text-sm shadow-md shadow-blue-900/10 transition-all hover:-translate-y-0.5 duration-150">
+=======
+          <div className="flex items-center gap-4">
+            <Link to="/login" className="px-5 py-2.5 text-[15px] font-medium text-gray-700 hover:text-brand-primary transition-colors">
+              Log In
+            </Link>
+            <Link to="/signup" className="px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg font-semibold text-[15px] shadow-sm transition-colors">
+>>>>>>> Stashed changes
               Sign Up
             </Link>
           </div>
@@ -91,6 +104,7 @@ export function HomePage() {
       </nav>
 
       {/* Hero Section */}
+<<<<<<< Updated upstream
       <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white via-slate-50 to-slate-50 overflow-hidden">
         <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Hero Content */}
@@ -142,6 +156,18 @@ export function HomePage() {
                 ))}
               </div>
             </div>
+=======
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-7xl mx-auto text-center">
+          <h1 className="text-5xl font-bold text-gray-900 mb-6">Connect with Top AI Experts</h1>
+          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+            Professional platform connecting businesses with skilled AI professionals for your projects
+          </p>
+          <div className="flex justify-center">
+            <Link to="/signup" className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium inline-flex items-center justify-center gap-2">
+              Get Started <ArrowRight className="w-5 h-5" />
+            </Link>
+>>>>>>> Stashed changes
           </div>
         </div>
       </section>
@@ -149,11 +175,24 @@ export function HomePage() {
       {/* Statistics Section (Key Priority First) */}
       <section className="py-12 bg-white border-y border-slate-100 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
+<<<<<<< Updated upstream
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {stats.map((stat, i) => (
               <div key={i} className="flex flex-col sm:flex-row items-center sm:text-left gap-4 p-6 bg-slate-50 rounded-2xl border border-slate-100 hover:border-purple-200 transition-colors">
                 <div className={`p-4 rounded-xl ${stat.iconColor} flex-shrink-0`}>
                   <stat.icon className="w-6 h-6" />
+=======
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { icon: Search, color: "bg-brand-primary-light text-brand-primary", title: "Post Your Project", desc: "Describe your AI project needs and requirements" },
+              { icon: Users, color: "bg-green-100 text-green-700", title: "Review Proposals", desc: "Receive and evaluate proposals from qualified experts" },
+              { icon: Briefcase, color: "bg-orange-100 text-orange-700", title: "Start Working", desc: "Collaborate with your chosen expert to complete the project" },
+            ].map((item, i) => (
+              <div key={i} className="text-center">
+                <div className={`w-16 h-16 ${item.color} rounded-lg flex items-center justify-center mx-auto mb-4`}>
+                  <item.icon className="w-8 h-8" />
+>>>>>>> Stashed changes
                 </div>
                 <div>
                   <h4 className="text-3xl font-extrabold text-slate-900 bg-gradient-to-r from-blue-900 to-purple-800 bg-clip-text text-transparent">{stat.value}</h4>
@@ -308,6 +347,7 @@ export function HomePage() {
       </section>
 
       {/* CTA */}
+<<<<<<< Updated upstream
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-900 text-white relative overflow-hidden flex-shrink-0">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-950/40 via-transparent to-transparent"></div>
         <div className="max-w-4xl mx-auto text-center relative z-10 space-y-6">
@@ -320,6 +360,15 @@ export function HomePage() {
               Register Now
             </Link>
           </div>
+=======
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Get Started?</h2>
+          <p className="text-xl text-gray-600 mb-8">Join thousands of businesses and AI experts on our platform</p>
+          <Link to="/signup" className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium inline-block">
+            Sign Up Now
+          </Link>
+>>>>>>> Stashed changes
         </div>
       </section>
     </div>

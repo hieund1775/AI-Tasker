@@ -1,7 +1,7 @@
 import { Bot, Workflow, FileText, Sparkles } from 'lucide-react';
 
 const steps = [
-  { icon: FileText, label: "Describe", color: "text-blue-500" },
+  { icon: FileText, label: "Describe", color: "text-brand-primary" },
   { icon: Bot, label: "AI Analysis", color: "text-purple-500" },
   { icon: Sparkles, label: "Match", color: "text-amber-500" },
   { icon: Workflow, label: "Collaborate", color: "text-green-500" },
@@ -11,7 +11,7 @@ export function AIWorkflowIllustration() {
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-8 shadow-sm">
       <div className="text-center mb-6">
-        <Bot className="w-10 h-10 text-blue-600 mx-auto mb-2" />
+        <Bot className="w-10 h-10 text-brand-primary mx-auto mb-2" />
         <h3 className="font-semibold text-gray-900">AI-Powered Workflow</h3>
       </div>
 

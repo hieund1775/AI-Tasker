@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import {
+  AlertTriangle,
   MessageSquare,
   CheckCircle,
   XCircle,
@@ -27,6 +28,15 @@ export function ProposalCard({
   onAccept,
   onDecline,
 }) {
+  const groupedUseCases = (proposal.useCases?.length ? proposal.useCases : [])
+    .map((uc, index) => ({
+      ...uc,
+      index: uc.index ?? index,
+      title: uc.title || uc.name || uc.nameAndDeadline || `Use Case ${index + 1}`,
+      tasks: (proposal.tasks || []).filter((task) => Number(task.useCaseIndex || 0) === Number(uc.index ?? index)),
+    }))
+    .filter((uc) => uc.tasks.length > 0 || proposal.useCases?.length);
+
   return (
     <div
       className={`bg-white rounded-xl border p-6 transition ${
@@ -70,16 +80,72 @@ export function ProposalCard({
 
             {/* Title */}
             {proposal.expert?.title && (
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-base text-gray-500 mb-2">
                 {proposal.expert.title}
               </p>
             )}
 
             {/* Cover letter / message */}
             {(proposal.coverLetter || proposal.message) && (
-              <p className="text-gray-700 text-sm leading-relaxed mb-3">
+              <p className="text-gray-700 text-base leading-relaxed mb-3">
                 {proposal.coverLetter || proposal.message}
               </p>
+            )}
+
+            {proposal.extensionRequested && (
+              <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                <AlertTriangle className="w-4 h-4" />
+                Expert requests timeline extension for at least one Use Case.
+              </div>
+            )}
+
+            {groupedUseCases.length > 0 && (
+              <div className="mb-4 space-y-3">
+                {groupedUseCases.map((uc) => (
+                  <div key={uc.index} className={`rounded-xl border p-3 text-left ${uc.isOverrun ? "border-red-200 bg-red-50" : "border-gray-200 bg-gray-50"}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <p className="text-sm font-bold text-gray-900">{uc.title}</p>
+                      <div className="flex items-center gap-2 text-xs">
+                        {uc.originalDays ? (
+                          <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600">
+                            Client: {uc.originalDays}d
+                          </span>
+                        ) : null}
+                        <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600">
+                          Expert: {uc.proposedDays || 0}d
+                        </span>
+                        {uc.isOverrun && (
+                          <span className="px-2 py-0.5 bg-red-100 text-red-700 border border-red-200 rounded-full font-semibold">
+                            Extension
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {uc.tasks.map((task) => (
+                        <div key={task.id} className="rounded-lg bg-white border border-gray-200 px-3 py-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-gray-800">{task.title || "Untitled task"}</p>
+                            <p className="text-xs text-gray-500">
+                              {task.durationDays || 0} days · <MoneyDisplay amount={task.amount || 0} />
+                            </p>
+                          </div>
+                          {task.miniTasks?.length > 0 && (
+                            <ul className="mt-2 space-y-1 text-xs text-gray-500">
+                              {task.miniTasks.map((mini) => (
+                                <li key={mini.id} className="flex gap-1.5">
+                                  <span>•</span>
+                                  <span>{mini.title}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Expert skills */}
@@ -88,7 +154,7 @@ export function ProposalCard({
                 {proposal.expert.skills.slice(0, 5).map((skill) => (
                   <span
                     key={skill}
-                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
+                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[13px] font-medium"
                   >
                     {skill}
                   </span>
@@ -122,6 +188,7 @@ export function ProposalCard({
             <div className="flex flex-col gap-2 w-full md:w-auto">
               {/* View Proposal button */}
               <Link
+<<<<<<< Updated upstream
                 to={`/client/proposals/${proposal.id}`}
                 className="px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors w-full"
               >
@@ -165,6 +232,41 @@ export function ProposalCard({
                   Accept
                 </button>
               </div>
+=======
+                to="/messenger"
+                className="min-w-[140px] justify-center h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+                title="Message expert"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Message
+              </Link>
+              <button
+                type="button"
+                onClick={() =>
+                  onDecline(
+                    proposal.id,
+                    proposal.expert?.name,
+                  )
+                }
+                className="min-w-[140px] justify-center h-11 px-5 border border-red-200 text-red-600 rounded-[14px] hover:bg-red-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <XCircle className="w-4 h-4" />
+                Decline
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onAccept(
+                    proposal.id,
+                    proposal.expert?.name,
+                  )
+                }
+                className="min-w-[140px] justify-center h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+              >
+                <CheckCircle className="w-4 h-4" />
+                Accept
+              </button>
+>>>>>>> Stashed changes
             </div>
           )}
         </div>

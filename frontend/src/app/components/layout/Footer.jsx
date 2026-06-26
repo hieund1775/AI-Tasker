@@ -7,7 +7,7 @@ export function Footer() {
           {/* Logo + Description */}
           <div className="text-center">
             <div className="inline-flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-white font-bold text-sm">AI</span>
               </div>
               <span className="text-base font-semibold text-gray-900">Tasker</span>
