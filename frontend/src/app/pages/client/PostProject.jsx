@@ -267,37 +267,19 @@ export function PostProject() {
   const [visibleCount, setVisibleCount] = useState(3);
 
   const [formData, setFormData] = useState({
-<<<<<<< HEAD
-    sector: "",          // Sector (Category)
-    major: "",           // Specialized Major
-=======
     category: "",
     specialization: "",
     title: "",
     description: "",
-    budget: 0,
-    durationValue: 1,
-    durationUnit: "days",
+    budget: 0,          // number — no $, no commas
+    durationValue: 1,   // number
+    durationUnit: "days", // "days" | "weeks" | "months"
   });
 
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [useCases, setUseCases] = useState([{ nameAndDeadline: "", description: "" }]);
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [leftPanelMode, setLeftPanelMode] = useState("graphic"); // "graphic" | "ai_chat"
-
-  // Match State
-  const [searchMatching, setSearchMatching] = useState(false);
-  const [matchingResults, setMatchingResults] = useState([]);
-  const [showMatches, setShowMatches] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(3);
-  const [selectedExpert, setSelectedExpert] = useState(null);
-
-  // Sidebar state
-  const [viewingExpert, setViewingExpert] = useState(null);
-
-  const formRef = useRef(null);
-  const [formHeight, setFormHeight] = useState(0);
 
   const formRef = useRef(null);
   const [formHeight, setFormHeight] = useState(0);
@@ -333,106 +315,10 @@ export function PostProject() {
     });
   };
 
-  // Milestones logic removed
-
-  // Perform expert matching matching
-  const handleSearchExperts = async () => {
-    if (!formData.sector || !formData.major) {
-      alert("Please fill in Category Domain and Specialized Major first!");
-      return;
-    }
-    setSearchMatching(true);
-    setShowMatches(false);
-    
-    // Simulate AI loading spinner
-    setTimeout(async () => {
-      try {
-        let dbExperts = [];
-        try {
-          const res = await api.experts.list();
-          dbExperts = (res || [])
-            .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-            .map((u) => ({
-              id: u.id,
-              fullName: u.fullName,
-              expertProfile: {
-                major: u.expertProfile.major,
-                location: u.expertProfile.location || "N/A",
-                bio: u.expertProfile.bio || "",
-                hourlyRate: 35,
-                completedProjects: 8,
-                skills: u.expertProfile.skills || []
-              },
-              avgRating: 4.8
-            }));
-        } catch (err) {
-          console.warn("Using mock fallback for experts:", err);
-        }
-
-        // Combine DB & Mock fallback to ensure robust results
-        const combinedList = [...dbExperts, ...MOCK_EXPERTS];
-        
-        // Remove duplicates by ID
-        const uniqueExperts = [];
-        const seen = new Set();
-        combinedList.forEach((item) => {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            uniqueExperts.push(item);
-          }
-        });
-
-        // Heuristics mapping score
-        const scored = uniqueExperts.map((exp) => {
-          let score = 50; // Base match score
-          
-          // Match specialized major
-          if (exp.expertProfile.major?.toLowerCase() === formData.major.toLowerCase()) {
-            score += 30;
-          }
-
-          // Match sub-skills
-          const expSkills = exp.expertProfile.skills || [];
-          const matchedSkills = selectedSkills.filter(s => 
-            expSkills.some(es => es.toLowerCase().includes(s.toLowerCase()))
-          );
-          score += matchedSkills.length * 5;
-
-          // Limit score between 80% and 99%
-          const matchPercent = Math.min(99, Math.max(80, score));
-
-          return {
-            ...exp,
-            matchPercent,
-            matchedSkills
-          };
-        });
-
-        // Sort by match score and rating
-        scored.sort((a, b) => b.matchPercent - a.matchPercent || b.avgRating - a.avgRating);
-        
-        setMatchingResults(scored);
-        setShowMatches(true);
-      } catch (err) {
-        console.error("Match search failed:", err);
-      } finally {
-        setSearchMatching(false);
-      }
-    }, 1500);
-  };
-
-  const handleScanMore = () => {
-    setVisibleCount((prev) => prev + 3);
-  };
-
-  // Submit flow
-  const handlePublish = async (isPublic = true) => {
-    if (!formData.title || !formData.description || !formData.sector || !formData.major) {
-      alert("Please fill in all required fields!");
-      return;
-    }
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
+
     let deadlineDays = Number(formData.durationValue) || 1;
     if (formData.durationUnit === "weeks") deadlineDays *= 7;
     if (formData.durationUnit === "months") deadlineDays *= 30;
@@ -442,29 +328,6 @@ export function PostProject() {
       description: formData.description.trim(),
       budget: Number(formData.budget) || 0,
       deadline: deadlineDays,
-<<<<<<< HEAD
-      aiCategoryDomainId: formData.sector || null,
-      clientId: user?.id,
-      skillIds: skillIdsToSubmit,
-      useCases: [],
-    };
-
-    try {
-      const response = await api.jobPosts.create(payload);
-      const createdId = response?.id;
-
-      if (!isPublic && selectedExpert && createdId) {
-        // Save direct contract mapping to local storage
-        const storedMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
-        storedMapping[createdId] = selectedExpert.id;
-        localStorage.setItem("aitasker_chosen_experts", JSON.stringify(storedMapping));
-        
-        alert(`Project created and direct invitation sent to Expert ${selectedExpert.fullName} successfully! Awaiting expert confirmation.`);
-      } else {
-        alert("Project posted publicly successfully! Awaiting expert proposals.");
-      }
-
-=======
       aiCategoryDomainId: formData.category || null,
       aiCategoryDomain: formData.category ? { id: formData.category, name: formData.category } : null,
       specialization: formData.specialization || null,
@@ -501,11 +364,10 @@ export function PostProject() {
       }
 
       alert("Đăng dự án thành công!");
->>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Failed to create project. Please try again!");
+      alert(err.message || "Đăng dự án thất bại. Vui lòng thử lại!");
     } finally {
       setSubmitting(false);
     }
@@ -599,13 +461,12 @@ export function PostProject() {
     useCases.every(uc => uc.nameAndDeadline.trim() !== "" && uc.description.trim() !== "");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-800">
-      {/* Header */}
-      <div className="sticky top-16 z-30 bg-slate-50/95 backdrop-blur-sm py-4 border-b border-slate-200/50 flex items-center gap-4 mb-6">
-        <button onClick={() => navigate(-1)} className="text-slate-600 hover:text-slate-900 transition-colors">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => navigate(-1)} className="text-gray-600 hover:text-gray-900">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">Create New Project</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Post a New Project</h1>
       </div>
 
       <div className={`grid grid-cols-1 ${showRecommendations ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-3xl mx-auto"}`}>

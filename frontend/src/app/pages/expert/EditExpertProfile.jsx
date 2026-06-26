@@ -271,18 +271,7 @@ export function EditExpertProfile() {
     industry: "",
   });
 
- const [skills, setSkills] = useState([]);
-  const [availableSkills, setAvailableSkills] = useState([]);
-  const [selectedSkill, setSelectedSkill] = useState("");
-
-  // Load available skills from API
-  useEffect(() => {
-    api.categoryTags.getSkills()
-      .then(res => {
-        setAvailableSkills(Array.isArray(res) ? res : []);
-      })
-      .catch(err => console.error("Failed to load skills:", err));
-  }, []);
+  const [skills, setSkills] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;

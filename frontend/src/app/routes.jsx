@@ -17,8 +17,6 @@ import { EditClientProfile } from "./pages/client/EditClientProfile.jsx";
 import { MyProjectsList } from "./pages/client/MyProjectsPage.jsx";
 import { PublicExpertProfile } from "./components/shared/PublicExpertProfile.jsx";
 import { Billing } from "./pages/client/Billing.jsx";
-import { CreateContract } from "./pages/client/CreateContract.jsx";
-import { ClientProposalDetail } from "./pages/client/ClientProposalDetail.jsx";
 
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
@@ -99,8 +97,6 @@ export const router = createBrowserRouter([
               { path: "client/profile", Component: ClientProfile },
               { path: "client/profile/edit", Component: EditClientProfile },
               { path: "client/billing", Component: Billing },
-              { path: "client/contracts/create", Component: CreateContract },
-              { path: "client/proposals/:id", Component: ClientProposalDetail },
             ],
           },
 
@@ -120,7 +116,6 @@ export const router = createBrowserRouter([
               { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
-              { path: "expert/contracts/:contractId", Component: ExpertContractView },
             ],
           },
 

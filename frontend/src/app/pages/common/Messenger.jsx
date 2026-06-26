@@ -47,12 +47,8 @@ const ATTACH_OPTIONS = [
 export function Messenger() {
   const { id: activeConvId } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
-
-  // When navigated with ?expertId=X, we can use it to find/create conversation
-  const targetExpertId = searchParams.get("expertId");
 
   // ---- Plus menu state ----
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -156,8 +152,6 @@ export function Messenger() {
     console.log(
       "[Messenger] activeConvId:",
       activeConvId,
-      "| targetExpertId:",
-      targetExpertId,
       "| demoUserId:",
       demoUserId,
       "| conversations:",
@@ -165,7 +159,7 @@ export function Messenger() {
       "| activeConversation:",
       activeConversation?.name || "NONE"
     );
-  }, [activeConvId, targetExpertId, demoUserId, conversations.length, activeConversation]);
+  }, [activeConvId, demoUserId, conversations.length, activeConversation]);
 
   // ---- Scroll to bottom ----
   const messagesContainerRef = useRef(null);

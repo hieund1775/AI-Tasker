@@ -25,7 +25,6 @@ export function MyProjectsList() {
   const location = useLocation();
 
   const [projects, setProjects] = useState([]);
-  const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Sub-view page states: "list" | "details" | "proposals"
@@ -755,13 +754,11 @@ export function MyProjectsList() {
           {filteredProjects.map((project) => {
             const proposalCount = project.proposalCount || 0;
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
-            const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
-
+            const displayStatus = getStatusLabel(statusKey);
+            const badgeClass = getStatusBadgeClass(statusKey);
             const progress = getProjectProgress(project.id);
             const category = project.aiCategoryDomain;
             
->>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;

@@ -99,7 +99,7 @@ export function Header() {
             <div className="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">AI</span>
             </div>
-            <span className="text-[22px] font-semibold text-blue-900">Tasker</span>
+            <span className="text-[22px] font-semibold text-gray-900">Tasker</span>
           </Link>
 
           {/* Navigation Link Items — only show when authenticated */}
@@ -241,23 +241,9 @@ export function Header() {
                                 <span className="text-[9px] font-bold text-gray-400 block mt-1">
                                   {noti.time}
                                 </span>
->>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                               </div>
-                            );
-                            const targetUrl = noti.targetUrl || noti.actionUrl;
-                            if (targetUrl) {
-                              return (
-                                <Link
-                                  key={noti.id}
-                                  to={targetUrl}
-                                  onClick={() => setShowNotifications(false)}
-                                >
-                                  {notifContent}
-                                </Link>
-                              );
-                            }
-                            return <div key={noti.id}>{notifContent}</div>;
-                          })
+                            </div>
+                          ))
                         )}
                       </div>
 
@@ -280,15 +266,6 @@ export function Header() {
                     </div>
                   )}
                 </div>
-
-                {/* Wallet */}
-                <Link
-                  to={role === "client" ? "/client/billing" : `/${role}/wallet`}
-                  className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all flex items-center justify-center"
-                  title="Wallet"
-                >
-                  <Wallet className="w-5 h-5 stroke-[2.2]" />
-                </Link>
 
                 {/* Profile Link */}
                 <Link

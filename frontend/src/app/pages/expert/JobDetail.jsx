@@ -29,7 +29,7 @@ export function JobDetail() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchJobData() {
+    async function fetchJob() {
       setLoading(true);
       setError(null);
       try {
@@ -91,7 +91,7 @@ export function JobDetail() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchJobData();
+    fetchJob();
     return () => {
       cancelled = true;
     };
