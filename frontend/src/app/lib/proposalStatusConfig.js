@@ -25,6 +25,12 @@ export const PROPOSAL_STATUS = {
     icon: XCircle,
     meaning: "The client declined this proposal.",
   },
+  rejected: {
+    label: "Rejected",
+    className: "bg-red-100 text-red-700",
+    icon: XCircle,
+    meaning: "The client rejected this proposal.",
+  },
   withdrawn: {
     label: "Withdrawn",
     className: "bg-gray-100 text-gray-600 border border-gray-200",

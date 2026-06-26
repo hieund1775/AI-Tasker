@@ -885,6 +885,10 @@ export function PostProject() {
 <<<<<<< Updated upstream
     sector: "",          // Sector (Category)
     major: "",           // Specialized Major
+=======
+    category: "",
+    specialization: "",
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
     title: "",
     description: "",
     budget: 0,
@@ -960,6 +964,9 @@ export function PostProject() {
   const formRef = useRef(null);
   const [formHeight, setFormHeight] = useState(0);
 >>>>>>> Stashed changes
+
+  const formRef = useRef(null);
+  const [formHeight, setFormHeight] = useState(0);
 
   useEffect(() => {
     if (formRef.current) {
@@ -1163,6 +1170,8 @@ export function PostProject() {
     }
 >>>>>>> Stashed changes
 
+=======
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
     const payload = {
       title: formData.title.trim(),
       description: formData.description.trim(),
@@ -1247,6 +1256,94 @@ export function PostProject() {
 
 <<<<<<< Updated upstream
   const hasFilledBasicInfo = formData.title && formData.description && formData.sector && formData.major;
+=======
+  const handleRecommendExperts = async () => {
+    setLoadingRecommendations(true);
+    setShowRecommendations(true);
+    setSelectedRecommendExpert(null);
+    setVisibleCount(3);
+    try {
+      const res = await api.experts.list();
+      const expertsOnly = (res || [])
+        .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
+        .map((u) => ({
+          id: u.id,
+          name: u.fullName,
+          title: u.expertProfile.jobTitle || u.expertProfile.specialization || u.expertProfile.major || "AI Specialist",
+          specialization: u.expertProfile.specialization || u.expertProfile.major || u.specialization || "AI Specialist",
+          category: u.expertProfile.category || u.category || "AI & Computing",
+          location: u.expertProfile.location || "N/A",
+          bio: u.expertProfile.bio || u.bio || "No biography provided.",
+          rating: u.rating || 4.8,
+          completedProjects: u.expertProfile.completedProjects || 8,
+          hourlyRate: u.expertProfile.hourlyRate || 65,
+          skills: u.expertProfile.skills || ["Python", "Semantic Kernel"],
+          email: u.email || "",
+          phone: u.expertProfile.phone || "",
+          portfolio: u.portfolio || [],
+          clientReviews: (u.clientReviews || []).map((r) => ({
+            clientName: r.clientName || r.name || "Client",
+            rating: r.rating || 5,
+            comment: r.comment || r.review || "Great work!",
+            date: r.date,
+          })),
+        }));
+
+      // Sort experts based on category, specialization, skills match, and completedProjects <= 3
+      const getScore = (exp) => {
+        let score = 0;
+        
+        // category/specialization match
+        const hasSpec = formData.specialization && exp.specialization?.toLowerCase().includes(formData.specialization.toLowerCase());
+        if (hasSpec) {
+          score += 10;
+        }
+        
+        // skills match count
+        const matchSkills = selectedSkills.filter(s => exp.skills?.some(es => es.toLowerCase() === s.toLowerCase())).length;
+        score += matchSkills * 2;
+
+        // "ưu tiên nào có từ 3 trở xuống" completedProjects priority
+        if (exp.completedProjects <= 3) {
+          score += 15; // Give significant priority boost
+        }
+        
+        return score;
+      };
+
+      const sortedExperts = [...expertsOnly].sort((a, b) => getScore(b) - getScore(a));
+      setRecommendedExperts(sortedExperts);
+      
+      // Scroll to recommendations container
+      setTimeout(() => {
+        const el = document.getElementById("ai-recommendations-section");
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+      }, 100);
+    } catch (err) {
+      console.error("Failed to load recommended experts:", err);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  };
+
+  const categoriesList = Object.keys(CATEGORY_DATA);
+  const specializationsList = formData.category
+    ? CATEGORY_DATA[formData.category].specializations
+    : [];
+  const skillsList = formData.category && formData.specialization
+    ? CATEGORY_DATA[formData.category].skills[formData.specialization] || []
+    : [];
+ 
+  const isFormValid =
+    formData.title.trim() !== "" &&
+    formData.description.trim() !== "" &&
+    formData.category !== "" &&
+    formData.specialization !== "" &&
+    selectedSkills.length > 0 &&
+    Number(formData.budget) > 0 &&
+    Number(formData.durationValue) > 0 &&
+    useCases.every(uc => uc.nameAndDeadline.trim() !== "" && uc.description.trim() !== "");
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-slate-800">
@@ -1989,16 +2086,175 @@ export function PostProject() {
                        updateField("durationValue", e.target.value === "" ? 1 : Number(e.target.value))
                      }
                      className="w-20 px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900/25 focus:border-blue-900 text-sm"
+=======
+      <div className={`grid grid-cols-1 ${showRecommendations ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-3xl mx-auto"}`}>
+        <div className={showRecommendations ? "lg:col-span-7 flex flex-col" : "w-full"}>
+          <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 flex flex-col h-full">
+          <div className="space-y-6 flex-1">
+            {/* Title */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Project Title
+              </label>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => updateField("title", e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+                placeholder="e.g., AI Chatbot Development"
+                required
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => updateField("description", e.target.value)}
+                rows={5}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+                placeholder="Describe your project requirements..."
+                required
+              />
+            </div>
+
+            {/* Project Attachments */}
+            <FileUploadDropzone
+              files={attachments}
+              onFilesChange={setAttachments}
+              label="Project Attachments"
+              helperText="Upload requirement documents, references, screenshots, or supporting files for experts to review."
+            />
+
+            {/* Category Select */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select A category
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => updateField("category", e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white"
+                required
+              >
+                <option value="" disabled>Select a category...</option>
+                {categoriesList.map((catName) => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Specialization Select */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Area of expertise or Specialization
+              </label>
+              <select
+                value={formData.specialization}
+                onChange={(e) => updateField("specialization", e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white"
+                disabled={!formData.category}
+                required
+              >
+                <option value="" disabled>
+                  {formData.category ? "Select a specialization..." : "Please select a category first"}
+                </option>
+                {specializationsList.map((specName) => (
+                  <option key={specName} value={specName}>
+                    {specName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Required Skills */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required Skills
+              </label>
+              {!formData.category || !formData.specialization ? (
+                <p className="text-base text-gray-400 italic">
+                  Select a category and specialization to view matching skills.
+                </p>
+              ) : skillsList.length === 0 ? (
+                <p className="text-base text-gray-400">
+                  No specialized skills listed for this area.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {skillsList.map((skillName) => (
+                    <button
+                      key={skillName}
+                      type="button"
+                      onClick={() => toggleSkill(skillName)}
+                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
+                        selectedSkills.includes(skillName)
+                          ? "bg-brand-primary text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {skillName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Budget + Duration row */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Budget — type="number" */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Budget
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.budget || ""}
+                  onChange={(e) => updateField("budget", e.target.value === "" ? 0 : Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+                  placeholder="5000"
+                />
+              </div>
+
+              {/* Duration — number + unit select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Timeline
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={formData.durationValue || ""}
+                    onChange={(e) =>
+                      updateField("durationValue", e.target.value === "" ? 1 : Number(e.target.value))
+                    }
+                    className="w-24 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+                    placeholder="1"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                   />
                   <select
                     value={formData.durationUnit}
                     onChange={(e) => updateField("durationUnit", e.target.value)}
+<<<<<<< HEAD
                     className="flex-1 px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-900/25 focus:border-blue-900 text-sm bg-white"
+=======
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white"
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                   >
                     <option value="days">Days</option>
                     <option value="weeks">Weeks</option>
                     <option value="months">Months</option>
                   </select>
+<<<<<<< HEAD
                 </div>
               </div>
             </div>
@@ -2166,8 +2422,11 @@ export function PostProject() {
                       <span className="text-slate-500 italic">Post publicly (Waiting for applicants to apply)</span>
                     )}
                   </span>
+=======
+>>>>>>> 41161e6efb778e83ce97fdf456f16d9d94b56309
                 </div>
               </div>
+            </div>
 
 <<<<<<< Updated upstream
               {/* Submitting controls */}
