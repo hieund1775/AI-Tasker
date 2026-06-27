@@ -11,8 +11,8 @@ Hệ thống AI-Tasker chuyển dịch toàn diện sang mô hình **Use-Case-Dr
 $$\text{Project (Dự án)} \rightarrow \text{Use Cases (Client định nghĩa)} \rightarrow \text{Tasks (Expert phân rã)} \rightarrow \text{MiniTasks (Checklist chi tiết)}$$
 
 1. **Project (Dự án)**: Dự án tổng thể do Client tạo lập dựa trên nhu cầu của doanh nghiệp.
-2. **Use Cases (Mục tiêu nghiệp vụ)**: Danh sách các trường hợp sử dụng chuẩn hóa do Client định nghĩa sẵn từ tài liệu yêu cầu.
-3. **Tasks (Mốc công việc lớn)**: Các cột mốc kỹ thuật do Expert đề xuất nằm dưới từng Use Case để hiện thực hóa Use Case đó (Expert không được quyền tự sửa đổi hay xóa Use Case của Client).
+2. **Use Cases (Mục tiêu nghiệp vụ)**: Danh sách các trường hợp sử dụng chuẩn hóa do Client định nghĩa sẵn từ tài liệu yêu cầu. Mỗi Use Case được gán một định danh duy nhất (`UseCase_ID` dạng GUID/Identity).
+3. **Tasks (Mốc công việc lớn)**: Các cột mốc kỹ thuật do Expert đề xuất nằm dưới từng Use Case và được liên kết bằng trường `useCaseId` duy nhất (thay vì chỉ mục mảng) để tránh bị lệch dữ liệu khi Client thay đổi/xóa Use Case. Expert không được quyền tự sửa đổi hay xóa Use Case của Client.
 4. **MiniTasks (Checklist chi tiết)**: Các đầu việc nhỏ nhất nằm dưới từng Task để Expert thực hiện tích checklist và báo cáo tiến độ công việc hàng ngày.
 
 ---
@@ -100,10 +100,11 @@ sequenceDiagram
    - Expert xem bài đăng, lấy cấu trúc Use Case của Client làm tiêu chuẩn bắt buộc (không có quyền chỉnh sửa hay xóa Use Case gốc của Client).
    - Dưới mỗi Use Case, Expert tự phân rã thêm các mốc công việc `Tasks` lớn và các `MiniTasks` (checklist công việc chi tiết).
    - Expert điền số ngày hoàn thành và số tiền tương ứng cho từng đầu việc. Hệ thống tự động cộng dồn (**Roll-up**) để ra tổng ngân sách và tổng thời gian mới của đề xuất.
-   - **Logic kiểm tra độ lệch thời gian tại mỗi Use Case**:
-     $$\text{Độ lệch} = \text{Thời gian gốc của Client} - \text{Thời gian đề xuất của Expert}$$
-     - Nếu **Độ lệch $\ge$ 0**: Gửi đề xuất (`Proposal`) bình thường.
-     - Nếu **Độ lệch < 0** (Vượt quá hạn định tối đa của Client): Hệ thống hiển thị cảnh báo đỏ nổi bật. Bắt buộc Expert phải bấm xác nhận đồng ý gửi đề xuất xin Client gia hạn thời gian thực hiện thì mới được phép nộp đơn.
+   - **Logic kiểm tra độ lệch ngân sách và thời gian (Budget & Time Deviation)**:
+     - **Độ lệch thời gian**: $\text{Độ lệch} = \text{Thời gian gốc của Client} - \text{Thời gian đề xuất của Expert}$. Nếu < 0, cảnh báo xin gia hạn.
+     - **Độ lệch ngân sách**: $\text{Budget Deviation} = \text{Ngân sách gốc của Client} - \text{Tổng tiền đề xuất của Expert}$. 
+     - Nếu **Budget Deviation < 0** (vượt ngân sách gốc của Client): Hệ thống hiển thị **banner cảnh báo màu đỏ nổi bật** ghi nhận rõ số tiền lệch `Budget Deviation` (ví dụ: `-$150.00`).
+     - Bắt buộc Expert phải tích chọn hộp kiểm xác nhận đồng ý gửi đề xuất vượt chỉ tiêu ngân sách/timeline của khách hàng thì mới được phép nhấn nút nộp đơn (Proposal).
 2. **Cơ chế Tự động Hủy và Nhắc nhở Proposal quá hạn (Mốc 7 ngày)**:
    - Hệ thống tự động chạy ngầm bộ đếm thời gian kể từ thời điểm Expert nộp đơn ứng tuyển:
      - **Ngày thứ 6 (Gửi nhắc nhở)**: Nếu Client chưa phản hồi hay xử lý đơn, hệ thống bắn thông báo khẩn cấp tới Client: *"Bạn có đề xuất từ [Tên Expert] sắp quá hạn vào ngày mai. Vui lòng xử lý ngay trước khi hệ thống tự động hủy đơn."*
@@ -115,8 +116,10 @@ sequenceDiagram
 - **Lưu trữ JobPost**: Sau khi ký quỹ thành công, bài đăng gốc của `JobPost` vẫn được giữ lại trong danh sách All Projects của Client dưới trạng thái **Done** (Đã tuyển dụng) nhằm lưu trữ lịch sử hệ thống, đồng thời khóa tính năng ứng tuyển của Job này đối với các Expert khác.
 
 ### GIAI ĐOẠN 4: THỰC THI CÔNG VIỆC VÀ NGHIỆM THU TỪNG MỐC (TASK)
-Trong không gian làm việc (Workspace), nút gửi duyệt thủ công suông (`Submit for Review`) bị xóa bỏ hoàn toàn. Luồng nghiệm thu chạy khép kín dựa trên bằng chứng sản phẩm:
-1. **Expert tích 100% MiniTasks** $\rightarrow$ Trạng thái chuyển thành: **Checklist Completed**.
+Trong không gian làm việc (Workspace), nút gửi duyệt thủ công suông (`Submit for Review`) bị xóa bỏ hoàn toàn. Luồng nghiệm thu chạy khép kín dựa trên bằng chứng sản phẩm và **ràng buộc bằng chứng bàn giao (Evidence Constraint)**:
+1. **Expert tích 100% MiniTasks và bắt buộc cung cấp bằng chứng bàn giao** (Git commit SHA, link báo cáo, giải trình...):
+   - Khi thỏa mãn cả 2 điều kiện này, Task mới chính thức chuyển thành trạng thái **Checklist Completed** (được hiển thị rõ bằng chứng bàn giao cho cả Expert và Client xem).
+   - Nếu Expert chỉ tích 100% milestone nhưng chưa điền/nộp bằng chứng bàn giao, Task vẫn giữ nguyên trạng thái **In Progress** và Client chưa thể phê duyệt hay yêu cầu sản phẩm.
 2. **Quy trình Client xử lý**:
    - **Luồng 1 (Tin tưởng tuyệt đối)**: Client bấm nút **Quick Accept** $\rightarrow$ Task chuyển ngay sang trạng thái **DONE** mà không cần nộp file sản phẩm.
    - **Luồng 2 (Kiểm tra sản phẩm bàn giao)**:
@@ -188,16 +191,16 @@ Khi một bên nhấn nút **Report** (nằm cạnh nút Manage Project hoặc U
 ### 3. Hai luồng rẽ nhánh xử lý Tranh chấp tối cao
 
 #### LUỒNG TRANH CHẤP 1: CLIENT TỐ CÁO EXPERT (Chất lượng / Tiến độ)
-- **Khởi tạo**: Client gửi đơn tố cáo. Nút Báo cáo vi phạm phía Client đổi tên thành **Đang trong tiến hành**. Khi Admin bấm duyệt đơn chấp nhận thụ lý, nút này sẽ bị làm mờ hẳn (`disabled`).
+- **Khởi tạo**: Client gửi đơn tố cáo. Nút Báo cáo vi phạm (Report) phía Client vẫn luôn hiển thị và khả dụng ở mọi trạng thái để Client có thể nộp bổ sung/cập nhật tố cáo khi cần. Màn hình quản lý của Client **không** bị khóa cứng (readOnly={false} cho ProjectProgressPanel) để Client có thể tiếp tục xem và tương tác với các Use Cases khác bình thường.
 - **Hiệu ứng Đóng băng Hệ thống (Workspace Freezing)**:
   - Dự án chuyển trạng thái sang **Disputed**.
   - **Ngoài Dashboard**: Thẻ dự án của cả Client và Expert chuyển sang giao diện màu đỏ sẫm (Crimson-to-Black gradient) cảnh báo.
-  - **Bên trong Không gian làm việc**: Xuất hiện banner cảnh báo đỏ trên đầu. Khóa toàn bộ quyền thao tác bấm của cả Client và Expert (Chuyển về chế độ Chỉ xem - Read Only), bảo toàn hiện trạng phục vụ đối chứng.
-  - Nút Báo cáo của Expert đổi tên thành **Phản hồi vi phạm** để Expert điền form giải trình phản bác gửi Admin.
-- **Cung cấp thêm bằng chứng liên tục (Evidence Phase)**:
+  - **Bên trong Không gian làm việc**: Xuất hiện banner cảnh báo đỏ trên đầu. Chỉ vô hiệu hóa thao tác có chọn lọc đối với Use Case đang xảy ra yêu cầu/giao dịch bàn giao (`waiting_expert_product`), các phần khác của dự án vẫn xem được bình thường.
+- **Cung cấp thêm bằng chứng liên tục & Hạn chót 48 giờ (Dispute Timeout)**:
   - Nếu Admin thấy chưa đủ thông tin phân định, Admin bấm yêu cầu bổ sung $\rightarrow$ Trạng thái chuyển sang `Awaiting Evidence`.
-  - Hệ thống xuất hiện nút bấm **Phản hồi tố cáo thêm** cho cả hai bên. Mỗi bên được nộp bằng chứng **đúng 1 lần duy nhất** cho mỗi đợt yêu cầu.
-  - Admin bị khóa tính năng phán quyết cho đến khi cả hai bên đã hoàn tất nộp bằng chứng của đợt đó. Bằng chứng mới sẽ tự động gom nối tiếp vào phần Evidence của Admin.
+  - Hệ thống hiển thị **banner cảnh báo màu tím nổi bật và đếm ngược thời gian phản hồi (48 giờ)** trên màn hình Admin và các bên.
+  - Mỗi bên được nộp bằng chứng **đúng 1 lần duy nhất** cho mỗi đợt yêu cầu.
+  - Mặc định, Admin bị khóa tính năng phán quyết cho đến khi cả hai bên đã hoàn tất nộp bằng chứng của đợt đó. Tuy nhiên, **nếu hết hạn 48 giờ** mà một trong hai bên không phản hồi, hệ thống sẽ tự động mở khóa lại các nút phán quyết để Admin đưa ra phán quyết tối cao dựa trên các bằng chứng hiện có.
 - **Phán quyết của Admin**:
   - **Hành động Continue (Tiếp tục)**: Dự án mở khóa trở lại trạng thái Active, hai bên tiếp tục làm việc bình thường.
   - **Hành động Stop Project (Dừng dự án)**: Admin xác định bên sai. Hệ thống tự động trích 100% tiền ký quỹ (Funds in Escrow) chuyển thẳng về ví khả dụng của bên đúng, dự án kết thúc.
@@ -210,3 +213,46 @@ Khi một bên nhấn nút **Report** (nằm cạnh nút Manage Project hoặc U
 - **Phán quyết dòng tiền cuối cùng**: Admin lựa chọn một trong hai bên thắng cuộc dựa trên bằng chứng thu thập được:
   - **Nếu Expert đúng**: Admin thực hiện lệnh tối cao **Giải ngân (Force Payout)**, chuyển toàn bộ tiền ký quỹ sang ví khả dụng của Expert, đóng dự án thành `Completed`.
   - **Nếu Client đúng** (Chứng minh được Expert nộp sản phẩm lỗi hoặc gian lận): Admin thực hiện **Hoàn trả (Force Refund)** tiền ký quỹ về ví Client, đóng dự án.
+
+#### LUỒNG TRANH CHẤP 3: THU HỒI DỰ ÁN CHỦ ĐỘNG (Mutual Cancellation / Termination)
+Khi một bên muốn hủy ngang dự án đang thực hiện (Tiến độ hoàn thành $P\%$), dự án chuyển sang trạng thái `Termination Pending`. Admin thẩm định tiến độ thực tế $P\%$ dựa trên số Task/MiniTask ở trạng thái `DONE`. Sau khi phê duyệt hủy (`Approve Termination`), ví ký quỹ ($E$) sẽ được phân chia như sau:
+
+- **Trường hợp A: Client chủ động thu hồi**
+  - **Expert nhận**: $(E \times P\%) + (E \times 10\%)$ (tiền đền bù từ Client).
+  - **Hệ thống thu (Platform Fee)**: $E \times 5\%$.
+  - **Client nhận lại**: $E \times (100\% - P\% - 15\%)$.
+  
+- **Trường hợp B: Expert chủ động thu hồi**
+  - **Client nhận lại**: $E \times (100\% - P\%) + (E \times 10\%)$ (tiền đền bù từ Expert).
+  - **Hệ thống thu (Platform Fee)**: $E \times 5\%$.
+  - **Expert nhận**: $E \times (P\% - 15\%)$.
+
+#### PHÍ DỊCH VỤ HỆ THỐNG KHI DỰ ÁN HOÀN THÀNH (Success Fee)
+Khi dự án kết thúc thành công 100%, hệ thống tự động trích thu phí dịch vụ 5% trước khi chuyển tiền về ví của Expert:
+- **Expert nhận**: $\text{escrowBalance} \times 95\%$.
+- **Hệ thống thu**: $\text{escrowBalance} \times 5\%$.
+
+---
+
+## CHƯƠNG 4: CƠ CHẾ ĐỒNG BỘ TIẾN ĐỘ & NHẬT KÝ HOẠT ĐỘNG PHÍA EXPERT (MỚI BỔ SUNG)
+
+### 1. Quy trình tích/hủy hoàn thành nhiệm vụ (Check/Uncheck Checklist)
+- **Đánh dấu nổi bật (Highlight Completed)**:
+  - Khi Expert tích chọn hoàn thành một milestone/task đơn lẻ:
+    - Biểu tượng checkbox chuyển sang màu xanh lá cây (`text-green-600`).
+    - Thẻ nhiệm vụ tương ứng tự động đổi sang nền xanh lá nhạt (`bg-green-50/40 border-green-200`) để làm dấu trực quan cho Expert biết.
+    - Hệ thống tính toán và tự động cập nhật tiến độ Use Case hiện tại cùng tiến độ chung của toàn dự án.
+    - Ghi nhận lịch sử hoạt động dạng: `[Expert] hoàn thành...`.
+- **Hủy hoàn thành (Bỏ tích - Uncheck)**:
+  - Khi Expert click hủy chọn (bỏ tích square):
+    - Giao diện checkbox và nền thẻ nhiệm vụ quay về trạng thái bình thường.
+    - Tự động ghi nhận hoạt động (Activity Logs) bắt đầu bằng cụm từ **đã thay đổi** để làm rõ hành động sửa đổi (ví dụ: `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành...` hoặc `[Expert] đã thay đổi milestone: hủy hoàn thành...`).
+- **Thay đổi tiêu đề (Rename Task)**:
+  - Khi Expert đổi tên Task hoặc Milestone, hệ thống lưu hoạt động mô tả chi tiết: `[Expert] đã thay đổi tiêu đề... từ "[Tên cũ]" thành "[Tên mới]"`.
+
+### 2. Cơ chế đồng bộ hai chiều Mock DB & Tự động phục hồi (Self-Healing Sync)
+- **Đồng bộ hai chiều (Bi-directional Sync)**: Mọi thay đổi dữ liệu từ đầu việc (như bảng `tasks`) được tự động đồng bộ sang mảng `tasks` nằm trong bảng `projects` để cả Client và Expert đều có chung một nguồn dữ liệu duy nhất khi theo dõi tiến độ.
+- **Tự động phục hồi (Self-healing)**: 
+  - Hệ thống tự động kiểm tra và sinh định danh độc nhất `UseCase_ID` (dạng `uc-index-projectId-date`) cho tất cả các Use Case trong bảng `projects` và `jobPosts` để đảm bảo liên kết dữ liệu luôn chuẩn xác.
+  - Hàm `_getById("tasks", id)` tự động kéo dữ liệu từ mảng `project.tasks` ra bảng `tasks` nếu chưa tồn tại, loại bỏ tình trạng rỗng danh sách nhiệm vụ trên giao diện cập nhật tiến độ của Expert.
+  - Bộ lọc tasks tự động liên kết bằng `useCaseId` thay vì index, có cơ chế dự phòng ngược (fallback) về index đối với các dữ liệu cũ để tránh lỗi giao diện.

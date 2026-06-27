@@ -33,27 +33,6 @@ export function JobDetail() {
       setLoading(true);
       setError(null);
       try {
-<<<<<<< Updated upstream
-        const jobData = await api.jobPosts.getById(id);
-        if (!jobData) {
-          if (!cancelled) setError("Job not found.");
-          return;
-        }
-        if (!cancelled) {
-          setJob({
-            id: jobData.id,
-            title: jobData.title,
-            description: jobData.description,
-            budget: jobData.budget,
-            createdAt: jobData.createdAt,
-            category: jobData.category,
-            categoryLabel: jobData.category,
-            requiredSkills: jobData.jobPostSkills?.map(s => s.skill) || [],
-            client: {
-              name: jobData.clientName || "Client",
-              location: jobData.clientLocation || "",
-            },
-=======
         const project = await api.jobPosts.getById(id);
         if (!project) {
           if (!cancelled) setError("Project not found.");
@@ -102,7 +81,6 @@ export function JobDetail() {
           setJob({
             ...project,
             client: clientInfo,
->>>>>>> Stashed changes
           });
           setInvitation(invitationProposal);
           setHasSubmitted(hasSubmittedProp);

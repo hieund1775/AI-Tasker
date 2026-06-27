@@ -91,11 +91,16 @@ const _runtimeExtensionRequests = new Map();
  * @returns the full log entry
  */
 export function addProjectActivity(projectId, { actor, message }) {
+  const timeStr = new Date().toISOString();
   const entry = {
     id: `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     actor,
-    time: new Date().toISOString(),
+    userRole: actor,
+    userName: actor === "Expert" ? "Chuyên gia" : (actor === "Client" ? "Khách hàng" : actor),
+    time: timeStr,
+    timestamp: timeStr,
     message,
+    actionDescription: message,
   };
   if (!_runtimeActivityLogs.has(projectId)) {
     _runtimeActivityLogs.set(projectId, []);
@@ -113,7 +118,7 @@ export function addProjectActivity(projectId, { actor, message }) {
 }
 
 /** Get merged static + runtime activity logs for a project, newest first. */
-function getMergedActivityLogs(projectId) {
+export function getMergedActivityLogs(projectId) {
   // TODO: Replace with API call — api.timeline.getActivityLogs(projectId)
   const staticLogs = [].map((log) => ({
     id: log.id,

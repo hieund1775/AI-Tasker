@@ -161,11 +161,7 @@ export function ExpertDashboard() {
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-<<<<<<< Updated upstream
-            (p) => isContractActive(p)
-=======
-            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress" || p.status?.toLowerCase() === "active" || p.status?.toLowerCase() === "disputed" || p.status?.toLowerCase() === "under_review" || p.status?.toLowerCase() === "under review"
->>>>>>> Stashed changes
+            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review"].includes(p.status?.toLowerCase())
           )
         );
         setCompletedProjects(
@@ -231,11 +227,7 @@ export function ExpertDashboard() {
       label: "Active Contracts",
       value: activeContracts.length,
       icon: Briefcase,
-<<<<<<< Updated upstream
-      color: "text-blue-600 bg-blue-100",
-=======
       color: "text-brand-primary bg-brand-primary-light",
->>>>>>> Stashed changes
     },
     {
       label: "Total Earned",
@@ -277,11 +269,7 @@ export function ExpertDashboard() {
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-<<<<<<< Updated upstream
-            className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
-=======
             className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
->>>>>>> Stashed changes
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
@@ -327,11 +315,7 @@ export function ExpertDashboard() {
                 </p>
                 <Link
                   to="/expert/find-jobs"
-<<<<<<< Updated upstream
-                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
-=======
-                  className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center"
->>>>>>> Stashed changes
+                  className="h-10 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 font-semibold text-sm transition-colors inline-flex items-center"
                 >
                   Find Jobs
                 </Link>
@@ -539,11 +523,7 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-<<<<<<< Updated upstream
-                        className="px-4 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium text-center transition-colors"
-=======
-                        className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
->>>>>>> Stashed changes
+                        className="px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-xs font-semibold inline-flex items-center gap-1.5 transition-colors w-full justify-center"
                       >
                         Apply Now
                       </Link>

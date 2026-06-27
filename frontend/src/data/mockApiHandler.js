@@ -714,26 +714,35 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 const existingProj = projects.find((p) => p.jobPostId === jobPost.id);
                 const newProjectId = existingProj ? existingProj.id : generateId("proj");
 
-                proposalTasks = coverLetterParsed.tasks.map((t, idx) => ({
-                  id: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
-                  projectId: newProjectId,
-                  title: t.title || `Task ${idx + 1}`,
-                  description: "",
-                  status: "not_started",
-                  progress: 0,
-                  assignedTo: proposal.expertId,
-                  deadline: String(jobPost.deadline || ""),
-                  miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
-                    id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
+                proposalTasks = coverLetterParsed.tasks.map((t, idx) => {
+                  const generatedTaskId = t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
+                  const ucIndex = t.useCaseIndex != null ? Number(t.useCaseIndex) : (idx % (jobPost.useCases?.length || 1));
+                  const ucTitle = t.useCaseTitle || (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
+                  const ucId = t.useCaseId || (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
+                  return {
+                    id: generatedTaskId,
                     projectId: newProjectId,
-                    taskId: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
-                    title: mt.title || `Mini task ${mtIdx + 1}`,
-                    status: "pending",
-                    isCompleted: false,
+                    title: t.title || `Task ${idx + 1}`,
                     description: "",
-                    order: mtIdx,
-                  })),
-                }));
+                    status: "not_started",
+                    progress: 0,
+                    assignedTo: proposal.expertId,
+                    deadline: String(jobPost.deadline || ""),
+                    useCaseIndex: ucIndex,
+                    useCaseId: ucId,
+                    useCaseTitle: ucTitle,
+                    miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
+                      id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
+                      projectId: newProjectId,
+                      taskId: generatedTaskId,
+                      title: mt.title || `Mini task ${mtIdx + 1}`,
+                      status: "pending",
+                      isCompleted: false,
+                      description: "",
+                      order: mtIdx,
+                    })),
+                  };
+                });
 
                 console.log("[mockApiHandler] Accepted proposal:", proposal.id);
                 console.log("[mockApiHandler] Parsed proposalTasks from JSON:", proposalTasks);
@@ -786,26 +795,35 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 },
               ];
 
-              proposalTasks = defaultTasks.map((t, idx) => ({
-                id: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-                projectId: newProjectId,
-                title: t.title,
-                description: "",
-                status: "not_started",
-                progress: 0,
-                assignedTo: proposal.expertId,
-                deadline: deadlineStr,
-                miniTasks: t.miniTasks.map((mt, mtIdx) => ({
-                  id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
+              proposalTasks = defaultTasks.map((t, idx) => {
+                const generatedTaskId = `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
+                const ucIndex = idx % (jobPost.useCases?.length || 1);
+                const ucTitle = (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
+                const ucId = (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
+                return {
+                  id: generatedTaskId,
                   projectId: newProjectId,
-                  taskId: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
-                  title: mt.title,
-                  status: "pending",
-                  isCompleted: false,
+                  title: t.title,
                   description: "",
-                  order: mtIdx,
-                })),
-              }));
+                  status: "not_started",
+                  progress: 0,
+                  assignedTo: proposal.expertId,
+                  deadline: deadlineStr,
+                  useCaseIndex: ucIndex,
+                  useCaseId: ucId,
+                  useCaseTitle: ucTitle,
+                  miniTasks: t.miniTasks.map((mt, mtIdx) => ({
+                    id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
+                    projectId: newProjectId,
+                    taskId: generatedTaskId,
+                    title: mt.title,
+                    status: "pending",
+                    isCompleted: false,
+                    description: "",
+                    order: mtIdx,
+                  })),
+                };
+              });
 
               console.log("[mockApiHandler] Generated", proposalTasks.length, "default tasks for proposal:", proposal.id);
             }
@@ -851,17 +869,20 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             }
 
             // Sync tasks to the global tasks table so listTasks() finds them
-            if (proposalTasks.length > 0) {
+            if (proposalTasks.length > 0 && newProject) {
               for (const task of proposalTasks) {
                 createTask({
                   id: task.id,
-                  projectId: task.projectId,
+                  projectId: task.projectId || newProject.id,
                   title: task.title,
                   description: task.description || "",
                   status: task.status || "not_started",
                   assignedTo: task.assignedTo || proposal.expertId,
                   approval: null,
                   deadline: task.deadline || String(jobPost.deadline || ""),
+                  useCaseIndex: task.useCaseIndex,
+                  useCaseId: task.useCaseId || "",
+                  useCaseTitle: task.useCaseTitle,
                   miniTasks: (task.miniTasks || []).map((mt) => ({
                     id: mt.id,
                     title: mt.title,

@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 
 import { timeAgo } from "../../lib/dateUtils.js";
-import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
 // Icons and formatting
@@ -55,27 +54,12 @@ export function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState(null);
 
-<<<<<<< Updated upstream
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchNotifications() {
-      try {
-        const data = await api.notifications.getList();
-        if (!cancelled && Array.isArray(data)) {
-          setNotifications(data);
-        }
-      } catch {
-        // API not available — show empty state
-        if (!cancelled) setNotifications([]);
-=======
   const fetchNotifications = async () => {
     try {
       const data = await api.notifications.getList();
       if (Array.isArray(data)) {
         data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         setNotifications(data);
->>>>>>> Stashed changes
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
@@ -98,23 +82,6 @@ export function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-<<<<<<< Updated upstream
-  const handleMarkRead = (id) => {
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    );
-    // Best-effort API call
-    api.notifications.markRead(id).catch(() => {});
-  };
-
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setActionFeedback("All notifications marked as read.");
-    setTimeout(() => setActionFeedback(null), 3000);
-    // Best-effort API call
-    api.notifications.markAllRead().catch(() => {});
-=======
   const handleMarkRead = async (id) => {
     try {
       await api.notifications.markRead(id);
@@ -135,7 +102,6 @@ export function NotificationsPage() {
     } catch (err) {
       console.error("Failed to mark all as read:", err);
     }
->>>>>>> Stashed changes
   };
 
   if (loading) {
@@ -244,18 +210,10 @@ export function NotificationsPage() {
               </div>
             );
 
-<<<<<<< Updated upstream
-            // Wrap in Link if there's a targetUrl or actionUrl, otherwise plain div
-            const linkUrl = notif.targetUrl || notif.actionUrl;
-            if (linkUrl) {
-              return (
-                <Link key={notif.id} to={linkUrl} className="block">
-=======
-            const redirectUrl = notif.linkTo || notif.actionUrl;
+            const redirectUrl = notif.linkTo || notif.targetUrl || notif.actionUrl;
             if (redirectUrl) {
               return (
                 <Link key={notif.id} to={redirectUrl} className="block">
->>>>>>> Stashed changes
                   {content}
                 </Link>
               );

@@ -28,33 +28,70 @@ function renderStructuredTasks(tasks) {
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
   }
+
+  // Group tasks by useCaseIndex
+  const groups = {};
+  tasks.forEach((task) => {
+    const key = task.useCaseIndex ?? 0;
+    if (!groups[key]) {
+      groups[key] = {
+        useCaseIndex: key,
+        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
+        tasks: [],
+        totalDuration: 0,
+        totalAmount: 0,
+      };
+    }
+    groups[key].tasks.push(task);
+    groups[key].totalDuration += Number(task.durationDays || 0);
+    groups[key].totalAmount += Number(task.amount || 0);
+  });
+  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
+
   return (
-    <div className="space-y-4 mt-3">
-      {tasks.map((task, idx) => (
-        <div key={task.id || idx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-2.5 text-sm text-left">
-          <div className="flex justify-between items-start flex-wrap gap-2">
-            <div>
+    <div className="space-y-6 mt-3">
+      {sortedGroups.map((group, gIdx) => (
+        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
+          {/* Group Header: Use Case Title & Totals */}
+          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
+            <div className="flex-1 min-w-0">
               <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
-                {task.useCaseTitle || `Use Case #${task.useCaseIndex + 1}`}
+                Use Case #{Number(group.useCaseIndex) + 1}
               </span>
-              <h4 className="font-bold text-gray-900 text-sm mt-1.5">{task.title || "Không có tiêu đề"}</h4>
+              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
             </div>
-            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-100 rounded-lg shadow-sm">
-              <span className="font-semibold text-brand-primary">{task.durationDays} ngày</span>
-              <span className="mx-1.5 text-gray-300">|</span>
-              <span className="font-bold text-gray-900">${task.amount}</span>
+            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
+              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
+              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
+              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
             </div>
           </div>
-          {task.miniTasks && task.miniTasks.length > 0 && (
-            <div className="pt-2 border-t border-gray-100 space-y-1.5">
-              <span className="text-[10px] font-bold text-gray-405 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
-              <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
-                {task.miniTasks.map((mt, mtIdx) => (
-                  <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+
+          {/* Tasks list under this Use Case */}
+          <div className="space-y-4">
+            {group.tasks.map((task, tIdx) => (
+              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2.5 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="font-semibold text-gray-900">${task.amount}</span>
+                  </div>
+                </div>
+                {task.miniTasks && task.miniTasks.length > 0 && (
+                  <div className="pt-2 border-t border-gray-50 space-y-1.5">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
+                    <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
+                      {task.miniTasks.map((mt, mtIdx) => (
+                        <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -377,25 +414,17 @@ export function ProposalDetail() {
           {convId ? (
             <Link
               to={`/messenger/${convId}`}
-<<<<<<< Updated upstream
-              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-=======
               className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
->>>>>>> Stashed changes
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
             </Link>
           ) : (
             <Link
-              to="/messenger"
-<<<<<<< Updated upstream
-              className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
-=======
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
->>>>>>> Stashed changes
+              to={`/messenger?expertId=${proposal.clientId}`}
+              className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] text-base font-semibold transition-colors flex items-center gap-1.5"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-5 h-5" />
               Contact Client
             </Link>
           )}

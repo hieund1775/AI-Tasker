@@ -40,6 +40,12 @@ export default function ClientProjectDetail() {
     handleApproveTask,
     handleRequestUrgentSubmission,
     handleRequestRevision,
+    handleUseCaseSubmitForReview,
+    handleUseCaseApprove,
+    handleUseCaseRequestProduct,
+    handleUseCaseSubmitProduct,
+    handleUseCaseDeclineProduct,
+    activityLogs,
     retry,
   } = useProjectProgress(currentProjectId, "client");
 
@@ -222,90 +228,112 @@ export default function ClientProjectDetail() {
                     ⚠️ Phản hồi vi phạm
                   </button>
                 )}
-                {!isDisputed && !hasPendingReportFromMe && (
-                  <button
-                    type="button"
-                    onClick={() => setShowReportForm(true)}
-                    className="h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-                  >
-                    <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                  </button>
-                )}
-                {hasPendingReportFromMe && (
-                  <button
-                    disabled
-                    className="h-11 px-4 border border-gray-200 text-gray-400 bg-gray-50 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed transition-all shadow-sm"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-gray-400" /> Đang trong tiến hành
-                  </button>
-                )}
-                {overallProgress === 100 && project.status !== "completed" && (
-                  <>
-                    {/* View Final Work Button */}
-                    {isDisputed ? (
-                      <button
-                        disabled
-                        className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                        title="Bị khóa do dự án đang có tranh chấp"
-                      >
-                        View Final Work
-                      </button>
-                    ) : (project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted") ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowFinalWorkModal(true)}
-                        className="h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
-                      >
-                        View Final Work
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                        title="Expert chưa nộp sản phẩm bàn giao cuối cùng"
-                      >
-                        View Final Work
-                      </button>
-                    )}
-
-                    {/* Release Payment Button */}
-                    {isDisputed ? (
-                      <button
-                        disabled
-                        className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                        title="Bị khóa do dự án đang có tranh chấp"
-                      >
-                        <CreditCard className="w-4 h-4" /> Release Payment
-                      </button>
-                    ) : project.finalDeliveryStatus === "Accepted" ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowReleaseConfirmModal(true)}
-                        className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
-                      >
-                        <CreditCard className="w-4 h-4" /> Release Payment
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                        title="Bạn phải Xem và Chấp nhận sản phẩm tổng trước khi giải ngân"
-                      >
-                        <CreditCard className="w-4 h-4" /> Release Payment
-                      </button>
-                    )}
-                  </>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowReportForm(true)}
+                  className="h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+                >
+                  <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                </button>
                 {project.status === "completed" && (
-                  <button
-                    disabled
-                    className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base cursor-not-allowed"
-                  >
-                    Payment Released
-                  </button>
+                  <span className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold uppercase tracking-wider font-sans">
+                    Hoàn thành (Complete)
+                  </span>
                 )}
               </div>
             </ProjectHeaderCard>
+
+            {/* Project Final Handover Card */}
+            {project.status !== "completed" && !isFullFreeze && (() => {
+              const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
+              const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-sans">
+                    <Send className="w-5 h-5 text-brand-primary" /> Nghiệm thu dự án tổng thể (Project Final Handover)
+                  </h2>
+                  
+                  {project.finalWorkDeclineReason && (
+                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm">
+                      <strong className="block font-semibold mb-1">Yêu cầu sửa đổi sản phẩm bàn giao cuối cùng:</strong>
+                      {project.finalWorkDeclineReason}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl">
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-700">
+                        {!isReadyForFinalSubmit ? (
+                          <span className="text-gray-400 italic">
+                            Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
+                          </span>
+                        ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                          <span className="text-brand-primary font-semibold">
+                            Chuyên gia đã nộp sản phẩm tổng thể. Vui lòng xem và thẩm định.
+                          </span>
+                        ) : project.finalDeliveryStatus === "Accepted" ? (
+                          <span className="text-green-600 font-semibold">
+                            Đã phê duyệt sản phẩm tổng thể. Vui lòng bấm Giải ngân.
+                          </span>
+                        ) : (
+                          <span className="text-amber-600 font-semibold animate-pulse">
+                            Chờ expert gửi sản phẩm tổng
+                          </span>
+                        )}
+                      </p>
+                      {project.finalDeliveryStatus === "Final Product Submitted" && (
+                        <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
+                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
+                          {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>}
+                          {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-gray-700">{project.finalProjectImage}</span></p>}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Xem sản phẩm tổng button */}
+                      {!isReadyForFinalSubmit ? (
+                        <button
+                          disabled
+                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                          title="Dự án chưa hoàn thành tất cả Use Cases"
+                        >
+                          Xem sản phẩm tổng
+                        </button>
+                      ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowFinalWorkModal(true)}
+                          className="h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                        >
+                          Xem sản phẩm tổng
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                          title="Chờ expert gửi sản phẩm tổng"
+                        >
+                          Chờ expert gửi sản phẩm tổng
+                        </button>
+                      )}
+
+                      {/* Release payment button */}
+                      {isReadyForFinalSubmit && project.finalDeliveryStatus === "Accepted" && (
+                        <button
+                          type="button"
+                          disabled={releaseLoading}
+                          onClick={handleReleasePayment}
+                          className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                        >
+                          <CreditCard className="w-4 h-4" /> Release Payment (Giải ngân)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Project progress panel */}
             <ProjectProgressPanel
@@ -316,10 +344,13 @@ export default function ClientProjectDetail() {
               projectId={currentProjectId}
               onToggleMiniTask={() => {}} // Client cannot toggle
               loading={false}
-              readOnly={isFullFreeze}
+              readOnly={false}
               onApproveTask={handleApproveTask}
               onRequestUrgentSubmission={handleRequestUrgentSubmission}
               onRequestRevision={handleRequestRevision}
+              onUseCaseApprove={handleUseCaseApprove}
+              onUseCaseRequestProduct={handleUseCaseRequestProduct}
+              onUseCaseDeclineProduct={handleUseCaseDeclineProduct}
             />
           </>
       </div>
@@ -534,6 +565,36 @@ export default function ClientProjectDetail() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Project Activity Log Container */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-brand-primary animate-pulse" /> Nhật ký hoạt động (Activity Log)
+        </h2>
+        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+          {!activityLogs || activityLogs.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">Chưa có hoạt động nào được ghi nhận.</p>
+          ) : (
+            <div className="relative border-l-2 border-slate-100 ml-3 pl-6 space-y-4 pt-1">
+              {activityLogs.map((log, idx) => (
+                <div key={log.id || idx} className="relative">
+                  {/* Dot marker */}
+                  <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-brand-primary border-2 border-white shadow-sm" />
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-start text-xs">
+                      <span className="font-bold text-gray-800">{log.userName || log.userRole || "Hệ thống"}</span>
+                      <span className="text-gray-400 font-mono">{new Date(log.timestamp).toLocaleString("vi-VN")}</span>
+                    </div>
+                    <p className="text-sm text-gray-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100/60 font-medium">
+                      {log.actionDescription || log.message}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

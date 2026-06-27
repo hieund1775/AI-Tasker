@@ -134,7 +134,7 @@ export function AdminReportDetail() {
   const [forceReasonError, setForceReasonError] = useState("");
 
   useEffect(() => {
-    if (!report?.replyDeadline || (report.status !== "Awaiting Expert" && report.status !== "Awaiting Client")) {
+    if (!report?.replyDeadline || (report.status !== "Awaiting Expert" && report.status !== "Awaiting Client" && report.status !== "Awaiting Evidence")) {
       setTimeLeft("");
       setIsDeadlineExpired(false);
       return;
@@ -505,6 +505,28 @@ export function AdminReportDetail() {
                 Default Settle (Xử thua mặc định)
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Awaiting Evidence purple countdown banner */}
+      {report.status === "Awaiting Evidence" && (
+        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 text-purple-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold font-sans">ĐANG TRONG THỜI GIAN BỔ SUNG BẰNG CHỨNG (48 GIỜ)</p>
+              <p className="text-xs text-purple-700 font-sans mt-0.5">
+                Cả hai bên cần nộp thêm bằng chứng. Trạng thái: <strong>{report.status}</strong>.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-mono font-bold">
+              {timeLeft}
+            </div>
           </div>
         </div>
       )}
@@ -903,7 +925,7 @@ export function AdminReportDetail() {
 
             {/* ---- Pending Admin / Awaiting Evidence: Settle Options ---- */}
             {(report.status === "Pending Admin" || report.status === "Awaiting Evidence") && (() => {
-              const isEvidenceAwaiting = report.status === "Awaiting Evidence";
+              const isEvidenceAwaiting = report.status === "Awaiting Evidence" && !isDeadlineExpired;
               return (
                 <div className="space-y-3">
                   <button
@@ -974,9 +996,13 @@ export function AdminReportDetail() {
                         </button>
                       </>
                     )}
-                    {isEvidenceAwaiting && (
+                    {isEvidenceAwaiting ? (
                       <p className="text-[11px] text-red-600 font-bold bg-red-50 border border-red-150 p-2.5 rounded-xl mt-3 text-left leading-normal font-sans">
-                        ⚠ Các nút phán quyết bị khóa cứng cho đến khi cả hai bên nộp xong bằng chứng bổ sung của đợt này.
+                        ⚠ Các nút phán quyết bị khóa cứng cho đến khi cả hai bên nộp xong bằng chứng bổ sung hoặc hết hạn 48 giờ.
+                      </p>
+                    ) : report.status === "Awaiting Evidence" && isDeadlineExpired && (
+                      <p className="text-[11px] text-green-700 font-bold bg-green-50 border border-green-150 p-2.5 rounded-xl mt-3 text-left leading-normal font-sans">
+                        ✓ Hạn nộp bằng chứng đã hết. Trưởng ban trọng tài đã có thể đưa ra phán quyết dựa trên các bằng chứng hiện có.
                       </p>
                     )}
                   </div>

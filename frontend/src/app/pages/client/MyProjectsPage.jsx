@@ -26,33 +26,60 @@ function renderStructuredTasks(tasks) {
   if (!Array.isArray(tasks) || tasks.length === 0) {
     return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
   }
+
+  // Group tasks by useCaseIndex
+  const groups = {};
+  tasks.forEach((task) => {
+    const key = task.useCaseIndex ?? 0;
+    if (!groups[key]) {
+      groups[key] = {
+        useCaseIndex: key,
+        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
+        tasks: [],
+        totalDuration: 0,
+        totalAmount: 0,
+      };
+    }
+    groups[key].tasks.push(task);
+    groups[key].totalDuration += Number(task.durationDays || 0);
+    groups[key].totalAmount += Number(task.amount || 0);
+  });
+  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
+
   return (
-    <div className="space-y-4 mt-3">
-      {tasks.map((task, idx) => (
-        <div key={task.id || idx} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-2.5 text-sm text-left">
-          <div className="flex justify-between items-start flex-wrap gap-2">
-            <div>
+    <div className="space-y-6 mt-3">
+      {sortedGroups.map((group, gIdx) => (
+        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
+          {/* Group Header: Use Case Title & Totals */}
+          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
+            <div className="flex-1 min-w-0">
               <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
-                {task.useCaseTitle || `Use Case #${task.useCaseIndex + 1}`}
+                Use Case #{Number(group.useCaseIndex) + 1}
               </span>
-              <h4 className="font-bold text-gray-900 text-sm mt-1.5">{task.title || "Không có tiêu đề"}</h4>
+              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
             </div>
-            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-100 rounded-lg shadow-sm">
-              <span className="font-semibold text-brand-primary">{task.durationDays} ngày</span>
-              <span className="mx-1.5 text-gray-300">|</span>
-              <span className="font-bold text-gray-900">${task.amount}</span>
+            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
+              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
+              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
+              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
             </div>
           </div>
-          {task.miniTasks && task.miniTasks.length > 0 && (
-            <div className="pt-2 border-t border-gray-100 space-y-1.5">
-              <span className="text-[10px] font-bold text-gray-405 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
-              <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
-                {task.miniTasks.map((mt, mtIdx) => (
-                  <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
-                ))}
-              </ul>
-            </div>
-          )}
+
+          {/* Tasks list under this Use Case */}
+          <div className="space-y-4">
+            {group.tasks.map((task, tIdx) => (
+              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="font-semibold text-gray-900">${task.amount}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -86,8 +113,11 @@ export function MyProjectsList() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const userRes = await api.users.getById(user.id);
-      
+      const [userRes, expertsRes] = await Promise.all([
+        api.users.getById(user.id),
+        api.experts.list().catch(() => []),
+      ]);
+
       const rawProjects = userRes?.jobPosts || [];
       const projectsWithCounts = await Promise.all(
         rawProjects.map(async (project) => {
@@ -102,8 +132,9 @@ export function MyProjectsList() {
           }
         })
       );
-      
+
       setProjects(projectsWithCounts);
+      setExperts(expertsRes || []);
     } catch (err) {
       console.error("Failed to load client projects:", err);
     } finally {
@@ -114,22 +145,6 @@ export function MyProjectsList() {
   const [dbUpdateVersion, setDbUpdateVersion] = useState(0);
 
   useEffect(() => {
-<<<<<<< Updated upstream
-    async function loadProjects() {
-      if (!user?.id) return;
-      try {
-        setLoading(true);
-        const [userRes, expertsRes] = await Promise.all([
-          api.users.getById(user.id),
-          api.experts.list().catch(() => [])
-        ]);
-        setProjects(userRes?.jobPosts || []);
-        setExperts(expertsRes || []);
-      } catch (err) {
-        console.error("Failed to load client projects:", err);
-      } finally {
-        setLoading(false);
-=======
     loadProjects();
 
     const handleUpdate = () => {
@@ -148,7 +163,6 @@ export function MyProjectsList() {
       const updated = projects.find((p) => p.id === selectedProject.id);
       if (updated) {
         setSelectedProject(updated);
->>>>>>> Stashed changes
       }
     }
   }, [projects]);
@@ -261,9 +275,9 @@ export function MyProjectsList() {
     try {
       await api.proposals.updateStatus(proposalId, status);
       toast.success(`Proposal has been successfully ${status.toLowerCase()}!`);
-      
+
       setProposal((prev) => prev ? { ...prev, status: status } : null);
-      
+
       // Reload projects to update counts and statuses
       await loadProjects();
     } catch (err) {
@@ -297,7 +311,7 @@ export function MyProjectsList() {
       await api.jobPosts.update(selectedProject.id, { status: "pending_pay" });
       // Update proposal status to "pending_pay"
       await api.proposals.updateStatus(p.id, "pending_pay");
-      
+
       toast.success("Proposal has been accepted successfully!");
       setViewedProposal(null);
       setShowEscrowConfirm(false);
@@ -488,7 +502,7 @@ export function MyProjectsList() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden p-8">
           <div className="border-b border-gray-100 pb-4 mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
-              {isAcceptedView 
+              {isAcceptedView
                 ? `Proposal connected to: ${selectedProject.title}`
                 : `Proposals list for: ${selectedProject.title}`
               }
@@ -584,7 +598,7 @@ export function MyProjectsList() {
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-white border border-gray-250 rounded-xl p-6 space-y-4 shadow-sm text-left">
                   <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Hình thức ký quỹ (Escrow Setup)</h3>
-                  
+
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
                       type="checkbox"
@@ -621,7 +635,7 @@ export function MyProjectsList() {
                   </button>
                 </div>
               )}
-              
+
               {proposal.status?.toLowerCase() === "accepted" && (
                 <div className="pt-6 border-t border-gray-100 flex items-center justify-end">
                   <Link
@@ -666,7 +680,7 @@ export function MyProjectsList() {
                           </div>
                         )}
                       </div>
-                      
+
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -803,13 +817,7 @@ export function MyProjectsList() {
   // =========================================================================
   // VIEW: LIST
   // =========================================================================
-  const filteredProjects = projects.filter((project) => {
-    const proposalCount = project.proposalCount || 0;
-    const statusKey = deriveProjectStatusKey(project, { proposalCount });
-    const s = project.status?.toLowerCase() || "";
-    const isActive = (statusKey === "in_progress" || s === "in_progress" || s === "in progress" || s === "active" || s === "hired" || s === "closed") && s !== "open";
-    return !isActive;
-  });
+  const filteredProjects = projects;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -848,31 +856,20 @@ export function MyProjectsList() {
         </div>
       ) : (
         <div className="space-y-4">
-<<<<<<< Updated upstream
-          {projects.map((project) => {
-            const proposalCount = 0;
+          {filteredProjects.map((project) => {
+            const proposalCount = project.proposalCount || 0;
 
             // Resolve localStorage chosen expert
             const chosenExpertsMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
             const chosenExpertId = chosenExpertsMapping[project.id];
             const assignedExpert = chosenExpertId ? (experts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
-
-=======
-          {filteredProjects.map((project) => {
-            const proposalCount = project.proposalCount || 0;
->>>>>>> Stashed changes
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
             const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
             const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
 
             const progress = getProjectProgress(project.id);
             const category = project.aiCategoryDomain;
-<<<<<<< Updated upstream
-            const action = getActionInfo(statusKey, project.id, proposalCount);
 
-=======
-            
->>>>>>> Stashed changes
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
@@ -941,67 +938,6 @@ export function MyProjectsList() {
                     View Details
                   </button>
 
-<<<<<<< Updated upstream
-                {/* ── Progress bar (for in_progress/completed projects) ── */}
-                {(statusKey === "in_progress" ||
-                  statusKey === "waiting_review" ||
-                  statusKey === "needs_revision" ||
-                  statusKey === "completed") && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-gray-500">Progress</span>
-                        <span className="text-xs font-bold text-gray-900">
-                          {progress}%
-                        </span>
-                      </div>
-                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-900 rounded-full transition-all"
-                          style={{ width: `${progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                {/* ── Bottom row: expert info + action button ── */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div>
-                    {assignedExpert ? (
-                      <span className="text-sm text-gray-500">
-                        Expert:{" "}
-                        <span className="font-medium text-gray-700">
-                          {assignedExpert.fullName}
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400 italic">
-                        No expert assigned yet
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    {/* View Detail — outline button */}
-                    <Link
-                      to={`/client/projects/${project.id}`}
-                      state={{ from: location.pathname }}
-                      className="flex-1 min-w-0 px-3.5 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      View Detail
-                    </Link>
-
-                    {/* View Proposal — primary blue button */}
-                    <Link
-                      to={`/client/projects/${project.id}/proposals`}
-                      state={{ from: location.pathname }}
-                      className="flex-1 min-w-0 px-3.5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-xs font-medium transition-colors inline-flex items-center justify-center gap-1.5 whitespace-nowrap"
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                      View Proposal
-                    </Link>
-                  </div>
-=======
                   {/* View Proposal green button — opening proposals list inline view */}
                   <button
                     onClick={() => {
@@ -1013,7 +949,6 @@ export function MyProjectsList() {
                     <Users className="w-4 h-4" />
                     View Proposal
                   </button>
->>>>>>> Stashed changes
                 </div>
               </div>
             );

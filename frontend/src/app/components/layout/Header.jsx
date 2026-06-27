@@ -1,30 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-<<<<<<< Updated upstream
-import { Link, useNavigate } from "react-router";
-=======
 import { Link, useNavigate, useLocation } from "react-router";
->>>>>>> Stashed changes
 import { Menu, User, LogOut, Bell, Wallet } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { timeAgo } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
-<<<<<<< Updated upstream
 
-// ---------------------------------------------------------------------------
-// Notifications — loaded from API when backend is connected.
-// Currently shows empty state.
-// ---------------------------------------------------------------------------
-
-async function getHeaderNotifications(_role) {
-  try {
-    const list = await api.notifications.getList();
-    return Array.isArray(list) ? list.slice(0, 5) : [];
-  } catch {
-    return [];
-  }
-}
-=======
->>>>>>> Stashed changes
 
 // ---------------------------------------------------------------------------
 // Component
@@ -48,9 +28,6 @@ export function Header() {
   // Load notifications from API
   useEffect(() => {
     if (isAuthenticated) {
-<<<<<<< Updated upstream
-      getHeaderNotifications(role).then(setNotifications);
-=======
       const loadNotifications = () => {
         api.notifications.getList()
           .then((data) => {
@@ -91,7 +68,6 @@ export function Header() {
         clearInterval(interval);
         window.removeEventListener("aitasker_db_update", handleUpdate);
       };
->>>>>>> Stashed changes
     } else {
       setNotifications([]);
     }
@@ -229,32 +205,7 @@ export function Header() {
                             No new workspace notifications.
                           </div>
                         ) : (
-<<<<<<< Updated upstream
-                          notifications.map((noti) => {
-                            const notifContent = (
-                              <div
-                                className={`p-4 flex items-start gap-3 transition-colors cursor-pointer relative ${
-                                  noti.isUnread
-                                    ? "bg-blue-50/30 hover:bg-blue-50/60"
-                                    : "hover:bg-gray-50"
-                                }`}
-                              >
-                                {noti.isUnread && (
-                                  <div className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-600 rounded-full" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="text-xs font-bold text-gray-900 truncate">
-                                    {noti.title}
-                                  </h4>
-                                  <p className="text-[11px] text-gray-500 font-medium leading-normal mt-0.5 break-words">
-                                    {noti.description || noti.message}
-                                  </p>
-                                  <span className="text-[9px] font-bold text-gray-400 block mt-1">
-                                    {noti.time || noti.createdAt || ""}
-                                  </span>
-                                </div>
-=======
-                          notifications.slice(0, 3).map((noti) => (
+                          notifications.slice(0, 5).map((noti) => (
                             <div
                               key={noti.id}
                               onClick={async () => {
@@ -291,23 +242,9 @@ export function Header() {
                                 <span className="text-[9px] font-bold text-gray-400 block mt-1">
                                   {noti.time}
                                 </span>
->>>>>>> Stashed changes
                               </div>
-                            );
-                            const targetUrl = noti.targetUrl || noti.actionUrl;
-                            if (targetUrl) {
-                              return (
-                                <Link
-                                  key={noti.id}
-                                  to={targetUrl}
-                                  onClick={() => setShowNotifications(false)}
-                                >
-                                  {notifContent}
-                                </Link>
-                              );
-                            }
-                            return <div key={noti.id}>{notifContent}</div>;
-                          })
+                            </div>
+                          ))
                         )}
                       </div>
 

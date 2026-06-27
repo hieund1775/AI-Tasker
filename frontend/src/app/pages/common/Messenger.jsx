@@ -1,12 +1,5 @@
-<<<<<<< Updated upstream
-﻿import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router";
-=======
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
->>>>>>> Stashed changes
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import {
   Send,
   Plus,

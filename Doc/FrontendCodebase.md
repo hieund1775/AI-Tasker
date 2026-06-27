@@ -239,3 +239,44 @@ Nâng cấp sidebar tại [PostProject.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT
 - **Thiết kế**:
   - Mỗi thẻ Use Case hiển thị thông tin chung và một nút **Detail** (Xem chi tiết).
   - Khi click vào nút **Detail**, một Dialog modal ([ProjectProgressPanel.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/project/ProjectProgressPanel.jsx)) sẽ mở ra hiển thị danh sách Task, Milestone & Checklist thuộc riêng Use Case đó. Expert có thể thực hiện kiểm tra tiến độ, sửa mô tả, check-off checklist và submit sản phẩm hoàn thành ngay tại đây.
+
+---
+
+## 9. Đánh Dấu Hoàn Thành & Nhật Ký Hoạt Động Của Expert (Mới Bổ Sung)
+
+### 9.1 Đồng Bộ Hóa Và Tự Phục Hồi Nhiệm Vụ (Self-Healing Task Sync)
+- **Cơ chế tự phục hồi**: Trong trường hợp các nhiệm vụ (`Tasks`) chỉ tồn tại trong danh sách nhúng của dự án (`project.tasks`) mà chưa được ghi nhận ở bảng `tasks` toàn cục (ví dụ sau khi chấp nhận đề xuất), hàm `_getById("tasks", id)` trong [mockDatabase.js](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/data/mockDatabase.js) sẽ tự động tìm kiếm trong danh sách của dự án và đồng bộ ngược trở lại bảng `tasks` trên bộ nhớ trình duyệt.
+- **Đồng bộ hai chiều**: Mọi thao tác cập nhật (như `toggleMiniTaskCompletion`, `updateTask`) trên bảng `tasks` đều tự động đồng bộ ngược lại mảng `tasks` của `projects` tương ứng và ngược lại thông qua các hàm gốc `_create` và `_update` của Mock Database.
+
+### 9.2 Hiển Thị Checkbox Màu Xanh Lá Và Đánh Dấu Thẻ Nhiệm Vụ
+- **Checkbox màu xanh**: Thay đổi màu sắc biểu tượng Square/CheckSquare từ màu xanh dương thương hiệu sang màu xanh lá cây (`text-green-600`) khi nhiệm vụ đã hoàn thành.
+- **Tô màu nền nổi bật**: Khi một nhiệm vụ (Task) đạt tiến độ 100% (hoặc tất cả milestones con hoàn thành) hoặc một milestone đơn lẻ được tích chọn, giao diện [ExpertUseCaseUpdatePage.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/expert/ExpertUseCaseUpdatePage.jsx) sẽ tự động chuyển nền và viền thẻ nhiệm vụ sang màu xanh lá nhẹ (`bg-green-50/40 border-green-200`) để chuyên gia dễ dàng nhận biết các đầu việc đã hoàn thành.
+
+### 9.3 Tự Động Ghi Nhật Ký Hoạt Động (Activity Logs) Theo Cú Pháp Yêu Cầu
+- **Hoạt động hoàn thành**: Khi tích chọn, hệ thống ghi nhật ký dưới dạng: `[Expert] hoàn thành...`.
+- **Hoạt động hủy hoàn thành (Bỏ tích)**: Khi Expert hủy chọn một checkbox, hệ thống sẽ ghi nhận hoạt động kèm cụm từ bắt buộc **đã thay đổi** để mô tả hành động (ví dụ: `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành...`).
+- **Hoạt động thay đổi tiêu đề**: Khi Expert sửa tên nhiệm vụ hoặc milestone, hệ thống ghi lại nhật ký chi tiết: `[Expert] đã thay đổi tiêu đề... từ "[Tên cũ]" thành "[Tên mới]"`.
+
+---
+
+## 10. Cập Nhật Các Tính Năng Nâng Cao Gần Đây (Checkpoint 3)
+
+### 10.1 Liên Kết Theo UseCase_ID Tránh Sai Lệch Dữ Liệu
+- **Tập tin**: `routes.jsx`, `ProjectProgressPanel.jsx`, `useProjectProgress.js`, `ExpertUseCaseUpdatePage.jsx`.
+- **Cơ chế**: Đường dẫn cập nhật Use Case phía Expert đổi tham số định tuyến từ `:index` sang `:useCaseId` (ví dụ: `/expert/projects/:id/usecase/:useCaseId`). Hàm lọc Task lấy `useCaseId` làm khóa chính thay vì mảng chỉ mục động, giúp dự án duy trì tính toàn vẹn dữ liệu ngay cả khi thứ tự Use Case bị thay đổi.
+
+### 10.2 Ràng Buộc Bằng Chứng Bàn Giao (Evidence Constraint)
+- **Tập tin**: `useProjectProgress.js`, `ExpertUseCaseUpdatePage.jsx`, `TaskProgressCard.jsx`, `TaskDetailPage.jsx`.
+- **Cơ chế**: Để Task đạt trạng thái nghiệm thu `"Checklist Completed"`, Expert phải điền và nộp bằng chứng bàn giao (Git commit SHA, link báo cáo...) trong Form trên trang cập nhật Use Case. Trình duyệt hiển thị hộp văn bản in rõ bằng chứng này ở cả góc nhìn Client và Expert.
+
+### 10.3 Banner Đỏ Cho Đề Xuất Lệch Ngân Sách (Budget Deviation Checks)
+- **Tập tin**: `SendProposal.jsx`.
+- **Cơ chế**: Hiển thị banner màu đỏ (`bg-red-50 text-red-800`) cảnh báo khi Expert điền giá thầu vượt quá ngân sách gốc của dự án. Hiển thị rõ số tiền Budget Deviation bị âm. Chặn nộp proposal cho đến khi hộp kiểm xác nhận vượt chỉ tiêu được tích chọn.
+
+### 10.4 Workspace Client Không Bị Khóa Cứng (Unblocked Workspace)
+- **Tập tin**: `ClientProjectManagement.jsx`, `ProjectProgressPanel.jsx`.
+- **Cơ chế**: Thiết lập `readOnly={false}` cho Progress Panel khi dự án bị tranh chấp. Khóa có chọn lọc (Scenario C) khi Use Case ở trạng thái `"waiting_expert_product"`. Nút Report (Báo cáo vi phạm) luôn hiển thị và khả dụng.
+
+### 10.5 Dispute Timeout 48h Của Tranh Chấp
+- **Tập tin**: `AdminReportDetail.jsx`.
+- **Cơ chế**: Hiển thị banner màu tím cảnh báo kèm đồng hồ đếm ngược khi trạng thái báo cáo là `"Awaiting Evidence"`. Mở khóa phán quyết tự động của Admin khi hết thời gian 48 giờ.

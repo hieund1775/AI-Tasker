@@ -30,11 +30,9 @@ import { ProposalDetail } from "./pages/expert/ProposalDetail.jsx";
 import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
-<<<<<<< Updated upstream
-import { ExpertContractView } from "./pages/expert/ExpertContractView.jsx";
-=======
 import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
->>>>>>> Stashed changes
+import { ExpertContractView } from "./pages/expert/ExpertContractView.jsx";
+import { ExpertUseCaseUpdatePage } from "./pages/expert/ExpertUseCaseUpdatePage.jsx";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -120,6 +118,7 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
+              { path: "expert/projects/:id/usecase/:useCaseId", Component: ExpertUseCaseUpdatePage },
               { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
               { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },

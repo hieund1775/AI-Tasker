@@ -10,6 +10,7 @@ import {
   updateMiniTaskInTask,
   toggleMiniTaskCompletion,
   submitTaskForReview,
+  updateTask,
   approveTaskSubmission,
   requestTaskRevision,
   requestTaskReopen,
@@ -22,10 +23,13 @@ import {
   listReports,
   getJobPostById,
 } from "../../data/mockDatabase.js";
+import { api } from "../../services/api.js";
 import {
   getOverallProgress,
   deriveTaskProgress,
   getDeadlineInfo,
+  getMergedActivityLogs,
+  addProjectActivity,
 } from "../lib/projectTimelineStore.js";
 
 // =============================================================================
@@ -91,7 +95,7 @@ export function deriveTaskDisplayStatus(task) {
     return "Waiting For Approval";
   }
 
-  // 4. Checklist Completed
+  // 4. Checklist Completed (Only when all completed AND evidence is provided!)
   const allCompleted =
     hasMiniTasks &&
     miniTasks.every(
@@ -101,7 +105,9 @@ export function deriveTaskDisplayStatus(task) {
         mt.status === "completed",
     );
   if (allCompleted) {
-    return "Checklist Completed";
+    if (task.evidence && task.evidence.trim() !== "") {
+      return "Checklist Completed";
+    }
   }
 
   // 5. Not Started
@@ -135,6 +141,7 @@ export function useProjectProgress(projectId, role) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
 
   // ---- Data loader ----
   const loadData = useCallback(() => {
@@ -145,9 +152,13 @@ export function useProjectProgress(projectId, role) {
 
     try {
       const projectsList = listProjects();
-      const foundProject = projectsList.find((p) => p.id === projectId);
+      let foundProject = projectsList.find((p) => p.id === projectId);
       if (!foundProject) {
-        setError("Project not found");
+        foundProject = projectsList.find((p) => p.jobPostId === projectId);
+      }
+
+      if (!foundProject) {
+        setProject(null);
         setLoading(false);
         return;
       }
@@ -168,7 +179,7 @@ export function useProjectProgress(projectId, role) {
 
       // Load tasks for this project — first from the global task list,
       // then fall back to embedded project.tasks (from accepted proposals).
-      const projectTasks = listTasks((t) => t.projectId === projectId);
+      const projectTasks = listTasks((t) => t.projectId === foundProject.id);
 
       const embeddedTasks = Array.isArray(foundProject.tasks)
         ? foundProject.tasks.map((task) => ({
@@ -192,7 +203,12 @@ export function useProjectProgress(projectId, role) {
           }))
         : [];
 
-      const finalTasks = projectTasks.length > 0 ? projectTasks : embeddedTasks;
+      const finalTasks = embeddedTasks.length > 0
+        ? embeddedTasks.map((et) => {
+            const pt = projectTasks.find((t) => t.id === et.id);
+            return pt ? pt : et;
+          })
+        : projectTasks;
 
       console.log("[useProjectProgress] projectId:", projectId);
       console.log(
@@ -206,7 +222,18 @@ export function useProjectProgress(projectId, role) {
       console.log("[useProjectProgress] final tasks:", finalTasks.length);
       console.log("[useProjectProgress] final tasks detail:", finalTasks);
 
-      setTasks(finalTasks);
+      const enrichedFinalTasks = finalTasks.map((task, idx) => {
+        const derivedUcIndex = task.useCaseIndex != null ? Number(task.useCaseIndex) : (idx % (foundProject.useCases?.length || 1));
+        const derivedUcId = task.useCaseId || (foundProject.useCases && foundProject.useCases[derivedUcIndex]?.id) || "";
+        return {
+          ...task,
+          useCaseIndex: derivedUcIndex,
+          useCaseId: derivedUcId,
+          useCaseTitle: task.useCaseTitle || (foundProject.useCases && foundProject.useCases[derivedUcIndex]?.title) || "",
+        };
+      });
+
+      setTasks(enrichedFinalTasks);
 
       // Load expert user
       if (foundProject.assignedExpertId) {
@@ -233,6 +260,10 @@ export function useProjectProgress(projectId, role) {
         reports[0] ||
         null;
       setReport(activeReport);
+
+      // Load activity logs
+      const logs = getMergedActivityLogs(foundProject.id);
+      setActivityLogs(logs);
 
       setError(null);
     } catch (err) {
@@ -282,7 +313,7 @@ export function useProjectProgress(projectId, role) {
   ).length;
 
   const useCasesWithProgress = (project?.useCases || []).map((uc, index) => {
-    const ucTasks = tasksWithProgress.filter((t) => Number(t.useCaseIndex) === index);
+    const ucTasks = tasksWithProgress.filter((t) => t.useCaseId ? t.useCaseId === uc.id : Number(t.useCaseIndex) === index);
     let progress = 0;
     if (ucTasks.length > 0) {
       const totalTaskProgress = ucTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
@@ -320,10 +351,49 @@ export function useProjectProgress(projectId, role) {
   const handleToggleMiniTask = useCallback(
     (taskId, miniTaskId) => {
       if (role !== "expert") return;
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      if (!miniTaskId) {
+        // Toggle the task itself
+        const isCurrentlyCompleted = task.status === "completed" || task.status === "done" || task.progress === 100;
+        const newStatus = isCurrentlyCompleted ? "not_started" : "completed";
+        const newProgress = isCurrentlyCompleted ? 0 : 100;
+
+        updateTask(taskId, {
+          status: newStatus,
+          progress: newProgress,
+          approval: newStatus === "completed" ? "Approved" : null
+        });
+
+        if (project) {
+          addProjectActivity(project.id, {
+            actor: "Expert",
+            message: isCurrentlyCompleted
+              ? `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành "${task.title}"`
+              : `[Expert] hoàn thành nhiệm vụ "${task.title}"`
+          });
+        }
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return;
+      }
+
+      const mt = task.miniTasks?.find(m => m.id === miniTaskId);
+      const isCompleted = mt ? !(mt.isCompleted === true || mt.status === "done" || mt.status === "completed") : false;
+
       toggleMiniTaskCompletion(taskId, miniTaskId, expert?.fullName);
+
+      if (task && mt && project) {
+        addProjectActivity(project.id, {
+          actor: "Expert",
+          message: !isCompleted
+            ? `[Expert] đã thay đổi milestone: hủy hoàn thành "${mt.title}" của task "${task.title}"`
+            : `[Expert] hoàn thành milestone "${mt.title}" của task "${task.title}"`
+        });
+      }
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     },
-    [role, expert]
+    [role, expert, tasks, project]
   );
 
   const handleAddMiniTask = useCallback(
@@ -353,9 +423,36 @@ export function useProjectProgress(projectId, role) {
   const handleUpdateMiniTask = useCallback(
     (taskId, miniTaskId, updates) => {
       if (role !== "expert") return null;
-      return updateMiniTaskInTask(taskId, miniTaskId, updates);
+      const task = tasks.find((t) => t.id === taskId);
+      const oldMt = task?.miniTasks?.find((m) => m.id === miniTaskId);
+      const res = updateMiniTaskInTask(taskId, miniTaskId, updates);
+      if (task && oldMt && updates.title && oldMt.title !== updates.title && project) {
+        addProjectActivity(project.id, {
+          actor: "Expert",
+          message: `[Expert] đã thay đổi tiêu đề milestone của task "${task.title}" từ "${oldMt.title}" thành "${updates.title}"`
+        });
+      }
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      return res;
     },
-    [role],
+    [role, tasks, project],
+  );
+
+  const handleUpdateTask = useCallback(
+    (taskId, updates) => {
+      if (role !== "expert") return null;
+      const oldTask = tasks.find((t) => t.id === taskId);
+      const res = updateTask(taskId, updates);
+      if (oldTask && updates.title && oldTask.title !== updates.title && project) {
+        addProjectActivity(project.id, {
+          actor: "Expert",
+          message: `[Expert] đã thay đổi tiêu đề nhiệm vụ từ "${oldTask.title}" thành "${updates.title}"`
+        });
+      }
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      return res;
+    },
+    [role, tasks, project],
   );
 
   // ---- Review workflow handlers ----
@@ -446,6 +543,10 @@ export function useProjectProgress(projectId, role) {
         projectLink,
         projectFile,
       );
+      addProjectActivity(projectId, {
+        actor: "Expert",
+        message: `[Expert] đã nộp bàn giao sản phẩm tổng thể.`
+      });
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       return result;
     },
@@ -458,6 +559,10 @@ export function useProjectProgress(projectId, role) {
       projectId,
       client?.fullName || "Client",
     );
+    addProjectActivity(projectId, {
+      actor: "Client",
+      message: `[Client] đã chấp nhận sản phẩm tổng thể. Tiến hành giải ngân và hoàn thành dự án.`
+    });
     window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     return result;
   }, [projectId, role, client]);
@@ -470,10 +575,132 @@ export function useProjectProgress(projectId, role) {
         client?.fullName || "Client",
         feedback,
       );
+      addProjectActivity(projectId, {
+        actor: "Client",
+        message: `[Client] từ chối sản phẩm tổng thể. Lý do: "${feedback}"`
+      });
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       return result;
     },
     [projectId, role, client],
+  );
+
+  const handleUseCaseSubmitForReview = useCallback(
+    async (useCaseIndex) => {
+      if (role !== "expert" || !project) return;
+      const updatedUseCases = [...(project.useCases || [])];
+      if (!updatedUseCases[useCaseIndex]) return;
+      updatedUseCases[useCaseIndex] = {
+        ...updatedUseCases[useCaseIndex],
+        status: "waiting_client_review"
+      };
+
+      addProjectActivity(project.id, {
+        actor: "Expert",
+        message: `[Expert] yêu cầu duyệt Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}"`
+      });
+
+      await api.projects.update(project.id, { useCases: updatedUseCases });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    },
+    [project, role]
+  );
+
+  const handleUseCaseApprove = useCallback(
+    async (useCaseIndex) => {
+      if (role !== "client" || !project) return;
+      const updatedUseCases = [...(project.useCases || [])];
+      if (!updatedUseCases[useCaseIndex]) return;
+      updatedUseCases[useCaseIndex] = {
+        ...updatedUseCases[useCaseIndex],
+        status: "done",
+        progress: 100
+      };
+
+      addProjectActivity(project.id, {
+        actor: "Client",
+        message: `[Client] phê duyệt Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}" (Trạng thái: Hoàn thành)`
+      });
+
+      // Mark all tasks belonging to this Use Case as completed
+      const ucId = updatedUseCases[useCaseIndex]?.id;
+      const ucTasks = tasksWithProgress.filter((t) => t.useCaseId && ucId ? t.useCaseId === ucId : Number(t.useCaseIndex) === useCaseIndex);
+      ucTasks.forEach(task => {
+        approveTaskSubmission(task.id, client?.fullName || "Client");
+      });
+
+      await api.projects.update(project.id, { useCases: updatedUseCases });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    },
+    [project, role, tasksWithProgress, client]
+  );
+
+  const handleUseCaseRequestProduct = useCallback(
+    async (useCaseIndex) => {
+      if (role !== "client" || !project) return;
+      const updatedUseCases = [...(project.useCases || [])];
+      if (!updatedUseCases[useCaseIndex]) return;
+      updatedUseCases[useCaseIndex] = {
+        ...updatedUseCases[useCaseIndex],
+        status: "submit_product" // Expert will see "submit_product", Client sees "Chờ expert gửi sản phẩm"
+      };
+
+      addProjectActivity(project.id, {
+        actor: "Client",
+        message: `[Client] yêu cầu sản phẩm cho Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}"`
+      });
+
+      await api.projects.update(project.id, { useCases: updatedUseCases });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    },
+    [project, role]
+  );
+
+  const handleUseCaseSubmitProduct = useCallback(
+    async (useCaseIndex, deliverableData) => {
+      if (role !== "expert" || !project) return;
+      const updatedUseCases = [...(project.useCases || [])];
+      if (!updatedUseCases[useCaseIndex]) return;
+      updatedUseCases[useCaseIndex] = {
+        ...updatedUseCases[useCaseIndex],
+        status: "waiting_client_review",
+        productLink: deliverableData.productLink || "",
+        productFile: deliverableData.productFile || "",
+        productImage: deliverableData.productImage || "",
+        declineReason: null // Clear decline reason on resubmit
+      };
+
+      addProjectActivity(project.id, {
+        actor: "Expert",
+        message: `[Expert] nộp sản phẩm cho Use Case #${useCaseIndex + 1}. Link: ${deliverableData.productLink || "N/A"}, File: ${deliverableData.productFile || "N/A"}`
+      });
+
+      await api.projects.update(project.id, { useCases: updatedUseCases });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    },
+    [project, role]
+  );
+
+  const handleUseCaseDeclineProduct = useCallback(
+    async (useCaseIndex, reason) => {
+      if (role !== "client" || !project) return;
+      const updatedUseCases = [...(project.useCases || [])];
+      if (!updatedUseCases[useCaseIndex]) return;
+      updatedUseCases[useCaseIndex] = {
+        ...updatedUseCases[useCaseIndex],
+        status: "rework",
+        declineReason: reason
+      };
+
+      addProjectActivity(project.id, {
+        actor: "Client",
+        message: `[Client] từ chối sản phẩm Use Case #${useCaseIndex + 1}. Lý do: "${reason}"`
+      });
+
+      await api.projects.update(project.id, { useCases: updatedUseCases });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    },
+    [project, role]
   );
 
   const isDisputed = project?.status?.toLowerCase() === "disputed";
@@ -495,6 +722,7 @@ export function useProjectProgress(projectId, role) {
     isSelectiveFreeze,
     loading,
     error,
+    activityLogs,
 
     // Derived
     overallProgress,
@@ -511,6 +739,7 @@ export function useProjectProgress(projectId, role) {
     handleRemoveMiniTask,
     handleReorderMiniTasks,
     handleUpdateMiniTask,
+    handleUpdateTask,
     handleSubmitForReview,
     handleSubmitProduct,
     handleApproveTask,
@@ -522,6 +751,13 @@ export function useProjectProgress(projectId, role) {
     handleSubmitProjectFinalWork,
     handleAcceptProjectFinalDelivery,
     handleDeclineProjectFinalDelivery,
+
+    // Use Case Mutations
+    handleUseCaseSubmitForReview,
+    handleUseCaseApprove,
+    handleUseCaseRequestProduct,
+    handleUseCaseSubmitProduct,
+    handleUseCaseDeclineProduct,
 
     // Reload
     retry: loadData,

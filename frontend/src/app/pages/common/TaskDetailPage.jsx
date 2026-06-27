@@ -544,6 +544,19 @@ export default function TaskDetailPage() {
               />
             </div>
 
+            {/* Display Handover Evidence */}
+            {task.evidence && (
+              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl font-sans text-left animate-fade-in">
+                <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Bằng chứng bàn giao (Handover Evidence)
+                </h4>
+                <p className="text-sm font-mono text-gray-800 bg-white/70 px-3 py-2 rounded-lg border border-green-150 break-all leading-normal">
+                  {task.evidence}
+                </p>
+              </div>
+            )}
+
             {/* Display Product Deliverables */}
             <div className="mt-5 p-4 bg-gray-50 border border-gray-100 rounded-xl">
               <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">

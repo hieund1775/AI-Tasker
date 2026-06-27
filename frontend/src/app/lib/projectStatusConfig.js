@@ -84,9 +84,14 @@ export function getExpertDisplayInfo(project, getUserById) {
 
 const CLIENT_BUTTON_MAP = {
   reviewing_proposals: {
-    label: "View Project Details",
+    label: "Review Proposals",
     className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
-    linkTo: (p) => `/client/projects/${p.id}`,
+    linkTo: (p) => `/client/my-projects?projectId=${p.id}&view=proposals`,
+  },
+  pending_escrow: {
+    label: "Deposit Escrow",
+    className: "bg-amber-600 text-white hover:bg-amber-700",
+    linkTo: (p) => `/client/my-projects?projectId=${p.id}&view=proposals`,
   },
   in_progress: {
     label: "Manage Project",

@@ -24,6 +24,70 @@ function getStatusConfig(status) {
   return getProposalStatusConfig(status);
 }
 
+function renderStructuredTasks(tasks) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
+  }
+
+  // Group tasks by useCaseIndex
+  const groups = {};
+  tasks.forEach((task) => {
+    const key = task.useCaseIndex ?? 0;
+    if (!groups[key]) {
+      groups[key] = {
+        useCaseIndex: key,
+        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
+        tasks: [],
+        totalDuration: 0,
+        totalAmount: 0,
+      };
+    }
+    groups[key].tasks.push(task);
+    groups[key].totalDuration += Number(task.durationDays || 0);
+    groups[key].totalAmount += Number(task.amount || 0);
+  });
+  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
+
+  return (
+    <div className="space-y-6 mt-3">
+      {sortedGroups.map((group, gIdx) => (
+        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
+          {/* Group Header: Use Case Title & Totals */}
+          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
+                Use Case #{Number(group.useCaseIndex) + 1}
+              </span>
+              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
+            </div>
+            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
+              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
+              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
+              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
+            </div>
+          </div>
+
+          {/* Tasks list under this Use Case */}
+          <div className="space-y-4">
+            {group.tasks.map((task, tIdx) => (
+              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="font-semibold text-gray-900">${task.amount}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DetailSection({ title, children, className = "" }) {
   return (
     <div
@@ -89,6 +153,7 @@ export function ClientProposalDetail() {
           dependencies: parsedCoverLetter.dependencies || "",
           durationDays: parsedCoverLetter.durationDays || 0,
           attachments: parsedCoverLetter.attachments || [],
+          tasks: Array.isArray(parsedCoverLetter.tasks) ? parsedCoverLetter.tasks : [],
         };
         setProposal(enrichedProposal);
 
@@ -288,13 +353,15 @@ export function ClientProposalDetail() {
             </DetailSection>
           )}
 
-          {proposal.timelineMilestones && (
-            <DetailSection title="Implementation Timeline & Milestones">
+          <DetailSection title="Implementation Timeline & Milestones">
+            {(proposal.tasks && proposal.tasks.length > 0) ? (
+              renderStructuredTasks(proposal.tasks)
+            ) : (
               <pre className="text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
-                {proposal.timelineMilestones}
+                {proposal.timelineMilestones || "No timeline specified."}
               </pre>
-            </DetailSection>
-          )}
+            )}
+          </DetailSection>
 
           {proposal.dependencies && (
             <DetailSection title="Dependencies & Client Requirements">

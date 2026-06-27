@@ -35,9 +35,27 @@ export function ProjectProgressPanel({
   onApproveTask,
   onRequestUrgentSubmission,
   onRequestRevision,
+  onUseCaseSubmitForReview,
+  onUseCaseApprove,
+  onUseCaseRequestProduct,
+  onUseCaseSubmitProduct,
+  onUseCaseDeclineProduct,
 }) {
   const taskRefs = useRef({});
   const navigate = useNavigate();
+
+  const getTaskDuration = (t) => {
+    if (t.durationDays) return Number(t.durationDays);
+    if (t.deadline) {
+      const start = t.createdAt ? new Date(t.createdAt) : new Date();
+      const end = new Date(t.deadline);
+      const diffMs = end - start;
+      if (diffMs > 0) {
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      }
+    }
+    return 5; // default fallback
+  };
 
   // States for client-side inline task deliverables review modal
   const [activeReviewTask, setActiveReviewTask] = useState(null);
@@ -45,6 +63,16 @@ export function ProjectProgressPanel({
   const [declineReason, setDeclineReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [activeExpertUseCaseIndex, setActiveExpertUseCaseIndex] = useState(null);
+
+  // States for Use Case product submission
+  const [ucProductLink, setUcProductLink] = useState("");
+  const [ucProductFile, setUcProductFile] = useState("");
+  const [ucProductImage, setUcProductImage] = useState("");
+
+  // States for client-side Use Case review modal
+  const [activeReviewUseCaseIndex, setActiveReviewUseCaseIndex] = useState(null);
+  const [useCaseDeclineReason, setUseCaseDeclineReason] = useState("");
+  const [showUseCaseDeclineForm, setShowUseCaseDeclineForm] = useState(false);
 
   const handleApprove = async (taskId) => {
     if (readOnly || !onApproveTask) return;
@@ -87,6 +115,87 @@ export function ProjectProgressPanel({
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể gửi phản hồi từ chối.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseSubmitForReviewWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseSubmitForReview) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseSubmitForReview(useCaseIndex);
+      toast.success("Đã gửi yêu cầu phê duyệt Use Case thành công!");
+    } catch (err) {
+      toast.error("Không thể gửi yêu cầu phê duyệt.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseApproveWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseApprove) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseApprove(useCaseIndex);
+      toast.success("Đã phê duyệt Use Case thành công!");
+      setActiveReviewUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể phê duyệt Use Case.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseRequestProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseRequestProduct) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseRequestProduct(useCaseIndex);
+      toast.success("Đã yêu cầu sản phẩm bàn giao thành công!");
+    } catch (err) {
+      toast.error("Không thể yêu cầu sản phẩm bàn giao.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseSubmitProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseSubmitProduct) return;
+    if (!ucProductLink.trim() && !ucProductFile.trim() && !ucProductImage.trim()) {
+      toast.error("Vui lòng cung cấp ít nhất một liên kết, tệp hoặc hình ảnh!");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await onUseCaseSubmitProduct(useCaseIndex, {
+        productLink: ucProductLink.trim(),
+        productFile: ucProductFile.trim(),
+        productImage: ucProductImage.trim()
+      });
+      toast.success("Đã nộp sản phẩm bàn giao thành công!");
+      setUcProductLink("");
+      setUcProductFile("");
+      setUcProductImage("");
+      setActiveExpertUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể nộp sản phẩm bàn giao.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseDeclineProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseDeclineProduct || !useCaseDeclineReason.trim()) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseDeclineProduct(useCaseIndex, useCaseDeclineReason.trim());
+      toast.success("Đã gửi lý do từ chối sản phẩm thành công!");
+      setUseCaseDeclineReason("");
+      setShowUseCaseDeclineForm(false);
+      setActiveReviewUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể gửi lý do từ chối.");
     } finally {
       setActionLoading(false);
     }
@@ -192,162 +301,232 @@ export function ProjectProgressPanel({
 
       {/* Body content based on role */}
       {role === "client" ? (
-        <div className="space-y-4 pt-2">
-          <h3 className="text-[15px] font-medium text-gray-500 uppercase tracking-wider text-left">
-            Project Use Cases ({useCases.length})
-          </h3>
-          <div className="space-y-4">
-            {useCases.map((uc, i) => {
-              const ucTask = tasks.find((t) => Number(t.useCaseIndex) === i);
-              const isWaitingForApproval = ucTask?.status === "pending_review" || ucTask?.status === "Pending Review" || ucTask?.status === "pending review";
-              const isNeedsRevision = ucTask?.displayStatus === "Rework";
-              const isUrgent = ucTask?.urgentRequest === true;
-              const hasMainProduct = ucTask ? !!(ucTask.productLink || ucTask.productFile) : false;
+        <div className="space-y-6 pt-2">
+          {useCases.map((uc, i) => {
+            const ucTasks = tasks.filter((t) => Number(t.useCaseIndex) === i);
+            const totalDuration = ucTasks.reduce((sum, t) => sum + getTaskDuration(t), 0);
 
-              return (
-                <div key={i} className="p-5 bg-white border border-gray-255 rounded-2xl text-left space-y-3.5 shadow-sm">
-                  <div className="flex justify-between items-start flex-wrap gap-2">
-                    <div>
-                      <h4 className="font-bold text-gray-900 text-base font-sans">
-                        Use Case #{i + 1}: <span className="font-semibold text-gray-750">{uc.nameAndDeadline}</span>
-                      </h4>
-                      {uc.durationValue && (
-                        <p className="text-xs text-brand-primary font-semibold font-sans mt-0.5">
-                          Timeline gốc: {uc.durationValue} {uc.durationUnit === "days" ? "ngày" : uc.durationUnit === "weeks" ? "tuần" : uc.durationUnit === "months" ? "tháng" : uc.durationUnit === "years" ? "năm" : uc.durationUnit}
-                        </p>
+            return (
+              <div key={i} className="p-5 bg-white border border-gray-200 rounded-2xl text-left space-y-4 shadow-sm">
+                {/* Use Case Header */}
+                <div className="flex justify-between items-start border-b border-gray-100 pb-3 gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                        Use Case #{i + 1}
+                      </span>
+                      {uc.status === "done" && (
+                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200 uppercase tracking-wide">
+                          Done
+                        </span>
+                      )}
+                      {uc.status === "waiting_client_review" && (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 uppercase tracking-wide">
+                          Awaiting Review
+                        </span>
+                      )}
+                      {uc.status === "rework" && (
+                        <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200 uppercase tracking-wide">
+                          Rework
+                        </span>
+                      )}
+                      {uc.status === "submit_product" && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wide">
+                          Waiting for Product
+                        </span>
                       )}
                     </div>
-                    <span className="text-sm font-semibold text-brand-primary font-mono bg-brand-primary-light px-2.5 py-1 rounded-full">
-                      {uc.progress}%
-                    </span>
+                    <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">
+                      {uc.nameAndDeadline || uc.name}
+                    </h3>
                   </div>
-                  
-                  <p className="text-sm text-gray-600 leading-relaxed font-sans pl-3 border-l-2 border-slate-350">
-                    {uc.description}
-                  </p>
-
-                  {/* Task Status Badge */}
-                  {ucTask && (
-                    <div className="flex items-center gap-2 text-xs mt-1">
-                      <span className="text-gray-400 font-medium">Trạng thái công việc:</span>
-                      <StatusBadge status={ucTask.displayStatus} entity="task" />
-                    </div>
-                  )}
-
-                  {/* Progress bar */}
-                  <div className="space-y-1">
-                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-brand-primary transition-all duration-500"
-                        style={{ width: `${uc.progress}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-400 font-sans">
-                      <span>Trạng thái tiến độ</span>
-                      <span>{uc.progress === 100 ? "Hoàn thành" : `${uc.progress}%`}</span>
-                    </div>
+                  <div className="text-right text-xs bg-gray-50 px-3 py-1.5 border border-gray-150 rounded-lg shadow-sm shrink-0">
+                    <span className="font-bold text-brand-primary block sm:inline">Tổng: {totalDuration || Number(uc.durationDays || 0)} ngày</span>
                   </div>
+                </div>
 
-                  {/* Review Actions Panel Inline */}
-                  {ucTask && !readOnly && (
-                    <div className="pt-2 border-t border-gray-100 flex flex-col gap-2.5">
-                      {/* Scenario A: Waiting for approval WITHOUT deliverables */}
-                      {(ucTask.displayStatus === "Checklist Completed" || (isWaitingForApproval && !hasMainProduct)) && !isNeedsRevision && (
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          {!isUrgent ? (
-                            <>
-                              <button
-                                type="button"
-                                disabled={actionLoading}
-                                onClick={() => handleApprove(ucTask.id)}
-                                className="h-9 px-3.5 bg-brand-green hover:bg-brand-green/90 text-white text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 shadow-sm font-sans cursor-pointer disabled:opacity-50"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                Phê duyệt (Accept)
-                              </button>
-                              <button
-                                type="button"
-                                disabled={actionLoading}
-                                onClick={() => handleRequestUrgent(ucTask.id)}
-                                className="h-9 px-3.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 shadow-sm font-sans cursor-pointer disabled:opacity-50"
-                              >
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                                Yêu cầu sản phẩm (Request Product)
-                              </button>
-                            </>
-                          ) : (
-                            <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-semibold font-sans w-full">
-                              <Clock3 className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
-                              Đang chờ Expert nộp sản phẩm...
-                            </div>
-                          )}
-                        </div>
-                      )}
+                <p className="text-sm text-gray-600 leading-relaxed font-sans pl-3 border-l-2 border-slate-300">
+                  {uc.description}
+                </p>
 
-                      {/* Scenario B: Waiting for approval WITH deliverables */}
-                      {isWaitingForApproval && hasMainProduct && (
-                        <div className="flex justify-end">
+                {/* Progress bar */}
+                <div className="space-y-1">
+                  <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand-primary transition-all duration-500"
+                      style={{ width: `${uc.progress}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400 font-sans">
+                    <span>Trạng thái tiến độ</span>
+                    <span>{uc.progress === 100 ? "Hoàn thành" : `${uc.progress}%`}</span>
+                  </div>
+                </div>
+
+                {/* Use Case Actions for Client */}
+                {!readOnly && (
+                  <div className="py-2 px-3 bg-slate-50 border border-gray-150 rounded-xl flex items-center justify-between gap-3 text-sm flex-wrap">
+                    <span className="text-gray-500 font-semibold">Duyệt Use Case:</span>
+                    <div className="flex gap-2">
+                      {/* Scenario A: waiting_client_review with NO product submitted */}
+                      {uc.status === "waiting_client_review" && !uc.productLink && !uc.productFile && !uc.productImage && (
+                        <>
                           <button
                             type="button"
-                            onClick={() => {
-                              setActiveReviewTask(ucTask);
-                              setShowDeclineForm(false);
-                              setDeclineReason("");
-                            }}
-                            className="h-9 px-4 bg-brand-primary text-white hover:bg-brand-primary-hover text-xs font-semibold rounded-xl transition-all inline-flex items-center justify-center gap-1.5 shadow-sm font-sans cursor-pointer"
+                            disabled={actionLoading}
+                            onClick={() => handleUseCaseApproveWrapper(i)}
+                            className="h-8 px-3 bg-brand-green hover:bg-brand-green/90 text-white text-xs font-semibold rounded-lg transition-all inline-flex items-center gap-1 shadow-sm cursor-pointer disabled:opacity-50"
                           >
-                            <FileText className="w-3.5 h-3.5" />
-                            Xem sản phẩm (View Product)
+                            <Check className="w-3.5 h-3.5" /> Phê duyệt (Accept)
                           </button>
-                        </div>
+                          <button
+                            type="button"
+                            disabled={actionLoading}
+                            onClick={() => handleUseCaseRequestProductWrapper(i)}
+                            className="h-8 px-3 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5" /> Yêu cầu sản phẩm
+                          </button>
+                        </>
                       )}
 
-                      {/* Scenario C: Needs revision (Rework) */}
-                      {isNeedsRevision && (
-                        <div className="flex items-center gap-2 p-2 bg-orange-50 border border-orange-205 rounded-xl text-orange-850 text-xs font-semibold font-sans">
-                          <RotateCcw className="w-3.5 h-3.5 text-orange-600" />
-                          Đang chờ Expert nộp sản phẩm mới...
-                        </div>
+                      {/* Scenario B: waiting_client_review with product submitted */}
+                      {uc.status === "waiting_client_review" && (uc.productLink || uc.productFile || uc.productImage) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveReviewUseCaseIndex(i);
+                            setUseCaseDeclineReason("");
+                            setShowUseCaseDeclineForm(false);
+                          }}
+                          className="h-8 px-3.5 bg-brand-primary text-white hover:bg-brand-primary-hover text-xs font-semibold rounded-lg transition-all inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5" /> Xem sản phẩm bàn giao
+                        </button>
                       )}
+
+                      {/* Scenario C: submit_product or rework or waiting_expert_product (waiting for expert to submit) */}
+                      {(uc.status === "submit_product" || uc.status === "rework" || uc.status === "waiting_expert_product") && (
+                        <span className="text-xs font-bold text-amber-600 animate-pulse inline-flex items-center gap-1">
+                          <Clock3 className="w-3.5 h-3.5 text-amber-500" />
+                          Chờ expert gửi sản phẩm
+                        </span>
+                      )}
+
+                      {/* Scenario D: done */}
+                      {uc.status === "done" && (
+                        <span className="text-xs font-bold text-green-600 inline-flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 text-green-500" />
+                          Đã nghiệm thu hoàn tất
+                        </span>
+                      )}
+
+                      {/* Default: in_progress but not yet requested or submitted */}
+                      {(!uc.status || uc.status === "in_progress") && (
+                        <span className="text-xs font-semibold text-gray-400 italic">
+                          Chuyên gia đang thực hiện...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tasks List */}
+                <div className="space-y-3 pt-2">
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Danh sách công việc</h4>
+                  {ucTasks.length === 0 ? (
+                    <p className="text-sm text-gray-455 italic pl-1">Chưa có công việc nào được gán cho Use Case này.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {ucTasks.map((task, tIdx) => (
+                        <div key={task.id || tIdx} className="p-4 bg-gray-50 border border-gray-150 rounded-xl space-y-3">
+                          <div className="flex justify-between items-start gap-2">
+                            <div>
+                              <h5 className="font-bold text-gray-800 text-sm">
+                                Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}
+                              </h5>
+                              <div className="flex items-center gap-2 text-xs text-gray-500 mt-1 font-medium">
+                                <span className="bg-white border border-gray-200 px-2 py-0.5 rounded text-[11px] font-semibold text-gray-600">
+                                  {getTaskDuration(task)} ngày
+                                </span>
+                                <span>•</span>
+                                <span className="font-bold text-gray-900">${task.amount || task.budget || 0}</span>
+                              </div>
+                            </div>
+                            <StatusBadge status={task.displayStatus} entity="task" />
+                          </div>
+
+                          {task.description && (
+                            <p className="text-xs text-gray-655 pl-2.5 border-l border-gray-300">
+                              {task.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="space-y-6 pt-2">
           {useCases.map((uc, i) => {
             const ucTasks = tasks.filter((t) => Number(t.useCaseIndex) === i);
+            const totalDuration = ucTasks.reduce((sum, t) => sum + getTaskDuration(t), 0);
+
             return (
-              <div key={i} className="p-5 bg-white border border-gray-200 rounded-2xl text-left space-y-3.5 shadow-sm">
-                <div className="flex justify-between items-start flex-wrap gap-2">
-                  <div>
-                    <h3 className="font-bold text-gray-900 text-base font-sans">
-                      Use Case #{i + 1}: <span className="font-semibold text-gray-750">{uc.nameAndDeadline || uc.name}</span>
+              <div key={i} className="p-5 bg-white border border-gray-200 rounded-2xl text-left space-y-4 shadow-sm">
+                {/* Use Case Header */}
+                <div className="flex justify-between items-start border-b border-gray-100 pb-3 gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2.5 py-0.5 rounded-full uppercase tracking-wide">
+                        Use Case #{i + 1}
+                      </span>
+                      {uc.status === "done" && (
+                        <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200 uppercase tracking-wide">
+                          Done
+                        </span>
+                      )}
+                      {uc.status === "waiting_client_review" && (
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 uppercase tracking-wide">
+                          Awaiting Review
+                        </span>
+                      )}
+                      {uc.status === "rework" && (
+                        <span className="text-[10px] font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-200 uppercase tracking-wide">
+                          Rework
+                        </span>
+                      )}
+                      {uc.status === "submit_product" && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 uppercase tracking-wide">
+                          Submit Product
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">
+                      {uc.nameAndDeadline || uc.name}
                     </h3>
-                    {uc.durationValue && (
-                      <p className="text-xs text-brand-primary font-semibold font-sans mt-0.5">
-                        Timeline gốc: {uc.durationValue} {uc.durationUnit === "days" ? "ngày" : uc.durationUnit === "weeks" ? "tuần" : uc.durationUnit === "months" ? "tháng" : uc.durationUnit === "years" ? "năm" : uc.durationUnit}
-                      </p>
-                    )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-brand-primary font-mono bg-brand-primary-light px-2.5 py-1 rounded-full">
-                      {uc.progress}%
-                    </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="text-right text-xs bg-gray-50 px-3 py-1.5 border border-gray-150 rounded-lg shadow-sm">
+                      <span className="font-bold text-brand-primary block sm:inline">Tổng: {totalDuration || Number(uc.durationDays || 0)} ngày</span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setActiveExpertUseCaseIndex(i)}
-                      className="h-8 px-3 bg-brand-primary text-white hover:bg-brand-primary-hover text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer font-sans"
+                      onClick={() => {
+                        navigate(`/expert/projects/${projectId}/usecase/${uc.id || i}`);
+                      }}
+                      className="h-9 px-4 bg-brand-primary text-white hover:bg-brand-primary-hover text-xs font-semibold rounded-xl shadow-sm transition-colors cursor-pointer font-sans"
                     >
-                      Detail
+                      Update
                     </button>
                   </div>
                 </div>
 
-                <p className="text-sm text-gray-600 leading-relaxed font-sans pl-3 border-l-2 border-slate-350">
+                <p className="text-sm text-gray-600 leading-relaxed font-sans pl-3 border-l-2 border-slate-300">
                   {uc.description}
                 </p>
 

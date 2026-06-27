@@ -1504,9 +1504,9 @@ const _baseTasks = [
   { id: "task-012", projectId: "proj-004", title: "Spot instance strategy", description: "Implement Karpenter for intelligent spot management", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-20T00:00:00.000Z", createdAt: "2026-04-06T10:00:00.000Z", miniTasks: [{ id: "mt-036", title: "Karpenter deployment", description: "Install and configure Karpenter", status: "done", order: 1 }, { id: "mt-037", title: "Spot instance policies", description: "Define spot fallback policies", status: "done", order: 2 }, { id: "mt-038", title: "Testing and validation", description: "Validate spot instance handling", status: "done", order: 3 }] },
   { id: "task-013", projectId: "proj-004", title: "Feature store and model registry", description: "Set up Feast feature store and MLflow registry", status: "in_progress", assignedTo: "user-009", approval: null, deadline: "2026-05-10T00:00:00.000Z", createdAt: "2026-04-21T08:00:00.000Z", miniTasks: [{ id: "mt-039", title: "Feast deployment", description: "Deploy Feast on EKS", status: "done", order: 1 }, { id: "mt-040", title: "MLflow setup", description: "Set up MLflow tracking server", status: "in_progress", order: 2 }, { id: "mt-041", title: "Integration testing", description: "Test feature serving latency", status: "pending", order: 3 }, { id: "mt-042", title: "Documentation", description: "Write setup and usage docs", status: "pending", order: 4 }] },
   // ── proj-005: Support Chatbot (3 tasks) ──
-  { id: "task-014", projectId: "proj-005", title: "Knowledge base processing", description: "Extract and structure support ticket knowledge base", status: "in_progress", assignedTo: "user-012", approval: null, deadline: "2026-06-20T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-043", title: "CRM API extraction", description: "Pull data from CRM API", status: "done", order: 1 }, { id: "mt-044", title: "HTML stripping", description: "Clean embedded HTML from tickets", status: "done", order: 2 }, { id: "mt-045", title: "Content chunking", description: "Chunk tickets for RAG retrieval", status: "in_progress", order: 3 }, { id: "mt-046", title: "Vector embedding", description: "Generate embeddings for search", status: "pending", order: 4 }] },
-  { id: "task-015", projectId: "proj-005", title: "Model fine-tuning", description: "Fine-tune LLM on support domain data", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-047", title: "Base model selection", description: "Evaluate and select base LLM", status: "pending", order: 1 }, { id: "mt-048", title: "Fine-tuning run", description: "Fine-tune on domain data", status: "pending", order: 2 }, { id: "mt-049", title: "Evaluation", description: "Measure accuracy on test queries", status: "pending", order: 3 }] },
-  { id: "task-016", projectId: "proj-005", title: "Chat interface and deployment", description: "Build chat widget and deploy to production", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-10T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-050", title: "Chat UI", description: "Build customer-facing chat widget", status: "pending", order: 1 }, { id: "mt-051", title: "Escalation logic", description: "Implement human escalation flow", status: "pending", order: 2 }, { id: "mt-052", title: "Deployment", description: "Deploy to production environment", status: "pending", order: 3 }] },
+  { id: "task-014", projectId: "proj-005", title: "Knowledge base processing", useCaseIndex: 0, description: "Extract and structure support ticket knowledge base", status: "in_progress", assignedTo: "user-012", approval: null, deadline: "2026-06-20T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-043", title: "CRM API extraction", description: "Pull data from CRM API", status: "done", order: 1 }, { id: "mt-044", title: "HTML stripping", description: "Clean embedded HTML from tickets", status: "done", order: 2 }, { id: "mt-045", title: "Content chunking", description: "Chunk tickets for RAG retrieval", status: "in_progress", order: 3 }, { id: "mt-046", title: "Vector embedding", description: "Generate embeddings for search", status: "pending", order: 4 }] },
+  { id: "task-015", projectId: "proj-005", title: "Model fine-tuning", useCaseIndex: 1, description: "Fine-tune LLM on support domain data", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-047", title: "Base model selection", description: "Evaluate and select base LLM", status: "pending", order: 1 }, { id: "mt-048", title: "Fine-tuning run", description: "Fine-tune on domain data", status: "pending", order: 2 }, { id: "mt-049", title: "Evaluation", description: "Measure accuracy on test queries", status: "pending", order: 3 }] },
+  { id: "task-016", projectId: "proj-005", title: "Chat interface and deployment", useCaseIndex: 2, description: "Build chat widget and deploy to production", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-10T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-050", title: "Chat UI", description: "Build customer-facing chat widget", status: "pending", order: 1 }, { id: "mt-051", title: "Escalation logic", description: "Implement human escalation flow", status: "pending", order: 2 }, { id: "mt-052", title: "Deployment", description: "Deploy to production environment", status: "pending", order: 3 }] },
   // ── proj-006: Contract Analysis (3 tasks) ──
   { id: "task-017", projectId: "proj-006", title: "Document processing pipeline", description: "Build PDF parsing and text extraction pipeline", status: "in_progress", assignedTo: "user-007", approval: null, deadline: "2026-06-25T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-053", title: "PDF parser", description: "Build digital PDF text extraction", status: "done", order: 1 }, { id: "mt-054", title: "Document structure analysis", description: "Identify sections and clauses", status: "in_progress", order: 2 }, { id: "mt-055", title: "Entity extraction", description: "Extract parties, dates, amounts", status: "pending", order: 3 }] },
   { id: "task-018", projectId: "proj-006", title: "Clause classification model", description: "Train NLP model to classify contract clauses", status: "pending", assignedTo: "user-007", approval: null, deadline: "2026-07-15T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-056", title: "Annotation guidelines", description: "Create clause annotation schema", status: "pending", order: 1 }, { id: "mt-057", title: "Model training", description: "Fine-tune legal BERT model", status: "pending", order: 2 }, { id: "mt-058", title: "Evaluation", description: "Evaluate on test set (target 95%)", status: "pending", order: 3 }] },
@@ -1649,11 +1649,74 @@ export function generateId(prefix) {
 
 function _baseTable(name) { return _baseData[name] || []; }
 
+function _ensureUseCaseIds(item) {
+  if (item && Array.isArray(item.useCases)) {
+    let changed = false;
+    const updatedUseCases = item.useCases.map((uc, index) => {
+      if (!uc.id) {
+        changed = true;
+        return {
+          ...uc,
+          id: `uc-${index}-${item.id || 'gen'}-${String(item.createdAt || '').substring(0, 10) || '2026'}`
+        };
+      }
+      return uc;
+    });
+    if (changed) {
+      item.useCases = updatedUseCases;
+    }
+  }
+  return item;
+}
+
 function _getById(table, id) {
   const overlay = _runtimeOverlay[table];
-  if (overlay && overlay.has(id)) return overlay.get(id);
-  if (_runtimeOverlay._deleted.has(`${table}:${id}`)) return null;
-  return _baseById[table]?.[id] || null;
+  let record = null;
+  if (overlay && overlay.has(id)) {
+    record = overlay.get(id);
+  } else if (!_runtimeOverlay._deleted.has(`${table}:${id}`)) {
+    record = _baseById[table]?.[id] || null;
+  }
+
+  if (record) {
+    if (table === "projects" || table === "jobPosts") {
+      record = _ensureUseCaseIds(record);
+    }
+    return record;
+  }
+
+  if (table === "tasks") {
+    const baseProjects = _baseData["projects"] || [];
+    const projectsOverlay = _runtimeOverlay["projects"];
+    const allProjects = [...baseProjects];
+    if (projectsOverlay) {
+      for (const [pId, pItem] of projectsOverlay) {
+        const idx = allProjects.findIndex((p) => p.id === pId);
+        if (idx >= 0) allProjects[idx] = pItem; else allProjects.push(pItem);
+      }
+    }
+
+    for (const proj of allProjects) {
+      if (Array.isArray(proj.tasks)) {
+        const found = proj.tasks.find((t) => t.id === id);
+        if (found) {
+          const tasksOverlay = _runtimeOverlay["tasks"];
+          if (tasksOverlay) {
+            const enrichedTask = {
+              ...found,
+              projectId: found.projectId || proj.id,
+              createdAt: found.createdAt || proj.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+            tasksOverlay.set(id, enrichedTask);
+            return enrichedTask;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 function _list(table, filterFn) {
@@ -1666,7 +1729,10 @@ function _list(table, filterFn) {
       if (idx >= 0) all[idx] = item; else all.push(item);
     }
   }
-  const result = all.filter((i) => !_runtimeOverlay._deleted.has(`${table}:${i.id}`));
+  let result = all.filter((i) => !_runtimeOverlay._deleted.has(`${table}:${i.id}`));
+  if (table === "projects" || table === "jobPosts") {
+    result = result.map(item => _ensureUseCaseIds(item));
+  }
   return filterFn ? result.filter(filterFn) : result;
 }
 
@@ -1676,6 +1742,42 @@ function _create(table, item) {
   const id = item.id || generateId(table.replace(/s$/, ""));
   const record = { ...item, id, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
   overlay.set(id, record);
+
+  // Sync tasks to project.tasks
+  if (table === "tasks" && record.projectId) {
+    const project = _getById("projects", record.projectId);
+    if (project && Array.isArray(project.tasks)) {
+      const exists = project.tasks.some((t) => t.id === id);
+      if (!exists) {
+        const updatedTasks = [...project.tasks, record];
+        const projectOverlay = _runtimeOverlay["projects"];
+        if (projectOverlay) {
+          projectOverlay.set(project.id, { ...project, tasks: updatedTasks, updatedAt: new Date().toISOString() });
+        }
+      }
+    }
+  }
+
+  // Sync project.tasks to tasks table
+  if (table === "projects" && record.tasks && Array.isArray(record.tasks)) {
+    const tasksOverlay = _runtimeOverlay["tasks"];
+    if (tasksOverlay) {
+      for (const t of record.tasks) {
+        const existingTask = _getById("tasks", t.id);
+        if (existingTask) {
+          tasksOverlay.set(t.id, { ...existingTask, ...t, projectId: id, updatedAt: new Date().toISOString() });
+        } else {
+          tasksOverlay.set(t.id, {
+            ...t,
+            projectId: id,
+            createdAt: t.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+
   triggerDbUpdate();
   return record;
 }
@@ -1787,6 +1889,39 @@ function _update(table, id, updates) {
   const overlay = _runtimeOverlay[table];
   const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
   overlay.set(id, updated);
+
+  // Sync tasks update to project.tasks
+  if (table === "tasks" && updated.projectId) {
+    const project = _getById("projects", updated.projectId);
+    if (project && Array.isArray(project.tasks)) {
+      const updatedTasks = project.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
+      const projectOverlay = _runtimeOverlay["projects"];
+      if (projectOverlay) {
+        projectOverlay.set(project.id, { ...project, tasks: updatedTasks, updatedAt: new Date().toISOString() });
+      }
+    }
+  }
+
+  // Sync project.tasks update to tasks table
+  if (table === "projects" && updates.tasks && Array.isArray(updates.tasks)) {
+    const tasksOverlay = _runtimeOverlay["tasks"];
+    if (tasksOverlay) {
+      for (const t of updates.tasks) {
+        const existingTask = _getById("tasks", t.id);
+        if (existingTask) {
+          tasksOverlay.set(t.id, { ...existingTask, ...t, projectId: id, updatedAt: new Date().toISOString() });
+        } else {
+          tasksOverlay.set(t.id, {
+            ...t,
+            projectId: id,
+            createdAt: t.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      }
+    }
+  }
+
   triggerDbUpdate();
   return updated;
 }
@@ -2133,6 +2268,7 @@ export function acceptProjectFinalDelivery(projectId, clientName) {
   if (!project) return null;
   const updated = _update("projects", projectId, {
     finalDeliveryStatus: "Accepted",
+    status: "completed",
   });
 
   addAuditEntry({

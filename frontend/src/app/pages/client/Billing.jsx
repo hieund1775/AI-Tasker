@@ -62,6 +62,11 @@ export function Billing() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  // Wallet top-up states
+  const [showTopUpForm, setShowTopUpForm] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState("");
+  const [submittingTopUp, setSubmittingTopUp] = useState(false);
+
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -209,6 +214,53 @@ export function Billing() {
     }
   };
 
+  const handleTopUp = async (e) => {
+    e.preventDefault();
+    if (!topUpAmount || Number(topUpAmount) <= 0) return;
+
+    setSubmittingTopUp(true);
+    setFeedback(null);
+    try {
+      await api.payments.depositWallet({
+        amount: Number(topUpAmount),
+      });
+
+      setFeedback({
+        type: "success",
+        message: `Nạp tiền thành công! Đã cộng $${Number(topUpAmount).toLocaleString()} vào ví khả dụng.`
+      });
+      setShowTopUpForm(false);
+
+      // Update local state balance immediately
+      setData((prev) => ({
+        ...prev,
+        wallet: {
+          ...prev.wallet,
+          balance: Number(((prev.wallet?.balance || 0) + Number(topUpAmount)).toFixed(2)),
+        },
+        transactions: [
+          {
+            id: `tx-${Date.now()}`,
+            type: "deposit",
+            amount: Number(topUpAmount),
+            description: `Nạp tiền vào ví khả dụng`,
+            status: "completed",
+            createdAt: new Date().toISOString(),
+          },
+          ...prev.transactions,
+        ],
+      }));
+      setTopUpAmount(0);
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err.message || "Đã xảy ra lỗi khi nạp tiền. Vui lòng thử lại."
+      });
+    } finally {
+      setSubmittingTopUp(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -244,8 +296,8 @@ export function Billing() {
 
       {/* Wallet cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col justify-between gap-4">
+          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center">
               <Wallet className="w-5 h-5 text-brand-primary" />
             </div>
@@ -256,6 +308,13 @@ export function Billing() {
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setShowTopUpForm(true)}
+            className="w-full mt-2 h-10 px-4 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover flex items-center justify-center gap-2 text-sm font-semibold transition-all shadow-sm cursor-pointer border-none"
+          >
+            <PlusCircle className="w-4 h-4" /> Nạp tiền vào ví
+          </button>
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
@@ -419,6 +478,54 @@ export function Billing() {
           </div>
         )}
       </div>
+
+      {/* Top Up Modal */}
+      {showTopUpForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 text-left">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Nạp tiền vào tài khoản</h3>
+            <p className="text-sm text-gray-500 mb-6">Nhập số tiền bạn muốn nạp vào ví khả dụng để chi trả và ký quỹ.</p>
+            <form onSubmit={handleTopUp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Số tiền nạp (USD)</label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-gray-400 font-semibold">$</span>
+                  <input
+                    type="number"
+                    min="10"
+                    step="1"
+                    value={topUpAmount}
+                    onChange={(e) => setTopUpAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:border-brand-primary text-gray-950 font-bold"
+                    placeholder="100"
+                    required
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="submit"
+                  disabled={submittingTopUp || !topUpAmount || topUpAmount <= 0}
+                  className="flex-1 h-11 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold shadow-sm transition-all border-none cursor-pointer"
+                >
+                  {submittingTopUp ? "Đang xử lý..." : "Nạp tiền ngay"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowTopUpForm(false);
+                    setTopUpAmount("");
+                  }}
+                  className="px-4 border border-gray-300 rounded-xl hover:bg-gray-50 text-base font-semibold cursor-pointer"
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

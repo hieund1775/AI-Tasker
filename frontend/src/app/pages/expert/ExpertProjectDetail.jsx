@@ -277,15 +277,10 @@ export function ExpertProjectDetail() {
             {/* Message Client */}
             {client && !isDisputed && (
               <Link
-<<<<<<< Updated upstream
                 to={`/messenger?expertId=${project.clientId}`}
-                className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
-=======
-                to="/messenger"
-                className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
->>>>>>> Stashed changes
+                className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] text-base font-semibold transition-colors flex items-center gap-1.5"
               >
-                <User className="w-4 h-4" /> Message Client
+                <MessageSquare className="w-5 h-5" /> Message Client
               </Link>
             )}
           </div>

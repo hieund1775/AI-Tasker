@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Send, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Send, AlertTriangle, Clock } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -34,12 +34,16 @@ export default function ExpertProjectDetail() {
     overallProgress,
     handleToggleMiniTask,
     handleSubmitProjectFinalWork,
+    handleUseCaseSubmitForReview,
+    handleUseCaseSubmitProduct,
+    activityLogs,
     retry,
   } = useProjectProgress(currentProjectId, "expert");
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [projectLink, setProjectLink] = useState("");
   const [projectFile, setProjectFile] = useState("");
+  const [projectImage, setProjectImage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dispute / Report states
@@ -206,89 +210,100 @@ export default function ExpertProjectDetail() {
                     <AlertTriangle className="w-4 h-4 text-gray-400" /> Đang trong tiến hành
                   </button>
                 )}
-                {/* Submit work button (expert only) */}
-                {overallProgress === 100 && project.status !== "completed" && !isFullFreeze ? (
-                  project.finalDeliveryStatus === "Final Product Submitted" ? (
-                    <button
-                      disabled
-                      className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                    >
-                      Submitted Work
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" /> Submit Work
-                    </button>
-                  )
-                ) : project.status === "completed" ? (
-                  <button
-                    disabled
-                    className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                  >
-                    Project Complete
-                  </button>
-                ) : null}
+                {project.status === "completed" && (
+                  <span className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold uppercase tracking-wider font-sans">
+                    Hoàn thành (Complete)
+                  </span>
+                )}
               </div>
             </ProjectHeaderCard>
 
             {/* Project Final Handover Section */}
-            {overallProgress === 100 && project.status !== "completed" && !isFullFreeze && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-sans">
-                  <Send className="w-5 h-5 text-brand-primary" /> BÃ n giao dá»± Ã¡n tá»•ng thá»ƒ (Project Final Handover)
-                </h2>
-                
-                {project.finalWorkDeclineReason && (
-                  <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
-                    <strong className="block font-semibold mb-1">YÃªu cáº§u sá»­a Ä‘á»•i sáº£n pháº©m bÃ n giao cuá»‘i cÃ¹ng:</strong>
-                    {project.finalWorkDeclineReason}
-                  </div>
-                )}
+            {project.status !== "completed" && !isFullFreeze && (() => {
+              const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
+              const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
+              return (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
+                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Send className="w-5 h-5 text-brand-primary" /> Bàn giao dự án tổng thể (Project Final Handover)
+                  </h2>
+                  
+                  {project.finalWorkDeclineReason && (
+                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm">
+                      <strong className="block font-semibold mb-1">Yêu cầu sửa đổi sản phẩm bàn giao cuối cùng từ Client:</strong>
+                      <p className="italic text-red-750 font-medium">"{project.finalWorkDeclineReason}"</p>
+                    </div>
+                  )}
 
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl font-sans">
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-700">
-                      {project.finalDeliveryStatus === "Final Product Submitted" ? (
-                        <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                          âœ“ ÄÃ£ ná»™p sáº£n pháº©m tá»•ng. Äang chá» Client tháº©m Ä‘á»‹nh.
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl">
+                    <div className="space-y-1">
+                      <p className="text-sm text-gray-700">
+                        {!isReadyForFinalSubmit ? (
+                          <span className="text-gray-400 italic">
+                            Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
+                          </span>
+                        ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                          <span className="text-brand-primary font-semibold flex items-center gap-1.5">
+                            ✓ Đã nộp sản phẩm tổng. Đang chờ Client thẩm định.
+                          </span>
+                        ) : project.finalDeliveryStatus === "Accepted" ? (
+                          <span className="text-green-600 font-semibold flex items-center gap-1.5">
+                            ✓ Sản phẩm bàn giao đã được chấp nhận! Đang chờ thanh toán.
+                          </span>
+                        ) : (
+                          <span className="text-gray-500">
+                            Tất cả các mốc công việc đã hoàn thành. Hãy cung cấp Link và File sản phẩm để bàn giao dự án.
+                          </span>
+                        )}
+                      </p>
+                      {project.finalDeliveryStatus === "Final Product Submitted" && (
+                        <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
+                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
+                          {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>}
+                          {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-gray-700">{project.finalProjectImage}</span></p>}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {!isReadyForFinalSubmit ? (
+                        <button
+                          disabled
+                          className="h-11 px-6 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                          title="Cần hoàn thành 100% tất cả Use Cases để nộp"
+                        >
+                          Nộp sản phẩm tổng
+                        </button>
+                      ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                        <button
+                          disabled
+                          className="h-11 px-6 bg-gray-200 text-gray-400 border border-gray-300 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                        >
+                          ✓ Đã nộp bàn giao
+                        </button>
+                      ) : project.finalDeliveryStatus === "Accepted" ? (
+                        <span className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold uppercase tracking-wider">
+                          Đã nghiệm thu
                         </span>
                       ) : (
-                        <span className="text-gray-500">
-                          Táº¥t cáº£ cÃ¡c má»‘c cÃ´ng viá»‡c Ä‘Ã£ hoÃ n thÃ nh. HÃ£y cung cáº¥p Link vÃ  File sáº£n pháº©m cuá»‘i Ä‘á»ƒ bÃ n giao dá»± Ã¡n.
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProjectLink(project.finalProjectLink || "");
+                            setProjectFile(project.finalProjectFile || "");
+                            setProjectImage(project.finalProjectImage || "");
+                            setShowSubmitModal(true);
+                          }}
+                          className="h-11 px-6 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                        >
+                          <Send className="w-4 h-4" /> Nộp sản phẩm tổng
+                        </button>
                       )}
-                    </p>
-                    {project.finalDeliveryStatus === "Final Product Submitted" && (
-                      <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
-                        <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                        <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>
-                      </div>
-                    )}
+                    </div>
                   </div>
-
-                  {project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="h-11 px-6 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
-                    >
-                      <Send className="w-4 h-4" /> Ná»™p sáº£n pháº©m tá»•ng
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="h-11 px-6 bg-gray-200 text-gray-400 border border-gray-300 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
-                    >
-                      âœ“ ÄÃ£ ná»™p bÃ n giao
-                    </button>
-                  )}
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Project progress panel — expert can toggle mini tasks */}
             <ProjectProgressPanel
@@ -304,6 +319,7 @@ export default function ExpertProjectDetail() {
               readOnly={isFullFreeze}
             />
           </>
+        </div>
 
       {/* Explanation Form Modal */}
       <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
@@ -317,20 +333,19 @@ export default function ExpertProjectDetail() {
           />
         </DialogContent>
       </Dialog>
-      </div>
 
       {/* Submit Final Work Modal */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
           <div className="bg-white rounded-2xl border border-gray-150 shadow-2xl w-full max-w-md overflow-hidden text-left animate-zoom-in">
             {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100 font-sans">
               <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-lg">
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 font-sans">Ná»™p sáº£n pháº©m bÃ n giao cuá»‘i cÃ¹ng</h3>
-                <p className="text-xs text-gray-500 mt-0.5 font-sans">Vui lÃ²ng cung cáº¥p link vÃ  tá»‡p tin sáº£n pháº©m Ä‘á»ƒ bÃ n giao</p>
+                <h3 className="text-lg font-bold text-gray-900">Nộp sản phẩm bàn giao cuối cùng</h3>
+                <p className="text-xs text-gray-500 mt-0.5 font-sans">Vui lòng cung cấp link và tệp tin sản phẩm để bàn giao</p>
               </div>
             </div>
 
@@ -339,25 +354,25 @@ export default function ExpertProjectDetail() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (!projectLink.trim()) {
-                  toast.error("Vui lÃ²ng cung cáº¥p Project Link.");
+                  toast.error("Vui lòng cung cấp Project Link.");
                   return;
                 }
-                if (!projectFile.trim()) {
-                  toast.error("Vui lÃ²ng cung cáº¥p tÃªn Project File (.zip, .rar).");
+                if (!projectFile.trim() && !projectImage.trim()) {
+                  toast.error("Vui lòng cung cấp ít nhất một file đính kèm hoặc hình ảnh bàn giao.");
                   return;
                 }
                 setIsSubmitting(true);
                 try {
-                  await handleSubmitProjectFinalWork(projectLink.trim(), projectFile.trim());
-                  toast.success("BÃ n giao sáº£n pháº©m tá»•ng thÃ nh cÃ´ng!");
+                  await handleSubmitProjectFinalWork(projectLink.trim(), projectFile.trim(), projectImage.trim());
+                  toast.success("Bàn giao sản phẩm tổng thành công!");
                   setShowSubmitModal(false);
                 } catch (err) {
-                  toast.error("KhÃ´ng thá»ƒ ná»™p sáº£n pháº©m bÃ n giao.");
+                  toast.error("Không thể nộp sản phẩm bàn giao.");
                 } finally {
                   setIsSubmitting(false);
                 }
               }}
-              className="p-6 space-y-4 font-sans text-sm"
+              className="p-6 space-y-4 font-sans text-sm text-gray-700"
             >
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">
@@ -366,7 +381,7 @@ export default function ExpertProjectDetail() {
                 <input
                   type="text"
                   required
-                  placeholder="VÃ­ dá»¥: https://github.com/username/project"
+                  placeholder="Ví dụ: https://github.com/username/project"
                   value={projectLink}
                   onChange={(e) => setProjectLink(e.target.value)}
                   className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
@@ -375,34 +390,46 @@ export default function ExpertProjectDetail() {
 
               <div>
                 <label className="block text-gray-700 font-semibold mb-1">
-                  Project Files (.zip, .rar) <span className="text-red-500">*</span>
+                  Project Files (.zip, .rar)
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="VÃ­ dá»¥: sourcecode-v1.zip"
+                  placeholder="Ví dụ: sourcecode-v1.zip"
                   value={projectFile}
                   onChange={(e) => setProjectFile(e.target.value)}
                   className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
                 />
               </div>
 
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">
+                  Project Images / Screenshots URL
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: https://imgur.com/screenshot.png"
+                  value={projectImage}
+                  onChange={(e) => setProjectImage(e.target.value)}
+                  className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
+                />
+              </div>
+
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100 font-sans">
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setShowSubmitModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-semibold text-sm transition-all cursor-pointer"
                 >
-                  Há»§y
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
                   className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-bold text-sm transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {isSubmitting ? "Äang gá»­i..." : "Gá»­i bÃ n giao"}
+                  {isSubmitting ? "Đang gửi..." : "Gửi bàn giao"}
                 </button>
               </div>
             </form>
@@ -426,6 +453,36 @@ export default function ExpertProjectDetail() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Project Activity Log Container */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-brand-primary animate-pulse" /> Nhật ký hoạt động (Activity Log)
+        </h2>
+        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+          {!activityLogs || activityLogs.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">Chưa có hoạt động nào được ghi nhận.</p>
+          ) : (
+            <div className="relative border-l-2 border-slate-100 ml-3 pl-6 space-y-4 pt-1">
+              {activityLogs.map((log, idx) => (
+                <div key={log.id || idx} className="relative">
+                  {/* Dot marker */}
+                  <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-brand-primary border-2 border-white shadow-sm" />
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-start text-xs">
+                      <span className="font-bold text-gray-800">{log.userName || log.userRole || "Hệ thống"}</span>
+                      <span className="text-gray-400 font-mono">{new Date(log.timestamp).toLocaleString("vi-VN")}</span>
+                    </div>
+                    <p className="text-sm text-gray-655 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100/60 font-medium">
+                      {log.actionDescription || log.message}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

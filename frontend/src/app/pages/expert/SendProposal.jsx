@@ -46,6 +46,7 @@ function createTaskForUseCase(useCase, useCaseIndex, taskIndex = 1) {
   return {
     id: `task-${useCaseIndex + 1}-${taskIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     useCaseIndex,
+    useCaseId: useCase?.id || "",
     useCaseTitle: getUseCaseTitle(useCase, useCaseIndex),
     title: title,
     durationDays: duration,
@@ -283,19 +284,23 @@ export function SendProposal() {
 
   const handleApplyAITasks = (aiTasks) => {
     setTasks(
-      aiTasks.map((task, index) => ({
-        ...task,
-        useCaseIndex: Number.isFinite(Number(task.useCaseIndex))
+      aiTasks.map((task, index) => {
+        const ucIndex = Number.isFinite(Number(task.useCaseIndex))
           ? Number(task.useCaseIndex)
-          : 0,
-        useCaseTitle: task.useCaseTitle || useCases[0]?.title || "Use Case 1",
-        durationDays: Number(task.durationDays) || 1,
-        amount: Number(task.amount) || 0,
-        miniTasks:
-          Array.isArray(task.miniTasks) && task.miniTasks.length > 0
-            ? task.miniTasks
-            : [{ id: `mt-ai-${index}`, title: "" }],
-      })),
+          : (useCases.length > 0 ? index % useCases.length : 0);
+        return {
+          ...task,
+          useCaseIndex: ucIndex,
+          useCaseId: useCases[ucIndex]?.id || "",
+          useCaseTitle: useCases[ucIndex]?.title || `Use Case ${ucIndex + 1}`,
+          durationDays: Number(task.durationDays) || 1,
+          amount: Number(task.amount) || 0,
+          miniTasks:
+            Array.isArray(task.miniTasks) && task.miniTasks.length > 0
+              ? task.miniTasks
+              : [{ id: `mt-ai-${index}`, title: "" }],
+        };
+      }),
     );
   };
 
@@ -310,7 +315,7 @@ export function SendProposal() {
     const hasBudgetOverrun = project?.budget !== undefined && totalBidAmount > project.budget;
     if ((hasTimeOverrun || hasBudgetOverrun) && !extensionConfirmed) {
       setSubmitError(
-        "Đề xuất của bạn vượt quá chỉ tiêu chi phí/timeline của Client. Vui lòng tích chọn xác nhận ở dưới cùng trước khi nộp.",
+        "Sự lệch ngân sách/timeline vượt quá chỉ tiêu của khách hàng. Vui lòng tích chọn xác nhận ở dưới cùng trước khi nộp.",
       );
       return;
     }
@@ -321,6 +326,7 @@ export function SendProposal() {
       const normalizedTasks = tasks.map((task) => ({
         ...task,
         useCaseIndex: Number(task.useCaseIndex) || 0,
+        useCaseId: task.useCaseId || useCases[Number(task.useCaseIndex) || 0]?.id || "",
         useCaseTitle:
           task.useCaseTitle ||
           useCases[Number(task.useCaseIndex) || 0]?.title ||
@@ -616,7 +622,7 @@ export function SendProposal() {
                                             ),
                                           );
                                         }}
-                                        className="h-8 px-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-[10px] transition-colors inline-flex items-center"
+                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-700 hover:bg-red-50 rounded-[10px] transition-colors inline-flex items-center"
                                       >
                                         Xóa Task
                                       </button>
@@ -727,7 +733,7 @@ export function SendProposal() {
                                       }}
                                       className="h-8 px-3 text-sm font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-[10px] transition-colors inline-flex items-center gap-1 mt-1"
                                     >
-                                      + Thêm Milestone
+                                      + Thêm Task con / Milestone
                                     </button>
                                   </div>
                                 </div>
@@ -855,14 +861,20 @@ export function SendProposal() {
                   {/* Budget banner */}
                   {project?.budget !== undefined && (
                     totalBidAmount > project.budget ? (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center justify-between">
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 flex items-center justify-between">
                         <div>
-                          <span>Cảnh báo: Bạn đang vượt mức chỉ tiêu chi phí client đưa ra cần lưu ý.</span>
-                          <span className="block text-xs text-amber-600 mt-0.5">
-                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount} (+${totalBidAmount - project.budget})
+                          <span className="font-bold flex items-center gap-1.5 text-red-900">
+                            <AlertTriangle className="w-4 h-4 text-red-600" />
+                            Cảnh báo: Đề xuất vượt quá ngân sách gốc của Client!
+                          </span>
+                          <span className="block text-xs text-red-600 mt-1 font-semibold">
+                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
+                          </span>
+                          <span className="block text-xs text-red-700 mt-0.5">
+                            Sự lệch ngân sách (Budget Deviation): -${(totalBidAmount - project.budget).toFixed(2)}
                           </span>
                         </div>
-                        <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-md">Vượt ngân sách</span>
+                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-md flex-shrink-0">Vượt ngân sách</span>
                       </div>
                     ) : (
                       <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 flex items-center justify-between">

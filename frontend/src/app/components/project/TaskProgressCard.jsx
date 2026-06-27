@@ -57,8 +57,8 @@ export function TaskProgressCard({
   const project = listProjects().find((p) => p.id === projectId);
   const ucIndex = Number(task?.useCaseIndex);
   const useCase = project?.useCases?.[ucIndex] || null;
-  const displayTitle = useCase ? (useCase.name || useCase.nameAndDeadline || task.title) : task.title;
-  const displayDescription = useCase ? (useCase.description || task.description) : task.description;
+  const displayTitle = task.title || (useCase ? (useCase.name || useCase.nameAndDeadline) : "Task");
+  const displayDescription = task.description || (useCase ? useCase.description : "");
 
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -469,6 +469,18 @@ export function TaskProgressCard({
           </div>
         )}
       </div>
+
+      {task.evidence && (
+        <div className="mx-4 mb-3 p-3 bg-green-50 border border-green-200 rounded-xl text-left font-sans">
+          <p className="text-xs font-bold text-green-800 flex items-center gap-1.5 mb-1">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            Bằng chứng bàn giao (Handover Evidence):
+          </p>
+          <p className="text-xs font-mono text-gray-800 bg-white/70 px-2 py-1.5 rounded border border-green-150 break-all leading-normal">
+            {task.evidence}
+          </p>
+        </div>
+      )}
 
       {/* Client vs Expert Actions */}
       <div className="pt-3 border-t border-gray-100">

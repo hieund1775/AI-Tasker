@@ -330,6 +330,10 @@ export function EditExpertProfile() {
     );
   };
 
+  const removeSkill = (skillName) => {
+    setSkills((prev) => prev.filter((s) => s !== skillName));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (skills.length === 0) {
@@ -342,14 +346,10 @@ export function EditExpertProfile() {
     try {
       const apiPayload = {
         jobTitle: formData.jobTitle || "Chưa cập nhật",
-<<<<<<< Updated upstream
-        major: skills.length > 0 ? skills.join(", ") : (formData.major || "Chưa cập nhật"),
-=======
         major: formData.specialization || "Chưa cập nhật",
         category: formData.category,
         specialization: formData.specialization,
         skills: skills,
->>>>>>> Stashed changes
         bio: formData.bio || "Chưa có giới thiệu",
         portfolioUrls: formData.portfolioUrls || "",
         location: formData.location || "Chưa cập nhật",
@@ -647,8 +647,7 @@ export function EditExpertProfile() {
           />
         </div>
 
-<<<<<<< Updated upstream
-                <div>
+        <div className="space-y-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Skills
           </label>
@@ -658,7 +657,7 @@ export function EditExpertProfile() {
             <select
               value={selectedSkill}
               onChange={(e) => setSelectedSkill(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white text-sm"
             >
               <option value="">Select a skill...</option>
               {availableSkills.map((skill) => (
@@ -675,7 +674,7 @@ export function EditExpertProfile() {
                   setSelectedSkill("");
                 }
               }}
-              className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium"
+              className="h-10 px-4 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-semibold text-sm transition-colors"
             >
               Add
             </button>
@@ -691,13 +690,13 @@ export function EditExpertProfile() {
               {skills.map((skill) => (
                 <span
                   key={skill}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm inline-flex items-center gap-2"
+                  className="px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-sm inline-flex items-center gap-2 font-medium"
                 >
                   {skill}
                   <button
                     type="button"
                     onClick={() => removeSkill(skill)}
-                    className="text-blue-400 hover:text-blue-600"
+                    className="text-brand-primary hover:text-brand-primary-hover font-bold"
                   >
                     &times;
                   </button>
@@ -707,10 +706,7 @@ export function EditExpertProfile() {
           )}
         </div>
 
-        <div className="flex gap-3">
-=======
         <div className="flex gap-3 pt-2">
->>>>>>> Stashed changes
           <button
             type="submit"
             disabled={loading}
