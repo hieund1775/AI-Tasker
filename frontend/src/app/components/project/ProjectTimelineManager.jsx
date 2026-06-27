@@ -10,6 +10,8 @@ import {
 
 import { useProjectTimeline } from "../../hooks/useProjectTimeline.js";
 
+import { Button } from "../ui/button.jsx";
+
 import { ExtensionRequestPanel } from "./timeline/ExtensionRequestPanel.jsx";
 import { ActivityLogPanel } from "./timeline/ActivityLogPanel.jsx";
 import { TaskCard } from "./timeline/TaskCard.jsx";
@@ -84,12 +86,9 @@ export function ProjectTimelineManager({ role, projectId }) {
           Failed to load timeline
         </h3>
         <p className="text-sm text-gray-500 mb-4">{error}</p>
-        <button
-          onClick={retry}
-          className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
-        >
+        <Button variant="default" size="sm" onClick={retry}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }
@@ -116,7 +115,7 @@ export function ProjectTimelineManager({ role, projectId }) {
       <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
         <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-6 mb-8">
           <div className="flex-1 min-w-0">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-[13px] font-medium mb-4">
               <Bot className="w-4 h-4" />
               AI Project Timeline Manager
             </div>
@@ -143,19 +142,19 @@ export function ProjectTimelineManager({ role, projectId }) {
 
                   <div
                     className={`rounded-xl px-4 py-3 ${
-                      deadlineInfo.isOverdue ? "bg-red-50" : "bg-blue-50"
+                      deadlineInfo.isOverdue ? "bg-red-50" : "bg-brand-primary-light"
                     }`}
                   >
                     <p
                       className={`text-xs mb-1 ${
-                        deadlineInfo.isOverdue ? "text-red-500" : "text-blue-500"
+                        deadlineInfo.isOverdue ? "text-red-500" : "text-brand-primary"
                       }`}
                     >
                       Countdown
                     </p>
                     <p
                       className={`font-semibold ${
-                        deadlineInfo.isOverdue ? "text-red-700" : "text-blue-700"
+                        deadlineInfo.isOverdue ? "text-red-700" : "text-brand-primary"
                       }`}
                     >
                       {deadlineInfo.remainingText || "N/A"}
@@ -164,9 +163,9 @@ export function ProjectTimelineManager({ role, projectId }) {
                 </>
               )}
 
-              <div className="bg-green-50 rounded-xl px-4 py-3">
-                <p className="text-xs text-green-600 mb-1">Completed Tasks</p>
-                <p className="font-semibold text-green-700">
+              <div className="bg-brand-green/10 rounded-xl px-4 py-3">
+                <p className="text-xs text-brand-green mb-1">Completed Tasks</p>
+                <p className="font-semibold text-brand-green">
                   {completedTasks}/{tasks.length}
                 </p>
               </div>
@@ -176,24 +175,24 @@ export function ProjectTimelineManager({ role, projectId }) {
           {/* Expert action buttons — right side */}
           {role === "expert" && (
             <div className="flex flex-row xl:flex-col gap-3 xl:flex-shrink-0">
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                fullWidth
                 disabled={hasPendingExtension || submitting}
                 onClick={() => setShowExtensionForm((current) => !current)}
-                className="w-full px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center justify-center disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition whitespace-nowrap"
               >
                 {hasPendingExtension
                   ? "Extension Request Pending"
                   : "Request Project Extension"}
-              </button>
+              </Button>
 
-              <Link
-                to={chatUrl}
-                className="w-full px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center justify-center gap-2 transition whitespace-nowrap"
-              >
-                <MessageSquare className="w-4 h-4" />
-                Message Client
-              </Link>
+              <Button asChild variant="default" fullWidth>
+                <Link to={chatUrl}>
+                  <MessageSquare className="w-4 h-4" />
+                  Message Client
+                </Link>
+              </Button>
             </div>
           )}
         </div>
@@ -220,14 +219,14 @@ export function ProjectTimelineManager({ role, projectId }) {
         {/* Overall progress bar */}
         <div>
           <div className="flex justify-between mb-3">
-            <span className="font-medium text-gray-700">Overall Progress</span>
+            <span className="text-[15px] font-medium text-gray-700">Overall Progress</span>
             <span className="font-semibold text-gray-900">
               {overallProgress}%
             </span>
           </div>
           <div className="w-full max-w-[1280px] bg-gray-200 rounded-full h-3 overflow-hidden">
             <div
-              className="bg-blue-900 h-3 rounded-full transition-all duration-500"
+              className="bg-brand-primary h-3 rounded-full transition-all duration-500"
               style={{ width: `${overallProgress}%` }}
             />
           </div>

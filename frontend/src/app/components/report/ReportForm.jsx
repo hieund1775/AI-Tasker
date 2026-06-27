@@ -17,20 +17,21 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Upload, X, FileText, Image } from "lucide-react";
+import { Loader2, Upload, X, FileText } from "lucide-react";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
+import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
+import api from "../../../services/api.js";
 
 const DISPUTE_TYPES = [
-  { value: "financial", label: "Financial / Payment Dispute" },
-  { value: "quality", label: "Work Quality Dispute" },
-  { value: "deadline", label: "Deadline Dispute" },
-  { value: "scope", label: "Scope of Work Dispute" },
-  { value: "other", label: "Other" },
+  { value: "financial", label: "Financial (Tài chính)" },
+  { value: "quality", label: "Quality (Chất lượng)" },
+  { value: "deadline", label: "Deadline (Tiến độ)" },
 ];
 
 export function ReportForm({
   project,
+  reporterRole = "expert",
   onSubmit,
   onCancel,
   loading: externalLoading = false,
@@ -43,8 +44,36 @@ export function ReportForm({
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitTime, setSubmitTime] = useState(new Date());
+  const [clientName, setClientName] = useState("");
+  const [expertName, setExpertName] = useState("");
 
   const isLoading = externalLoading || submitting;
+
+  // Load client and expert full names
+  useEffect(() => {
+    async function loadNames() {
+      if (!project) return;
+      const cId = project.clientId;
+      const eId = project.assignedExpertId || project.expertId;
+      if (cId) {
+        try {
+          const u = await api.users.getById(cId);
+          setClientName(u?.fullName || u?.name || project.client || cId);
+        } catch {
+          setClientName(project.client || cId);
+        }
+      }
+      if (eId) {
+        try {
+          const u = await api.users.getById(eId);
+          setExpertName(u?.fullName || u?.name || project.expert || eId);
+        } catch {
+          setExpertName(project.expert || eId);
+        }
+      }
+    }
+    loadNames();
+  }, [project]);
 
   // Real-time submission time
   useEffect(() => {
@@ -121,25 +150,25 @@ export function ReportForm({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="Project Name" value={project.title || "—"} />
-          <InfoRow label="Project ID" value={project.id || "—"} />
           <InfoRow
             label="Client"
-            value={project.clientName || project.clientId || "—"}
+            value={clientName || project.clientName || project.client || "—"}
           />
           <InfoRow
             label="Expert"
-            value={project.expertName || project.expertId || "—"}
+            value={expertName || project.expertName || project.expert || "—"}
           />
           <InfoRow
             label="Funds in Escrow"
-            value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
+            value={<MoneyDisplay amount={project.escrowBalance || project.escrowAmount || project.budget || 0} />}
           />
-          <InfoRow label="Status" value={project.status || "—"} />
           <InfoRow
             label="Start Date"
             value={
               project.startDate
                 ? formatDateTime(project.startDate)
+                : project.createdAt
+                ? formatDateTime(project.createdAt)
                 : "—"
             }
           />
@@ -164,7 +193,7 @@ export function ReportForm({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder="e.g. Client has not paid after project completion"
-          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 ${
+          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
             errors.reason ? "border-red-300" : "border-gray-300"
           }`}
           disabled={isLoading}
@@ -181,7 +210,7 @@ export function ReportForm({
         <select
           value={disputeType}
           onChange={(e) => setDisputeType(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-900"
+          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand-primary"
           disabled={isLoading}
         >
           {DISPUTE_TYPES.map((t) => (
@@ -201,7 +230,7 @@ export function ReportForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe the issue in detail, timeline of events..."
           rows={4}
-          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 resize-vertical ${
+          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.description ? "border-red-300" : "border-gray-300"
           }`}
           disabled={isLoading}
@@ -220,7 +249,7 @@ export function ReportForm({
           onChange={(e) => setDesiredResolution(e.target.value)}
           placeholder="How would you like this to be resolved?"
           rows={2}
-          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-blue-900 resize-vertical ${
+          className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.desiredResolution ? "border-red-300" : "border-gray-300"
           }`}
           disabled={isLoading}
@@ -242,7 +271,7 @@ export function ReportForm({
             type="button"
             onClick={addEvidence}
             disabled={isLoading}
-            className="text-xs text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-1"
+            className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium inline-flex items-center gap-1"
           >
             <Upload className="w-3.5 h-3.5" />
             Add Evidence
@@ -254,7 +283,7 @@ export function ReportForm({
 
         {evidence.length === 0 && (
           <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-            <Image className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+            <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
             <p className="text-sm text-gray-400">
               No evidence added yet. Click &quot;Add Evidence&quot; to upload
               images, documents, or screenshots.
@@ -262,63 +291,64 @@ export function ReportForm({
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {evidence.map((item) => (
             <div
               key={item.id}
-              className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50/50"
+              className="p-3 border border-gray-200 rounded-lg bg-gray-50/50 space-y-3"
             >
-              <div className="flex-shrink-0 mt-1">
-                <FileText className="w-5 h-5 text-gray-400" />
+              <div className="flex items-start justify-between">
+                <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+                <button
+                  type="button"
+                  onClick={() => removeEvidence(item.id)}
+                  className="p-1 text-gray-400 hover:text-red-500 transition"
+                  disabled={isLoading}
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <div className="flex-1 space-y-2">
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={(e) =>
-                    updateEvidence(item.id, "name", e.target.value)
-                  }
-                  placeholder="Evidence name (e.g. Chat screenshot)"
-                  className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-900"
-                  disabled={isLoading}
-                />
-                <input
-                  type="file"
-                  onChange={(e) =>
-                    updateEvidence(item.id, "file", e.target.files?.[0] || null)
-                  }
-                  className="w-full text-sm text-gray-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  disabled={isLoading}
-                  accept="image/*,.pdf,.doc,.docx,.txt"
-                />
-                <input
-                  type="text"
-                  value={item.note}
-                  onChange={(e) =>
-                    updateEvidence(item.id, "note", e.target.value)
-                  }
-                  placeholder="Note for this evidence (optional)"
-                  className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-blue-900"
-                  disabled={isLoading}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => removeEvidence(item.id)}
-                className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 transition"
+
+              <input
+                type="text"
+                value={item.name}
+                onChange={(e) =>
+                  updateEvidence(item.id, "name", e.target.value)
+                }
+                placeholder="Evidence name (e.g. Chat screenshot)"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
                 disabled={isLoading}
-              >
-                <X className="w-4 h-4" />
-              </button>
+              />
+
+              <FileUploadDropzone
+                files={item.file ? [item.file] : []}
+                onFilesChange={(newFiles) =>
+                  updateEvidence(item.id, "file", newFiles[0] || null)
+                }
+                multiple={false}
+                disabled={isLoading}
+                helperText="Upload image, PDF, DOCX, or TXT"
+              />
+
+              <input
+                type="text"
+                value={item.note}
+                onChange={(e) =>
+                  updateEvidence(item.id, "note", e.target.value)
+                }
+                placeholder="Note for this evidence (optional)"
+                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
+                disabled={isLoading}
+              />
             </div>
           ))}
         </div>
       </div>
 
       {/* ---- Submission info ---- */}
-      <div className="bg-blue-50 rounded-xl p-3 border border-blue-100 text-xs text-blue-700">
+      <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> Expert •{" "}
+          <strong>Submitted by:</strong> {reporterRole === "client" ? "Client" : "Expert"} •{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">

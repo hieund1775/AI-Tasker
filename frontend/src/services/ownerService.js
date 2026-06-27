@@ -20,13 +20,13 @@ import api from "./api.js";
 // ---------------------------------------------------------------------------
 
 const OWNER_ENDPOINTS = {
-  createAdminAccount: "/users/register",  // POST — Owner creates an Admin account (role=admin)
-  banAdminAccount: "/users/{id}/set-active",  // PUT  — Owner locks/bans an Admin
-  getAdminUsers: "/users",              // GET  — list of users (filter role=admin)
-  getOwnerDashboardStats: "/platform/stats",  // GET  — aggregate dashboard statistics
-  getMonthlyTrafficStats: "/platform/stats",   // GET  — monthly traffic data
-  getYearlyPostStats: "/platform/stats",       // GET  — total posts per year
-  getTotalPaymentStats: "/platform/stats",     // GET  — total money transferred
+  createAdminAccount: "",      // POST — Owner creates an Admin account
+  banAdminAccount: "",         // PUT  — Owner locks/bans an Admin
+  getAdminUsers: "",           // GET  — list of Admin accounts
+  getOwnerDashboardStats: "",  // GET  — aggregate dashboard statistics
+  getMonthlyTrafficStats: "",  // GET  — monthly Client/Expert visit data
+  getYearlyPostStats: "",      // GET  — total posts per year
+  getTotalPaymentStats: "",    // GET  — total money transferred
 };
 
 // ---------------------------------------------------------------------------

@@ -70,14 +70,15 @@ export function ProposalReview() {
               .toUpperCase()
               .slice(0, 2);
 
-            const matchResult = getMatchPercentage(proposal);
             return {
               ...proposal,
               proposalTitle: parsed.proposalTitle || "Proposal",
               coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
-              durationDays: parsed.durationDays || 0,
-              matchPct: matchResult.score,
-              matchLabel: matchResult.label,
+              durationDays: parsed.durationDays || proposal.estimatedDays || 0,
+              useCases: Array.isArray(parsed.useCases) ? parsed.useCases : [],
+              tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+              extensionRequested: parsed.extensionRequested === true,
+              matchPct: getMatchPercentage(proposal.id),
               expert: {
                 name,
                 title: expertDetail?.expertProfile?.jobTitle || "AI Expert",
@@ -116,7 +117,7 @@ export function ProposalReview() {
         prev.map((p) =>
           p.id === proposalId
             ? { ...p, status: "Accepted" }
-            : p.status?.toLowerCase() === "pending"
+            : p.status === "Pending"
             ? { ...p, status: "Declined" }
             : p
         )
@@ -165,7 +166,7 @@ export function ProposalReview() {
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
           <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-500">Project not found</h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-base text-gray-400 mt-1">
             This project may have been removed or the link is invalid.
           </p>
         </div>
@@ -186,7 +187,7 @@ export function ProposalReview() {
               ? "bg-green-50 text-green-700 border border-green-200"
               : feedback.type === "error"
                 ? "bg-red-50 text-red-700 border border-red-200"
-                : "bg-blue-50 text-blue-700 border border-blue-200"
+                : "bg-brand-primary-light text-brand-primary border border-blue-200"
           }`}
         >
           {feedback.message}
@@ -235,20 +236,20 @@ export function ProposalReview() {
           {/* Meta grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Budget</p>
+              <p className="text-sm text-gray-500 mb-1">Budget</p>
               <p className="font-semibold text-gray-900">
                 <MoneyDisplay amount={project.budget} />
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Timeline</p>
+              <p className="text-sm text-gray-500 mb-1">Timeline</p>
               <p className="font-semibold text-gray-900">
                 {project.durationValue} {project.durationUnit}
               </p>
             </div>
             {project.deadline && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Deadline</p>
+                <p className="text-sm text-gray-500 mb-1">Deadline</p>
                 <p className="font-semibold text-gray-900">
                   {new Date(project.deadline).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -260,7 +261,7 @@ export function ProposalReview() {
             )}
             {project.createdAt && (
               <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Posted</p>
+                <p className="text-sm text-gray-500 mb-1">Posted</p>
                 <p className="font-semibold text-gray-900">
                   {new Date(project.createdAt).toLocaleDateString("en-US", {
                     year: "numeric",
@@ -282,7 +283,7 @@ export function ProposalReview() {
                 {project.requiredSkills.map((skill) => (
                   <span
                     key={skill}
-                    className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium"
+                    className="px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-sm font-medium"
                   >
                     {skill}
                   </span>
@@ -306,16 +307,16 @@ export function ProposalReview() {
           <h3 className="text-lg font-semibold text-gray-500 mb-2">
             No proposals yet
           </h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-base text-gray-400">
             Proposals will appear here once experts submit them.
           </p>
         </div>
       ) : (
         <div className="space-y-4">
           {visibleProposals.map((proposal) => {
-            const statusLower = (proposal.status || "").toLowerCase();
-            const isAccepted = statusLower === "accepted";
-            const isDeclined = statusLower === "declined";
+            const normalizedStatus = proposal.status?.toLowerCase();
+            const isAccepted = normalizedStatus === "accepted";
+            const isDeclined = normalizedStatus === "declined";
             const hasBeenActed = isAccepted || isDeclined || actedIds.has(proposal.id);
 
             return (

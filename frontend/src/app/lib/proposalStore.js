@@ -1,63 +1,79 @@
+﻿// =============================================================================
+// Proposal Store — in-memory session store for proposals submitted during
+// the current session.
+//
+// TODO: Replace with real API calls when backend is connected.
+// acceptProposal / declineProposal should call api.proposals.accept(id) etc.
 // =============================================================================
-// Proposal Store — provides helper utilities for proposal display.
-// Real API calls are now used via api.proposals.*.
+
+// In-memory session proposals (temporary until API is connected)
+const _sessionProposals = [];
+
+/** Add a proposal submitted during this session. */
+export function addSessionProposal(proposal) {
+  const record = {
+    id: `session-prop-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    ...proposal,
+    createdAt: new Date().toISOString(),
+    status: "pending",
+  };
+  _sessionProposals.push(record);
+  return record;
+}
+
+/** Return all proposals submitted during this session for the given expert. */
+export function getSessionProposalsByExpert(expertId) {
+  return _sessionProposals.filter((p) => p.expertId === expertId);
+}
+
+/** Return a single session proposal by ID, or null. */
+export function getSessionProposalById(proposalId) {
+  return _sessionProposals.find((p) => p.id === proposalId) || null;
+}
+
+// =============================================================================
+// Accept / Decline mutations (session-only until API is connected)
+// TODO: Replace with api.proposals.accept(id) / api.proposals.decline(id)
 // =============================================================================
 
 /**
- * Compute a match/trust score for a proposal based on available trust signals.
- *
- * Scoring factors:
- *   - Expert rating (0-5) contributes up to 25 points
- *   - Completed projects contributes up to 15 points (50+ projects = max)
- *   - Review count contributes up to 10 points (30+ reviews = max)
- *   - Bid competitiveness vs job budget contributes up to 10 points
- *
- * Base score starts at 40. Maximum possible is 100.
- * New experts with no data will show ~40 (not misleadingly high).
- *
- * @param {Object} proposal - Proposal object with trust signal fields
- * @returns {{ score: number, label: string }} Score 40-100 and a descriptive label
+ * Accept a proposal (session-only, no backend persistence).
  */
-export function getMatchPercentage(proposal) {
-  let score = 40; // Base score — honest about lack of data
+export function acceptProposal(proposalId) {
+  const proposal = _sessionProposals.find((p) => p.id === proposalId);
+  if (!proposal) return { success: false, error: "Proposal not found." };
 
-  // Factor in expert rating (0-5 scale → contributes up to 25 points)
-  if (proposal.expertAverageRating != null && proposal.expertAverageRating > 0) {
-    score += (Math.min(proposal.expertAverageRating, 5) / 5) * 25;
-  }
+  proposal.status = "accepted";
 
-  // Factor in completed projects (up to 15 points for 50+ projects)
-  if (proposal.expertCompletedProjects != null && proposal.expertCompletedProjects > 0) {
-    score += Math.min(proposal.expertCompletedProjects / 3.33, 15);
-  }
-
-  // Factor in review count (up to 10 points for 30+ reviews)
-  if (proposal.expertReviewCount != null && proposal.expertReviewCount > 0) {
-    score += Math.min(proposal.expertReviewCount / 3, 10);
-  }
-
-  // Factor in bid competitiveness (up to 10 points)
-  // Closer to budget but not exceeding = better
-  if (proposal.bidAmount != null && proposal.jobBudget != null && proposal.jobBudget > 0) {
-    const ratio = proposal.bidAmount / proposal.jobBudget;
-    if (ratio >= 0.7 && ratio <= 1.0) {
-      score += 10;
-    } else if (ratio > 0.4 && ratio < 0.7) {
-      score += 5;
-    } else if (ratio > 1.0 && ratio <= 1.3) {
-      score += 3;
+  _sessionProposals.forEach((p) => {
+    if (p.projectId === proposal.projectId && p.id !== proposalId && p.status === "pending") {
+      p.status = "declined";
     }
+  });
+
+  return { success: true };
+}
+
+/**
+ * Decline a proposal (session-only, no backend persistence).
+ */
+export function declineProposal(proposalId) {
+  const proposal = _sessionProposals.find((p) => p.id === proposalId);
+  if (!proposal) return { success: false, error: "Proposal not found." };
+
+  proposal.status = "declined";
+  return { success: true };
+}
+
+/**
+ * Get a deterministic match percentage for display purposes.
+ * Uses a hash of the proposal ID so it stays stable across renders.
+ */
+export function getMatchPercentage(proposalId) {
+  let hash = 0;
+  for (let i = 0; i < proposalId.length; i++) {
+    hash = (hash * 31 + proposalId.charCodeAt(i)) & 0x7fffffff;
   }
-
-  const finalScore = Math.min(Math.max(Math.round(score), 40), 100);
-
-  // Descriptive label based on score tier
-  let label;
-  if (finalScore >= 90) label = "Top Match";
-  else if (finalScore >= 75) label = "Strong Match";
-  else if (finalScore >= 60) label = "Good Match";
-  else if (finalScore >= 45) label = "New Expert";
-  else label = "Not Enough Data";
-
-  return { score: finalScore, label };
+  // Return a value between 82 and 99
+  return 82 + (hash % 18);
 }

@@ -43,7 +43,7 @@ export function TaskCard({
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
         <div className="flex-1 pr-4">
           <div className="flex items-start gap-4">
-            <div className="w-11 h-11 bg-blue-900 text-white rounded-xl flex items-center justify-center font-semibold flex-shrink-0">
+            <div className="w-11 h-11 bg-brand-primary text-white rounded-xl flex items-center justify-center font-semibold flex-shrink-0">
               {task.id || "?"}
             </div>
             <div className="flex-1">
@@ -52,7 +52,7 @@ export function TaskCard({
                   {task.title}
                 </h3>
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium ${getTaskStatusClass(
+                  className={`px-3 py-1 rounded-full text-[13px] font-medium ${getTaskStatusClass(
                     derivedStatus,
                   )}`}
                 >
@@ -64,7 +64,7 @@ export function TaskCard({
                 <div className="flex items-center gap-2 text-gray-600">
                   <CheckCircle2 className="w-4 h-4" />
                   {completedMiniTasks}/{totalMiniTasks}{" "}
-                  sub-tasks
+                  mini tasks
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
                   <Clock3 className="w-4 h-4" />
@@ -74,7 +74,7 @@ export function TaskCard({
               <div className="mt-4">
                 <div className="w-full max-w-[1280px] bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-blue-900 h-2 rounded-full transition-all duration-500"
+                    className="bg-brand-primary h-2 rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

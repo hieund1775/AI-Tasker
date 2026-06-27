@@ -1,18 +1,15 @@
 import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layout/RootLayout.jsx";
-import { PublicLayout } from "./components/layout/PublicLayout.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 
 import { HomePage } from "./pages/public/HomePage.jsx";
 import { LoginPage } from "./pages/public/LoginPage.jsx";
 import { SignUpPage } from "./pages/public/SignUpPage.jsx";
-import { ExpertsPage } from "./pages/public/ExpertsPage.jsx";
-import { JobList } from "./pages/expert/JobList.jsx";
 
 // Client Pages
 import { ClientDashboard } from "./pages/client/ClientDashboard.jsx";
 import { PostProject } from "./pages/client/PostProject.jsx";
-import { ProjectDetail } from "./pages/client/ProjectDetail.jsx";
+import ProjectDetail from "./pages/client/ClientProjectManagement.jsx";
 import { ProposalReview } from "./pages/client/ProposalReview.jsx";
 import { ExpertList } from "./pages/client/ExpertList.jsx";
 import { ClientProfile } from "./pages/client/ClientProfile.jsx";
@@ -25,14 +22,17 @@ import { ClientProposalDetail } from "./pages/client/ClientProposalDetail.jsx";
 
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
+import { JobList } from "./pages/expert/JobList.jsx";
 import { JobDetail } from "./pages/expert/JobDetail.jsx";
 import { SendProposal } from "./pages/expert/SendProposal.jsx";
 import { ProposalStatus } from "./pages/expert/ProposalStatus.jsx";
 import { ProposalDetail } from "./pages/expert/ProposalDetail.jsx";
-import { ExpertProjectDetail } from "./pages/expert/ExpertProjectDetail.jsx";
+import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
+import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
 import { ExpertContractView } from "./pages/expert/ExpertContractView.jsx";
+import { ExpertUseCaseUpdatePage } from "./pages/expert/ExpertUseCaseUpdatePage.jsx";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -63,6 +63,7 @@ import OwnerCategoryTags from "./pages/owner/OwnerCategoryTags.jsx";
 // Common Pages (shared components)
 import { Messenger } from "./pages/common/Messenger.jsx";
 import { TaskUpdatePage } from "./pages/common/TaskUpdatePage.jsx";
+import TaskDetailPage from "./pages/common/TaskDetailPage.jsx";
 import { NotificationsPage } from "./pages/common/NotificationsPage.jsx";
 
 export const router = createBrowserRouter([
@@ -74,13 +75,6 @@ export const router = createBrowserRouter([
       { path: "login", Component: LoginPage },
       { path: "signup", Component: SignUpPage },
       { path: "unauthorized", Component: UnauthorizedPage },
-      {
-        Component: PublicLayout,
-        children: [
-          { path: "experts", Component: ExpertsPage },
-          { path: "jobs", Component: JobList },
-        ],
-      },
     ],
   },
 
@@ -100,6 +94,7 @@ export const router = createBrowserRouter([
               { path: "client/post-project", Component: PostProject },
               { path: "client/my-projects", Component: MyProjectsList },
               { path: "client/projects/:id", Component: ProjectDetail },
+              { path: "client/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
               { path: "client/projects/:projectId/proposals", Component: ProposalReview },
               { path: "client/experts", Component: ExpertList },
               { path: "client/experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
@@ -123,7 +118,9 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/profile", element: <PublicExpertProfile viewerRole="expert" /> },
+              { path: "expert/projects/:id/usecase/:useCaseId", Component: ExpertUseCaseUpdatePage },
+              { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
+              { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
               { path: "expert/contracts/:contractId", Component: ExpertContractView },
@@ -218,7 +215,7 @@ function UnauthorizedPage() {
         </p>
         <a
           href="/"
-          className="inline-block px-6 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors"
+          className="inline-block px-6 py-2.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
         >
           Go to Home
         </a>

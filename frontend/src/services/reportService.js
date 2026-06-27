@@ -11,15 +11,16 @@
 import api from "./api.js";
 
 // ---------------------------------------------------------------------------
-// API endpoint placeholders (TODO: update when backend is ready)
+// API endpoint paths — wired to mock API handler for frontend development.
+// Replace with real backend endpoints when available.
 // ---------------------------------------------------------------------------
 
 const REPORT_ENDPOINTS = {
-  create: "/reports",        // POST   — Expert/client submits a dispute report
-  list: "/reports",          // GET    — Admin/Owner fetches report list
-  detail: "/reports/{id}",    // GET    — Admin/Owner fetches single report detail
-  accept: "/reports/{id}/accept",   // PUT    — Admin accepts a report
-  reject: "/reports/{id}/reject",   // PUT    — Admin rejects a report (reason required)
+  create: "/reports",          // POST   — Expert submits a dispute report
+  list: "/reports",            // GET    — Admin/Owner fetches report list
+  detail: "/reports/{id}",     // GET    — Admin/Owner fetches single report detail
+  accept: "/reports/{id}",     // PUT    — Admin accepts a report
+  reject: "/reports/{id}",     // PUT    — Admin rejects a report (reason required)
 };
 
 // ---------------------------------------------------------------------------
@@ -44,11 +45,6 @@ const REPORT_ENDPOINTS = {
  * @returns {Promise<object>} created report
  */
 export async function createReport(payload) {
-  if (!REPORT_ENDPOINTS.create) {
-    // TODO: add API endpoint here
-    console.warn("[ReportService] createReport — endpoint not configured");
-    return null;
-  }
   return api.post(REPORT_ENDPOINTS.create, payload);
 }
 
@@ -63,11 +59,6 @@ export async function createReport(payload) {
  * @returns {Promise<object>} { data: Report[], total: number, page: number }
  */
 export async function getReports(params = {}) {
-  if (!REPORT_ENDPOINTS.list) {
-    // TODO: add API endpoint here
-    console.warn("[ReportService] getReports — endpoint not configured");
-    return { data: [], total: 0, page: 1 };
-  }
   return api.get(REPORT_ENDPOINTS.list, { params });
 }
 
@@ -82,11 +73,6 @@ export async function getReports(params = {}) {
  * @returns {Promise<object>} report detail
  */
 export async function getReportDetail(reportId) {
-  if (!REPORT_ENDPOINTS.detail) {
-    // TODO: add API endpoint here — e.g. `/api/reports/${reportId}`
-    console.warn("[ReportService] getReportDetail — endpoint not configured");
-    return null;
-  }
   return api.get(REPORT_ENDPOINTS.detail.replace("{id}", reportId));
 }
 
@@ -103,11 +89,6 @@ export async function getReportDetail(reportId) {
  * @returns {Promise<object>}
  */
 export async function acceptReport(reportId, payload = {}) {
-  if (!REPORT_ENDPOINTS.accept) {
-    // TODO: add API endpoint here
-    console.warn("[ReportService] acceptReport — endpoint not configured");
-    return { success: true, reportId, status: "Accepted" };
-  }
   return api.put(REPORT_ENDPOINTS.accept.replace("{id}", reportId), payload);
 }
 
@@ -124,11 +105,6 @@ export async function acceptReport(reportId, payload = {}) {
  * @returns {Promise<object>}
  */
 export async function rejectReport(reportId, payload) {
-  if (!REPORT_ENDPOINTS.reject) {
-    // TODO: add API endpoint here
-    console.warn("[ReportService] rejectReport — endpoint not configured");
-    return { success: true, reportId, status: "Rejected" };
-  }
   return api.put(REPORT_ENDPOINTS.reject.replace("{id}", reportId), payload);
 }
 

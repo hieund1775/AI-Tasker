@@ -175,7 +175,7 @@ export function ExpertProjectDetail() {
           <h3 className="text-lg font-semibold text-gray-500">
             Unable to Load Project
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-base text-gray-400 mt-1">
             An error occurred while loading project details. Please try again later.
           </p>
         </div>
@@ -196,7 +196,7 @@ export function ExpertProjectDetail() {
           <h3 className="text-lg font-semibold text-gray-500">
             Project Not Found
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-base text-gray-400 mt-1">
             The project you are looking for may have been removed.
           </p>
         </div>
@@ -231,7 +231,11 @@ export function ExpertProjectDetail() {
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                Duration: {project.durationValue} {project.durationUnit}
+                Timeline gốc: {project.originalUseCaseDays || project.deadline || "—"} ngày
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock className="w-4 h-4" />
+                Deadline: {project.deadline || "—"} ngày
               </span>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center ${badgeClass}`}
@@ -274,9 +278,9 @@ export function ExpertProjectDetail() {
             {client && !isDisputed && (
               <Link
                 to={`/messenger?expertId=${project.clientId}`}
-                className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+                className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] text-base font-semibold transition-colors flex items-center gap-1.5"
               >
-                <User className="w-4 h-4" /> Message Client
+                <MessageSquare className="w-5 h-5" /> Message Client
               </Link>
             )}
           </div>
@@ -287,7 +291,7 @@ export function ExpertProjectDetail() {
       {isDisputed ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
           <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">
+          <p className="text-gray-500 text-base">
             Project actions are temporarily locked during dispute resolution.
           </p>
         </div>

@@ -80,6 +80,7 @@ export function EditClientProfile() {
 
       await api.users.update(authUser.id, {
         fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
         status: JSON.stringify(statusPayload),
       });
 
@@ -131,23 +132,24 @@ export function EditClientProfile() {
         className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
       >
         {[
-          { key: "companyName", label: "Company Name", type: "text" },
-          { key: "fullName", label: "Contact Person", type: "text" },
-          { key: "email", label: "Email Address", type: "email" },
-          { key: "phone", label: "Phone Number", type: "tel" },
+          { key: "companyName", label: "Company Name", type: "text", required: true },
+          { key: "fullName", label: "Contact Person", type: "text", required: true },
+          { key: "email", label: "Email Address", type: "email", required: true },
+          { key: "phone", label: "Phone Number", type: "tel", required: true },
           { key: "location", label: "Location", type: "text" },
           { key: "website", label: "Website", type: "url" },
           { key: "industry", label: "Industry", type: "text" },
-        ].map(({ key, label, type }) => (
+        ].map(({ key, label, type, required }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {label}
+              {label} {required && <span className="text-red-500">*</span>}
             </label>
             <input
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              required={required}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
@@ -160,20 +162,20 @@ export function EditClientProfile() {
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium inline-flex items-center gap-2"
+            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
           <Link
             to="/client/profile"
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+            className="h-11 px-5 text-[15px] rounded-xl border border-gray-300 hover:bg-gray-50 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

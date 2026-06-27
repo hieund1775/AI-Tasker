@@ -11,14 +11,15 @@
 import api from "./api.js";
 
 // ---------------------------------------------------------------------------
-// API endpoint placeholders (TODO: update when backend is ready)
+// API endpoint paths — wired to mock API handler for frontend development.
+// Replace with real backend endpoints when available.
 // ---------------------------------------------------------------------------
 
 const DISPUTE_ENDPOINTS = {
-  pauseProjectAsDisputed: "/reports/{id}/accept", // PUT — accept report changes project to "Disputed"
-  continueProject: "/projects/{id}/status",       // PUT — resume project (status=InProgress)
-  stopProject: "/projects/{id}/status",           // PUT — stop project permanently (status=Cancelled)
-  createDisputeChat: "/chat/conversations",        // POST — create 3-party confrontation group chat
+  pauseProjectAsDisputed: "/projects/{id}/status", // PUT — change project status to "Disputed"
+  continueProject: "/projects/{id}/status",        // PUT — resume project after dispute resolved
+  stopProject: "/projects/{id}/status",            // PUT — stop project permanently
+  createDisputeChat: "/messages",                  // POST — create 3-party confrontation group chat
 };
 
 // ---------------------------------------------------------------------------
@@ -33,14 +34,9 @@ const DISPUTE_ENDPOINTS = {
  * @returns {Promise<object>}
  */
 export async function pauseProjectAsDisputed(projectId, payload = {}) {
-  if (!DISPUTE_ENDPOINTS.pauseProjectAsDisputed) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] pauseProjectAsDisputed — endpoint not configured");
-    return { success: true, projectId, status: "Disputed" };
-  }
   return api.put(
     DISPUTE_ENDPOINTS.pauseProjectAsDisputed.replace("{id}", projectId),
-    payload,
+    { ...payload, status: "Disputed" },
   );
 }
 
@@ -57,14 +53,9 @@ export async function pauseProjectAsDisputed(projectId, payload = {}) {
  * @returns {Promise<object>}
  */
 export async function continueProject(projectId, payload = {}) {
-  if (!DISPUTE_ENDPOINTS.continueProject) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] continueProject — endpoint not configured");
-    return { success: true, projectId, status: "Active" };
-  }
   return api.put(
     DISPUTE_ENDPOINTS.continueProject.replace("{id}", projectId),
-    payload,
+    { ...payload, status: "Active" },
   );
 }
 
@@ -86,19 +77,9 @@ export async function continueProject(projectId, payload = {}) {
  * @returns {Promise<object>}
  */
 export async function stopProject(projectId, payload) {
-  if (!DISPUTE_ENDPOINTS.stopProject) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] stopProject — endpoint not configured");
-    return {
-      success: true,
-      projectId,
-      status: "Stopped",
-      moneyAction: payload.moneyAction,
-    };
-  }
   return api.put(
     DISPUTE_ENDPOINTS.stopProject.replace("{id}", projectId),
-    payload,
+    { ...payload, status: "cancelled" },
   );
 }
 
@@ -120,11 +101,6 @@ export async function stopProject(projectId, payload) {
  * @returns {Promise<object>} chat session info
  */
 export async function createDisputeChat(payload) {
-  if (!DISPUTE_ENDPOINTS.createDisputeChat) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] createDisputeChat — endpoint not configured");
-    return { success: true, chatId: null, ...payload };
-  }
   return api.post(DISPUTE_ENDPOINTS.createDisputeChat, payload);
 }
 

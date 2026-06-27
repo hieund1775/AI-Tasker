@@ -8,12 +8,15 @@ import {
   Calendar,
   DollarSign,
   Wallet,
-  ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
+import { ReportForm } from "../../components/report/ReportForm.jsx";
+import { createReport } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
-import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 
 import {
   getProjectProgress,
@@ -25,6 +28,7 @@ import {
 import { timeAgo } from "../../lib/dateUtils.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { getRecommendedProjects } from "../../lib/recommendationHelper.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,6 +45,57 @@ function isContractActive(project) {
     projectStatus === "in progress" ||
     projectStatus === "active"
   );
+}
+
+/** Derive a display-only match percentage from the index. */
+/** Derive a display-only match percentage from the index. */
+function getMatchPct(index) {
+  return [96, 89, 84, 78, 92, 88, 81][index % 7];
+}
+
+/** Compute a real matching score percentage based on Category, Specialization, and Skills */
+function calculateMatchPct(job, expertProfile, allSkills) {
+  if (!expertProfile) return 75;
+  
+  let matchScore = 0;
+  
+  // Category match (40%)
+  const expertCategory = expertProfile.category || "";
+  const jobCat = job.category || job.aiCategoryDomain?.name || "";
+  if (jobCat && expertCategory && jobCat.toLowerCase() === expertCategory.toLowerCase()) {
+    matchScore += 40;
+  }
+  
+  // Specialization match (30%)
+  const expertSpecialization = expertProfile.specialization || expertProfile.major || "";
+  const jobSpec = job.specialization || "";
+  if (jobSpec && expertSpecialization && jobSpec.toLowerCase() === expertSpecialization.toLowerCase()) {
+    matchScore += 30;
+  }
+  
+  // Skills match (30%)
+  const expertSkills = expertProfile.skills || [];
+  const expertSkillsResolved = expertSkills.map(sk => {
+    if (typeof sk === "string" && sk.startsWith("skill-") && Array.isArray(allSkills)) {
+      const match = allSkills.find(s => s.id === sk);
+      return match ? match.name : sk;
+    }
+    return typeof sk === "string" ? sk : sk?.name || "";
+  });
+  
+  const jobSkills = job.jobPostSkills?.map((s) => s.skill?.name) || job.requiredSkills || [];
+  if (jobSkills.length === 0) {
+    matchScore += 30;
+  } else {
+    let matches = 0;
+    jobSkills.forEach(js => {
+      const hasSkill = expertSkillsResolved.some(es => es.toLowerCase() === js.toLowerCase());
+      if (hasSkill) matches++;
+    });
+    matchScore += Math.round((matches / jobSkills.length) * 30);
+  }
+  
+  return Math.min(100, Math.max(0, matchScore));
 }
 
 // ---------------------------------------------------------------------------
@@ -67,20 +122,46 @@ export function ExpertDashboard() {
   const [expertDetails, setExpertDetails] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Dispute reporting states
+  const [reportingProject, setReportingProject] = useState(null);
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+
+  const handleSubmitReport = async (reportData) => {
+    setReportSubmitting(true);
+    try {
+      await createReport({
+        ...reportData,
+        reporterRole: "expert",
+        reportType: "type2"
+      });
+      setShowReportForm(false);
+      setReportingProject(null);
+      toast.success("Báo cáo vi phạm thanh toán đã được gửi tới Admin thành công.");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error(err.message || "Không thể gửi báo cáo tranh chấp.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
       setLoading(true);
       
+      let expertProfile = null;
       // Load user details (projects, proposals)
       try {
         const userRes = await api.users.getById(user.id);
         setExpertDetails(userRes);
+        expertProfile = userRes?.expertProfile;
         
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-            (p) => isContractActive(p)
+            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review"].includes(p.status?.toLowerCase())
           )
         );
         setCompletedProjects(
@@ -94,35 +175,42 @@ export function ExpertDashboard() {
         console.error("Error loading expert dashboard details:", err);
       }
 
-      // Load recommended jobs from recommendation API
+      // Load skills mapping to resolve IDs
+      let allSkills = [];
       try {
-        const recs = await api.get("/recommendations/jobs", {
-          params: { expertId: user.id, limit: 10 },
-        });
-        const jobsList = (Array.isArray(recs) ? recs : []).map((r) => ({
-          id: r.jobId || r.id,
-          title: r.title,
-          description: r.description,
-          budget: r.budget,
-          deadline: r.deadline,
-          status: r.status,
-          createdAt: r.createdAt,
-          client: r.clientName,
-          category: r.categoryName || r.matchedCategory,
-          matchScore: r.score != null ? Math.round(Number(r.score)) : null,
-          jobPostSkills: (r.matchedSkills || []).map((s) => ({
-            skill: { name: typeof s === "string" ? s : s.name || s },
-          })),
-          requiredSkills: [],
-        }));
-        setRecommendedProjects(jobsList);
+        const skillsRes = await api.get("/category-tags/skills");
+        if (Array.isArray(skillsRes)) {
+          allSkills = skillsRes;
+        }
+      } catch (e) {
+        console.error("Error fetching skills list for matching:", e);
+      }
+
+      // Load recommended/open jobs
+      try {
+        const jobsList = await api.jobPosts.list();
+        const openJobs = (jobsList || []).filter(
+          (j) => j.status?.toLowerCase() === "open" || j.status?.toLowerCase() === "published"
+        );
+        
+        // Lọc và sắp xếp theo thuật toán gợi ý mới từ helper
+        const recommendedJobs = getRecommendedProjects(expertProfile, openJobs, allSkills);
+        setRecommendedProjects(recommendedJobs.slice(0, 5));
       } catch (err) {
-        console.error("Error loading recommended jobs:", err);
+        console.error("Error loading open jobs:", err);
       } finally {
         setLoading(false);
       }
     }
     loadDashboardData();
+
+    const handleUpdate = () => {
+      loadDashboardData();
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
   }, [user?.id]);
 
   // ---- Computed stat values ------------------------------------------------
@@ -139,7 +227,7 @@ export function ExpertDashboard() {
       label: "Active Contracts",
       value: activeContracts.length,
       icon: Briefcase,
-      color: "text-blue-600 bg-blue-100",
+      color: "text-brand-primary bg-brand-primary-light",
     },
     {
       label: "Total Earned",
@@ -181,7 +269,7 @@ export function ExpertDashboard() {
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-            className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
+            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
@@ -209,34 +297,14 @@ export function ExpertDashboard() {
         >
           {/* Panel header */}
           <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center">
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
               My Active Contracts
             </h2>
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {loading ? (
-              Array.from({ length: 2 }).map((_, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
-                  <div className="flex justify-between mb-3">
-                    <LoadingSkeleton className="h-5 w-2/3" />
-                    <LoadingSkeleton className="h-5 w-20 rounded-full" />
-                  </div>
-                  <LoadingSkeleton className="h-3 w-1/3 mb-3" />
-                  <div className="flex gap-2 mb-3">
-                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
-                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
-                    <LoadingSkeleton className="h-5 w-14 rounded-md" />
-                  </div>
-                  <LoadingSkeleton className="h-2 w-full rounded-full mb-3" />
-                  <div className="flex justify-between">
-                    <LoadingSkeleton className="h-4 w-32" />
-                    <LoadingSkeleton className="h-8 w-24 rounded-lg" />
-                  </div>
-                </div>
-              ))
-            ) : activeContracts.length === 0 ? (
+            {activeContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -247,7 +315,7 @@ export function ExpertDashboard() {
                 </p>
                 <Link
                   to="/expert/find-jobs"
-                  className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
+                  className="h-10 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 font-semibold text-sm transition-colors inline-flex items-center"
                 >
                   Find Jobs
                 </Link>
@@ -269,7 +337,7 @@ export function ExpertDashboard() {
                   >
                     {/* ── Top row: title + status badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
+                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
                         {p.title}
                       </h3>
                       <span
@@ -280,7 +348,7 @@ export function ExpertDashboard() {
                     </div>
 
                     {/* ── Client name ── */}
-                    <p className="text-sm text-gray-500 mb-3">
+                    <p className="text-base text-gray-500 mb-3">
                       with{" "}
                       <span className="font-medium text-gray-700">
                         {clientName}
@@ -298,16 +366,16 @@ export function ExpertDashboard() {
                     {/* ── Progress bar ── */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-medium text-gray-500">
+                        <span className="text-sm font-medium text-gray-500">
                           Milestone Progress
                         </span>
-                        <span className="text-xs font-bold text-gray-900">
+                        <span className="text-sm font-bold text-gray-900">
                           {progress}%
                         </span>
                       </div>
                       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gray-900 rounded-full transition-all"
+                          className="h-full bg-brand-primary rounded-full transition-all"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -315,7 +383,7 @@ export function ExpertDashboard() {
 
                     {/* ── Bottom row: due date, value, action ── */}
                     <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           Due{" "}
@@ -331,20 +399,33 @@ export function ExpertDashboard() {
                           <MoneyDisplay amount={p.budget} />
                         </span>
                       </div>
-                      {btnCfg.disabled ? (
-                        <span
-                          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${btnCfg.className}`}
-                        >
-                          {btnCfg.label}
-                        </span>
-                      ) : (
-                        <Link
-                          to={btnCfg.linkTo?.(p) || `/expert/projects/${p.id}`}
-                          className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${btnCfg.className}`}
-                        >
-                          {btnCfg.label}
-                        </Link>
-                      )}
+                      <div className="flex items-center">
+                        {!["disputed", "under_review", "under review"].includes(p.status?.toLowerCase()) && (
+                          <button
+                            onClick={() => {
+                              setReportingProject(p);
+                              setShowReportForm(true);
+                            }}
+                            className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                          </button>
+                        )}
+                        {btnCfg.disabled ? (
+                          <span
+                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                          >
+                            {btnCfg.label}
+                          </span>
+                        ) : (
+                          <Link
+                            to={btnCfg.linkTo?.(p) || `/expert/projects/${p.id}`}
+                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                          >
+                            {btnCfg.label}
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -364,45 +445,16 @@ export function ExpertDashboard() {
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-                Recommended Projects
-              </h2>
-              <TrendingUp className="w-4 h-4 text-emerald-500" />
-            </div>
-            {recommendedProjects.length > 0 && (
-              <Link
-                to="/expert/find-jobs"
-                className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
-              >
-                View All <ArrowRight className="w-3 h-3" />
-              </Link>
-            )}
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
+              Recommended Projects
+            </h2>
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {loading ? (
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="bg-white border border-gray-200 rounded-xl p-5">
-                  <div className="flex justify-between mb-3">
-                    <LoadingSkeleton className="h-5 w-2/3" />
-                    <LoadingSkeleton className="h-5 w-14 rounded-full" />
-                  </div>
-                  <LoadingSkeleton className="h-3 w-1/2 mb-2" />
-                  <LoadingSkeleton className="h-4 w-full mb-3" />
-                  <div className="flex gap-2 mb-3">
-                    <LoadingSkeleton className="h-5 w-16 rounded-md" />
-                    <LoadingSkeleton className="h-5 w-20 rounded-md" />
-                  </div>
-                  <div className="flex justify-between">
-                    <LoadingSkeleton className="h-4 w-20" />
-                    <LoadingSkeleton className="h-4 w-16" />
-                  </div>
-                </div>
-              ))
-            ) : recommendedProjects.length === 0 ? (
+            {recommendedProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
                 <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-500 mb-2">
@@ -415,7 +467,7 @@ export function ExpertDashboard() {
             ) : (
               recommendedProjects.map((p, idx) => {
                 const clientName = p.client || "Client";
-                const matchPct = p.matchScore != null ? `${p.matchScore}%` : "—";
+                const matchPct = p.matchPct !== undefined ? p.matchPct : getMatchPct(idx);
                 const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
 
                 return (
@@ -425,16 +477,16 @@ export function ExpertDashboard() {
                   >
                     {/* ── Top: title + match badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
+                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
                         {p.title}
                       </h3>
                       <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
-                        {p.matchScore != null ? `${p.matchScore}% match` : "—"}
+                        {matchPct}% match
                       </span>
                     </div>
 
                     {/* ── Posted by + time ── */}
-                    <p className="text-xs text-gray-500 mb-2.5">
+                    <p className="text-[13px] text-gray-500 mb-2.5">
                       Posted by{" "}
                       <span className="font-medium text-gray-600">
                         {clientName}
@@ -444,7 +496,7 @@ export function ExpertDashboard() {
                     </p>
 
                     {/* ── Description ── */}
-                    <p className="text-sm text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                    <p className="text-base text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
@@ -458,11 +510,11 @@ export function ExpertDashboard() {
 
                     {/* ── Budget + Duration ── */}
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="font-semibold text-gray-900 text-sm">
+                      <span className="font-semibold text-gray-900 text-base">
                         <MoneyDisplay amount={p.budget} />
                       </span>
                       <span className="text-gray-300">·</span>
-                      <span className="text-gray-500 text-xs">
+                      <span className="text-gray-500 text-[13px]">
                         {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
@@ -471,13 +523,13 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-                        className="px-4 py-2.5 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium text-center transition-colors"
+                        className="px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-xs font-semibold inline-flex items-center gap-1.5 transition-colors w-full justify-center"
                       >
                         Apply Now
                       </Link>
                       <Link
                         to={`/expert/jobs/${p.id}`}
-                        className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium text-center transition-colors"
+                        className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
                       >
                         View Job
                       </Link>
@@ -489,6 +541,28 @@ export function ExpertDashboard() {
           </div>
         </section>
       </div>
+
+      {/* REPORT FORM DIALOG */}
+      <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              Báo cáo vi phạm Khách hàng (Expert Report Client)
+            </DialogTitle>
+          </DialogHeader>
+          {reportingProject && (
+            <ReportForm
+              project={reportingProject}
+              onSubmit={handleSubmitReport}
+              onCancel={() => {
+                setShowReportForm(false);
+                setReportingProject(null);
+              }}
+              loading={reportSubmitting}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

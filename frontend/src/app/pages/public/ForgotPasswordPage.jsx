@@ -47,7 +47,7 @@ export function ForgotPasswordPage() {
 
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-blue-900 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">AI</span>
             </div>
             <span className="text-2xl font-bold text-gray-900">Tasker</span>
@@ -71,7 +71,7 @@ export function ForgotPasswordPage() {
             </p>
             <Link
               to="/login"
-              className="inline-flex items-center gap-2 text-sm font-medium text-blue-900 hover:text-blue-800 transition-colors"
+              className="inline-flex items-center gap-2 text-sm font-medium text-brand-primary hover:text-brand-primary-hover transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to Login
@@ -93,7 +93,7 @@ export function ForgotPasswordPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
                   placeholder="your@email.com"
                   required
                 />
@@ -102,7 +102,7 @@ export function ForgotPasswordPage() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium transition-colors"
+              className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
             >
               Send Reset Link
             </button>

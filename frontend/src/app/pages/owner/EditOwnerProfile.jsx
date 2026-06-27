@@ -6,10 +6,11 @@
 // =============================================================================
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { Save } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { listUsers } from "../../../data/mockDatabase.js";
 
 // ---------------------------------------------------------------------------
 // Resolve owner user from mock DB
@@ -17,10 +18,19 @@ import { useAuth } from "../../hooks/useAuth.js";
 
 function resolveOwner(userFromAuth) {
   if (userFromAuth?.email) {
-    const mockUser = null;
-    if (mockUser) return mockUser;
+    const found = listUsers().find(
+      (u) => u.email === userFromAuth.email && u.role === "owner"
+    );
+    if (found) return found;
   }
-  return null || null;
+  if (userFromAuth?.id) {
+    const found = listUsers().find(
+      (u) => u.id === userFromAuth.id && u.role === "owner"
+    );
+    if (found) return found;
+  }
+  // Fallback: return demo owner
+  return listUsers().find((u) => u.id === "user-001") || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +135,7 @@ export function EditOwnerProfile() {
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
@@ -138,24 +148,23 @@ export function EditOwnerProfile() {
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium inline-flex items-center gap-2"
+            className="h-11 px-5 text-[15px] rounded-xl bg-yellow-600 text-white hover:bg-yellow-700 font-medium inline-flex items-center gap-2 justify-center"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
-          <button
-            type="button"
-            onClick={() => navigate("/owner/profile")}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+          <Link
+            to="/owner/profile"
+            className="h-11 px-5 text-[15px] rounded-xl border border-gray-300 hover:bg-gray-50 font-medium inline-flex items-center justify-center"
           >
             Cancel
-          </button>
+          </Link>
         </div>
       </form>
     </div>

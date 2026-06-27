@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   FileText,
-  MessageSquare,
   Eye,
 } from "lucide-react";
+import { Button } from "../../components/ui/button.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
@@ -77,6 +77,14 @@ export function ProposalStatus() {
       }
     }
     loadProposals();
+
+    const handleUpdate = () => {
+      loadProposals();
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
   }, [user?.id]);
 
   return (
@@ -89,12 +97,6 @@ export function ProposalStatus() {
             Track your submitted proposals and their status
           </p>
         </div>
-        <Link
-          to="/expert/find-jobs"
-          className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium text-sm inline-flex items-center gap-2 transition-colors"
-        >
-          <FileText className="w-4 h-4" /> Browse Jobs
-        </Link>
       </div>
 
       {/* Empty state */}
@@ -104,15 +106,9 @@ export function ProposalStatus() {
           <h3 className="text-lg font-semibold text-gray-500 mb-2">
             No proposals submitted
           </h3>
-          <p className="text-sm text-gray-400 mb-4">
-            Browse available jobs and submit your first proposal.
+          <p className="text-base text-gray-400">
+            No proposals have been submitted yet.
           </p>
-          <Link
-            to="/expert/find-jobs"
-            className="px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 text-sm font-medium"
-          >
-            Find Jobs
-          </Link>
         </div>
       ) : (
         <div className="space-y-4">
@@ -129,20 +125,20 @@ export function ProposalStatus() {
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                   {/* Left: Info */}
                   <div className="flex-1 min-w-0">
-                    {/* Title + Status badge side by side */}
-                    <div className="flex items-center flex-wrap gap-x-3 gap-y-1.5 mb-2">
-                      <h3 className="font-semibold text-gray-900 text-[15px] leading-snug">
-                        {proposal.proposalTitle}
-                      </h3>
-                      <span
-                        className={`flex-shrink-0 px-3 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1.5 ${statusCfg.className}`}
-                      >
-                        <StatusIcon className="w-3.5 h-3.5" />
-                        {statusCfg.label}
-                      </span>
-                    </div>
+                    {/* Status badge — above title */}
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-current ${statusCfg.className} mb-2`}
+                    >
+                      <StatusIcon className="w-3.5 h-3.5" />
+                      {statusCfg.label}
+                    </span>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500">
+                    {/* Title */}
+                    <h3 className="font-semibold text-gray-900 text-lg leading-snug mb-2">
+                      {proposal.proposalTitle}
+                    </h3>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-gray-500">
                       <span>
                         Client:{" "}
                         <span className="font-medium text-gray-700">
@@ -164,7 +160,7 @@ export function ProposalStatus() {
                       </span>
                     </div>
 
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-sm text-gray-400 mt-2">
                       Submitted{" "}
                       {proposal.createdAt
                         ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
@@ -177,35 +173,28 @@ export function ProposalStatus() {
                   </div>
 
                   {/* Right: Actions */}
-                  <div className="flex flex-row sm:flex-col gap-2.5 sm:min-w-[140px] sm:items-stretch">
-                    <Link
-                      to={`/expert/proposals/${proposal.id}`}
-                      className="px-4 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium text-center transition-colors inline-flex items-center justify-center gap-2"
+                  <div className="flex flex-col gap-2 sm:min-w-[180px] items-stretch">
+                    <Button
+                      variant="default"
+                      size="default"
+                      asChild
+                      className="w-full"
                     >
-                      <Eye className="w-4 h-4" />
-                      View Details
-                    </Link>
-
-                    {/* Contact — only for accepted proposals */}
-                    {proposal.status?.toLowerCase() === "accepted" && (
-                      convId ? (
-                        <Link
-                          to={`/messenger/${convId}`}
-                          className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium text-center transition-colors inline-flex items-center justify-center gap-2"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          Contact
-                        </Link>
-                      ) : (
-                        <Link
-                          to="/messenger"
-                          className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium text-center transition-colors inline-flex items-center justify-center gap-2"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          Contact
-                        </Link>
-                      )
-                    )}
+                      <Link to={`/expert/proposals/${proposal.id}`}>
+                        <Eye className="w-4 h-4" />
+                        View Proposal
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="default"
+                      asChild
+                      className="w-full"
+                    >
+                      <Link to={`/expert/jobs/${proposal.jobPostId}`}>
+                        View Detail
+                      </Link>
+                    </Button>
                   </div>
                 </div>
               </div>
