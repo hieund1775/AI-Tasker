@@ -1,10 +1,14 @@
-import { useEffect, useRef } from "react";
-import { ClipboardList } from "lucide-react";
+﻿import { useEffect, useRef, useState } from "react";
+import { ClipboardList, ArrowRight, ThumbsUp, AlertTriangle, FileText, Check, X, Clock3, RotateCcw } from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { TaskProgressCard } from "./TaskProgressCard.jsx";
 import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTimelineIllustration.jsx";
 import { cn } from "../../lib/utils.js";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { StatusBadge } from "../shared/StatusBadge.jsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog.jsx";
 
 // =============================================================================
 // ProjectProgressPanel — overall project progress section with task cards.
@@ -21,14 +25,182 @@ import { cn } from "../../lib/utils.js";
 
 export function ProjectProgressPanel({
   tasks = [],
+  useCases = [],
   overallProgress = 0,
   role = "client",
   projectId,
   onToggleMiniTask,
   focusTaskId,
   loading = false,
+  readOnly = false,
+  onApproveTask,
+  onRequestUrgentSubmission,
+  onRequestRevision,
+  onUseCaseSubmitForReview,
+  onUseCaseApprove,
+  onUseCaseRequestProduct,
+  onUseCaseSubmitProduct,
+  onUseCaseDeclineProduct,
 }) {
   const taskRefs = useRef({});
+  const navigate = useNavigate();
+
+  const getTaskDuration = (t) => {
+    if (t.durationDays) return Number(t.durationDays);
+    if (t.deadline) {
+      const start = t.createdAt ? new Date(t.createdAt) : new Date();
+      const end = new Date(t.deadline);
+      const diffMs = end - start;
+      if (diffMs > 0) {
+        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      }
+    }
+    return 5; // default fallback
+  };
+
+  // States for client-side inline task deliverables review modal
+  const [activeReviewTask, setActiveReviewTask] = useState(null);
+  const [showDeclineForm, setShowDeclineForm] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+  const [activeExpertUseCaseIndex, setActiveExpertUseCaseIndex] = useState(null);
+
+  // States for Use Case product submission
+  const [ucProductLink, setUcProductLink] = useState("");
+  const [ucProductFile, setUcProductFile] = useState("");
+  const [ucProductImage, setUcProductImage] = useState("");
+
+  // States for client-side Use Case review modal
+  const [activeReviewUseCaseIndex, setActiveReviewUseCaseIndex] = useState(null);
+  const [useCaseDeclineReason, setUseCaseDeclineReason] = useState("");
+  const [showUseCaseDeclineForm, setShowUseCaseDeclineForm] = useState(false);
+
+  const handleApprove = async (taskId) => {
+    if (readOnly || !onApproveTask) return;
+    setActionLoading(true);
+    try {
+      await onApproveTask(taskId);
+      toast.success("Đã phê duyệt milestone thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setActiveReviewTask(null);
+    } catch (err) {
+      toast.error("Không thể phê duyệt milestone.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRequestUrgent = async (taskId) => {
+    if (readOnly || !onRequestUrgentSubmission) return;
+    setActionLoading(true);
+    try {
+      await onRequestUrgentSubmission(taskId);
+      toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error("Không thể yêu cầu sản phẩm.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeclineSubmit = async (taskId) => {
+    if (readOnly || !onRequestRevision || !declineReason.trim()) return;
+    setActionLoading(true);
+    try {
+      await onRequestRevision(taskId, declineReason.trim());
+      toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
+      setShowDeclineForm(false);
+      setDeclineReason("");
+      setActiveReviewTask(null);
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error("Không thể gửi phản hồi từ chối.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseSubmitForReviewWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseSubmitForReview) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseSubmitForReview(useCaseIndex);
+      toast.success("Đã gửi yêu cầu phê duyệt Use Case thành công!");
+    } catch (err) {
+      toast.error("Không thể gửi yêu cầu phê duyệt.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseApproveWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseApprove) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseApprove(useCaseIndex);
+      toast.success("Đã phê duyệt Use Case thành công!");
+      setActiveReviewUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể phê duyệt Use Case.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseRequestProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseRequestProduct) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseRequestProduct(useCaseIndex);
+      toast.success("Đã yêu cầu sản phẩm bàn giao thành công!");
+    } catch (err) {
+      toast.error("Không thể yêu cầu sản phẩm bàn giao.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseSubmitProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseSubmitProduct) return;
+    if (!ucProductLink.trim() && !ucProductFile.trim() && !ucProductImage.trim()) {
+      toast.error("Vui lòng cung cấp ít nhất một liên kết, tệp hoặc hình ảnh!");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await onUseCaseSubmitProduct(useCaseIndex, {
+        productLink: ucProductLink.trim(),
+        productFile: ucProductFile.trim(),
+        productImage: ucProductImage.trim()
+      });
+      toast.success("Đã nộp sản phẩm bàn giao thành công!");
+      setUcProductLink("");
+      setUcProductFile("");
+      setUcProductImage("");
+      setActiveExpertUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể nộp sản phẩm bàn giao.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUseCaseDeclineProductWrapper = async (useCaseIndex) => {
+    if (readOnly || !onUseCaseDeclineProduct || !useCaseDeclineReason.trim()) return;
+    setActionLoading(true);
+    try {
+      await onUseCaseDeclineProduct(useCaseIndex, useCaseDeclineReason.trim());
+      toast.success("Đã gửi lý do từ chối sản phẩm thành công!");
+      setUseCaseDeclineReason("");
+      setShowUseCaseDeclineForm(false);
+      setActiveReviewUseCaseIndex(null);
+    } catch (err) {
+      toast.error("Không thể gửi lý do từ chối.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   // Scroll to focused task when focusTaskId changes
   useEffect(() => {
@@ -65,7 +237,18 @@ export function ProjectProgressPanel({
     );
   }
 
-  if (tasks.length === 0) {
+  if (role === "client" && useCases.length === 0) {
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="No use cases found"
+        description="No use cases found for this project."
+        size="md"
+      />
+    );
+  }
+
+  if (role === "expert" && tasks.length === 0) {
     return (
       <EmptyState
         icon={ClipboardList}

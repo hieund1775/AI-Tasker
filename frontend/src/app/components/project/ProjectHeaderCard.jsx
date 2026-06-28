@@ -1,10 +1,19 @@
-import { MessageSquare, Calendar, Tag, Clock, User, Briefcase } from "lucide-react";
+import {
+  MessageSquare,
+  Calendar,
+  Tag,
+  Clock,
+  User,
+  Briefcase,
+} from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { Button } from "../ui/button.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { cn } from "../../lib/utils.js";
+
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
+import { getRemainingTimelineText } from "../../lib/projectTimelineStore.js";
 
 // =============================================================================
 // ProjectHeaderCard — project info header with status, names, budget, dates, tags.
@@ -68,11 +77,15 @@ export function ProjectHeaderCard({
         day: "numeric",
       });
     }
-    return safeDateFormat(project.deadline, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }, String(project.deadline));
+    return safeDateFormat(
+      project.deadline,
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      },
+      String(project.deadline),
+    );
   })();
 
   const otherPerson = role === "client" ? expert : client;
@@ -85,7 +98,11 @@ export function ProjectHeaderCard({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         {/* Left: project info */}
         <div className="flex-1 min-w-0">
-          <StatusBadge status={project.status} entity="project" className="mb-2" />
+          <StatusBadge
+            status={project.status}
+            entity="project"
+            className="mb-2"
+          />
 
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground mt-1 truncate">
             {project.title || "Untitled Project"}
@@ -137,11 +154,7 @@ export function ProjectHeaderCard({
         <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
           {/* Message button */}
           {onMessage && (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={onMessage}
-            >
+            <Button variant="outline" size="default" onClick={onMessage}>
               <MessageSquare className="w-4 h-4" />
               Message
             </Button>
@@ -170,17 +183,33 @@ export function ProjectHeaderCard({
           <p className="text-sm font-medium text-foreground">{endDate}</p>
         </div>
 
+        {/* Time Remaining */}
+        <div>
+          <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1">
+            <Clock className="w-4 h-4 text-brand-primary" /> Timeline còn lại
+          </p>
+          <p className="text-sm font-bold text-brand-primary">
+            {getRemainingTimelineText(project.deadline)}
+          </p>
+        </div>
+
         {/* Total Budget */}
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Total Budget</p>
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">
+            Total Budget
+          </p>
           <p className="text-sm font-semibold text-foreground">
-            <MoneyDisplay amount={project.budget || project.escrowAmount || 0} />
+            <MoneyDisplay
+              amount={project.budget || project.escrowAmount || 0}
+            />
           </p>
         </div>
 
         {/* Progress */}
         <div>
-          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Progress</p>
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">
+            Progress
+          </p>
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-primary font-mono">
               {overallProgress}%

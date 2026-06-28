@@ -31,7 +31,7 @@ export function JobDetail() {
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchJob() {
+    async function fetchJobData() {
       setLoading(true);
       setError(null);
       try {
@@ -93,7 +93,7 @@ export function JobDetail() {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchJob();
+    fetchJobData();
     return () => {
       cancelled = true;
     };
@@ -226,6 +226,11 @@ export function JobDetail() {
                   <p className="font-bold text-foreground text-sm">
                     Use Case #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
                   </p>
+                  {uc.durationValue && (
+                    <p className="text-xs text-brand-primary font-semibold pl-3">
+                      Timeline gốc: {uc.durationValue} {uc.durationUnit === "days" ? "ngày" : uc.durationUnit === "weeks" ? "tuần" : uc.durationUnit === "months" ? "tháng" : uc.durationUnit === "years" ? "năm" : uc.durationUnit}
+                    </p>
+                  )}
                   <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
                   <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{uc.originalDurationDays || 1} days</span>
                 </div>

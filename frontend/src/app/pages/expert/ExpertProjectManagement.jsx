@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -30,26 +30,34 @@ export default function ExpertProjectDetail() {
   const {
     project,
     tasks,
+    useCases,
     client,
     loading,
     error,
     overallProgress,
     handleToggleMiniTask,
     handleSubmitProjectFinalWork,
+    handleUseCaseSubmitForReview,
+    handleUseCaseSubmitProduct,
+    activityLogs,
     retry,
   } = useProjectProgress(currentProjectId, "expert");
 
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [projectLink, setProjectLink] = useState("");
   const [projectFile, setProjectFile] = useState("");
+  const [projectImage, setProjectImage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dispute / Report states
   const [report, setReport] = useState(null);
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [showExplanationModal, setShowExplanationModal] = useState(false);
 
   const isDisputed = project?.status?.toLowerCase() === "disputed";
+  const isFullFreeze = isDisputed && report?.reporterRole === "client";
+  const hasPendingReportFromMe = report && report.reporterRole === "expert" && report.status === "Pending";
 
   useEffect(() => {
     if (!currentProjectId) return;
@@ -154,6 +162,9 @@ export default function ExpertProjectDetail() {
     );
   }
 
+  const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
+  const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
       <PageHeader
@@ -192,133 +203,194 @@ export default function ExpertProjectDetail() {
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
 
-        {isDisputed && report?.status === "Awaiting Expert" ? (
-          <ExpertDisputeExplanationPanel
-            report={report}
-            onSubmit={handleExpertSubmitExplanation}
-          />
-        ) : (
-          <>
-            {/* Delivery & Payment Stepper */}
-            <AnimatedReveal>
-              <ExpertDeliveryStepper project={project} overallProgress={overallProgress} />
-            </AnimatedReveal>
+        {/* Delivery & Payment Stepper */}
+        <AnimatedReveal>
+          <ExpertDeliveryStepper project={project} overallProgress={overallProgress} />
+        </AnimatedReveal>
 
-            {/* Project header */}
-            <AnimatedReveal delay={1}>
-              <ProjectHeaderCard
-                project={project}
-                client={client}
-                role="expert"
-                overallProgress={overallProgress}
-                loading={false}
-                onMessage={() => navigate("/messenger")}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Submit work button (expert only) */}
-                  {overallProgress === 100 && project.status !== "completed" && !isDisputed ? (
-                    project.finalDeliveryStatus === "Final Product Submitted" ? (
-                      <button
-                        disabled
-                        className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                      >
-                        Submitted Work
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setShowSubmitModal(true)}
-                        className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer"
-                      >
-                        <Send className="w-4 h-4" /> Submit Work
-                      </button>
-                    )
-                  ) : project.status === "completed" ? (
-                    <button
-                      disabled
-                      className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                    >
-                      <CheckCircle2 className="w-4 h-4" /> Project Complete
-                    </button>
-                  ) : null}
+        {/* Project header */}
+        <AnimatedReveal delay={1}>
+          <ProjectHeaderCard
+            project={project}
+            client={client}
+            role="expert"
+            overallProgress={overallProgress}
+            loading={false}
+            onMessage={() => navigate("/messenger")}
+          >
+            <div className="flex items-center gap-3">
+              {/* Report / Dispute buttons from origin */}
+              {isDisputed && report?.status === "Awaiting Expert" && (
+                <button
+                  type="button"
+                  onClick={() => setShowExplanationModal(true)}
+                  className="h-11 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-[14px] font-bold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-md animate-pulse"
+                >
+                  ⚠️ Phản hồi vi phạm
+                </button>
+              )}
+              {!isDisputed && !hasPendingReportFromMe && (
+                <button
+                  type="button"
+                  onClick={() => setShowReportForm(true)}
+                  className="h-11 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+                >
+                  <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                </button>
+              )}
+              {hasPendingReportFromMe && (
+                <button
+                  disabled
+                  className="h-11 px-4 border border-border text-muted-foreground bg-secondary rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed transition-all shadow-sm"
+                >
+                  <AlertTriangle className="w-4 h-4 text-muted-foreground" /> Đang trong tiến hành
+                </button>
+              )}
+
+              {/* Submit work button (expert only) */}
+              {overallProgress === 100 && project.status !== "completed" && !isDisputed ? (
+                project.finalDeliveryStatus === "Final Product Submitted" ? (
+                  <button
+                    disabled
+                    className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                  >
+                    Submitted Work
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowSubmitModal(true)}
+                    className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Send className="w-4 h-4" /> Submit Work
+                  </button>
+                )
+              ) : project.status === "completed" ? (
+                <button
+                  disabled
+                  className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Project Complete
+                </button>
+              ) : null}
+            </div>
+          </ProjectHeaderCard>
+        </AnimatedReveal>
+
+        {/* Project Final Handover Section */}
+        {project.status !== "completed" && !isFullFreeze && (
+          <AnimatedReveal delay={2}>
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
+              <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
+                <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
+              </h2>
+
+              {project.finalWorkDeclineReason && (
+                <div className="p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-sm font-sans">
+                  <strong className="block font-semibold mb-1">Revision Requested:</strong>
+                  {project.finalWorkDeclineReason}
                 </div>
-              </ProjectHeaderCard>
-            </AnimatedReveal>
+              )}
 
-            {/* Project Final Handover Section */}
-            {overallProgress === 100 && project.status !== "completed" && !isDisputed && (
-              <AnimatedReveal delay={2}>
-                <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
-                    <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
-                  </h2>
-
-                  {project.finalWorkDeclineReason && (
-                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
-                      <strong className="block font-semibold mb-1">Revision Requested:</strong>
-                      {project.finalWorkDeclineReason}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/60 p-4 rounded-xl font-sans">
+                <div className="space-y-1">
+                  <p className="text-sm text-foreground/80">
+                    {!isReadyForFinalSubmit ? (
+                      <span className="text-muted-foreground italic">
+                        Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
+                      </span>
+                    ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                      <span className="text-brand-primary font-semibold flex items-center gap-1.5">
+                        ✓ Đã nộp sản phẩm tổng. Đang chờ Client thẩm định.
+                      </span>
+                    ) : project.finalDeliveryStatus === "Accepted" ? (
+                      <span className="text-success font-semibold flex items-center gap-1.5">
+                        ✓ Sản phẩm bàn giao đã được chấp nhận! Đang chờ thanh toán.
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        Tất cả các mốc công việc đã hoàn thành. Hãy cung cấp Link và File sản phẩm để bàn giao dự án.
+                      </span>
+                    )}
+                  </p>
+                  {project.finalDeliveryStatus === "Final Product Submitted" && (
+                    <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
+                      <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
+                      {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectFile}</span></p>}
+                      {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectImage}</span></p>}
                     </div>
                   )}
-
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/60 p-4 rounded-xl font-sans">
-                    <div className="space-y-1">
-                      <p className="text-sm text-foreground/80">
-                        {project.finalDeliveryStatus === "Final Product Submitted" ? (
-                          <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                            ✓ Submitted. Waiting for Client review.
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            All tasks complete. Provide the final project link and file for handover.
-                          </span>
-                        )}
-                      </p>
-                      {project.finalDeliveryStatus === "Final Product Submitted" && (
-                        <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
-                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                          <p><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectFile}</span></p>
-                        </div>
-                      )}
-                    </div>
-
-                    {project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowSubmitModal(true)}
-                        className="h-11 px-6 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
-                      >
-                        <Send className="w-4 h-4" /> Submit Final Work
-                      </button>
-                    ) : (
-                      <button
-                        disabled
-                        className="h-11 px-6 bg-muted text-muted-foreground border border-input rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
-                      >
-                        ✓ Submitted
-                      </button>
-                    )}
-                  </div>
                 </div>
-              </AnimatedReveal>
-            )}
 
-            {/* Project progress panel — expert can toggle mini tasks */}
-            <AnimatedReveal delay={3}>
-              <ProjectProgressPanel
-                tasks={tasks}
-                overallProgress={overallProgress}
-                role="expert"
-                projectId={currentProjectId}
-                onToggleMiniTask={(taskId, miniTaskId) =>
-                  handleToggleMiniTask(taskId, miniTaskId)
-                }
-                loading={false}
-                readOnly={isDisputed}
-              />
-            </AnimatedReveal>
-          </>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {!isReadyForFinalSubmit ? (
+                    <button
+                      disabled
+                      className="h-11 px-6 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                      title="Cần hoàn thành 100% tất cả Use Cases để nộp"
+                    >
+                      Nộp sản phẩm tổng
+                    </button>
+                  ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                    <button
+                      disabled
+                      className="h-11 px-6 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                    >
+                      ✓ Đã nộp bàn giao
+                    </button>
+                  ) : project.finalDeliveryStatus === "Accepted" ? (
+                    <span className="px-3 py-2 bg-success/10 text-success border border-success/20 rounded-xl text-xs font-bold uppercase tracking-wider">
+                      Đã nghiệm thu
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProjectLink(project.finalProjectLink || "");
+                        setProjectFile(project.finalProjectFile || "");
+                        setProjectImage(project.finalProjectImage || "");
+                        setShowSubmitModal(true);
+                      }}
+                      className="h-11 px-6 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                    >
+                      <Send className="w-4 h-4" /> Nộp sản phẩm tổng
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </AnimatedReveal>
         )}
+
+        {/* Project progress panel — expert can toggle mini tasks */}
+        <AnimatedReveal delay={3}>
+          <ProjectProgressPanel
+            tasks={tasks}
+            useCases={useCases}
+            overallProgress={overallProgress}
+            role="expert"
+            projectId={currentProjectId}
+            onToggleMiniTask={(taskId, miniTaskId) =>
+              handleToggleMiniTask(taskId, miniTaskId)
+            }
+            loading={false}
+            readOnly={isFullFreeze}
+          />
+        </AnimatedReveal>
       </div>
+
+      {/* Explanation Form Modal */}
+      <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border-none">
+          <ExpertDisputeExplanationPanel
+            report={report}
+            onSubmit={async (data) => {
+              await handleExpertSubmitExplanation(data);
+              setShowExplanationModal(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Submit Final Work Modal */}
       {showSubmitModal && (
@@ -343,13 +415,13 @@ export default function ExpertProjectDetail() {
                   toast.error("Vui lòng cung cấp Project Link.");
                   return;
                 }
-                if (!projectFile.trim()) {
-                  toast.error("Vui lòng cung cấp tên Project File (.zip, .rar).");
+                if (!projectFile.trim() && !projectImage.trim()) {
+                  toast.error("Vui lòng cung cấp ít nhất một file đính kèm hoặc hình ảnh bàn giao.");
                   return;
                 }
                 setIsSubmitting(true);
                 try {
-                  await handleSubmitProjectFinalWork(projectLink.trim(), projectFile.trim());
+                  await handleSubmitProjectFinalWork(projectLink.trim(), projectFile.trim(), projectImage.trim());
                   toast.success("Bàn giao sản phẩm tổng thành công!");
                   setShowSubmitModal(false);
                 } catch (err) {
@@ -376,14 +448,26 @@ export default function ExpertProjectDetail() {
 
               <div>
                 <label className="block text-foreground/80 font-semibold mb-1">
-                  Project Files (.zip, .rar) <span className="text-red-500">*</span>
+                  Project Files (.zip, .rar)
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="Ví dụ: sourcecode-v1.zip"
                   value={projectFile}
                   onChange={(e) => setProjectFile(e.target.value)}
+                  className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
+                />
+              </div>
+
+              <div>
+                <label className="block text-foreground/80 font-semibold mb-1">
+                  Project Images / Screenshots URL
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: https://imgur.com/screenshot.png"
+                  value={projectImage}
+                  onChange={(e) => setProjectImage(e.target.value)}
                   className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
                 />
               </div>
@@ -427,6 +511,36 @@ export default function ExpertProjectDetail() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Project Activity Log Container */}
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4 font-sans text-left mt-6">
+        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <Clock className="w-5 h-5 text-brand-primary animate-pulse" /> Nhật ký hoạt động (Activity Log)
+        </h2>
+        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
+          {!activityLogs || activityLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">Chưa có hoạt động nào được ghi nhận.</p>
+          ) : (
+            <div className="relative border-l-2 border-border ml-3 pl-6 space-y-4 pt-1">
+              {activityLogs.map((log, idx) => (
+                <div key={log.id || idx} className="relative">
+                  {/* Dot marker */}
+                  <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-brand-primary border-2 border-background shadow-sm" />
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-start text-xs">
+                      <span className="font-bold text-foreground">{log.userName || log.userRole || "Hệ thống"}</span>
+                      <span className="text-muted-foreground font-mono">{new Date(log.timestamp).toLocaleString("vi-VN")}</span>
+                    </div>
+                    <p className="text-sm text-foreground/80 leading-relaxed bg-secondary/60 p-2.5 rounded-lg border border-border font-medium">
+                      {log.actionDescription || log.message}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -441,7 +555,7 @@ function ExpertDeliveryStepper({ project, overallProgress }) {
 
   const steps = [
     { label: "Tasks Done", done: overallProgress === 100, active: overallProgress < 100 },
-    { label: "Submit Final Work", done: ["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus) || isCompleted, active: overallProgress === 100 && !["Final Product Submitted", "Accepted", "Declined", "Accepted"].includes(finalStatus) },
+    { label: "Submit Final Work", done: ["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus) || isCompleted, active: overallProgress === 100 && !["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus) },
     { label: "Client Accepts", done: finalStatus === "Accepted" || isCompleted, active: finalStatus === "Final Product Submitted" },
     { label: "Payment Released", done: isCompleted, active: finalStatus === "Accepted" && !isCompleted },
   ];
@@ -525,13 +639,13 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-red-200 shadow-lg overflow-hidden font-sans">
-      <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
+    <div className="bg-card rounded-2xl border border-destructive/20 shadow-lg overflow-hidden font-sans">
+      <div className="bg-destructive/5 px-6 py-4 border-b border-destructive/10 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-bold text-red-950">YÊU CẦU GIẢI TRÌNH TRANH CHẤP DỰ ÁN</h3>
-          <p className="text-xs text-red-700 mt-0.5">Khách hàng đã báo cáo vi phạm đối với dự án này. Vui lòng phản hồi.</p>
+          <h3 className="text-lg font-bold text-destructive">YÊU CẦU GIẢI TRÌNH TRANH CHẤP DỰ ÁN</h3>
+          <p className="text-xs text-destructive/70 mt-0.5">Khách hàng đã báo cáo vi phạm đối với dự án này. Vui lòng phản hồi.</p>
         </div>
-        <div className="px-3 py-1.5 bg-red-100 text-red-800 rounded-lg text-xs font-bold border border-red-200">
+        <div className="px-3 py-1.5 bg-destructive/10 text-destructive rounded-lg text-xs font-bold border border-destructive/20">
           Hạn chót: {timeLeft || "48 giờ"}
         </div>
       </div>
@@ -558,7 +672,7 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
               placeholder="Giải trình chi tiết các cáo buộc của khách hàng..."
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
-              className="w-full px-3 py-2 border border-input rounded-[10px] focus:outline-none focus:border-red-500 text-foreground text-sm"
+              className="w-full px-3 py-2 border border-input rounded-[10px] focus:outline-none focus:border-destructive text-foreground text-sm"
             />
           </div>
 
@@ -571,7 +685,7 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
               placeholder="Ví dụ: deliverable_screenshot.png, expert_log.txt..."
               value={evidenceName}
               onChange={(e) => setEvidenceName(e.target.value)}
-              className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-red-500 text-foreground text-sm"
+              className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive text-foreground text-sm"
             />
           </div>
 
@@ -579,7 +693,7 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="px-6 py-2.5 bg-destructive hover:bg-destructive/80 text-destructive-foreground rounded-xl font-bold text-sm transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {submitting ? "Đang gửi giải trình..." : "Gửi báo cáo giải trình"}
             </button>

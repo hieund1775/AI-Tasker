@@ -28,6 +28,7 @@ export const STATUS_LABELS = {
   pending_escrow: "Pending Payment",
   disputed: "Disputed",
   contract_cancelled: "Contract Cancelled",
+  accepted: "Accepted",
 };
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ export const STATUS_BADGE_CLASSES = {
   pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
   disputed: "bg-red-100 text-red-700 border border-red-200 font-semibold",
   "disputed-card": "border-crimson-700 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30",
+  accepted: "bg-blue-100 text-blue-700 border border-blue-200 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
@@ -89,6 +91,11 @@ const CLIENT_BUTTON_MAP = {
     className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
+  pending_escrow: {
+    label: "Deposit Escrow",
+    className: "bg-amber-600 text-white hover:bg-amber-700",
+    linkTo: (p) => `/client/my-projects?projectId=${p.id}&view=proposals`,
+  },
   in_progress: {
     label: "Manage Project",
     className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
@@ -117,6 +124,11 @@ const CLIENT_BUTTON_MAP = {
   contract_cancelled: {
     label: "View Details",
     className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    linkTo: (p) => `/client/projects/${p.id}`,
+  },
+  accepted: {
+    label: "View Project Details",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
 };
@@ -149,6 +161,11 @@ const EXPERT_BUTTON_MAP = {
   completed: {
     label: "View Completed Project",
     className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
+    linkTo: (p) => `/expert/projects/${p.id}`,
+  },
+  accepted: {
+    label: "View Project Details",
+    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
 };
@@ -196,6 +213,7 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   if (raw === "contract_cancelled") return "contract_cancelled";
   if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
   if (raw === "disputed" || raw === "Disputed" || raw === "under_review" || raw === "under review" || raw === "Under Review") return "disputed";
+  if (raw === "accepted" || raw === "Accepted") return "accepted";
 
   // in_progress or active → check task states for waiting_review / needs_revision
   if (raw === "in_progress" || raw === "active") return "in_progress";
@@ -240,9 +258,9 @@ export const TASK_STATUS_CONFIG = {
   "Waiting for Expert Product": { className: "bg-yellow-50 text-yellow-700 border border-yellow-200", label: "Waiting for Expert Product" },
   "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
   "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
+  "Rework":              { className: "bg-orange-100 text-orange-700 border border-orange-200", label: "Rework" },
   "Needs Revision":      { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
   "Decline":             { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
-  "Rework":              { className: "bg-orange-100 text-orange-700 border border-orange-300", label: "Rework" },
   "Reopen Requested":    { className: "bg-red-100 text-red-700",     label: "Reopen Requested" },
   "Cancelled":           { className: "bg-red-100 text-red-700",     label: "Cancelled" },
 };

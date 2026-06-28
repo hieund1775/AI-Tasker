@@ -33,6 +33,82 @@ main {
   overflow-y: auto;
 }
 
+/* ==========================================================================
+   Shared Button Utilities
+   ========================================================================== */
+
+/* Primary button — single consistent blue */
+.btn-primary {
+  @apply bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors;
+  padding: 0.625rem 1.25rem;
+  min-width: 140px;
+}
+
+/* Outline button — white bg with border */
+.btn-outline {
+  @apply bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors;
+  padding: 0.625rem 1.25rem;
+  min-width: 140px;
+}
+
+/* Small primary button */
+.btn-primary-sm {
+  @apply bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-medium text-xs inline-flex items-center justify-center gap-1.5 transition-colors;
+  padding: 0.375rem 0.875rem;
+}
+
+/* Small outline button */
+.btn-outline-sm {
+  @apply bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium text-xs inline-flex items-center justify-center gap-1.5 transition-colors;
+  padding: 0.375rem 0.875rem;
+}
+
+/* Success button (green) */
+.btn-success {
+  @apply bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors;
+  padding: 0.625rem 1.25rem;
+  min-width: 140px;
+}
+
+/* Danger button (red) */
+.btn-danger {
+  @apply bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors;
+  padding: 0.625rem 1.25rem;
+  min-width: 140px;
+}
+
+/* Danger outline */
+.btn-danger-outline {
+  @apply bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 font-medium text-sm inline-flex items-center justify-center gap-2 transition-colors;
+  padding: 0.625rem 1.25rem;
+  min-width: 140px;
+}
+
+/* Button group — equal-width buttons with consistent gap */
+.btn-group {
+  @apply flex items-center gap-3;
+}
+
+.btn-group > .btn-primary,
+.btn-group > .btn-outline,
+.btn-group > .btn-success,
+.btn-group > .btn-danger,
+.btn-group > .btn-danger-outline {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Button group for small buttons */
+.btn-group-sm {
+  @apply flex items-center gap-2;
+}
+
+.btn-group-sm > .btn-primary-sm,
+.btn-group-sm > .btn-outline-sm {
+  flex: 1;
+  min-width: 0;
+}
+
 @media (max-width: 1024px) {
   .expert-dashboard-panel {
     height: auto !important;

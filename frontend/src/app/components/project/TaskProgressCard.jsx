@@ -16,12 +16,22 @@ import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { Button } from "../ui/button.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { cn } from "../../lib/utils.js";
-import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
+import { getDeadlineInfo, getRemainingTimelineText } from "../../lib/projectTimelineStore.js";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requestTaskRevision, approveTaskSubmission, requestUrgentSubmission } from "../../../data/mockDatabase.js";
-import { notifyTaskRevisionRequested, notifyTaskApproved, notifyUrgentSubmissionRequested } from "../../../services/notificationHelper.js";
+import {
+  requestTaskRevision,
+  approveTaskSubmission,
+  requestUrgentSubmission,
+  updateTask,
+  listProjects,
+} from "../../../data/mockDatabase.js";
+import {
+  notifyTaskRevisionRequested,
+  notifyTaskApproved,
+  notifyUrgentSubmissionRequested,
+} from "../../../services/notificationHelper.js";
 
 // =============================================================================
 // TaskProgressCard — individual task/milestone card within the project progress view.
@@ -41,8 +51,16 @@ export function TaskProgressCard({
   role = "client",
   projectId,
   loading = false,
+  readOnly = false,
+  onToggleMiniTask,
 }) {
   const navigate = useNavigate();
+
+  const project = listProjects().find((p) => p.id === projectId);
+  const ucIndex = Number(task?.useCaseIndex);
+  const useCase = project?.useCases?.[ucIndex] || null;
+  const displayTitle = task.title || (useCase ? (useCase.name || useCase.nameAndDeadline) : "Task");
+  const displayDescription = task.description || (useCase ? useCase.description : "");
 
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -50,11 +68,70 @@ export function TaskProgressCard({
   const [showViewProductModal, setShowViewProductModal] = useState(false);
   const [isDeclineUnlocked, setIsDeclineUnlocked] = useState(false);
 
+  // Inline editing states for expert
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [descriptionInput, setDescriptionInput] = useState(task?.description || "");
+  const [editingMiniTaskId, setEditingMiniTaskId] = useState(null);
+  const [miniTaskTitleInput, setMiniTaskTitleInput] = useState("");
+
+  const handleSaveDescription = async () => {
+    try {
+      updateTask(task.id, { description: descriptionInput.trim() });
+      setIsEditingDescription(false);
+      toast.success("Cập nhật mô tả nhiệm vụ thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error("Không thể cập nhật mô tả.");
+    }
+  };
+
+  const handleSaveMiniTask = async (mtId) => {
+    if (!miniTaskTitleInput.trim()) {
+      toast.error("Tiêu đề milestone không được để trống!");
+      return;
+    }
+    try {
+      const updatedMiniTasks = (task.miniTasks || []).map((mt) => {
+        if (mt.id === mtId) {
+          return { ...mt, title: miniTaskTitleInput.trim() };
+        }
+        return mt;
+      });
+      updateTask(task.id, { miniTasks: updatedMiniTasks });
+      setEditingMiniTaskId(null);
+      toast.success("Cập nhật milestone thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error("Không thể cập nhật milestone.");
+    }
+  };
+
+  const handleToggleTask = () => {
+    if (role !== "expert" || readOnly) return;
+    const isCurrentlyCompleted = task.progress === 100;
+    const newStatus = isCurrentlyCompleted ? "not_started" : "completed";
+    const newMiniTasks = (task.miniTasks || []).map((mt) => ({
+      ...mt,
+      isCompleted: !isCurrentlyCompleted,
+      status: !isCurrentlyCompleted ? "done" : "pending",
+      completedAt: !isCurrentlyCompleted ? new Date().toISOString() : null,
+      completedBy: !isCurrentlyCompleted ? (task.assignedTo || "Expert") : null,
+    }));
+
+    updateTask(task.id, {
+      status: newStatus,
+      miniTasks: newMiniTasks,
+      approval: newStatus === "completed" ? "Approved" : null,
+    });
+    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    toast.success(isCurrentlyCompleted ? "Đã mở lại Task!" : "Đã hoàn thành toàn bộ Task!");
+  };
+
   const handleApproveTask = async () => {
     try {
       const clientName = "Client";
       approveTaskSubmission(task.id, clientName);
-      
+
       notifyTaskApproved({
         expertUserId: task.assignedTo,
         clientName: clientName,
@@ -70,12 +147,12 @@ export function TaskProgressCard({
       toast.error("Không thể phê duyệt milestone.");
     }
   };
-  
+
   const handleRequestProduct = async () => {
     try {
       const clientName = "Client";
       requestUrgentSubmission(task.id, clientName);
-      
+
       notifyUrgentSubmissionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
@@ -84,7 +161,9 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => {});
 
-      toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!");
+      toast.success(
+        "Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!",
+      );
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể yêu cầu sản phẩm.");
@@ -103,7 +182,7 @@ export function TaskProgressCard({
     try {
       const clientName = "Client";
       requestTaskRevision(task.id, clientName, declineReason.trim());
-      
+
       notifyTaskRevisionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
@@ -117,7 +196,7 @@ export function TaskProgressCard({
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
-      
+
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể gửi phản hồi từ chối.");
@@ -221,17 +300,14 @@ export function TaskProgressCard({
             <Calendar className="w-3.5 h-3.5" />
             Deadline: <span className="text-foreground">{deadlineText}</span>
           </div>
-          {deadlineInfo && deadlineInfo.urgency !== "normal" && (
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-full text-[13px] font-medium flex items-center gap-1",
-                getDeadlineStatusClass(deadlineInfo.urgency)
-              )}
-            >
-              {deadlineInfo.urgency === "overdue" && (
-                <AlertTriangle className="w-3 h-3" />
-              )}
-              {deadlineInfo.remainingText}
+          <span className="px-2 py-0.5 rounded-full text-[13px] font-medium bg-brand-primary-light text-brand-primary flex items-center gap-1">
+            <Clock3 className="w-3 h-3 animate-pulse" />
+            Còn lại: {getRemainingTimelineText(task.deadline)}
+          </span>
+          {deadlineInfo && deadlineInfo.urgency === "overdue" && (
+            <span className="px-2 py-0.5 rounded-full text-[13px] font-medium bg-red-100 text-red-650 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Quá hạn
             </span>
           )}
         </div>
@@ -263,6 +339,111 @@ export function TaskProgressCard({
           <span>{task.progress}% completed</span>
         </div>
       </div>
+
+      {/* Mini tasks / Milestones Checklist */}
+      <div className="mt-4 mb-3 border-t border-gray-100 pt-3 text-left">
+        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2.5">
+          Milestones / Checklist ({task.miniTasks?.length || 0})
+        </span>
+        {(!task.miniTasks || task.miniTasks.length === 0) ? (
+          <p className="text-xs text-gray-450 italic pl-1">Không có milestone con nào.</p>
+        ) : (
+          <div className="space-y-2.5">
+            {task.miniTasks.map((mt) => {
+              const isMtCompleted = mt.isCompleted === true || mt.status === "done" || mt.status === "completed";
+              const isEditing = editingMiniTaskId === mt.id;
+
+              return (
+                <div key={mt.id} className="p-3 bg-gray-50/50 border border-gray-200/65 rounded-xl space-y-2">
+                  <div className="flex items-start gap-2.5">
+                    {role === "expert" && !readOnly ? (
+                      <input
+                        type="checkbox"
+                        checked={isMtCompleted}
+                        onChange={() => {
+                          if (onToggleMiniTask) {
+                            onToggleMiniTask(task.id, mt.id);
+                          }
+                        }}
+                        className="mt-0.5 rounded border-gray-300 text-brand-primary focus:ring-brand-primary h-4 w-4 cursor-pointer"
+                      />
+                    ) : (
+                      <input
+                        type="checkbox"
+                        checked={isMtCompleted}
+                        disabled
+                        className="mt-0.5 rounded border-gray-300 text-brand-primary focus:ring-brand-primary h-4 w-4 cursor-not-allowed"
+                      />
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            value={miniTaskTitleInput}
+                            onChange={(e) => setMiniTaskTitleInput(e.target.value)}
+                            placeholder="Tên milestone..."
+                            className="w-full text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary"
+                          />
+                          <div className="flex justify-end gap-1.5 text-xs">
+                            <button
+                              type="button"
+                              onClick={() => setEditingMiniTaskId(null)}
+                              className="px-2 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                            >
+                              Hủy
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveMiniTask(mt.id)}
+                              className="px-2 py-1 bg-brand-primary text-white rounded-md font-semibold"
+                            >
+                              Lưu
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <p className={cn(
+                            "text-sm font-medium text-gray-800 text-left",
+                            isMtCompleted && "line-through text-gray-400"
+                          )}>
+                            {mt.title || "Milestone không tên"}
+                          </p>
+                          {role === "expert" && !readOnly && (
+                            <button
+                              onClick={() => {
+                                setEditingMiniTaskId(mt.id);
+                                setMiniTaskTitleInput(mt.title || "");
+                              }}
+                              className="text-xs text-brand-primary hover:underline font-semibold flex-shrink-0"
+                            >
+                              Sửa
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {task.evidence && (
+        <div className="mx-4 mb-3 p-3 bg-green-50 border border-green-200 rounded-xl text-left font-sans">
+          <p className="text-xs font-bold text-green-800 flex items-center gap-1.5 mb-1">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            Bằng chứng bàn giao (Handover Evidence):
+          </p>
+          <p className="text-xs font-mono text-gray-800 bg-white/70 px-2 py-1.5 rounded border border-green-150 break-all leading-normal">
+            {task.evidence}
+          </p>
+        </div>
+      )}
 
       {/* Client vs Expert Actions */}
       <div className="pt-3 border-t border-border">
@@ -502,7 +683,11 @@ export function TaskProgressCard({
                       <div className="flex flex-col p-3 bg-primary-light rounded-lg border border-primary/10 hover:bg-primary-light/80 transition-colors text-left">
                         <span className="text-xs font-semibold text-primary uppercase">Link sản phẩm</span>
                         <a
-                          href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
+                          href={
+                            task.productLink.startsWith("http")
+                              ? task.productLink
+                              : `https://${task.productLink}`
+                          }
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary font-medium mt-1 truncate hover:underline flex items-center gap-1"

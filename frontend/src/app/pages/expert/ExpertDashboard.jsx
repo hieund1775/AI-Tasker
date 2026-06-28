@@ -35,6 +35,19 @@ import { safeDateFormat } from "../../lib/safety.js";
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Check if a project should appear in active contracts (contract accepted/signed) */
+function isContractActive(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  return (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  );
+}
+
 /** Derive a display-only match percentage from the index. */
 /** Derive a display-only match percentage from the index. */
 function getMatchPct(index) {
@@ -149,7 +162,7 @@ export function ExpertDashboard() {
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress" || p.status?.toLowerCase() === "active" || p.status?.toLowerCase() === "disputed" || p.status?.toLowerCase() === "under_review" || p.status?.toLowerCase() === "under review"
+            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review"].includes(p.status?.toLowerCase())
           )
         );
         setCompletedProjects(

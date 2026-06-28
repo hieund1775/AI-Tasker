@@ -29,6 +29,8 @@ const typeIcons = {
   message: MessageSquare,
   system: AlertCircle,
   dispute: AlertCircle,
+  contract_sent: FileText,
+  contract_rejected: AlertCircle,
 };
 
 const typeColors = {
@@ -39,6 +41,8 @@ const typeColors = {
   message: "bg-primary/10 text-primary",
   system: "bg-muted text-muted-foreground",
   dispute: "bg-destructive/10 text-destructive",
+  contract_sent: "bg-accent/10 text-accent",
+  contract_rejected: "bg-destructive/10 text-destructive",
 };
 
 const typeBorderColors = {

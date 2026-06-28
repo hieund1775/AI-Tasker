@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -22,6 +22,49 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
+
+function getUseCaseTitle(useCase, index) {
+  return (
+    useCase?.title ||
+    useCase?.name ||
+    useCase?.nameAndDeadline ||
+    `Use Case ${index + 1}`
+  );
+}
+
+function getUseCaseDays(useCase) {
+  const explicit = Number(
+    useCase?.durationDays ??
+      useCase?.timelineDays ??
+      useCase?.days ??
+      useCase?.deadlineDays,
+  );
+  if (Number.isFinite(explicit) && explicit > 0) return explicit;
+
+  const source = `${useCase?.nameAndDeadline || ""} ${useCase?.description || ""}`;
+  const match = source.match(/(\d+)\s*(ngày|day|days)/i);
+  return match ? Number(match[1]) : 0;
+}
+
+function createTaskForUseCase(useCase, useCaseIndex, taskIndex = 1) {
+  const duration = getUseCaseDays(useCase) || 1;
+  const title = useCase?.description || useCase?.title || getUseCaseTitle(useCase, useCaseIndex);
+  return {
+    id: `task-${useCaseIndex + 1}-${taskIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+    useCaseIndex,
+    useCaseId: useCase?.id || "",
+    useCaseTitle: getUseCaseTitle(useCase, useCaseIndex),
+    title: title,
+    durationDays: duration,
+    amount: 0,
+    miniTasks: [
+      {
+        id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+        title: "",
+      },
+    ],
+  };
+}
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
@@ -110,14 +153,20 @@ export function SendProposal() {
   const [tasks, setTasks] = useState([
     {
       id: "task-1",
+      useCaseIndex: 0,
+      useCaseTitle: "Use Case 1",
       title: "",
       useCaseId: null,
       source: "expert",
       approvalStatus: "accepted",
       locked: false,
-      miniTasks: [{ id: "mt-1", title: "" }]
-    }
+      price: 0,
+      completionDays: 1,
+      miniTasks: [{ id: "mt-1", title: "" }],
+    },
   ]);
+  const [extensionConfirmed, setExtensionConfirmed] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -135,7 +184,7 @@ export function SendProposal() {
 
     Promise.all([
       api.jobPosts.getById(projectId),
-      api.proposals.getByExpert(user.id).catch(() => [])
+      api.proposals.getByExpert(user.id).catch(() => []),
     ])
       .then(async ([job, proposalsList]) => {
         setProject(job);
@@ -144,7 +193,9 @@ export function SendProposal() {
         setTasks(buildTasksFromUseCases(job));
 
         // Find existing proposal for this jobPostId
-        const foundProp = proposalsList.find(p => String(p.jobPostId) === String(projectId));
+        const foundProp = proposalsList.find(
+          (p) => String(p.jobPostId) === String(projectId),
+        );
         if (foundProp) {
           setExistingProposal(foundProp);
           let parsedCoverLetter = {};
@@ -158,10 +209,14 @@ export function SendProposal() {
           }
 
           setForm({
-            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
+            professionalIntro:
+              parsedCoverLetter.professionalIntro ||
+              parsedCoverLetter.coverLetter ||
+              "",
             timelineMilestones: parsedCoverLetter.timelineMilestones || "",
             bidAmount: foundProp.bidAmount || 0,
-            durationDays: parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
+            durationDays:
+              parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
           });
 
           if (Array.isArray(parsedCoverLetter.tasks) && parsedCoverLetter.tasks.length > 0) {
@@ -197,6 +252,16 @@ export function SendProposal() {
           } catch (err) {
             console.error("Failed to load client details:", err);
           }
+        }
+
+        if (
+          !foundProp &&
+          Array.isArray(job?.useCases) &&
+          job.useCases.length > 0
+        ) {
+          setTasks(
+            job.useCases.map((uc, index) => createTaskForUseCase(uc, index)),
+          );
         }
       })
       .catch((err) => {
@@ -267,6 +332,63 @@ export function SendProposal() {
 
   // ---- AI Planner state ----
   const [showAIPlanner, setShowAIPlanner] = useState(false);
+
+  const useCases = useMemo(() => {
+    const source =
+      Array.isArray(project?.useCases) && project.useCases.length > 0
+        ? project.useCases
+        : [
+            {
+              nameAndDeadline: "Use Case 1",
+              description: project?.description || "",
+            },
+          ];
+    return source.map((uc, index) => ({
+      ...uc,
+      index,
+      title: getUseCaseTitle(uc, index),
+      originalDays: getUseCaseDays(uc),
+    }));
+  }, [project]);
+
+  const useCaseTotals = useMemo(() => {
+    return useCases.map((uc) => {
+      const scopedTasks = tasks.filter(
+        (task) => Number(task.useCaseIndex || 0) === uc.index,
+      );
+      const proposedDays = scopedTasks.reduce(
+        (sum, task) => sum + (Number(task.completionDays) || 0),
+        0,
+      );
+      const amount = scopedTasks.reduce(
+        (sum, task) => sum + (Number(task.price) || 0),
+        0,
+      );
+      return {
+        ...uc,
+        taskCount: scopedTasks.length,
+        proposedDays,
+        amount,
+        variance: (uc.originalDays || 0) - proposedDays,
+        isOverrun: uc.originalDays > 0 && proposedDays > uc.originalDays,
+      };
+    });
+  }, [tasks, useCases]);
+
+  const totalBidAmount = useMemo(
+    () => useCaseTotals.reduce((sum, uc) => sum + uc.amount, 0),
+    [useCaseTotals],
+  );
+
+  const totalDurationDays = useMemo(
+    () => useCaseTotals.reduce((sum, uc) => sum + uc.proposedDays, 0),
+    [useCaseTotals],
+  );
+
+  const hasTimeOverrun = useMemo(
+    () => useCaseTotals.some((uc) => uc.isOverrun),
+    [useCaseTotals],
+  );
 
   // ---- AI Planner handlers ----
   const handleActivateAI = () => {
@@ -371,6 +493,16 @@ export function SendProposal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.id) return;
+    setSubmitError("");
+
+    const hasBudgetOverrun = project?.budget !== undefined && totalBidAmount > project.budget;
+    if ((hasTimeOverrun || hasBudgetOverrun) && !extensionConfirmed) {
+      setSubmitError(
+        "Sự lệch ngân sách/timeline vượt quá chỉ tiêu của khách hàng. Vui lòng tích chọn xác nhận ở dưới cùng trước khi nộp.",
+      );
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -726,7 +858,7 @@ export function SendProposal() {
                                     </div>
                                   ) : null}
 
-                                  {/* ── Days ── */}
+                                  {/* ── Days & Price ── */}
                                   <div className="flex items-end gap-3 flex-wrap">
                                     <div className="w-24">
                                       <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
@@ -737,6 +869,18 @@ export function SendProposal() {
                                         value={task.completionDays || 1}
                                         onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }}
                                         placeholder="1"
+                                        className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card"
+                                      />
+                                    </div>
+                                    <div className="w-28">
+                                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                                        Price
+                                      </label>
+                                      <input
+                                        type="number" min="0" step="100"
+                                        value={task.price || 0}
+                                        onChange={(e) => { const nt = [...tasks]; nt[tIdx].price = Math.max(0, Number(e.target.value) || 0); setTasks(nt); }}
+                                        placeholder="1000"
                                         className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card"
                                       />
                                     </div>
@@ -850,6 +994,7 @@ export function SendProposal() {
                               required
                             />
                             <input type="number" min="1" value={task.completionDays || 1} onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} placeholder="Days" className="w-20 px-2 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" />
+                            <input type="number" min="0" step="100" value={task.price || 0} onChange={(e) => { const nt = [...tasks]; nt[tIdx].price = Math.max(0, Number(e.target.value) || 0); setTasks(nt); }} placeholder="Price" className="w-24 px-2 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" />
                             {tasks.length > 1 && (
                               <button type="button" onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="h-8 px-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center">
                                 Remove
@@ -900,7 +1045,7 @@ export function SendProposal() {
               </SectionCard>
             </AnimatedReveal>
 
-            <AnimatedReveal delay={4}>
+            <AnimatedReveal delay={3}>
               <FileUploadDropzone
                 files={attachments}
                 onFilesChange={setAttachments}
@@ -925,42 +1070,117 @@ export function SendProposal() {
               </SectionCard>
             )}
 
-            <AnimatedReveal delay={5}>
+            <AnimatedReveal delay={4}>
               <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount</label>
                     <div className="text-xs text-muted-foreground mb-1">
-                      Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0).toLocaleString()}
+                      Auto-computed from tasks: {totalBidAmount.toLocaleString()}
                     </div>
                     <input
-                      type="number" min="0" step="100"
-                      value={form.bidAmount || ""}
-                      onChange={(e) => updateField("bidAmount", e.target.value === "" ? 0 : Number(e.target.value))}
-                      className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
-                      placeholder="5000"
-                      required
+                      type="number"
+                      value={totalBidAmount}
+                      readOnly
+                      className="w-full px-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration</label>
                     <div className="text-xs text-muted-foreground mb-1">
-                      Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0)} days
+                      Auto-computed from tasks: {totalDurationDays} days
                     </div>
                     <div className="relative">
                       <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input
-                        type="number" min="1" step="1"
-                        value={form.durationDays || ""}
-                        onChange={(e) => updateField("durationDays", e.target.value === "" ? 1 : Number(e.target.value))}
-                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
-                        placeholder="14"
-                        required
+                        type="number"
+                        value={totalDurationDays}
+                        readOnly
+                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Estimated days to complete the project</p>
                   </div>
                 </div>
+
+                {/* Timeline and Budget Comparison Warnings */}
+                <div className="space-y-3 mt-6">
+                  {/* Timeline banner */}
+                  {project?.deadline !== undefined && (
+                    totalDurationDays > project.deadline ? (
+                      <div className="p-4 bg-warning/10 border border-warning/20 rounded-xl text-sm flex items-center justify-between">
+                        <div>
+                          <span className="text-warning font-semibold">Cảnh báo: Timeline vượt quá yêu cầu của Client.</span>
+                          <span className="block text-xs text-muted-foreground mt-0.5">
+                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày (+{totalDurationDays - project.deadline} ngày)
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-warning/20 text-warning text-xs font-semibold rounded-md">Vượt hạn chót</span>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-success/10 border border-success/20 rounded-xl text-sm flex items-center justify-between">
+                        <div>
+                          <span className="text-success font-semibold">Đúng hạn.</span>
+                          <span className="block text-xs text-muted-foreground mt-0.5">
+                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-success/20 text-success text-xs font-semibold rounded-md">Đúng hạn</span>
+                      </div>
+                    )
+                  )}
+
+                  {/* Budget banner */}
+                  {project?.budget !== undefined && (
+                    totalBidAmount > project.budget ? (
+                      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm flex items-center justify-between">
+                        <div>
+                          <span className="font-bold flex items-center gap-1.5 text-destructive">
+                            <AlertTriangle className="w-4 h-4" />
+                            Cảnh báo: Đề xuất vượt quá ngân sách gốc của Client!
+                          </span>
+                          <span className="block text-xs text-muted-foreground mt-1 font-semibold">
+                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
+                          </span>
+                          <span className="block text-xs text-destructive/70 mt-0.5">
+                            Sự lệch ngân sách (Budget Deviation): -${(totalBidAmount - project.budget).toFixed(2)}
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-destructive/20 text-destructive text-xs font-semibold rounded-md flex-shrink-0">Vượt ngân sách</span>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-success/10 border border-success/20 rounded-xl text-sm flex items-center justify-between">
+                        <div>
+                          <span className="text-success font-semibold">Trong ngân sách.</span>
+                          <span className="block text-xs text-muted-foreground mt-0.5">
+                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
+                          </span>
+                        </div>
+                        <span className="px-2 py-1 bg-success/20 text-success text-xs font-semibold rounded-md">Trong ngân sách</span>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {(hasTimeOverrun || (project?.budget !== undefined && totalBidAmount > project.budget)) && (
+                  <div className="flex items-start gap-2.5 p-4 bg-warning/5 border border-warning/20 rounded-xl mt-4">
+                    <input
+                      type="checkbox"
+                      id="extensionConfirmed"
+                      checked={extensionConfirmed}
+                      onChange={(e) => setExtensionConfirmed(e.target.checked)}
+                      className="mt-1 rounded border-border text-brand-primary focus:ring-brand-primary h-4 w-4 cursor-pointer"
+                    />
+                    <label htmlFor="extensionConfirmed" className="text-xs text-foreground/80 font-semibold cursor-pointer">
+                      Tôi xác nhận và đồng ý gửi đề xuất với mức chi phí/timeline vượt quá chỉ tiêu của khách hàng.
+                    </label>
+                  </div>
+                )}
+
+                {submitError && (
+                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm font-semibold text-destructive mt-4">
+                    {submitError}
+                  </div>
+                )}
               </SectionCard>
             </AnimatedReveal>
 

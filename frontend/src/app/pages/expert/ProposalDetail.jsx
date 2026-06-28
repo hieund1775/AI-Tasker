@@ -25,6 +25,80 @@ import { toast } from "sonner";
 // Status helpers — delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
+function renderStructuredTasks(tasks) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
+  }
+
+  // Group tasks by useCaseIndex
+  const groups = {};
+  tasks.forEach((task) => {
+    const key = task.useCaseIndex ?? 0;
+    if (!groups[key]) {
+      groups[key] = {
+        useCaseIndex: key,
+        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
+        tasks: [],
+        totalDuration: 0,
+        totalAmount: 0,
+      };
+    }
+    groups[key].tasks.push(task);
+    groups[key].totalDuration += Number(task.durationDays || 0);
+    groups[key].totalAmount += Number(task.amount || 0);
+  });
+  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
+
+  return (
+    <div className="space-y-6 mt-3">
+      {sortedGroups.map((group, gIdx) => (
+        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
+          {/* Group Header: Use Case Title & Totals */}
+          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
+                Use Case #{Number(group.useCaseIndex) + 1}
+              </span>
+              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
+            </div>
+            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
+              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
+              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
+              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
+            </div>
+          </div>
+
+          {/* Tasks list under this Use Case */}
+          <div className="space-y-4">
+            {group.tasks.map((task, tIdx) => (
+              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2.5 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
+                    <span className="text-gray-300">•</span>
+                    <span className="font-semibold text-gray-900">${task.amount}</span>
+                  </div>
+                </div>
+                {task.miniTasks && task.miniTasks.length > 0 && (
+                  <div className="pt-2 border-t border-gray-50 space-y-1.5">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
+                    <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
+                      {task.miniTasks.map((mt, mtIdx) => (
+                        <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Section wrapper — keeps visual consistency
 // ---------------------------------------------------------------------------
@@ -82,6 +156,7 @@ export function ProposalDetail() {
             dependencies: parsedCoverLetter.dependencies || "",
             durationDays: parsedCoverLetter.durationDays || found.estimatedDays || 0,
             attachments: parsedCoverLetter.attachments || [],
+            tasks: Array.isArray(parsedCoverLetter.tasks) ? parsedCoverLetter.tasks : [],
           };
           setProposal(enrichedProposal);
           if (found.isSubmitted === false) {
@@ -289,9 +364,13 @@ export function ProposalDetail() {
               {/* Implementation Timeline & Milestones */}
               {hasFullFields && (
                 <DetailSection title="Implementation Timeline & Milestones">
-                  <pre className="text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans">
-                    {proposal.timelineMilestones || "No timeline specified."}
-                  </pre>
+                  {(proposal.tasks && proposal.tasks.length > 0) ? (
+                    renderStructuredTasks(proposal.tasks)
+                  ) : (
+                    <pre className="text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans">
+                      {proposal.timelineMilestones || "No timeline specified."}
+                    </pre>
+                  )}
                 </DetailSection>
               )}
 
@@ -304,10 +383,10 @@ export function ProposalDetail() {
                 </DetailSection>
               )}
 
-              {/* Attachments */}
+              {/* Portfolio & Attachments */}
               <DetailSection
-                title={`Attached Assets ${attachments.length > 0 ? `(${attachments.length})` : ""}`}
-                className={attachments.length === 0 ? "last:border-b-0" : ""}
+                title="Portfolio & Attachments"
+                className="last:border-b-0"
               >
                 {attachments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No attachments included.</p>
@@ -325,7 +404,7 @@ export function ProposalDetail() {
                         ) : (
                           <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <div className="min-w-0">
+                        <div className="min-w-0 text-left">
                           <p className="text-sm font-medium text-foreground/80 truncate">
                             {att.name || att.fileName || "Attachment"}
                           </p>
@@ -357,10 +436,10 @@ export function ProposalDetail() {
             </Link>
           ) : (
             <Link
-              to="/messenger"
+              to={`/messenger?expertId=${proposal.clientId}`}
               className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-5 h-5" />
               Contact Client
             </Link>
           )}

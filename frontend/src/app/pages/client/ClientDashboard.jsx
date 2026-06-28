@@ -71,6 +71,44 @@ const getDeadlineDate = (createdAt, deadline) => {
 // Style constants
 // ---------------------------------------------------------------------------
 
+/** Statuses that should NOT appear in My Projects */
+const HIDDEN_FROM_MY_PROJECTS = [
+  "draft",
+  "posted",
+  "waiting_proposal",
+  "proposal_received",
+  "contract_draft",
+  "contract_sent",
+  "contract_rejected",
+  "cancelled",
+];
+
+/** Check if a project should appear in My Projects (contract signed/accepted) */
+function canShowInMyProjects(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  // Show if contract is accepted/signed OR project is in progress/active
+  if (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active"
+  ) {
+    return true;
+  }
+  // Explicitly hide these statuses
+  if (HIDDEN_FROM_MY_PROJECTS.some((s) => projectStatus === s || contractStatus === s)) {
+    return false;
+  }
+  // For backward compatibility: if status is not hidden and not explicitly accepted,
+  // still show projects that have an assigned expert (likely already in progress)
+  if (project.assignedExpertId || project.expertId) {
+    return true;
+  }
+  return false;
+}
+
 const SKILL_VISIBLE_COUNT = {
   project: 4,
   expert: 4,
@@ -85,6 +123,8 @@ export function ClientDashboard() {
   const { user } = useAuth();
 
   const [clientProjects, setClientProjects] = useState([]);
+  const [recommendedExperts, setRecommendedExperts] = useState([]);
+  const [allExperts, setAllExperts] = useState([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -115,21 +155,58 @@ export function ClientDashboard() {
     async function loadDashboardData() {
       if (!user?.id) return;
       setLoading(true);
-
+      // Load user projects and wallet balance
       try {
         const [userRes, walletRes] = await Promise.all([
           api.users.getById(user.id),
           api.payments.getWallet(user.id).catch(() => ({ balance: 0 })),
         ]);
-        setClientProjects(userRes?.projects || []);
+        
+        const rawPosts = userRes?.jobPosts || [];
+        const chosenMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
+        const mappedPosts = rawPosts.map((p) => {
+          const chosenExpertId = chosenMapping[p.id];
+          if (chosenExpertId) {
+            return {
+              ...p,
+              assignedExpertId: chosenExpertId,
+            };
+          }
+          return p;
+        });
+        setClientProjects(mappedPosts);
+        
         if (walletRes) {
           setWalletBalance(walletRes.balance || 0);
         }
       } catch (err) {
         console.error("Error loading client projects:", err);
-      } finally {
-        setLoading(false);
       }
+
+      // Load recommended experts (handle 403 gracefully)
+      try {
+        const allUsersRes = await api.experts.list();
+        const expertsOnly = (allUsersRes || [])
+          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
+          .map((u) => ({
+            id: u.id,
+            fullName: u.fullName,
+            avgRating: 4.8,
+            profile: {
+              title: u.expertProfile.jobTitle,
+              location: u.expertProfile.location,
+              bio: u.expertProfile.bio,
+              hourlyRate: 65,
+              completedProjects: 8,
+              skills: u.expertProfile.skills || ["Python", "Semantic Kernel"]
+            }
+          }));
+        setRecommendedExperts(expertsOnly.slice(0, 3));
+        setAllExperts(expertsOnly);
+      } catch (err) {
+        console.warn("Failed to load recommended experts (may lack permission):", err);
+      }
+      setLoading(false);
     }
     loadDashboardData();
 
@@ -153,7 +230,7 @@ export function ClientDashboard() {
   const dashboardStats = [
     {
       label: "Active Projects",
-      value: getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review"]),
+      value: getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review", "accepted"]),
       icon: Briefcase,
       color: "text-primary bg-primary-light",
     },
@@ -170,7 +247,7 @@ export function ClientDashboard() {
       color: "text-success bg-success-light",
     },
     {
-      label: "Cancelled",
+      label: "In Progress",
       value: getProjectsByStatus(["cancelled", "cancel"]),
       icon: Clock,
       color: "text-destructive bg-destructive-light",

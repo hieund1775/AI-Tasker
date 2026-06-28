@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import {
+  AlertTriangle,
   MessageSquare,
   CheckCircle,
   XCircle,
@@ -85,6 +86,13 @@ export function ProposalCard({
               <p className="text-foreground/80 text-sm leading-relaxed mb-3">
                 {proposal.coverLetter || proposal.message}
               </p>
+            )}
+
+            {proposal.extensionRequested && (
+              <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+                <AlertTriangle className="w-4 h-4" />
+                Expert requests timeline extension for at least one Use Case.
+              </div>
             )}
 
             {/* Expert skills */}
@@ -267,7 +275,7 @@ export function ProposalCard({
 
           {/* Actions */}
           {!hasBeenActed && (
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+            <div className="flex flex-col gap-2 w-full md:w-auto">
               <Link
                 to="/messenger"
                 className="min-w-[140px] justify-center h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
