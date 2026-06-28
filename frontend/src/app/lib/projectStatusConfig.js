@@ -27,6 +27,7 @@ export const STATUS_LABELS = {
   cancelled: "Cancelled",
   pending_escrow: "Pending Payment",
   disputed: "Disputed",
+  contract_cancelled: "Contract Cancelled",
 };
 
 // ---------------------------------------------------------------------------
@@ -40,13 +41,15 @@ export const STATUS_BADGE_CLASSES = {
   needs_revision: "bg-orange-100 text-orange-700",
   completed: "bg-brand-green/10 text-brand-green",
   cancelled: "bg-red-100 text-red-700",
+  contract_cancelled: "bg-rose-100 text-rose-700 border border-rose-200",
   pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
   disputed: "bg-red-100 text-red-700 border border-red-200 font-semibold",
+  "disputed-card": "border-crimson-700 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
 export function getStatusBadgeClass(key) {
-  return STATUS_BADGE_CLASSES[key] || "bg-gray-100 text-gray-700";
+  return STATUS_BADGE_CLASSES[key] || "bg-secondary text-foreground/80";
 }
 
 /** Convenience: get the display label for a key, with fallback. */
@@ -83,17 +86,17 @@ export function getExpertDisplayInfo(project, getUserById) {
 const CLIENT_BUTTON_MAP = {
   reviewing_proposals: {
     label: "View Project Details",
-    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   in_progress: {
     label: "Manage Project",
-    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   waiting_review: {
     label: "Review Submission",
-    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   needs_revision: {
@@ -103,12 +106,17 @@ const CLIENT_BUTTON_MAP = {
   },
   completed: {
     label: "View Summary",
-    className: "bg-brand-green text-white hover:bg-brand-green/90",
+    className: "bg-brand-green text-brand-green-foreground hover:bg-brand-green/90",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   cancelled: {
     label: "View Details",
-    className: "bg-gray-500 text-white hover:bg-gray-600",
+    className: "bg-secondary text-secondary-foreground hover:bg-muted-foreground/30",
+    linkTo: (p) => `/client/projects/${p.id}`,
+  },
+  contract_cancelled: {
+    label: "View Details",
+    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
 };
@@ -125,7 +133,7 @@ export function getClientButtonConfig(statusKey) {
 const EXPERT_BUTTON_MAP = {
   in_progress: {
     label: "Update Progress",
-    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   waiting_review: {
@@ -140,7 +148,7 @@ const EXPERT_BUTTON_MAP = {
   },
   completed: {
     label: "View Completed Project",
-    className: "bg-brand-primary text-white hover:bg-brand-primary-hover",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
 };
@@ -185,6 +193,7 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   // Completed / cancelled pass through directly
   if (raw === "completed") return "completed";
   if (raw === "cancelled") return "cancelled";
+  if (raw === "contract_cancelled") return "contract_cancelled";
   if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
   if (raw === "disputed" || raw === "Disputed" || raw === "under_review" || raw === "under review" || raw === "Under Review") return "disputed";
 
@@ -223,22 +232,24 @@ export function deriveProjectDisplayStatus(project, options) {
 // ---------------------------------------------------------------------------
 
 export const TASK_STATUS_CONFIG = {
-  "Not Started":         { className: "bg-gray-100 text-gray-600",   label: "Not Started" },
+  "Not Started":         { className: "bg-secondary text-muted-foreground",   label: "Not Started" },
   "In Progress":         { className: "bg-brand-primary-light text-brand-primary",   label: "In Progress" },
   "Pending Review":      { className: "bg-purple-100 text-purple-700", label: "Waiting for Client Review" },
   "Waiting For Approval":{ className: "bg-purple-100 text-purple-700", label: "Waiting For Approval" },
-  "Checklist Completed": { className: "bg-amber-50 text-amber-700 border border-amber-250", label: "Checklist Completed" },
+  "Checklist Completed": { className: "bg-amber-50 text-amber-700 border border-amber-200", label: "Checklist Completed" },
+  "Waiting for Expert Product": { className: "bg-yellow-50 text-yellow-700 border border-yellow-200", label: "Waiting for Expert Product" },
   "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
   "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
   "Needs Revision":      { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
   "Decline":             { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
+  "Rework":              { className: "bg-orange-100 text-orange-700 border border-orange-300", label: "Rework" },
   "Reopen Requested":    { className: "bg-red-100 text-red-700",     label: "Reopen Requested" },
   "Cancelled":           { className: "bg-red-100 text-red-700",     label: "Cancelled" },
 };
 
 /** Get the badge class for a task-level display status. */
 export function getTaskStatusClass(status) {
-  return TASK_STATUS_CONFIG[status]?.className || "bg-gray-100 text-gray-700";
+  return TASK_STATUS_CONFIG[status]?.className || "bg-secondary text-foreground/80";
 }
 
 /** Get the display label for a task-level display status. */

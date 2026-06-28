@@ -204,6 +204,142 @@ export async function notifyUrgentSubmissionRequested({ expertUserId, clientName
   });
 }
 
+// =============================================================================
+// FINAL DELIVERY NOTIFICATIONS
+// =============================================================================
+
+/**
+ * Expert submits final project deliverables.
+ * Client receives notification.
+ */
+export async function notifyFinalWorkSubmitted({ clientUserId, expertName, projectTitle, projectId }) {
+  return sendNotification({
+    userId: clientUserId,
+    title: `Final work submitted: ${projectTitle}`,
+    message: `Expert ${expertName} has submitted the final project deliverables for "${projectTitle}". Please review and accept.`,
+    type: "system",
+    linkTo: projectId ? `/client/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Client accepts final delivery.
+ * Expert receives notification.
+ */
+export async function notifyFinalDeliveryAccepted({ expertUserId, clientName, projectTitle, projectId }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Final delivery accepted: ${projectTitle}`,
+    message: `Client ${clientName} has accepted the final delivery for "${projectTitle}". Payment release is now available.`,
+    type: "payment",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Client declines final delivery with feedback.
+ * Expert receives notification.
+ */
+export async function notifyFinalDeliveryDeclined({ expertUserId, clientName, projectTitle, feedback, projectId }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Final delivery declined: ${projectTitle}`,
+    message: `Client ${clientName} declined the final delivery for "${projectTitle}".${feedback ? ` Reason: "${feedback}"` : ""} Please revise and resubmit.`,
+    type: "system",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Client releases escrow payment to Expert.
+ * Expert receives notification.
+ */
+export async function notifyPaymentReleased({ expertUserId, clientName, projectTitle, amount, projectId }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Payment released: ${projectTitle}`,
+    message: `Client ${clientName} has released the escrow payment (${amount}) for "${projectTitle}". The project is now completed.`,
+    type: "payment",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+// =============================================================================
+// DISPUTE NOTIFICATIONS
+// =============================================================================
+
+/**
+ * A dispute report is filed and accepted by Admin.
+ * The accused party receives notification with 48h deadline.
+ */
+export async function notifyDisputeFiled({ accusedUserId, reporterName, projectTitle, deadline, projectId, reportId }) {
+  return sendNotification({
+    userId: accusedUserId,
+    title: `Dispute filed against you: ${projectTitle}`,
+    message: `${reporterName} has filed a dispute regarding "${projectTitle}". You have 48 hours to submit your explanation. Admin will review the case.`,
+    type: "dispute",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Dispute resolved by Admin.
+ * Both parties receive notification.
+ */
+export async function notifyDisputeResolved({ userId, projectTitle, resolution, projectId }) {
+  return sendNotification({
+    userId,
+    title: `Dispute resolved: ${projectTitle}`,
+    message: `The dispute for "${projectTitle}" has been resolved. Resolution: ${resolution}.`,
+    type: "dispute",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Admin requests more evidence, extending 48h deadline.
+ * The accused party receives notification.
+ */
+export async function notifyMoreEvidenceRequested({ userId, projectTitle, adminNote, projectId }) {
+  return sendNotification({
+    userId,
+    title: `More evidence requested: ${projectTitle}`,
+    message: `Admin has requested additional evidence for the dispute "${projectTitle}". You have 48 more hours to respond.${adminNote ? ` Note: "${adminNote}"` : ""}`,
+    type: "dispute",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+// =============================================================================
+// CONTRACT CANCELLATION NOTIFICATIONS
+// =============================================================================
+
+/**
+ * Client cancels contract. Expert receives payout notification.
+ */
+export async function notifyContractCancelledExpert({ expertUserId, projectTitle, expertPayout, projectId }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Contract Cancelled: ${projectTitle}`,
+    message: `The client cancelled the contract for "${projectTitle}". You received ${Number(expertPayout).toLocaleString()} (progress payout + 10% compensation). The project is now closed.`,
+    type: "system",
+    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+  });
+}
+
+/**
+ * Client cancels contract. Client receives refund notification.
+ */
+export async function notifyContractCancelledClient({ clientUserId, projectTitle, clientRefund, projectId }) {
+  return sendNotification({
+    userId: clientUserId,
+    title: `Contract Cancelled: ${projectTitle}`,
+    message: `Your contract cancellation for "${projectTitle}" has been processed. Refund amount: ${Number(clientRefund).toLocaleString()}.`,
+    type: "system",
+    linkTo: projectId ? `/client/projects/${projectId}` : "",
+  });
+}
+
 export const notificationService = {
   sendNotification,
   notifyNewProposal,
@@ -216,6 +352,18 @@ export const notificationService = {
   notifyMiniTaskRevisionRequested,
   notifyTaskOverdue,
   notifyUrgentSubmissionRequested,
+  // Final delivery
+  notifyFinalWorkSubmitted,
+  notifyFinalDeliveryAccepted,
+  notifyFinalDeliveryDeclined,
+  notifyPaymentReleased,
+  // Dispute
+  notifyDisputeFiled,
+  notifyDisputeResolved,
+  notifyMoreEvidenceRequested,
+  // Contract cancellation
+  notifyContractCancelledExpert,
+  notifyContractCancelledClient,
 };
 
 export default notificationService;

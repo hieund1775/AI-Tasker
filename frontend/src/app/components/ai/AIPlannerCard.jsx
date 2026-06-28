@@ -20,7 +20,7 @@ export function AIPlannerCard({
   disabled = false,
 }) {
   return (
-    <div className="bg-white rounded-xl border border-brand-primary/20 bg-gradient-to-br from-brand-primary-light/30 to-white overflow-hidden">
+    <div className="bg-card rounded-xl border border-brand-primary/20 bg-gradient-to-br from-brand-primary-light/30 to-white overflow-hidden">
       <div className="px-6 py-5 flex items-start gap-4">
         {/* Icon */}
         <div className="w-11 h-11 bg-brand-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -29,29 +29,30 @@ export function AIPlannerCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900">
-            🤖 AI Project Planner
+          <h3 className="text-lg font-semibold text-foreground">
+            🤖 AI MiniTask Planner
           </h3>
 
           {!aiMode ? (
             <>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Upload project requirements or chat with AI to generate Tasks
-                &amp; Milestones automatically.
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Upload notes or describe your technical approach. AI will generate
+                detailed MiniTasks under the Client's existing Tasks. Client Use
+                Cases and Tasks will remain unchanged.
               </p>
               <button
                 type="button"
                 onClick={onGenerateAI}
                 disabled={disabled}
-                className="mt-4 h-11 min-h-11 px-5 text-base font-semibold rounded-[14px] bg-brand-primary text-white hover:bg-brand-primary-hover transition-colors inline-flex items-center gap-1.5 shadow-sm"
+                className="mt-4 h-11 min-h-11 px-5 text-base font-semibold rounded-[14px] bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover transition-colors inline-flex items-center gap-1.5 shadow-sm"
               >
                 <Sparkles className="w-4 h-4" />
-                Generate With AI
+                Generate MiniTasks
               </button>
             </>
           ) : (
             <>
-              <p className="text-sm text-gray-500 mt-0.5">
+              <p className="text-sm text-muted-foreground mt-0.5">
                 AI assistant is ready. Use the right panel to generate or modify
                 tasks.
               </p>

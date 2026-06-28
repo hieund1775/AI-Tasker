@@ -109,8 +109,8 @@ export function ManageAdmins() {
       label: "Admin",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-gray-900 text-sm">{val || row.name || "—"}</p>
-          <p className="text-xs text-gray-500">{row.email || "—"}</p>
+          <p className="font-medium text-foreground text-sm">{val || row.name || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
         </div>
       ),
     },
@@ -137,7 +137,7 @@ export function ManageAdmins() {
       key: "createdAt",
       label: "Created",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -152,16 +152,16 @@ export function ManageAdmins() {
       <button
         type="button"
         onClick={() => navigate("/owner/dashboard")}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Dashboard
       </button>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         Manage Admin Accounts
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage Admin accounts on the platform.
       </p>
 
@@ -178,13 +178,13 @@ export function ManageAdmins() {
       )}
 
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           type="text"
           placeholder="Search by name or email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
+          className="w-full max-w-md pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
         />
       </div>
 

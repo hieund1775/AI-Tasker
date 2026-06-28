@@ -149,13 +149,13 @@ export function OwnerDashboard() {
           label: "Total Users",
           value: dashboardStats.totalUsers ?? "—",
           icon: Users,
-          color: "text-brand-primary bg-brand-primary-light",
+          color: "text-primary bg-primary-light",
         },
         {
           label: "Total Projects",
           value: dashboardStats.totalProjects ?? "—",
           icon: Briefcase,
-          color: "text-green-600 bg-green-100",
+          color: "text-success bg-success-light",
         },
         {
           label: "Total Revenue",
@@ -165,13 +165,13 @@ export function OwnerDashboard() {
             "—"
           ),
           icon: TrendingUp,
-          color: "text-purple-600 bg-purple-100",
+          color: "text-accent bg-accent-light",
         },
         {
           label: "Open Disputes",
           value: dashboardStats.totalDisputes ?? "—",
           icon: AlertTriangle,
-          color: "text-orange-600 bg-orange-100",
+          color: "text-warning bg-warning-light",
         },
       ]
     : [];
@@ -181,15 +181,19 @@ export function OwnerDashboard() {
   // -----------------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-gray-900">Owner Dashboard</h1>
-        <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">
-          Owner
-        </span>
+      {/* Branded Header */}
+      <div className="relative bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3 rounded-xl border border-border p-6 mb-6 overflow-hidden">
+        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
+        <div className="relative flex items-center justify-between">
+          <div>
+            <h1 className="page-title mb-1">Owner Dashboard</h1>
+            <p className="page-subtitle">Platform overview statistics for Owner.</p>
+          </div>
+          <span className="px-3 py-1 bg-destructive/10 text-destructive rounded-full text-xs font-semibold border border-destructive/20">
+            Owner
+          </span>
+        </div>
       </div>
-      <p className="text-gray-600 mb-6">
-        Platform overview statistics for Owner.
-      </p>
 
       {/* Quick action cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -199,62 +203,62 @@ export function OwnerDashboard() {
             desc: "Add a new Admin account",
             to: "/owner/create-admin",
             icon: Shield,
-            color: "bg-red-100 text-red-600",
+            color: "bg-destructive-light text-destructive",
           },
           {
             label: "Manage Admins",
             desc: "View, lock, or unlock Admins",
             to: "/owner/manage-admins",
             icon: ShieldCheck,
-            color: "bg-amber-100 text-amber-600",
+            color: "bg-warning-light text-warning",
           },
           {
             label: "Manage Users",
             desc: "View and manage all platform users",
             to: "/owner/users",
             icon: Users,
-            color: "bg-brand-primary-light text-brand-primary",
+            color: "bg-primary-light text-primary",
           },
           {
             label: "Manage Reports",
             desc: "Review and resolve dispute reports",
             to: "/owner/reports",
             icon: AlertTriangle,
-            color: "bg-orange-100 text-orange-600",
+            color: "bg-warning-light text-warning",
           },
           {
             label: "Manage Projects",
             desc: "View and control all projects",
             to: "/owner/projects",
             icon: Briefcase,
-            color: "bg-green-100 text-green-600",
+            color: "bg-success-light text-success",
           },
           {
             label: "Manage Reviews",
             desc: "Hide or delete violating reviews",
             to: "/owner/reviews",
             icon: Star,
-            color: "bg-purple-100 text-purple-600",
+            color: "bg-accent-light text-accent",
           },
           {
             label: "Manage Job Posts",
             desc: "Manage platform job posts/services",
             to: "/owner/job-posts",
             icon: FileText,
-            color: "bg-teal-100 text-teal-600",
+            color: "bg-primary-light text-primary",
           },
           {
             label: "Categories/Skills",
             desc: "Manage platform skills and categories",
             to: "/owner/category-tags",
             icon: Tag,
-            color: "bg-brand-primary-light text-brand-primary",
+            color: "bg-primary-light text-primary",
           },
         ].map((card, i) => (
           <Link
             key={i}
             to={card.to}
-            className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition flex items-start gap-4 group"
+            className="bg-card rounded-xl border border-border p-5 shadow-sm hover:shadow-md transition flex items-start gap-4 group"
           >
             <div
               className={`w-10 h-10 ${card.color} rounded-lg flex items-center justify-center flex-shrink-0`}
@@ -262,10 +266,10 @@ export function OwnerDashboard() {
               <card.icon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900 text-sm group-hover:text-brand-primary transition-colors">
+              <h3 className="font-semibold text-foreground text-sm group-hover:text-accent transition-colors">
                 {card.label}
               </h3>
-              <p className="text-xs text-gray-500 mt-0.5">{card.desc}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{card.desc}</p>
             </div>
           </Link>
         ))}
@@ -273,7 +277,7 @@ export function OwnerDashboard() {
 
       {/* Error state */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -283,7 +287,7 @@ export function OwnerDashboard() {
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand-primary bg-white"
+          className="px-4 py-2 border border-border rounded-lg bg-card text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
           disabled={loading}
         >
           {YEAR_OPTIONS.map((y) => (
@@ -295,7 +299,7 @@ export function OwnerDashboard() {
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand-primary bg-white"
+          className="px-4 py-2 border border-border rounded-lg bg-card text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
           disabled={loading}
         >
           {MONTHS.map((m, i) => (
@@ -316,7 +320,7 @@ export function OwnerDashboard() {
         {/* Chart 1: Monthly visits */}
         <ChartCard title="Monthly Visits (Client / Expert)">
           {loading ? (
-            <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={trafficData}>
@@ -335,7 +339,7 @@ export function OwnerDashboard() {
         {/* Chart 2: Total posts in year */}
         <ChartCard title={`Total Posts in ${selectedYear}`}>
           {loading ? (
-            <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={postData}>
@@ -357,7 +361,7 @@ export function OwnerDashboard() {
         {/* Chart 3: Total money transferred */}
         <ChartCard title="Total Money Clients Transferred to Experts">
           {loading ? (
-            <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={paymentData}>
@@ -401,8 +405,8 @@ export function OwnerDashboard() {
 
 function ChartCard({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-      <h3 className="text-sm font-semibold text-gray-700 mb-4">{title}</h3>
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
+      <h3 className="section-header mb-4">{title}</h3>
       {children}
     </div>
   );

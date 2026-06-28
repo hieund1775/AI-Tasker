@@ -99,29 +99,29 @@ export function CreateAdmin() {
       <button
         type="button"
         onClick={() => navigate("/owner/dashboard")}
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition"
+        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Dashboard
       </button>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 sm:p-8">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
             <Shield className="w-5 h-5 text-red-600" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">
+            <h1 className="text-xl font-bold text-foreground">
               Create Admin Account
             </h1>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Owner only — {user?.email || ""}
             </p>
           </div>
         </div>
 
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-muted-foreground mb-6">
           Create a new Admin account to manage disputes and users on the platform.
         </p>
 
@@ -142,7 +142,7 @@ export function CreateAdmin() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Full name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
               Full Name <span className="text-red-500">*</span>
             </label>
             <input
@@ -151,7 +151,7 @@ export function CreateAdmin() {
               onChange={(e) => updateField("fullName", e.target.value)}
               placeholder="Enter Admin full name"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.fullName ? "border-red-300" : "border-gray-300"
+                errors.fullName ? "border-red-300" : "border-input"
               }`}
               disabled={loading}
             />
@@ -162,7 +162,7 @@ export function CreateAdmin() {
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
               Email <span className="text-red-500">*</span>
             </label>
             <input
@@ -171,7 +171,7 @@ export function CreateAdmin() {
               onChange={(e) => updateField("email", e.target.value)}
               placeholder="admin@example.com"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.email ? "border-red-300" : "border-gray-300"
+                errors.email ? "border-red-300" : "border-input"
               }`}
               disabled={loading}
             />
@@ -182,7 +182,7 @@ export function CreateAdmin() {
 
           {/* Password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
               Password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -192,14 +192,14 @@ export function CreateAdmin() {
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="At least 6 characters"
                 className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary pr-10 ${
-                  errors.password ? "border-red-300" : "border-gray-300"
+                  errors.password ? "border-red-300" : "border-input"
                 }`}
                 disabled={loading}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                 tabIndex={-1}
               >
                 {showPassword ? (
@@ -216,7 +216,7 @@ export function CreateAdmin() {
 
           {/* Confirm password */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
               Confirm Password <span className="text-red-500">*</span>
             </label>
             <input
@@ -225,7 +225,7 @@ export function CreateAdmin() {
               onChange={(e) => updateField("confirmPassword", e.target.value)}
               placeholder="Re-enter password"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.confirmPassword ? "border-red-300" : "border-gray-300"
+                errors.confirmPassword ? "border-red-300" : "border-input"
               }`}
               disabled={loading}
             />
@@ -240,7 +240,7 @@ export function CreateAdmin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mt-2"
+            className="w-full h-11 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mt-2"
           >
             {loading ? (
               <>
@@ -258,8 +258,8 @@ export function CreateAdmin() {
 
         {/* After creation */}
         {createdAdmin && (
-          <div className="mt-6 pt-6 border-t border-gray-100">
-            <p className="text-sm text-gray-600 mb-3">
+          <div className="mt-6 pt-6 border-t border-border/60">
+            <p className="text-sm text-muted-foreground mb-3">
               Admin account has been created:
             </p>
             <button

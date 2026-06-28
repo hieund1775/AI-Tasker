@@ -6,8 +6,7 @@ import {
   CheckCircle,
   Search,
   Calendar,
-  DollarSign,
-  Wallet,
+  ReceiptText,
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import { ReportForm } from "../../components/report/ReportForm.jsx";
 import { createReport } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
+import { cn } from "../../lib/utils.js";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 
 import {
@@ -29,6 +29,7 @@ import { timeAgo } from "../../lib/dateUtils.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { getRecommendedProjects } from "../../lib/recommendationHelper.js";
+import { safeDateFormat } from "../../lib/safety.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -220,19 +221,19 @@ export function ExpertDashboard() {
       label: "Total Earned",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: TrendingUp,
-      color: "text-green-600 bg-green-100",
+      color: "text-success bg-success-light",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       icon: CheckCircle,
-      color: "text-emerald-600 bg-emerald-100",
+      color: "text-accent bg-accent-light",
     },
     {
-      label: "My Wallet",
-      value: <MoneyDisplay amount={earningsDisplay} />,
-      icon: Wallet,
-      color: "text-amber-600 bg-amber-100",
+      label: "Completed",
+      value: completedProjects.length,
+      icon: Calendar,
+      color: "text-brand-primary bg-brand-primary-light",
     },
   ];
 
@@ -246,20 +247,39 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Expert Dashboard
-          </h1>
-          <p className="text-gray-500 mt-0.5">
+          <h1 className="page-title">Expert Dashboard</h1>
+          <p className="page-subtitle">
             Manage your contracts and discover new opportunities
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+            className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover font-semibold text-sm inline-flex items-center gap-2 transition-colors"
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
+        </div>
+      </div>
+
+      {/* Welcome Banner */}
+      <div className="relative bg-gradient-to-br from-accent/[0.07] via-accent/[0.03] to-primary/[0.04] rounded-2xl border border-border/60 shadow-sm p-5 mb-6 overflow-hidden group">
+        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
+        {/* Subtle animated shimmer on hover */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
+        <div className="relative flex items-center gap-4">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent/20 to-primary/10 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="w-5 h-5 text-accent" />
+            </div>
+            <div className="absolute inset-0 rounded-xl bg-accent/10 blur-md -z-[1]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Welcome back</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Manage your contracts and discover new opportunities
+            </p>
+          </div>
         </div>
       </div>
 
@@ -276,15 +296,15 @@ export function ExpertDashboard() {
         {/* LEFT PANEL — MY ACTIVE CONTRACTS                                 */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center">
-            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center">
+            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
               My Active Contracts
             </h2>
           </div>
@@ -293,16 +313,18 @@ export function ExpertDashboard() {
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {activeContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <Briefcase className="w-8 h-8 text-muted-foreground/30" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground/60 mb-2">
                   No active contracts
                 </h3>
-                <p className="text-sm text-gray-400 mb-4">
+                <p className="text-sm text-muted-foreground mb-5">
                   Browse available jobs and submit proposals.
                 </p>
                 <Link
                   to="/expert/find-jobs"
-                  className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center"
+                  className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center"
                 >
                   Find Jobs
                 </Link>
@@ -316,15 +338,23 @@ export function ExpertDashboard() {
                 const badgeClass = getStatusBadgeClass(statusKey);
                 const btnCfg = getExpertButtonConfig(statusKey);
                 const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
+                const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
 
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    className={cn(
+                      "bg-card border rounded-xl p-5 transition-colors",
+                      "card-reveal",
+                      `card-reveal-${((activeContracts.indexOf(p) % 12) + 1)}`,
+                      isDisputed
+                        ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30"
+                        : "border-border hover:border-border/80"
+                    )}
                   >
                     {/* ── Top row: title + status badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
+                      <h3 className={cn("font-semibold text-base leading-snug", isDisputed ? "text-red-100" : "text-foreground")}>
                         {p.title}
                       </h3>
                       <span
@@ -335,9 +365,9 @@ export function ExpertDashboard() {
                     </div>
 
                     {/* ── Client name ── */}
-                    <p className="text-base text-gray-500 mb-3">
+                    <p className={cn("text-sm mb-3", isDisputed ? "text-red-200/70" : "text-muted-foreground")}>
                       with{" "}
-                      <span className="font-medium text-gray-700">
+                      <span className={cn("font-medium", isDisputed ? "text-red-100" : "text-foreground")}>
                         {clientName}
                       </span>
                     </p>
@@ -353,16 +383,16 @@ export function ExpertDashboard() {
                     {/* ── Progress bar ── */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-gray-500">
+                        <span className={cn("text-sm font-medium", isDisputed ? "text-red-300/70" : "text-muted-foreground")}>
                           Milestone Progress
                         </span>
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className={cn("text-sm font-bold", isDisputed ? "text-red-100" : "text-foreground")}>
                           {progress}%
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-brand-primary rounded-full transition-all"
+                          className={cn("h-full rounded-full transition-all duration-500", isDisputed ? "bg-red-500" : "bg-primary")}
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -370,44 +400,47 @@ export function ExpertDashboard() {
 
                     {/* ── Bottom row: due date, value, action ── */}
                     <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className={cn("flex items-center gap-4 text-sm", isDisputed ? "text-red-200/70" : "text-muted-foreground")}>
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           Due{" "}
-                          {p.deadline
-                            ? new Date(p.deadline).toLocaleDateString(
-                                "en-US",
-                                { month: "short", day: "numeric" },
-                              )
-                            : "N/A"}
+                          {safeDateFormat(p.deadline, {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
-                          <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                        <span className={cn("inline-flex items-center gap-1 font-semibold", isDisputed ? "text-red-100" : "text-foreground")}>
+                          <ReceiptText className="w-3.5 h-3.5 text-muted-foreground" />
                           <MoneyDisplay amount={p.budget} />
                         </span>
                       </div>
                       <div className="flex items-center">
-                        {!["disputed", "under_review", "under review"].includes(p.status?.toLowerCase()) && (
+                        {!isDisputed && (
                           <button
                             onClick={() => {
                               setReportingProject(p);
                               setShowReportForm(true);
                             }}
-                            className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                            className="mr-3 h-11 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
                             <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
                           </button>
                         )}
+                        {isDisputed && (
+                          <span className="mr-3 h-11 px-4 border border-red-500/30 text-red-300 bg-red-900/40 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5">
+                            <AlertTriangle className="w-4 h-4" /> Under Admin Review
+                          </span>
+                        )}
                         {btnCfg.disabled ? (
                           <span
-                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-11 px-5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </span>
                         ) : (
                           <Link
                             to={btnCfg.linkTo?.(p) || `/expert/projects/${p.id}`}
-                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-11 px-5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </Link>
@@ -425,30 +458,32 @@ export function ExpertDashboard() {
         {/* RIGHT PANEL — RECOMMENDED PROJECTS                               */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
               Recommended Projects
             </h2>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-success" />
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {recommendedProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                  <Search className="w-8 h-8 text-muted-foreground/30" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground/60 mb-2">
                   No recommendations yet
                 </h3>
-                <p className="text-sm text-gray-400">
-                  Complete your profile to get personalized recommendations.
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  Complete your profile to get personalized project recommendations.
                 </p>
               </div>
             ) : (
@@ -460,22 +495,22 @@ export function ExpertDashboard() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors"
                   >
                     {/* ── Top: title + match badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
+                      <h3 className="font-semibold text-foreground text-base leading-snug">
                         {p.title}
                       </h3>
-                      <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
+                      <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold">
                         {matchPct}% match
                       </span>
                     </div>
 
                     {/* ── Posted by + time ── */}
-                    <p className="text-[13px] text-gray-500 mb-2.5">
+                    <p className="text-[13px] text-muted-foreground mb-2.5">
                       Posted by{" "}
-                      <span className="font-medium text-gray-600">
+                      <span className="font-medium text-foreground/70">
                         {clientName}
                       </span>
                       {" · "}
@@ -483,7 +518,7 @@ export function ExpertDashboard() {
                     </p>
 
                     {/* ── Description ── */}
-                    <p className="text-base text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
@@ -497,11 +532,11 @@ export function ExpertDashboard() {
 
                     {/* ── Budget + Duration ── */}
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="font-semibold text-gray-900 text-base">
+                      <span className="font-semibold text-foreground text-base">
                         <MoneyDisplay amount={p.budget} />
                       </span>
-                      <span className="text-gray-300">·</span>
-                      <span className="text-gray-500 text-[13px]">
+                      <span className="text-muted-foreground/60">·</span>
+                      <span className="text-muted-foreground text-[13px]">
                         {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
@@ -510,13 +545,13 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-                        className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
+                        className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold text-center transition-colors inline-flex items-center justify-center"
                       >
                         Apply Now
                       </Link>
                       <Link
                         to={`/expert/jobs/${p.id}`}
-                        className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
+                        className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold text-center transition-colors inline-flex items-center justify-center"
                       >
                         View Job
                       </Link>
@@ -533,7 +568,7 @@ export function ExpertDashboard() {
       <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Báo cáo vi phạm Khách hàng (Expert Report Client)
             </DialogTitle>
           </DialogHeader>

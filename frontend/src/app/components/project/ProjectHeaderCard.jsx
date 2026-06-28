@@ -4,6 +4,7 @@ import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { Button } from "../ui/button.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { cn } from "../../lib/utils.js";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
 
 // =============================================================================
 // ProjectHeaderCard — project info header with status, names, budget, dates, tags.
@@ -31,7 +32,7 @@ export function ProjectHeaderCard({
 }) {
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4 animate-pulse">
+      <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <div className="flex flex-col md:flex-row justify-between gap-4">
           <div className="space-y-3 flex-1">
             <Skeleton className="h-5 w-28 rounded-full" />
@@ -49,65 +50,60 @@ export function ProjectHeaderCard({
 
   if (!project) return null;
 
-  const startDate = project.createdAt
-    ? new Date(project.createdAt).toLocaleDateString("en-US", {
+  const startDate = safeDateFormat(project.createdAt, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  const endDate = (() => {
+    if (!project.deadline) return "N/A";
+    const num = Number(project.deadline);
+    if (!Number.isNaN(num) && num < 1000) {
+      const d = new Date();
+      d.setDate(d.getDate() + num);
+      return safeDateFormat(d, {
         year: "numeric",
         month: "short",
         day: "numeric",
-      })
-    : "N/A";
-
-  const endDate = project.deadline
-    ? (() => {
-        const num = Number(project.deadline);
-        if (!isNaN(num) && num < 1000) {
-          const d = new Date();
-          d.setDate(d.getDate() + num);
-          return d.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-        }
-        try {
-          return new Date(project.deadline).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-        } catch {
-          return String(project.deadline);
-        }
-      })()
-    : "N/A";
+      });
+    }
+    return safeDateFormat(project.deadline, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }, String(project.deadline));
+  })();
 
   const otherPerson = role === "client" ? expert : client;
   const otherRoleLabel = role === "client" ? "Expert" : "Client";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+    <div className="bg-card rounded-xl border border-border p-6 relative overflow-hidden">
+      {/* Gradient top accent */}
+      <div className="absolute top-0 left-4 right-4 h-[2px] rounded-full bg-gradient-to-r from-accent/60 via-accent/30 to-transparent" />
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         {/* Left: project info */}
         <div className="flex-1 min-w-0">
           <StatusBadge status={project.status} entity="project" className="mb-2" />
 
-          <h1 className="text-2xl sm:text-3xl font-semibold text-gray-900 mt-1 truncate">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mt-1 truncate">
             {project.title || "Untitled Project"}
           </h1>
 
           {/* Other person info */}
           {otherPerson && (
-            <p className="text-gray-500 mt-1 text-sm flex items-center gap-1.5">
+            <p className="text-muted-foreground mt-1 text-sm flex items-center gap-1.5">
               <User className="w-4 h-4" />
               {otherRoleLabel}:{" "}
-              <span className="text-gray-800 font-semibold">
+              <span className="text-foreground font-semibold">
                 {otherPerson.fullName || otherPerson.name || "—"}
               </span>
             </p>
           )}
 
           {/* Category & Specialization */}
-          <div className="flex flex-wrap items-center gap-3 mt-2 text-[13px] text-gray-500">
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-[13px] text-muted-foreground">
             {(project.category || project.aiCategoryDomain?.name) && (
               <span className="flex items-center gap-1">
                 <Briefcase className="w-4 h-4" />
@@ -128,7 +124,7 @@ export function ProjectHeaderCard({
               {project.requiredSkills.slice(0, 5).map((skill) => (
                 <span
                   key={skill}
-                  className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[13px] font-medium"
+                  className="px-2 py-0.5 bg-secondary text-muted-foreground rounded-md text-[13px] font-medium"
                 >
                   {skill}
                 </span>
@@ -157,41 +153,41 @@ export function ProjectHeaderCard({
       </div>
 
       {/* Bottom row: stats and progress */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-4 border-t border-gray-100">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-4 border-t border-border">
         {/* Start Date */}
         <div>
-          <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1">
-            <Calendar className="w-4 h-4" /> Start Date
+          <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
+            <Calendar className="w-3.5 h-3.5" /> Start Date
           </p>
-          <p className="text-sm font-medium text-gray-800">{startDate}</p>
+          <p className="text-sm font-medium text-foreground">{startDate}</p>
         </div>
 
         {/* End Date / Deadline */}
         <div>
-          <p className="text-sm text-gray-400 mb-0.5 flex items-center gap-1">
-            <Clock className="w-4 h-4" /> End Date
+          <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
+            <Clock className="w-3.5 h-3.5" /> End Date
           </p>
-          <p className="text-sm font-medium text-gray-800">{endDate}</p>
+          <p className="text-sm font-medium text-foreground">{endDate}</p>
         </div>
 
         {/* Total Budget */}
         <div>
-          <p className="text-sm text-gray-400 mb-0.5">Total Budget</p>
-          <p className="text-sm font-semibold text-gray-900">
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Total Budget</p>
+          <p className="text-sm font-semibold text-foreground">
             <MoneyDisplay amount={project.budget || project.escrowAmount || 0} />
           </p>
         </div>
 
         {/* Progress */}
         <div>
-          <p className="text-sm text-gray-400 mb-0.5">Progress</p>
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Progress</p>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-brand-primary font-mono">
+            <span className="text-sm font-semibold text-primary font-mono">
               {overallProgress}%
             </span>
-            <div className="flex-1 bg-gray-100 h-1.5 rounded-full overflow-hidden max-w-[80px]">
+            <div className="flex-1 bg-secondary h-1.5 rounded-full overflow-hidden max-w-[80px]">
               <div
-                className="bg-brand-primary h-full rounded-full transition-all duration-500"
+                className="bg-primary h-full rounded-full transition-all duration-500"
                 style={{ width: `${overallProgress}%` }}
               />
             </div>

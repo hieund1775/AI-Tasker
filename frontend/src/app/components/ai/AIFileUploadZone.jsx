@@ -32,7 +32,7 @@ function getFileColor(file) {
   )
     return "text-blue-500";
   if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
-  return "text-gray-400";
+  return "text-muted-foreground";
 }
 
 function formatFileSize(bytes) {
@@ -147,19 +147,19 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
           ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
           ${isDragging
             ? "border-brand-primary bg-brand-primary-light/30"
-            : "border-gray-300 hover:border-brand-primary/50 hover:bg-gray-50"
+            : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
           }
         `}
       >
         <Upload
           className={`w-6 h-6 mx-auto mb-1.5 ${
-            isDragging ? "text-brand-primary" : "text-gray-300"
+            isDragging ? "text-brand-primary" : "text-muted-foreground/60"
           }`}
         />
-        <p className="text-xs font-semibold text-gray-600">
+        <p className="text-xs font-semibold text-muted-foreground">
           Drop files or <span className="text-brand-primary">browse</span>
         </p>
-        <p className="text-[11px] text-gray-400 mt-0.5">
+        <p className="text-[11px] text-muted-foreground mt-0.5">
           PDF, DOCX, TXT, Images • Requirements
         </p>
 
@@ -181,16 +181,16 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
           {files.map((file, index) => (
             <div
               key={`${file.name || "file"}-${file.lastModified || index}-${index}`}
-              className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5"
+              className="flex items-center justify-between bg-secondary/60 border border-border rounded-lg px-2.5 py-1.5"
             >
               <div className="flex items-center gap-2 min-w-0">
                 <FileIcon file={file} />
                 <div className="min-w-0">
-                  <p className="text-xs font-medium text-gray-700 truncate">
+                  <p className="text-xs font-medium text-foreground/80 truncate">
                     {file.name || "Unknown file"}
                   </p>
                   {file.size > 0 && (
-                    <p className="text-[11px] text-gray-400">
+                    <p className="text-[11px] text-muted-foreground">
                       {formatFileSize(file.size)}
                     </p>
                   )}
@@ -200,7 +200,7 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="w-6 h-6 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center flex-shrink-0 ml-1.5"
+                  className="w-6 h-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center flex-shrink-0 ml-1.5"
                   title="Remove file"
                 >
                   <X className="w-3 h-3" />

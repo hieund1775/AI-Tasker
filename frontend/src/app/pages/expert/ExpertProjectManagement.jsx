@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Send, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -12,7 +12,10 @@ import api from "../../../services/api.js";
 import { createReport } from "../../../services/reportService.js";
 import { DisputeBanner } from "../../components/shared/DisputeBanner.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
+import { safeArray } from "../../lib/safety.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 
 // =============================================================================
 // ExpertProjectManagement — expert-side project progress management page.
@@ -120,7 +123,7 @@ export default function ExpertProjectDetail() {
           action={
             <button
               onClick={retry}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               Retry
             </button>
@@ -141,7 +144,7 @@ export default function ExpertProjectDetail() {
           action={
             <button
               onClick={() => navigate("/expert/dashboard")}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               Go to Dashboard
             </button>
@@ -152,14 +155,38 @@ export default function ExpertProjectDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans bg-gray-50 min-h-screen">
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
+      <PageHeader
+        title="Project Workspace"
+        subtitle="Complete tasks, submit deliverables, and track project progress."
+        badge={
+          project?.status && !isDisputed ? (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-accent-light text-accent rounded-full text-xs font-semibold capitalize">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {project.status}
+            </span>
+          ) : null
+        }
+        illustration={
+          <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.25" />
+            <rect x="60" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.35" />
+            <rect x="110" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.2" />
+            <rect x="160" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.15" />
+            <line x1="30" y1="38" x2="30" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="80" y1="38" x2="80" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="130" y1="38" x2="130" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="180" y1="38" x2="180" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <circle cx="30" cy="68" r="5" fill="currentColor" opacity="0.4" />
+            <circle cx="80" cy="68" r="5" fill="currentColor" opacity="0.3" />
+            <circle cx="130" cy="68" r="5" fill="currentColor" opacity="0.2" />
+            <circle cx="180" cy="68" r="5" fill="currentColor" opacity="0.1" />
+            <line x1="35" y1="68" x2="75" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="85" y1="68" x2="125" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="135" y1="68" x2="175" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+          </svg>
+        }
+      />
 
       <div className="space-y-6">
         {/* Dispute banner */}
@@ -172,121 +199,123 @@ export default function ExpertProjectDetail() {
           />
         ) : (
           <>
+            {/* Delivery & Payment Stepper */}
+            <AnimatedReveal>
+              <ExpertDeliveryStepper project={project} overallProgress={overallProgress} />
+            </AnimatedReveal>
+
             {/* Project header */}
-            <ProjectHeaderCard
-              project={project}
-              client={client}
-              role="expert"
-              overallProgress={overallProgress}
-              loading={false}
-              onMessage={() => navigate("/messenger")}
-            >
-              <div className="flex items-center gap-3">
-                {!isDisputed && (
-                  <button
-                    type="button"
-                    onClick={() => setShowReportForm(true)}
-                    className="h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-                  >
-                    <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                  </button>
-                )}
-                {/* Submit work button (expert only) */}
-                {overallProgress === 100 && project.status !== "completed" && !isDisputed ? (
-                  project.finalDeliveryStatus === "Final Product Submitted" ? (
+            <AnimatedReveal delay={1}>
+              <ProjectHeaderCard
+                project={project}
+                client={client}
+                role="expert"
+                overallProgress={overallProgress}
+                loading={false}
+                onMessage={() => navigate("/messenger")}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Submit work button (expert only) */}
+                  {overallProgress === 100 && project.status !== "completed" && !isDisputed ? (
+                    project.finalDeliveryStatus === "Final Product Submitted" ? (
+                      <button
+                        disabled
+                        className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                      >
+                        Submitted Work
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowSubmitModal(true)}
+                        className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer"
+                      >
+                        <Send className="w-4 h-4" /> Submit Work
+                      </button>
+                    )
+                  ) : project.status === "completed" ? (
                     <button
                       disabled
-                      className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                      className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                     >
-                      Submitted Work
+                      <CheckCircle2 className="w-4 h-4" /> Project Complete
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer"
-                    >
-                      <Send className="w-4 h-4" /> Submit Work
-                    </button>
-                  )
-                ) : project.status === "completed" ? (
-                  <button
-                    disabled
-                    className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                  >
-                    Project Complete
-                  </button>
-                ) : null}
-              </div>
-            </ProjectHeaderCard>
+                  ) : null}
+                </div>
+              </ProjectHeaderCard>
+            </AnimatedReveal>
 
             {/* Project Final Handover Section */}
             {overallProgress === 100 && project.status !== "completed" && !isDisputed && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-sans">
-                  <Send className="w-5 h-5 text-brand-primary" /> Bàn giao dự án tổng thể (Project Final Handover)
-                </h2>
-                
-                {project.finalWorkDeclineReason && (
-                  <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
-                    <strong className="block font-semibold mb-1">Yêu cầu sửa đổi sản phẩm bàn giao cuối cùng:</strong>
-                    {project.finalWorkDeclineReason}
-                  </div>
-                )}
+              <AnimatedReveal delay={2}>
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
+                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
+                    <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
+                  </h2>
 
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl font-sans">
-                  <div className="space-y-1">
-                    <p className="text-sm text-gray-700">
-                      {project.finalDeliveryStatus === "Final Product Submitted" ? (
-                        <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                          ✓ Đã nộp sản phẩm tổng. Đang chờ Client thẩm định.
-                        </span>
-                      ) : (
-                        <span className="text-gray-500">
-                          Tất cả các mốc công việc đã hoàn thành. Hãy cung cấp Link và File sản phẩm cuối để bàn giao dự án.
-                        </span>
+                  {project.finalWorkDeclineReason && (
+                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
+                      <strong className="block font-semibold mb-1">Revision Requested:</strong>
+                      {project.finalWorkDeclineReason}
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/60 p-4 rounded-xl font-sans">
+                    <div className="space-y-1">
+                      <p className="text-sm text-foreground/80">
+                        {project.finalDeliveryStatus === "Final Product Submitted" ? (
+                          <span className="text-brand-primary font-semibold flex items-center gap-1.5">
+                            ✓ Submitted. Waiting for Client review.
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            All tasks complete. Provide the final project link and file for handover.
+                          </span>
+                        )}
+                      </p>
+                      {project.finalDeliveryStatus === "Final Product Submitted" && (
+                        <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
+                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
+                          <p><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectFile}</span></p>
+                        </div>
                       )}
-                    </p>
-                    {project.finalDeliveryStatus === "Final Product Submitted" && (
-                      <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
-                        <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                        <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>
-                      </div>
+                    </div>
+
+                    {project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowSubmitModal(true)}
+                        className="h-11 px-6 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                      >
+                        <Send className="w-4 h-4" /> Submit Final Work
+                      </button>
+                    ) : (
+                      <button
+                        disabled
+                        className="h-11 px-6 bg-muted text-muted-foreground border border-input rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                      >
+                        ✓ Submitted
+                      </button>
                     )}
                   </div>
-
-                  {project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowSubmitModal(true)}
-                      className="h-11 px-6 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
-                    >
-                      <Send className="w-4 h-4" /> Nộp sản phẩm tổng
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="h-11 px-6 bg-gray-200 text-gray-400 border border-gray-300 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
-                    >
-                      ✓ Đã nộp bàn giao
-                    </button>
-                  )}
                 </div>
-              </div>
+              </AnimatedReveal>
             )}
 
             {/* Project progress panel — expert can toggle mini tasks */}
-            <ProjectProgressPanel
-              tasks={tasks}
-              overallProgress={overallProgress}
-              role="expert"
-              projectId={currentProjectId}
-              onToggleMiniTask={(taskId, miniTaskId) =>
-                handleToggleMiniTask(taskId, miniTaskId)
-              }
-              loading={false}
-              readOnly={isDisputed}
-            />
+            <AnimatedReveal delay={3}>
+              <ProjectProgressPanel
+                tasks={tasks}
+                overallProgress={overallProgress}
+                role="expert"
+                projectId={currentProjectId}
+                onToggleMiniTask={(taskId, miniTaskId) =>
+                  handleToggleMiniTask(taskId, miniTaskId)
+                }
+                loading={false}
+                readOnly={isDisputed}
+              />
+            </AnimatedReveal>
           </>
         )}
       </div>
@@ -294,15 +323,15 @@ export default function ExpertProjectDetail() {
       {/* Submit Final Work Modal */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-2xl w-full max-w-md overflow-hidden text-left animate-zoom-in">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden text-left animate-zoom-in">
             {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
               <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-lg">
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 font-sans">Nộp sản phẩm bàn giao cuối cùng</h3>
-                <p className="text-xs text-gray-500 mt-0.5 font-sans">Vui lòng cung cấp link và tệp tin sản phẩm để bàn giao</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Nộp sản phẩm bàn giao cuối cùng</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Vui lòng cung cấp link và tệp tin sản phẩm để bàn giao</p>
               </div>
             </div>
 
@@ -332,7 +361,7 @@ export default function ExpertProjectDetail() {
               className="p-6 space-y-4 font-sans text-sm"
             >
               <div>
-                <label className="block text-gray-700 font-semibold mb-1">
+                <label className="block text-foreground/80 font-semibold mb-1">
                   Project Link <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -341,12 +370,12 @@ export default function ExpertProjectDetail() {
                   placeholder="Ví dụ: https://github.com/username/project"
                   value={projectLink}
                   onChange={(e) => setProjectLink(e.target.value)}
-                  className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
+                  className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1">
+                <label className="block text-foreground/80 font-semibold mb-1">
                   Project Files (.zip, .rar) <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -355,24 +384,24 @@ export default function ExpertProjectDetail() {
                   placeholder="Ví dụ: sourcecode-v1.zip"
                   value={projectFile}
                   onChange={(e) => setProjectFile(e.target.value)}
-                  className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
+                  className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
                 />
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
                 <button
                   type="button"
                   disabled={isSubmitting}
                   onClick={() => setShowSubmitModal(false)}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-semibold text-sm transition-all cursor-pointer"
+                  className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-bold text-sm transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? "Đang gửi..." : "Gửi bàn giao"}
                 </button>
@@ -386,7 +415,7 @@ export default function ExpertProjectDetail() {
       <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-bold text-foreground">
               Báo cáo vi phạm Khách hàng (Expert Report Client)
             </DialogTitle>
           </DialogHeader>
@@ -398,6 +427,47 @@ export default function ExpertProjectDetail() {
           />
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Expert Delivery Stepper
+// ---------------------------------------------------------------------------
+
+function ExpertDeliveryStepper({ project, overallProgress }) {
+  const finalStatus = project?.finalDeliveryStatus || "";
+  const isCompleted = project?.status === "completed";
+
+  const steps = [
+    { label: "Tasks Done", done: overallProgress === 100, active: overallProgress < 100 },
+    { label: "Submit Final Work", done: ["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus) || isCompleted, active: overallProgress === 100 && !["Final Product Submitted", "Accepted", "Declined", "Accepted"].includes(finalStatus) },
+    { label: "Client Accepts", done: finalStatus === "Accepted" || isCompleted, active: finalStatus === "Final Product Submitted" },
+    { label: "Payment Released", done: isCompleted, active: finalStatus === "Accepted" && !isCompleted },
+  ];
+
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
+      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Delivery & Payment Progress</h3>
+      <div className="flex flex-wrap items-center gap-0">
+        {steps.map((step, i) => (
+          <div key={step.label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {step.done ? "✓" : i + 1}
+              </div>
+              <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
+                {step.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && <div className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-success" : "bg-muted"}`} />}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -415,8 +485,12 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
   useEffect(() => {
     if (!report?.replyDeadline) return;
     function calculateTime() {
-      const now = new Date().getTime();
+      const now = Date.now();
       const deadline = new Date(report.replyDeadline).getTime();
+      if (Number.isNaN(deadline)) {
+        setTimeLeft("Không xác định");
+        return;
+      }
       const diff = deadline - now;
 
       if (diff <= 0) {
@@ -451,8 +525,8 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-red-200 shadow-lg overflow-hidden font-sans">
-      <div className="bg-red-50 px-6 py-4 border-b border-red-150 flex items-center justify-between">
+    <div className="bg-card rounded-2xl border border-red-200 shadow-lg overflow-hidden font-sans">
+      <div className="bg-red-50 px-6 py-4 border-b border-red-100 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-bold text-red-950">YÊU CẦU GIẢI TRÌNH TRANH CHẤP DỰ ÁN</h3>
           <p className="text-xs text-red-700 mt-0.5">Khách hàng đã báo cáo vi phạm đối với dự án này. Vui lòng phản hồi.</p>
@@ -462,20 +536,20 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
         </div>
       </div>
       <div className="p-6 space-y-6 text-left">
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-          <h4 className="font-bold text-gray-900 text-sm">Nội dung báo cáo từ Khách hàng:</h4>
-          <p className="text-sm text-gray-700"><strong>Lý do:</strong> {report.reason || report.reportName}</p>
-          <p className="text-sm text-gray-700"><strong>Mô tả chi tiết:</strong> {report.description}</p>
-          {report.evidence && report.evidence.length > 0 && (
-            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-              <strong>Bằng chứng đính kèm:</strong> {report.evidence.map(e => e.fileName || e.name).join(", ")}
+        <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-3">
+          <h4 className="font-bold text-foreground text-sm">Nội dung báo cáo từ Khách hàng:</h4>
+          <p className="text-sm text-foreground/80"><strong>Lý do:</strong> {report.reason || report.reportName}</p>
+          <p className="text-sm text-foreground/80"><strong>Mô tả chi tiết:</strong> {report.description}</p>
+          {safeArray(report.evidence).length > 0 && (
+            <div className="text-xs text-muted-foreground pt-2 border-t border-border">
+              <strong>Bằng chứng đính kèm:</strong> {safeArray(report.evidence).map(e => e.fileName || e.name).join(", ")}
             </div>
           )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">
+            <label className="block text-foreground/80 font-semibold mb-1 text-sm">
               Nội dung giải trình của bạn <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -484,12 +558,12 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
               placeholder="Giải trình chi tiết các cáo buộc của khách hàng..."
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-[10px] focus:outline-none focus:border-red-500 text-gray-800 text-sm"
+              className="w-full px-3 py-2 border border-input rounded-[10px] focus:outline-none focus:border-red-500 text-foreground text-sm"
             />
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">
+            <label className="block text-foreground/80 font-semibold mb-1 text-sm">
               Tài liệu / Bằng chứng giải trình (Tên file)
             </label>
             <input
@@ -497,11 +571,11 @@ function ExpertDisputeExplanationPanel({ report, onSubmit }) {
               placeholder="Ví dụ: deliverable_screenshot.png, expert_log.txt..."
               value={evidenceName}
               onChange={(e) => setEvidenceName(e.target.value)}
-              className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-red-500 text-gray-800 text-sm"
+              className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-red-500 text-foreground text-sm"
             />
           </div>
 
-          <div className="flex items-center justify-end pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-end pt-2 border-t border-border">
             <button
               type="submit"
               disabled={submitting}

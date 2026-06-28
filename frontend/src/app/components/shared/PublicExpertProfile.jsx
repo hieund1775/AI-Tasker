@@ -12,6 +12,7 @@ import {
   User,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
+import { safeArray, safeNumberFormat } from "../../lib/safety.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
 /**
@@ -178,19 +179,19 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link
           to={backLink.to}
-          className="text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 mb-6"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-6"
         >
           <ArrowLeft className="w-4 h-4" /> {backLink.label}
         </Link>
-        <div className="animate-pulse bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden p-8 space-y-6">
+        <div className="animate-pulse bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8 space-y-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gray-200 rounded-xl" />
+            <div className="w-16 h-16 bg-muted rounded-xl" />
             <div className="space-y-2">
-              <div className="h-6 bg-gray-200 rounded w-48" />
-              <div className="h-4 bg-gray-200 rounded w-32" />
+              <div className="h-6 bg-muted rounded w-48" />
+              <div className="h-4 bg-muted rounded w-32" />
             </div>
           </div>
-          <div className="h-20 bg-gray-200 rounded-xl" />
+          <div className="h-20 bg-muted rounded-xl" />
         </div>
       </div>
     );
@@ -201,16 +202,16 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link
           to={backLink.to}
-          className="text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 mb-6"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-6"
         >
           <ArrowLeft className="w-4 h-4" /> {backLink.label}
         </Link>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <User className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-muted-foreground mb-2">
             Expert not found
           </h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground">
             This profile may have been removed or is no longer available.
           </p>
         </div>
@@ -240,7 +241,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       {/* Back link */}
       <Link
         to={backLink.to}
-        className="text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 mb-6"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-6"
       >
         <ArrowLeft className="w-4 h-4" /> {backLink.label}
       </Link>
@@ -248,7 +249,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       <div className={`grid grid-cols-1 ${showInvitePanel ? 'lg:grid-cols-12' : ''} gap-6`}>
         {/* Main Profile Card */}
         <div className={showInvitePanel ? 'lg:col-span-8 space-y-6' : 'w-full space-y-6'}>
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
             <div className="flex items-start justify-between flex-wrap gap-4">
               {/* Avatar + Name Info */}
               <div className="flex items-center gap-4">
@@ -256,9 +257,9 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                   <span className="text-xl font-bold text-brand-primary">{initials}</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">{displayName}</h1>
-                  <p className="text-gray-700 font-medium">{expert.title}</p>
-                  <p className="text-gray-500 text-sm">{expert.email}</p>
+                  <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+                  <p className="text-foreground/80 font-medium">{expert.title}</p>
+                  <p className="text-muted-foreground text-sm">{expert.email}</p>
                 </div>
               </div>
 
@@ -268,13 +269,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                   <>
                     <button
                       onClick={() => setShowInvitePanel(!showInvitePanel)}
-                      className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-sm font-medium transition-colors flex items-center gap-2"
+                      className="px-4 py-2 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-sm font-medium transition-colors flex items-center gap-2"
                     >
                       <Briefcase className="w-4 h-4" /> Hire / Invite
                     </button>
                     <Link
                       to={`/messenger/${expert.id || resolvedId}`}
-                      className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors flex items-center gap-2"
+                      className="px-4 py-2 border border-input rounded-lg hover:bg-secondary/60 text-sm font-medium transition-colors flex items-center gap-2"
                     >
                       <MessageSquare className="w-4 h-4" /> Send Message
                     </Link>
@@ -284,7 +285,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 {viewerRole === "expert" && (
                   <Link
                     to="/expert/profile/edit"
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+                    className="px-4 py-2 border border-input rounded-lg hover:bg-secondary/60 text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
                   >
                     <Edit className="w-4 h-4" /> Edit Profile
                   </Link>
@@ -293,34 +294,34 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             </div>
 
             {/* Meta details */}
-            <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border/60">
               {expert.location && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
-                  <MapPin className="w-4 h-4 text-gray-400" />
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="w-4 h-4 text-muted-foreground" />
                   {expert.location}
                 </span>
               )}
               {expert.category && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
-                  <Briefcase className="w-4 h-4 text-gray-400" />
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Briefcase className="w-4 h-4 text-muted-foreground" />
                   Category: {expert.category}
                 </span>
               )}
               {expert.specialization && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 font-medium">
-                  <CheckCircle className="w-4 h-4 text-gray-400" />
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
+                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
                   Specialization: {expert.specialization}
                 </span>
               )}
               {expert.rating != null && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   {expert.rating} ({expert.reviews || 0} reviews)
                 </span>
               )}
               {expert.hourlyRate != null && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-500">
-                  <Clock className="w-4 h-4 text-gray-400" />
+                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Clock className="w-4 h-4 text-muted-foreground" />
                   ${expert.hourlyRate}/hr
                 </span>
               )}
@@ -328,15 +329,15 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
             {/* Contact details */}
             {(expert.email || expert.phone) && (
-              <div className="mt-5 pt-5 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
+              <div className="mt-5 pt-5 border-t border-border/60 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
                 {expert.email && (
-                  <p className="text-gray-600">
-                    <span className="font-semibold text-gray-700">Email Address:</span> {expert.email}
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">Email Address:</span> {expert.email}
                   </p>
                 )}
                 {expert.phone && (
-                  <p className="text-gray-600">
-                    <span className="font-semibold text-gray-700">Phone Number:</span> {expert.phone}
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">Phone Number:</span> {expert.phone}
                   </p>
                 )}
               </div>
@@ -344,19 +345,19 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
             {/* Bio */}
             {expert.bio && (
-              <div className="mt-5 pt-5 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">About</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{expert.bio}</p>
+              <div className="mt-5 pt-5 border-t border-border/60">
+                <h3 className="text-sm font-semibold text-foreground/80 mb-2">About</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{expert.bio}</p>
               </div>
             )}
           </div>
 
           {/* Detailed sections card */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6">
             {/* Skills */}
             {resolvedSkills.length > 0 && (
               <section>
-                <h3 className="font-semibold text-gray-900 mb-3">Skills</h3>
+                <h3 className="font-semibold text-foreground mb-3">Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {resolvedSkills.map((skill, i) => (
                     <span
@@ -373,15 +374,15 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             {/* Portfolio */}
             {expert.portfolio?.length > 0 && (
               <section>
-                <h3 className="font-semibold text-gray-900 mb-3">Portfolio</h3>
+                <h3 className="font-semibold text-foreground mb-3">Portfolio</h3>
                 <div className="grid gap-3">
                   {expert.portfolio.map((item, i) => (
                     <div
                       key={i}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-blue-200 transition-colors"
+                      className="border border-border rounded-lg p-4 hover:border-blue-200 transition-colors"
                     >
-                      <h4 className="font-medium text-gray-900">{item.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <h4 className="font-medium text-foreground">{item.title}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
                         {item.description}
                       </p>
                     </div>
@@ -393,17 +394,17 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             {/* Client Reviews */}
             {expert.clientReviews?.length > 0 && (
               <section>
-                <h3 className="font-semibold text-gray-900 mb-3">
+                <h3 className="font-semibold text-foreground mb-3">
                   Client Reviews ({expert.clientReviews.length})
                 </h3>
                 <div className="space-y-3">
                   {expert.clientReviews.map((review, i) => (
                     <div
                       key={i}
-                      className="border border-gray-200 rounded-lg p-4"
+                      className="border border-border rounded-lg p-4"
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-gray-900">
+                        <span className="font-medium text-foreground">
                           {review.clientName}
                         </span>
                         <div className="flex items-center gap-0.5">
@@ -415,9 +416,9 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                           ))}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-600">{review.comment}</p>
+                      <p className="text-sm text-muted-foreground">{review.comment}</p>
                       {review.date && (
-                        <p className="text-xs text-gray-400 mt-1">{review.date}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{review.date}</p>
                       )}
                     </div>
                   ))}
@@ -429,27 +430,27 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
         {/* Right-hand invite panel */}
         {showInvitePanel && (
-          <div className="lg:col-span-4 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col justify-between h-fit min-h-[400px]">
+          <div className="lg:col-span-4 bg-card rounded-2xl border border-border shadow-sm p-6 flex flex-col justify-between h-fit min-h-[400px]">
             <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-foreground mb-4 pb-2 border-b border-border/60">
                 List All Projects
               </h2>
               {openPosts.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-8">
+                <p className="text-sm text-muted-foreground text-center py-8">
                   No open projects without assigned experts found.
                 </p>
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                   {openPosts.map((post) => (
-                    <div key={post.id} className="border border-gray-100 rounded-xl p-3 flex flex-col justify-between gap-3 hover:border-brand-primary/20 transition-colors bg-gray-50/50">
+                    <div key={post.id} className="border border-border/60 rounded-xl p-3 flex flex-col justify-between gap-3 hover:border-brand-primary/20 transition-colors bg-secondary/50">
                       <div>
-                        <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{post.title}</h3>
-                        <p className="text-xs text-gray-500 mt-1">Budget: {post.budget?.toLocaleString()}</p>
+                        <h3 className="text-sm font-semibold text-foreground line-clamp-1">{post.title}</h3>
+                        <p className="text-xs text-muted-foreground mt-1">Budget: {safeNumberFormat(post.budget)}</p>
                       </div>
                       <button
                         onClick={() => handleInvite(post)}
                         disabled={inviteLoading}
-                        className="w-full py-1.5 px-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-xs font-medium transition-colors disabled:opacity-50"
+                        className="w-full py-1.5 px-3 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium transition-colors disabled:opacity-50"
                       >
                         Invite
                       </button>
@@ -459,11 +460,11 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               )}
             </div>
 
-            <div className="pt-4 mt-4 border-t border-gray-100">
+            <div className="pt-4 mt-4 border-t border-border/60">
               <Link
                 to="/client/post-project"
                 state={{ inviteExpert: expert }}
-                className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                className="w-full py-2.5 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm"
               >
                 + New Post Project
               </Link>

@@ -54,12 +54,21 @@ import {
   listMessages,
   createMessage,
   listTasks,
-  getTaskById,
   createTask,
-  updateTask,
   getDashboardStats,
+  getRevenueData,
   generateId,
+  cancelProjectContract,
 } from "./mockDatabase.js";
+import {
+  notifyFinalWorkSubmitted,
+  notifyFinalDeliveryAccepted,
+  notifyFinalDeliveryDeclined,
+  notifyPaymentReleased,
+  notifyDisputeFiled,
+  notifyDisputeResolved,
+  notifyMoreEvidenceRequested,
+} from "../services/notificationHelper.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -505,6 +514,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             const props = listProposals();
             const acceptedProp = props.find((p) => p.jobPostId === jobId && (p.status === "accepted" || p.status === "pending_escrow" || p.status === "pending_pay" || p.status === "Pending" || p.status === "Pending Escrow"));
             if (acceptedProp) {
+              // ponytail: check expiry — 7 days from submitted
+              const createdAt = new Date(acceptedProp.createdAt).getTime();
+              const now = Date.now();
+              const isExpired = !isNaN(createdAt) && (now - createdAt > 7 * 24 * 60 * 60 * 1000);
+              if (isExpired) throw new ApiError("Proposal has expired (7-day limit). Cannot accept.", 400);
+
+              // Use expert bid amount & estimated days, preserve client original as reference
               createProject({
                 id: generateId("proj"),
                 jobPostId: jobId,
@@ -512,10 +528,23 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 assignedExpertId: acceptedProp.expertId,
                 title: updated.title,
                 description: updated.description,
-                budget: updated.budget,
-                deadline: String(updated.deadline),
+                budget: acceptedProp.bidAmount || updated.budget,
+                deadline: String(acceptedProp.estimatedDays || updated.deadline),
+                originalClientBudget: updated.budget,
+                originalClientDeadline: String(updated.deadline),
                 status: body.status === "in_progress" ? "active" : body.status,
+                acceptedProposalId: acceptedProp.id,
               });
+
+              // Reject all other proposals for the same job post
+              props.forEach((p) => {
+                if (p.jobPostId === jobId && p.id !== acceptedProp.id && p.status !== "rejected" && p.status !== "declined") {
+                  updateProposalStatus(p.id, "rejected");
+                }
+              });
+
+              // Close the job post
+              updateJobPost(jobId, { status: "closed" });
             }
           } else {
             updateProject(existingProj.id, { status: body.status === "in_progress" ? "active" : body.status });
@@ -556,12 +585,31 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       const acceptFinalId = matchProjectAcceptFinal(path);
       if (acceptFinalId) {
         const updated = acceptProjectFinalDelivery(acceptFinalId, currentUser?.fullName || "Client");
+        // Notify expert
+        if (updated?.assignedExpertId) {
+          notifyFinalDeliveryAccepted({
+            expertUserId: updated.assignedExpertId,
+            clientName: currentUser?.fullName || "Client",
+            projectTitle: updated.title || "",
+            projectId: acceptFinalId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: acceptFinalId, project: updated };
       }
 
       const declineFinalId = matchProjectDeclineFinal(path);
       if (declineFinalId) {
         const updated = declineProjectFinalDelivery(declineFinalId, currentUser?.fullName || "Client", body?.feedback || body?.reason);
+        // Notify expert
+        if (updated?.assignedExpertId) {
+          notifyFinalDeliveryDeclined({
+            expertUserId: updated.assignedExpertId,
+            clientName: currentUser?.fullName || "Client",
+            projectTitle: updated.title || "",
+            feedback: body?.feedback || body?.reason || "",
+            projectId: declineFinalId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: declineFinalId, project: updated };
       }
     }
@@ -607,6 +655,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           body?.projectLink || query.projectLink,
           body?.projectFile || query.projectFile
         );
+        // Notify client
+        if (updated?.clientId) {
+          notifyFinalWorkSubmitted({
+            clientUserId: updated.clientId,
+            expertName: currentUser?.fullName || "Expert",
+            projectTitle: updated.title || "",
+            projectId: submitId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: submitId, status: "submitted", project: updated };
       }
     }
@@ -658,7 +715,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         const status = newStatus || body?.status;
         if (status) {
           if (status.toLowerCase() === "accepted" || status.toLowerCase() === "accepted") {
-            // --- XỬ LÝ HIRE EXPERT & ESCROW (ATOMIC UPDATE ĐỒNG BỘ) ---
+            // --- HIRE EXPERT & AUTO-FUND ESCROW (ATOMIC TRANSACTION) ---
+            // In mock mode, accepting a proposal immediately:
+            //  1. Deducts bidAmount from client's wallet balance → moves to pendingBalance/escrowBalance
+            //  2. Sets proposal → "accepted", rejects all other proposals for same job
+            //  3. Sets JobPost → "hired", blocks new applications
+            //  4. Creates Project with status "active", escrowPaid=true, escrowStatus="paid"
+            //  5. Logs escrow_deposit transaction
+            // There is NO intermediate "pending_escrow" step in mock mode — escrow is auto-funded.
+            // The Client's wallet.balance must have sufficient funds (checked before proceeding).
             const proposal = getProposalById(statusId);
             if (!proposal) throw new ApiError("Không tìm thấy đề xuất (Proposal).", 404);
 
@@ -674,7 +739,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             // Kiểm tra số dư ví khả dụng của Client
             if (wallet.balance < bidAmount) {
               throw new ApiError(
-                `Số dư ví khả dụng không đủ để thực hiện thuê Expert. Yêu cầu: $${bidAmount.toLocaleString()}, hiện có: $${wallet.balance.toLocaleString()}. Vui lòng nạp thêm tiền.`,
+                `Số dư ví khả dụng không đủ để thực hiện thuê Expert. Yêu cầu: ${bidAmount.toLocaleString()}, hiện có: ${wallet.balance.toLocaleString()}. Vui lòng nạp thêm tiền.`,
                 400
               );
             }
@@ -709,11 +774,23 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 const existingProj = projects.find((p) => p.jobPostId === jobPost.id);
                 const newProjectId = existingProj ? existingProj.id : generateId("proj");
 
-                proposalTasks = coverLetterParsed.tasks.map((t, idx) => ({
+                // Filter: exclude pending/rejected proposed tasks, keep only client + accepted
+                const acceptedTasks = coverLetterParsed.tasks.filter((t) => {
+                  const src = t.source || "expert";
+                  const approval = t.approvalStatus || "accepted"; // client tasks default accepted
+                  // Client tasks always included
+                  if (src === "client" || src === "client_use_case_fallback") return true;
+                  // Expert tasks only if explicitly accepted
+                  return approval === "accepted";
+                });
+
+                proposalTasks = acceptedTasks.map((t, idx) => ({
                   id: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
                   projectId: newProjectId,
+                  useCaseId: t.useCaseId || null,
                   title: t.title || `Task ${idx + 1}`,
-                  description: "",
+                  description: t.description || "",
+                  source: t.source || "expert",
                   status: "not_started",
                   progress: 0,
                   assignedTo: proposal.expertId,
@@ -998,9 +1075,32 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                   pendingBalance: Math.max(0, currentPending - amt),
                 }
               });
+              // Notify expert of normal payment release (skip if dispute already handled it)
+              const existingReports = listReports().filter(r => r.projectId === proj.id);
+              const disputeHandledRelease = existingReports.some(r =>
+                r.status === "Resolved" && (r.resolution === "stopped" || r.resolution === "force_payout")
+              );
+              if (!disputeHandledRelease) {
+                const clientUserForNotify = getUserById(proj.clientId);
+                notifyPaymentReleased({
+                  expertUserId: expertId,
+                  clientName: clientUserForNotify?.fullName || "Client",
+                  projectTitle: proj.title || "",
+                  amount: String(amt || 0),
+                  projectId: proj.id,
+                }).catch(() => {});
+              }
             }
           }
         }
+      }
+      // Contract cancellation — client splits escrow by progress
+      if ((body.type === "cancel_contract" || body.transactionType === "cancel_contract") && body.projectId) {
+        const result = cancelProjectContract(body.projectId, currentUser?.id, body.reason);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        }
+        return { success: true, ...result };
       }
       if ((body.type === "dispute_refund" || body.transactionType === "dispute_refund") && body.projectId) {
         const proj = getProjectById(body.projectId);
@@ -1165,6 +1265,19 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         const project = getProjectById(report.projectId);
         if (project) {
           updateProjectStatus(project.id, "Disputed");
+          // Notify accused party
+          const accusedId = isClientReporter ? project.assignedExpertId : project.clientId;
+          const reporterName = currentUser?.fullName || "Admin";
+          if (accusedId) {
+            notifyDisputeFiled({
+              accusedUserId: accusedId,
+              reporterName,
+              projectTitle: project.title || "",
+              deadline,
+              projectId: project.id,
+              reportId: report.id,
+            }).catch(() => {});
+          }
         }
         
         // Dispatch event
@@ -1226,6 +1339,17 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           replyDeadline: deadline,
           adminNote: body.adminNote || report.adminNote || "",
         });
+        // Notify accused party
+        const evidenceProj = getProjectById(report.projectId);
+        const evidenceAccusedId = isClientReporter ? evidenceProj?.assignedExpertId : evidenceProj?.clientId;
+        if (evidenceAccusedId) {
+          notifyMoreEvidenceRequested({
+            userId: evidenceAccusedId,
+            projectTitle: evidenceProj?.title || "",
+            adminNote: body.adminNote || "",
+            projectId: evidenceProj?.id || report.projectId,
+          }).catch(() => {});
+        }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
@@ -1239,9 +1363,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           resolution: "continued",
           resolvedAt: new Date().toISOString()
         });
-        const project = getProjectById(report.projectId);
-        if (project) {
-          updateProjectStatus(project.id, "in_progress");
+        const projectC = getProjectById(report.projectId);
+        if (projectC) {
+          updateProjectStatus(projectC.id, "in_progress");
+          // Notify both parties: dispute resolved
+          [projectC.clientId, projectC.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: projectC.title || "", resolution: "continued", projectId: projectC.id }).catch(() => {});
+          });
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1265,6 +1393,10 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             // Refund to Client
             updateProjectStatus(proj.id, "cancelled");
             if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "cancelled" });
+            // Notify both: dispute resolved with refund
+            [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+              notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "stopped — refunded to Client", projectId: proj.id }).catch(() => {});
+            });
             const clientUser = getUserById(proj.clientId);
             if (clientUser && clientUser.wallet) {
               const currentBalance = clientUser.wallet.balance || 0;
@@ -1283,6 +1415,10 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             // Release to Expert
             updateProjectStatus(proj.id, "completed");
             if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "completed" });
+            // Notify both: dispute resolved with release
+            [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+              notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "stopped — released to Expert", projectId: proj.id }).catch(() => {});
+            });
             const clientUser = getUserById(proj.clientId);
             if (clientUser && clientUser.wallet) {
               const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
@@ -1311,6 +1447,14 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                     pendingBalance: Math.max(0, currentPending - amt),
                   }
                 });
+                // Notify expert of payment release
+                notifyPaymentReleased({
+                  expertUserId: expertId,
+                  clientName: "Client",
+                  projectTitle: proj.title || "",
+                  amount: String(amt || 0),
+                  projectId: proj.id,
+                }).catch(() => {});
               }
             }
           }
@@ -1362,8 +1506,20 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                   pendingBalance: Math.max(0, currentPending - amt),
                 }
               });
+              // Notify expert of payment release (force payout)
+              notifyPaymentReleased({
+                expertUserId: expertId,
+                clientName: "Admin",
+                projectTitle: proj.title || "",
+                amount: String(amt || 0),
+                projectId: proj.id,
+              }).catch(() => {});
             }
           }
+          // Notify both: dispute resolved via force payout
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "force_payout — released to Expert", projectId: proj.id }).catch(() => {});
+          });
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1378,11 +1534,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           resolution: "force_refund",
           resolvedAt: new Date().toISOString()
         });
-        
+
         const proj = getProjectById(report.projectId);
         if (proj) {
           updateProjectStatus(proj.id, "cancelled");
           if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "cancelled" });
+          // Notify both: dispute resolved via force refund
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "force_refund — refunded to Client", projectId: proj.id }).catch(() => {});
+          });
           const clientUser = getUserById(proj.clientId);
           if (clientUser && clientUser.wallet) {
             const currentBalance = clientUser.wallet.balance || 0;
@@ -1429,6 +1589,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
     // ── DASHBOARD STATS ──────────────────────────────────────────────────────
     if (path === "/dashboard/stats" && method === "GET") {
       return getDashboardStats();
+    }
+
+    // ── REVENUE ───────────────────────────────────────────────────────────────
+    if (path === "/revenue" && method === "GET") {
+      return getRevenueData();
     }
 
     // ── WALLET ───────────────────────────────────────────────────────────────

@@ -89,10 +89,10 @@ export function EditAdminProfile() {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-4">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="bg-card rounded-2xl border border-border p-8 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
+              <div key={i} className="h-12 bg-muted rounded-lg" />
             ))}
           </div>
         </div>
@@ -105,11 +105,11 @@ export function EditAdminProfile() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/admin/profile" className="mb-4">Back to Profile</BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Admin Profile</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Edit Admin Profile</h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
+        className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {[
           { key: "fullName", label: "Full Name", type: "text" },
@@ -119,41 +119,41 @@ export function EditAdminProfile() {
           { key: "location", label: "Location", type: "text" },
         ].map(({ key, label, type }) => (
           <div key={key}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               {label}
             </label>
             <input
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Bio / About
           </label>
           <textarea
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
           <button
             type="button"
             onClick={() => navigate("/admin/profile")}
-            className="h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition-colors"
+            className="h-11 px-5 border border-input rounded-[14px] hover:bg-secondary/60 text-base font-semibold inline-flex items-center gap-2 transition-colors"
           >
             Cancel
           </button>

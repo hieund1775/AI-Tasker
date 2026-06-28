@@ -15,6 +15,7 @@ import {
   X,
   Check,
   ExternalLink,
+  FileText,
 } from "lucide-react";
 import { Button } from "../../components/ui/button.jsx";
 import { useProjectProgress, deriveTaskDisplayStatus } from "../../hooks/useProjectProgress.js";
@@ -26,6 +27,7 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { cn } from "../../lib/utils.js";
+import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 import { updateTask } from "../../../data/mockDatabase.js";
 import {
@@ -35,6 +37,8 @@ import {
   notifyMiniTaskRevisionRequested,
   notifyUrgentSubmissionRequested,
 } from "../../../services/notificationHelper.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { SectionCard } from "../../components/shared/SectionCard.jsx";
 
 // =============================================================================
 // TaskDetailPage — dedicated task detail page for both client and expert.
@@ -63,6 +67,9 @@ export default function TaskDetailPage() {
     error,
     handleToggleMiniTask,
     handleUpdateMiniTask,
+    handleSubmitHandoverEvidence,
+    handleQuickAccept,
+    handleRequestProduct,
     handleSubmitForReview,
     handleSubmitProduct,
     handleApproveTask,
@@ -70,6 +77,9 @@ export default function TaskDetailPage() {
     handleRequestReopen,
     handleRequestUrgentSubmission,
     handleRequestMiniTaskRevision,
+    handleExpertSubmitProduct,
+    handleClientAcceptProduct,
+    handleClientDeclineProduct,
     areAllMiniTasksCompleted,
     retry,
   } = useProjectProgress(projectId, role);
@@ -98,11 +108,42 @@ export default function TaskDetailPage() {
   // Client view product modal state
   const [showViewProductModalClient, setShowViewProductModalClient] = useState(false);
 
+  // Evidence submission modal state
+  const [showEvidenceModal, setShowEvidenceModal] = useState(false);
+  const [evidenceGitSha, setEvidenceGitSha] = useState("");
+  const [evidenceReportLink, setEvidenceReportLink] = useState("");
+  const [evidenceExplanation, setEvidenceExplanation] = useState("");
+  const [evidenceSubmitting, setEvidenceSubmitting] = useState(false);
+
   // Find the current task from the tasks array
-  const task = tasks.find((t) => t.id === taskId);
+  const safeTasks = safeArray(tasks);
+  const task = safeTasks.find((t) => t.id === taskId);
 
   // Derived miniTasks — declared early because handlers below reference it
-  const miniTasks = task?.miniTasks || [];
+  const miniTasks = safeArray(task?.miniTasks);
+
+  // ---- Evidence submission handler ----
+  const handleEvidenceSubmit = useCallback(async () => {
+    if (!evidenceExplanation.trim()) {
+      toast.error("Please provide at least a short explanation of the work completed.");
+      return;
+    }
+    setEvidenceSubmitting(true);
+    try {
+      handleSubmitHandoverEvidence(taskId, {
+        gitSha: evidenceGitSha.trim(),
+        reportLink: evidenceReportLink.trim(),
+        explanation: evidenceExplanation.trim(),
+      });
+      toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+      setShowEvidenceModal(false);
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error("Failed to submit evidence.");
+    } finally {
+      setEvidenceSubmitting(false);
+    }
+  }, [taskId, evidenceGitSha, evidenceReportLink, evidenceExplanation, handleSubmitHandoverEvidence]);
 
   // ---- Handlers ----
 
@@ -279,7 +320,7 @@ export default function TaskDetailPage() {
 
   const displayStatus = task ? deriveTaskDisplayStatus(task) : "Not Started";
   const isDone = displayStatus === "Done";
-  const isWaitingForApproval = task?.status === "pending_review" || task?.status === "Pending Review" || task?.status === "pending review";
+  const isWaitingForApproval = task?.status === "waiting_for_approval" || task?.status === "Waiting For Approval" || task?.status === "pending_review" || task?.status === "Pending Review" || task?.status === "pending review";
   const hasMainProduct = task ? !!(task.productLink || task.productFile) : false;
   const isReopenRequested = task?.status === "reopen_requested" || task?.status === "Reopen Requested" || task?.status === "reopen requested";
   const isNeedsRevision = displayStatus === "Decline";
@@ -360,182 +401,114 @@ export default function TaskDetailPage() {
   }
 
   // ---- Deadline formatting ----
-  const deadlineText = task.deadline
-    ? (() => {
-        try {
-          return new Date(task.deadline).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          });
-        } catch {
-          return String(task.deadline);
-        }
-      })()
-    : "N/A";
+  const deadlineText = safeDateFormat(task.deadline, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans bg-gray-50 min-h-screen">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
         <button
           onClick={() => navigate(`/${role}/projects/${projectId}`)}
-          className="hover:text-brand-primary transition-colors font-medium"
+          className="hover:text-accent transition-colors font-medium"
         >
           Projects
         </button>
         <span>/</span>
-        <span className="text-gray-400 truncate max-w-[200px]">
+        <span className="text-muted-foreground truncate max-w-[200px]">
           {project?.title || "Project"}
         </span>
         <span>/</span>
-        <span className="text-gray-900 font-semibold truncate max-w-[200px]">
+        <span className="text-foreground font-semibold truncate max-w-[200px]">
           {task.title}
         </span>
       </div>
 
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back to Project
-      </button>
-
-      {/* Task header card */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 text-left">
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 flex-wrap mb-2">
-              <h1 className="text-2xl font-semibold text-gray-900">{task.title}</h1>
-              <StatusBadge status={displayStatus} entity="task" />
-            </div>
-
-            {task.description && (
-              <p className="text-sm text-gray-650 mt-2">{task.description}</p>
+      <PageHeader
+        title={task.title}
+        subtitle={task.description || undefined}
+        badge={
+          <div className="flex items-center gap-2">
+            <StatusBadge status={displayStatus} entity="task" />
+            {deadlineInfo && deadlineInfo.urgency !== "normal" && (
+              <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", getDeadlineStatusClass(deadlineInfo.urgency))}>
+                {deadlineInfo.remainingText}
+              </span>
             )}
-
-            <div className="flex flex-wrap items-center gap-5 mt-4 text-sm text-gray-500">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="w-4 h-4" />
-                Deadline: <span className="text-gray-700">{deadlineText}</span>
-                {deadlineInfo && deadlineInfo.urgency !== "normal" && (
-                  <span
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-xs font-medium ml-1.5 flex items-center gap-1",
-                      getDeadlineStatusClass(deadlineInfo.urgency)
-                    )}
-                  >
-                    {deadlineInfo.urgency === "overdue" && (
-                      <AlertTriangle className="w-3 h-3" />
-                    )}
-                    {deadlineInfo.remainingText}
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-brand-green" />
-                <span>
-                  {task.completedMiniTasks}/{task.totalMiniTasks} mini tasks completed
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Clock3 className="w-4 h-4 text-brand-primary" />
-                Progress: <span className="font-medium text-brand-primary">{task.progress}%</span>
-              </div>
-            </div>
-
-            {/* Progress bar */}
-            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden mt-4">
-              <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  task.progress > 0
-                    ? "bg-brand-primary"
-                    : "bg-gray-200"
-                )}
-                style={{ width: `${task.progress}%` }}
-              />
-            </div>
-
-            {/* Display Product Deliverables */}
-            <div className="mt-5 p-4 bg-gray-50 border border-gray-100 rounded-xl">
-              <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
-                Sản phẩm bàn giao (Deliverables)
-              </h4>
-              <div className="space-y-1.5 text-sm">
-                <div>
-                  <span className="text-gray-500">Link sản phẩm: </span>
-                  {task.productLink ? (
-                    <a
-                      href={task.productLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-brand-primary hover:underline font-semibold"
-                    >
-                      {task.productLink}
-                    </a>
-                  ) : (
-                    <span className="text-gray-400 italic">Chưa có</span>
-                  )}
-                </div>
-                <div>
-                  <span className="text-gray-500">File đính kèm: </span>
-                  {task.productFile ? (
-                    <span className="font-semibold text-gray-750">{task.productFile}</span>
-                  ) : (
-                    <span className="text-gray-400 italic">Chưa có</span>
-                  )}
-                </div>
-              </div>
-            </div>
           </div>
-
+        }
+        actions={
           <div className="flex items-center gap-3 flex-shrink-0">
-            {/* Expert: Task already submitted, waiting */}
             {isWaitingForApproval && isExpert && (
-              <div className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg text-sm font-medium flex items-center gap-2 border border-purple-200">
-                <Clock3 className="w-4 h-4" />
-                Waiting for Client Approval
+              <div className="px-4 py-2 bg-accent-light text-accent rounded-lg text-sm font-medium flex items-center gap-2 border border-accent/20">
+                <Clock3 className="w-4 h-4" /> Waiting for Client Approval
               </div>
             )}
-
-            {/* Client: Task is waiting status */}
             {isWaitingForApproval && isClient && !canApprove && (
-              <div className="px-4 py-2 bg-purple-50 text-purple-600 rounded-lg text-sm font-medium flex items-center gap-2 border border-purple-200">
-                <Clock3 className="w-4 h-4" />
-                Under Review
+              <div className="px-4 py-2 bg-accent-light text-accent rounded-lg text-sm font-medium flex items-center gap-2 border border-accent/20">
+                <Clock3 className="w-4 h-4" /> Under Review
               </div>
             )}
-
-            {/* Task is completed/locked */}
             {isDone && (
-              <div className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium flex items-center gap-2">
-                <Lock className="w-4 h-4 text-brand-green" />
-                Task Completed
-              </div>
-            )}
-
-            {/* Expert: Urgent Request badge */}
-            {isExpert && task?.urgentRequest === true && (
-              <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2 border border-red-300">
-                <AlertTriangle className="w-4 h-4" />
-                Urgent Request
+              <div className="px-4 py-2 bg-success/10 text-success rounded-lg text-sm font-medium flex items-center gap-2 border border-success/20">
+                <Lock className="w-4 h-4" /> Task Completed
               </div>
             )}
           </div>
+        }
+        compact
+      />
+
+      {/* Task stats row */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
+          <p className="font-semibold text-foreground text-sm flex items-center justify-center gap-1">
+            <Calendar className="w-3.5 h-3.5" />
+            {deadlineText}
+          </p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-0.5">Mini Tasks</p>
+          <p className="font-semibold text-foreground text-sm">
+            {task.completedMiniTasks}/{task.totalMiniTasks} completed
+          </p>
+        </div>
+        <div className="bg-card rounded-xl border border-border p-3 text-center">
+          <p className="text-xs text-muted-foreground mb-0.5">Progress</p>
+          <p className="font-semibold text-foreground text-sm">{task.progress}%</p>
         </div>
       </div>
 
+      {/* Progress bar */}
+      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mb-6">
+        <div
+          className={cn("h-full rounded-full transition-all duration-500", task.progress > 0 ? "bg-brand-primary" : "bg-muted")}
+          style={{ width: `${task.progress}%` }}
+        />
+      </div>
+
+      {/* Task acceptance stepper */}
+      <TaskAcceptanceStepper
+        displayStatus={displayStatus}
+        isWaitingForApproval={isWaitingForApproval}
+        isDone={isDone}
+        hasMainProduct={hasMainProduct}
+        task={task}
+      />
+
       {/* Status info banner */}
       {isReopenRequested && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-orange-800">
+            <p className="text-sm font-medium text-warning">
               Reopen Requested
             </p>
-            <p className="text-xs text-orange-600 mt-1">
+            <p className="text-xs text-warning mt-1">
               {isExpert
                 ? "The client has requested changes. You can now edit the mini tasks and confirm them again."
                 : "You have requested a revision. The expert can now edit the mini tasks."}
@@ -545,13 +518,13 @@ export default function TaskDetailPage() {
       )}
 
       {isNeedsRevision && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-orange-800">
+            <p className="text-sm font-medium text-warning">
               Decline
             </p>
-            <p className="text-xs text-orange-600 mt-1">
+            <p className="text-xs text-warning mt-1">
               The client has declined this task and requested changes.
             </p>
           </div>
@@ -559,13 +532,13 @@ export default function TaskDetailPage() {
       )}
 
       {isExpert && isWaitingForApproval && task?.urgentRequest !== true && (
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <Clock3 className="w-5 h-5 text-purple-500 flex-shrink-0 mt-0.5" />
+        <div className="bg-accent-light border border-accent/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <Clock3 className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-purple-800">
+            <p className="text-sm font-semibold text-accent">
               Waiting for Client Approval
             </p>
-            <p className="text-xs text-purple-600 mt-1">
+            <p className="text-xs text-accent mt-1">
               You have submitted this task for client review. The client will approve or request changes.
             </p>
           </div>
@@ -574,18 +547,18 @@ export default function TaskDetailPage() {
 
       {/* Urgent request banner (Expert sees this) */}
       {isExpert && task?.urgentRequest === true && (
-        <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="bg-destructive-light border border-destructive/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-red-800">
+            <p className="text-sm font-semibold text-destructive">
               Urgent Request
             </p>
-            <p className="text-xs text-red-650 mt-1">
+            <p className="text-xs text-destructive mt-1">
               Client đang yêu cầu sản phẩm khẩn cấp cho task này. Vui lòng nộp sản phẩm để chuyển sang trạng thái chờ duyệt.
             </p>
             {task?.urgentRequestedAt && (
-              <p className="text-xs text-red-400 mt-1 font-mono">
-                Requested: {new Date(task.urgentRequestedAt).toLocaleString("en-US", {
+              <p className="text-xs text-destructive/70 mt-1 font-mono">
+                Requested: {safeDateTimeFormat(task.urgentRequestedAt, {
                   month: "short",
                   day: "numeric",
                   hour: "2-digit",
@@ -598,13 +571,13 @@ export default function TaskDetailPage() {
       )}
 
       {isTaskLocked && (
-        <div className="bg-brand-green/10 border border-brand-green/20 rounded-lg p-4 mb-6 flex items-start gap-3">
-          <Lock className="w-5 h-5 text-brand-green flex-shrink-0 mt-0.5" />
+        <div className="bg-success-light border border-success/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+          <Lock className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-brand-green">
+            <p className="text-sm font-medium text-success">
               Task Completed — Locked
             </p>
-            <p className="text-xs text-brand-green/80 mt-1">
+            <p className="text-xs text-success/80 mt-1">
               This task has been approved and is now locked. No further modifications can be made.
             </p>
           </div>
@@ -614,14 +587,14 @@ export default function TaskDetailPage() {
       {/* Revision request modal (3-step flow) */}
       {showRevisionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
             {/* Step 1: Revision Type Selection */}
             {revisionStep === "select-type" && (
               <>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3 className="text-lg font-bold text-foreground mb-2">
                   What would you like to revise?
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Choose whether to reopen the entire task or only specific mini tasks.
                 </p>
                 <div className="space-y-3 mb-6">
@@ -629,8 +602,8 @@ export default function TaskDetailPage() {
                     className={cn(
                       "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
                       revisionType === "entire"
-                        ? "border-brand-primary bg-brand-primary-light"
-                        : "border-gray-200 hover:border-brand-primary/20"
+                        ? "border-primary bg-primary-light"
+                        : "border-border hover:border-primary/20"
                     )}
                   >
                     <input
@@ -639,19 +612,19 @@ export default function TaskDetailPage() {
                       value="entire"
                       checked={revisionType === "entire"}
                       onChange={() => setRevisionType("entire")}
-                      className="w-4 h-4 text-brand-primary"
+                      className="w-4 h-4 text-primary"
                     />
                     <div>
-                      <p className="font-semibold text-gray-900">Entire Task</p>
-                      <p className="text-xs text-gray-500">Reopen all mini tasks for revision</p>
+                      <p className="font-semibold text-foreground">Entire Task</p>
+                      <p className="text-xs text-muted-foreground">Reopen all mini tasks for revision</p>
                     </div>
                   </label>
                   <label
                     className={cn(
                       "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
                       revisionType === "mini"
-                        ? "border-brand-primary bg-brand-primary-light"
-                        : "border-gray-200 hover:border-brand-primary/20"
+                        ? "border-primary bg-primary-light"
+                        : "border-border hover:border-primary/20"
                     )}
                   >
                     <input
@@ -660,11 +633,11 @@ export default function TaskDetailPage() {
                       value="mini"
                       checked={revisionType === "mini"}
                       onChange={() => setRevisionType("mini")}
-                      className="w-4 h-4 text-brand-primary"
+                      className="w-4 h-4 text-primary"
                     />
                     <div>
-                      <p className="font-semibold text-gray-900">Specific Mini Tasks</p>
-                      <p className="text-xs text-gray-500">Select which mini tasks need revision</p>
+                      <p className="font-semibold text-foreground">Specific Mini Tasks</p>
+                      <p className="text-xs text-muted-foreground">Select which mini tasks need revision</p>
                     </div>
                   </label>
                 </div>
@@ -678,7 +651,7 @@ export default function TaskDetailPage() {
                       setSelectedMiniTaskIds(new Set());
                       setRevisionFeedback("");
                     }}
-                    className="h-11 px-5 border border-gray-300 text-gray-600 rounded-[14px] hover:bg-gray-50 text-base font-semibold"
+                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
                   >
                     Cancel
                   </button>
@@ -691,7 +664,7 @@ export default function TaskDetailPage() {
                         setRevisionStep("write-reason");
                       }
                     }}
-                    className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold"
+                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover text-sm font-medium"
                   >
                     Continue
                   </button>
@@ -702,10 +675,10 @@ export default function TaskDetailPage() {
             {/* Step 2: Select Mini Tasks (only for mini task revision) */}
             {revisionStep === "select-tasks" && (
               <>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3 className="text-lg font-bold text-foreground mb-2">
                   Select Mini Tasks to Revise
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Check the mini tasks you want the expert to revise.
                 </p>
                 <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
@@ -717,8 +690,8 @@ export default function TaskDetailPage() {
                         className={cn(
                           "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
                           isSelected
-                            ? "border-brand-primary bg-brand-primary-light"
-                            : "border-gray-200 hover:border-gray-300"
+                            ? "border-primary bg-primary-light"
+                            : "border-border hover:border-border/80"
                         )}
                       >
                         <input
@@ -730,9 +703,9 @@ export default function TaskDetailPage() {
                             else next.add(mt.id);
                             setSelectedMiniTaskIds(next);
                           }}
-                          className="w-4 h-4 text-brand-primary rounded"
+                          className="w-4 h-4 text-primary rounded"
                         />
-                        <span className="text-sm font-medium text-gray-800">{mt.title}</span>
+                        <span className="text-sm font-medium text-foreground">{mt.title}</span>
                       </label>
                     );
                   })}
@@ -744,7 +717,7 @@ export default function TaskDetailPage() {
                       setRevisionStep("select-type");
                       setSelectedMiniTaskIds(new Set());
                     }}
-                    className="h-11 px-5 border border-gray-300 text-gray-600 rounded-[14px] hover:bg-gray-50 text-base font-semibold"
+                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
                   >
                     Back
                   </button>
@@ -752,7 +725,7 @@ export default function TaskDetailPage() {
                     type="button"
                     onClick={() => setRevisionStep("write-reason")}
                     disabled={selectedMiniTaskIds.size === 0}
-                    className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold"
+                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     Continue
                   </button>
@@ -763,17 +736,17 @@ export default function TaskDetailPage() {
             {/* Step 3: Revision Reason */}
             {revisionStep === "write-reason" && (
               <>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
+                <h3 className="text-lg font-bold text-foreground mb-2">
                   Provide Revision Reason
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Describe what needs to be changed. This will be shown to the expert.
                 </p>
                 <textarea
                   value={revisionFeedback}
                   onChange={(e) => setRevisionFeedback(e.target.value)}
                   placeholder="Describe what needs to be changed..."
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary mb-6 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring/50 focus:border-ring mb-6 resize-none bg-input-background"
                   rows={4}
                   autoFocus
                 />
@@ -787,7 +760,7 @@ export default function TaskDetailPage() {
                       setSelectedMiniTaskIds(new Set());
                       setRevisionFeedback("");
                     }}
-                    className="h-11 px-5 border border-gray-300 text-gray-600 rounded-[14px] hover:bg-gray-50 text-base font-semibold"
+                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
                   >
                     Cancel
                   </button>
@@ -795,7 +768,7 @@ export default function TaskDetailPage() {
                     type="button"
                     onClick={handleRevisionClick}
                     disabled={revisionLoading || !revisionFeedback.trim()}
-                    className="h-11 px-5 bg-orange-600 text-white rounded-[14px] hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold inline-flex items-center gap-2 transition-colors"
+                    className="h-9 px-4 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center gap-2 transition-colors"
                   >
                     {revisionLoading ? (
                       <>
@@ -817,11 +790,11 @@ export default function TaskDetailPage() {
       )}
 
       {/* Mini tasks section */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-8 space-y-4">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div className="bg-card rounded-lg border border-border p-6 mb-8 space-y-4">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Mini Tasks</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-xl font-semibold text-foreground">Mini Tasks</h2>
+            <p className="text-sm text-muted-foreground">
               {isExpert
                 ? "Track and manage individual work items for this task."
                 : "View work breakdown for this task."}
@@ -841,7 +814,7 @@ export default function TaskDetailPage() {
         {/* Client: No mini tasks message */}
         {isClient && !hasMiniTasks && (
           <div className="py-4 text-center">
-            <p className="text-sm text-gray-400 italic">
+            <p className="text-sm text-muted-foreground italic">
               Mini tasks will be generated from the accepted proposal.
             </p>
           </div>
@@ -850,7 +823,7 @@ export default function TaskDetailPage() {
         {/* Expert: No mini tasks message */}
         {isExpert && !hasMiniTasks && (
           <div className="py-4 text-center">
-            <p className="text-sm text-gray-400 italic">
+            <p className="text-sm text-muted-foreground italic">
               Mini tasks are generated from the accepted proposal. Contact the client if tasks are missing.
             </p>
           </div>
@@ -858,12 +831,12 @@ export default function TaskDetailPage() {
 
         {/* ── Bottom action bar (Submit Product / Approve / Request Product / View Product) ── */}
         {((isExpert && !isDone) || isClient) && (
-          <div className="pt-4 border-t border-gray-100">
-            {/* Expert actions: Submit Product / Submit for Review */}
+          <div className="pt-4 border-t border-border">
+            {/* Expert actions: Submit Evidence / Submit Product */}
             {isExpert && !isDone && (
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {task?.urgentRequest === true ? (
+                  {task?.urgentRequest === true || task?.productRequested === true ? (
                     <Button
                       variant="default"
                       size="default"
@@ -873,7 +846,7 @@ export default function TaskDetailPage() {
                         setProductFileInput(task.productFile || "");
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-[14px] cursor-pointer"
+                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
                     >
                       <Send className="w-5 h-5" />
                       Submit Product (Nộp sản phẩm)
@@ -883,23 +856,23 @@ export default function TaskDetailPage() {
                       variant="default"
                       size="default"
                       fullWidth
-                      disabled={!allComplete || isWaitingForApproval}
-                      onClick={handleDoneClick}
-                      loading={submitLoading}
-                      className="flex-1 bg-brand-primary text-white hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-[14px] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      disabled={!allComplete || isWaitingForApproval || displayStatus === "Checklist Completed"}
+                      onClick={() => setShowEvidenceModal(true)}
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
-                      {submitLoading ? "Processing..." : "Submit for Review (Nộp để duyệt)"}
+                      <CheckCircle2 className="w-5 h-5" />
+                      {allComplete && !task?.handoverEvidence ? "Submit Handover Evidence" : displayStatus === "Checklist Completed" ? "Evidence Submitted ✓" : "Complete Mini Tasks First"}
                     </Button>
                   )}
                 </div>
-                {!allComplete && task?.urgentRequest !== true && (
-                  <p className="text-xs text-gray-400 text-center">
-                    Tích hoàn thành 100% Mini Tasks để mở khóa nút "Submit for Review".
+                {!allComplete && task?.urgentRequest !== true && task?.productRequested !== true && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Complete 100% of Mini Tasks to unlock evidence submission.
                   </p>
                 )}
-                {task?.urgentRequest === true && (
+                {(task?.urgentRequest === true || task?.productRequested === true) && (
                   <p className="text-xs text-red-500 font-semibold text-center animate-pulse">
-                    Client đang yêu cầu sản phẩm khẩn cấp! Nút "Submit Product" đã được mở khóa.
+                    Client has requested product delivery! Submit Product is now unlocked.
                   </p>
                 )}
               </div>
@@ -908,35 +881,64 @@ export default function TaskDetailPage() {
             {/* Client actions: Quick Accept, Request Product, View Product */}
             {isClient && (
               <div className="space-y-3">
-                {/* 1. Checklist Completed OR Waiting for Approval WITHOUT deliverables: Render Accept & Request Product if NOT requested yet */}
-                {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest !== true && (
+                {/* 1. Checklist Completed: Render Quick Accept & Request Product */}
+                {(task.displayStatus === "Checklist Completed") && !task.productRequested && (
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="success"
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={handleApproveClick}
+                      onClick={() => {
+                        setApproveLoading(true);
+                        try {
+                          handleQuickAccept(taskId);
+                          toast.success("Task accepted! (Quick Accept)");
+                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                        } catch (err) {
+                          toast.error("Failed to accept task.");
+                        } finally {
+                          setApproveLoading(false);
+                        }
+                      }}
                       icon={!approveLoading ? ThumbsUp : undefined}
                       className="flex-1 cursor-pointer font-bold bg-brand-green hover:bg-brand-green/90 text-white border-brand-green"
                     >
-                      {approveLoading ? "Processing..." : "Accept (Phê duyệt)"}
+                      {approveLoading ? "Processing..." : "Quick Accept"}
                     </Button>
                     <Button
                       variant="danger"
                       size="default"
                       fullWidth
                       loading={urgentLoading}
-                      onClick={handleUrgentClick}
+                      onClick={() => {
+                        setUrgentLoading(true);
+                        try {
+                          handleRequestProduct(taskId);
+                          toast.success("Product requested from expert!");
+                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                        } catch (err) {
+                          toast.error("Failed to request product.");
+                        } finally {
+                          setUrgentLoading(false);
+                        }
+                      }}
                       icon={!urgentLoading ? AlertTriangle : undefined}
                       className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer font-bold"
                     >
-                      {urgentLoading ? "Sending..." : "Request Product (Yêu cầu sản phẩm)"}
+                      {urgentLoading ? "Sending..." : "Request Product"}
                     </Button>
                   </div>
                 )}
 
-                {/* 1b. Checklist Completed OR Waiting for Approval WITHOUT deliverables: Render waiting banner if product has been requested */}
+                {/* 1b. Waiting for Expert Product: Show static wait message */}
+                {task.displayStatus === "Waiting for Expert Product" && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                    <p className="text-yellow-700 font-medium text-sm">
+                      ⏳ Waiting for Expert to submit product...
+                    </p>
+                  </div>
+                )}
                 {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
                   <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
                     <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
@@ -952,7 +954,7 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       onClick={() => setShowViewProductModalClient(true)}
-                      className="flex-1 bg-brand-primary text-white hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-[14px] cursor-pointer"
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       View Product (Xem sản phẩm)
@@ -968,21 +970,21 @@ export default function TaskDetailPage() {
       {/* Urgent request confirmation modal */}
       {showUrgentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+          <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                <h3 className="text-lg font-bold text-foreground mb-1">
                   Send Urgent Request?
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   This task is overdue or delayed. Do you want to request the Expert to complete and submit this task immediately?
                 </p>
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
               <Button
                 variant="outline"
                 size="default"
@@ -1009,12 +1011,12 @@ export default function TaskDetailPage() {
       {isNeedsRevision && task.declineReason && (
         <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 mb-8 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-red-650" />
+            <AlertTriangle className="w-5 h-5 text-red-600" />
             <h3 className="text-lg font-bold text-red-800">
               Lý do từ chối (Decline Reason)
             </h3>
           </div>
-          <p className="text-sm font-semibold text-red-700 leading-relaxed bg-white border border-red-200 rounded-lg p-4 font-sans">
+          <p className="text-sm font-semibold text-red-700 leading-relaxed bg-card border border-red-200 rounded-lg p-4 font-sans">
             {task.declineReason}
           </p>
         </div>
@@ -1023,16 +1025,16 @@ export default function TaskDetailPage() {
       {/* Submit Product Modal */}
       {showProductModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
+          <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
+            <h3 className="text-lg font-bold text-foreground mb-2">
               Nộp sản phẩm bàn giao (Deliverables)
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Cung cấp link sản phẩm hoặc tên file đính kèm để gửi cho Client kiểm tra.
             </p>
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-foreground/80 mb-1">
                   Link sản phẩm
                 </label>
                 <input
@@ -1040,11 +1042,11 @@ export default function TaskDetailPage() {
                   value={productLinkInput}
                   onChange={(e) => setProductLinkInput(e.target.value)}
                   placeholder="https://example.com/demo-product"
-                  className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
+                  className="w-full px-3.5 py-2 text-sm border border-input rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
+                <label className="block text-sm font-semibold text-foreground/80 mb-1">
                   Tên file
                 </label>
                 <input
@@ -1052,11 +1054,11 @@ export default function TaskDetailPage() {
                   value={productFileInput}
                   onChange={(e) => setProductFileInput(e.target.value)}
                   placeholder="project_output_v1.zip"
-                  className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
+                  className="w-full px-3.5 py-2 text-sm border border-input rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
               <Button
                 variant="outline"
                 size="default"
@@ -1071,7 +1073,7 @@ export default function TaskDetailPage() {
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
                 disabled={!productLinkInput.trim() && !productFileInput.trim()}
-                className="bg-brand-primary text-white hover:bg-brand-primary-hover font-semibold h-11 rounded-[14px]"
+                className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
               >
                 {productSubmitLoading ? "Đang gửi..." : "Gửi sản phẩm"}
               </Button>
@@ -1083,16 +1085,16 @@ export default function TaskDetailPage() {
       {/* Client View Product Modal */}
       {showViewProductModalClient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-2xl w-full max-w-2xl overflow-hidden text-left">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden text-left">
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 font-sans">Sản phẩm nộp cho: {task?.title}</h3>
-                <p className="text-xs text-gray-500 mt-0.5 font-sans">Chi tiết các file và link do chuyên gia cung cấp</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Sản phẩm nộp cho: {task?.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Chi tiết các file và link do chuyên gia cung cấp</p>
               </div>
               <button
                 onClick={() => setShowViewProductModalClient(false)}
-                className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1102,12 +1104,12 @@ export default function TaskDetailPage() {
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto font-sans">
               <div className="space-y-4">
                 {!task?.productLink && !task?.productFile ? (
-                  <p className="text-sm text-gray-500 italic text-center">Chuyên gia chưa upload sản phẩm nào.</p>
+                  <p className="text-sm text-muted-foreground italic text-center">Chuyên gia chưa upload sản phẩm nào.</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {task?.productLink && (
-                      <div className="flex flex-col p-3 bg-gray-50 rounded-xl border border-gray-250 text-left">
-                        <span className="text-xs font-semibold text-gray-500 uppercase font-sans">Link sản phẩm bàn giao</span>
+                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
                         <a
                           href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                           target="_blank"
@@ -1120,9 +1122,9 @@ export default function TaskDetailPage() {
                       </div>
                     )}
                     {task?.productFile && (
-                      <div className="flex flex-col p-3 bg-gray-50 rounded-xl border border-gray-250 text-left">
-                        <span className="text-xs font-semibold text-gray-500 uppercase font-sans">Tên file sản phẩm</span>
-                        <span className="text-sm text-gray-700 font-medium mt-1 font-mono truncate">
+                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Tên file sản phẩm</span>
+                        <span className="text-sm text-foreground/80 font-medium mt-1 font-mono truncate">
                           {task.productFile}
                         </span>
                       </div>
@@ -1133,13 +1135,13 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 font-sans">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans">
               {isWaitingForApproval ? (
                 <>
                   <button
                     type="button"
                     onClick={handleDeclineFromModalClient}
-                    className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-750 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                    className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <X className="w-4 h-4" />
                     Từ chối (Decline)
@@ -1157,7 +1159,7 @@ export default function TaskDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowViewProductModalClient(false)}
-                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-sm transition-all border border-gray-200 shadow-sm font-sans cursor-pointer"
+                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-bold rounded-xl text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
                 >
                   Đóng
                 </button>
@@ -1167,12 +1169,83 @@ export default function TaskDetailPage() {
         </div>
       )}
 
+      {/* Evidence Submission Modal (Expert) */}
+      {showEvidenceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">Submit Handover Evidence</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Required before Client can review: {task?.title}
+                </p>
+              </div>
+              <button onClick={() => setShowEvidenceModal(false)} className="p-1.5 rounded-full hover:bg-muted cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1">Git Commit SHA (optional)</label>
+                <input
+                  type="text"
+                  value={evidenceGitSha}
+                  onChange={(e) => setEvidenceGitSha(e.target.value)}
+                  placeholder="e.g., a1b2c3d"
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">Report/Demo Link (optional)</label>
+                <input
+                  type="text"
+                  value={evidenceReportLink}
+                  onChange={(e) => setEvidenceReportLink(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Explanation <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={evidenceExplanation}
+                  onChange={(e) => setEvidenceExplanation(e.target.value)}
+                  placeholder="Describe what was completed, any important notes for the client..."
+                  rows={4}
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEvidenceModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleEvidenceSubmit}
+                  disabled={evidenceSubmitting || !evidenceExplanation.trim()}
+                  className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {evidenceSubmitting ? "Submitting..." : "Submit Evidence"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Activity Timeline */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mt-8">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+      <div className="bg-card rounded-lg border border-border p-6 mt-8">
+        <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Activity Timeline</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-xl font-semibold text-foreground">Activity Timeline</h2>
+            <p className="text-sm text-muted-foreground">
               Chronological record of all task actions.
             </p>
           </div>
@@ -1182,6 +1255,46 @@ export default function TaskDetailPage() {
           loading={false}
           compact={false}
         />
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Task Acceptance Stepper — visual progress row
+// ---------------------------------------------------------------------------
+
+function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, hasMainProduct, task }) {
+  const steps = [
+    { label: "MiniTasks Done", done: displayStatus === "Checklist Completed" || isWaitingForApproval || isDone, active: displayStatus !== "Checklist Completed" && !isWaitingForApproval && !isDone },
+    { label: "Evidence Submitted", done: displayStatus === "Checklist Completed" || isWaitingForApproval || isDone, active: false },
+    { label: "Product Delivered", done: hasMainProduct || isDone, active: displayStatus === "Checklist Completed" && !hasMainProduct },
+    { label: "Client Approved", done: isDone, active: isWaitingForApproval },
+  ];
+
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6 mb-6">
+      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Task Progress</h3>
+      <div className="flex flex-wrap items-center gap-0">
+        {steps.map((step, i) => (
+          <div key={step.label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {step.done ? "✓" : i + 1}
+              </div>
+              <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
+                {step.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-success" : "bg-muted"}`} />
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

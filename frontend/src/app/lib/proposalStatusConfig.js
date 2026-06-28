@@ -33,7 +33,7 @@ export const PROPOSAL_STATUS = {
   },
   withdrawn: {
     label: "Withdrawn",
-    className: "bg-gray-100 text-gray-600",
+    className: "bg-secondary text-muted-foreground",
     icon: XCircle,
     meaning: "The expert withdrew this proposal before a decision was made.",
   },
@@ -45,27 +45,33 @@ export const PROPOSAL_STATUS = {
   },
   pending_escrow: {
     label: "Pending Payment",
-    className: "bg-amber-100 text-amber-750",
+    className: "bg-amber-100 text-amber-700",
     icon: Clock,
     meaning: "The client accepted the proposal, pending escrow payment.",
   },
   pending_pay: {
     label: "Pending Pay",
-    className: "bg-amber-100 text-amber-750",
+    className: "bg-amber-100 text-amber-700",
     icon: Clock,
     meaning: "The client accepted the proposal, pending escrow payment.",
   },
   report: {
     label: "Reported",
-    className: "bg-red-105 text-red-700",
+    className: "bg-red-100 text-red-700",
     icon: AlertCircle,
     meaning: "This proposal/project has been reported.",
   },
   reported: {
     label: "Reported",
-    className: "bg-red-105 text-red-700",
+    className: "bg-red-100 text-red-700",
     icon: AlertCircle,
     meaning: "This proposal/project has been reported.",
+  },
+  expired: {
+    label: "Expired",
+    className: "bg-gray-100 text-gray-500 line-through",
+    icon: Clock,
+    meaning: "This proposal has expired after 7 days without client response.",
   },
 };
 

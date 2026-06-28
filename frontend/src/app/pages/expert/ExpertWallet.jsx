@@ -3,7 +3,7 @@ import {
   Wallet,
   TrendingUp,
   Clock,
-  DollarSign,
+  ReceiptText,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -112,10 +112,10 @@ export function ExpertWallet() {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48" />
+          <div className="h-8 bg-muted rounded w-48" />
           <div className="grid grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 bg-gray-200 rounded-xl" />
+              <div key={i} className="h-24 bg-muted rounded-xl" />
             ))}
           </div>
         </div>
@@ -130,8 +130,8 @@ export function ExpertWallet() {
       </BackButton>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">My Wallet</h1>
-          <p className="text-gray-600 mb-8">
+          <h1 className="text-2xl font-bold text-foreground mb-2">My Wallet</h1>
+          <p className="text-muted-foreground mb-8">
             Manage your earnings and withdrawals.
           </p>
         </div>
@@ -140,42 +140,42 @@ export function ExpertWallet() {
 
       {/* Wallet stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
               <Wallet className="w-5 h-5 text-green-700" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Available Balance</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-muted-foreground">Available Balance</p>
+              <p className="text-2xl font-bold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
               <Clock className="w-5 h-5 text-yellow-700" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Pending / In Escrow</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-muted-foreground">Pending / In Escrow</p>
+              <p className="text-2xl font-bold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.pendingBalance ?? 0} />
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
               <TrendingUp className="w-5 h-5 text-purple-700" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Earned</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-muted-foreground">Total Earned</p>
+              <p className="text-2xl font-bold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.totalEarned ?? 0} />
               </p>
             </div>
@@ -185,16 +185,16 @@ export function ExpertWallet() {
 
       {/* Active projects with escrow */}
       {activeProjects.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">Active Projects</h2>
+        <div className="bg-card rounded-2xl border border-border shadow-sm mb-8">
+          <div className="p-6 border-b border-border/60">
+            <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
           </div>
           <div className="divide-y">
             {activeProjects.map((proj) => (
               <div key={proj.id} className="p-6 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{proj.title}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-foreground">{proj.title}</p>
+                  <p className="text-sm text-muted-foreground">
                     Escrow: <MoneyDisplay amount={proj.escrowAmount} />
                   </p>
                 </div>
@@ -205,59 +205,59 @@ export function ExpertWallet() {
       )}
 
       {/* Transaction history */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="bg-card rounded-2xl border border-border shadow-sm">
+        <div className="p-6 border-b border-border/60">
+          <h2 className="text-lg font-semibold text-foreground">
             Transaction History
           </h2>
         </div>
 
         {!data?.transactions?.length ? (
           <div className="p-12 text-center">
-            <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No transactions yet.</p>
+            <ReceiptText className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
+            <p className="text-muted-foreground">No transactions yet.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
+                <tr className="border-b border-border/60 bg-secondary/50">
+                  <th className="text-left px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
                     Description
                   </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
                     Amount
                   </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
                     Status
                   </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">
+                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
                     Date
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50/50">
+                  <tr key={tx.id} className="hover:bg-secondary/50">
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-900">{tx.description}</p>
+                      <p className="text-sm text-foreground">{tx.description}</p>
                       {tx.projectTitle && (
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {tx.projectTitle}
                         </p>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
                       <MoneyDisplay amount={tx.amount} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-gray-100 text-gray-700"}`}
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-secondary text-foreground/80"}`}
                       >
                         {tx.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-sm text-gray-500">
+                    <td className="px-6 py-4 text-right text-sm text-muted-foreground">
                       {new Date(tx.createdAt).toLocaleDateString()}
                     </td>
                   </tr>

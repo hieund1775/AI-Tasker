@@ -238,10 +238,31 @@ export function AuthProvider({ children }) {
           role,
           name: email.split("@")[0],
         });
+        const tokenPayload = decodeJwtPayload(token);
+        // Resolve the real mock DB user so we get the correct id and fullName.
+        // Pages require user.id to pass their data-fetching guards.
+        let userId = tokenPayload?.sub; // fallback from token
+        let fullName = email.split("@")[0];
+        if (import.meta.env.VITE_USE_MOCK_DB === "true") {
+          try {
+            const { listUsers } = await import("../../data/mockDatabase.js");
+            const allUsers = listUsers();
+            const mockUser = allUsers.find(
+              (u) => u.email?.toLowerCase() === email.toLowerCase()
+            );
+            if (mockUser) {
+              userId = mockUser.id;
+              fullName = mockUser.fullName || fullName;
+            }
+          } catch {
+            // Non-critical — fall back to token-derived values
+          }
+        }
         const userObj = {
+          id: userId,
           role,
           email,
-          name: email.split("@")[0],
+          name: fullName,
           hasProfile: true,
         };
         return handleAuthSuccess(token, userObj, true);

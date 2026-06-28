@@ -10,6 +10,12 @@ import {
   updateMiniTaskInTask,
   toggleMiniTaskCompletion,
   submitTaskForReview,
+  submitTaskHandoverEvidence,
+  quickAcceptTask,
+  requestTaskProduct,
+  expertSubmitTaskProduct,
+  clientAcceptTaskProduct,
+  clientDeclineTaskProduct,
   approveTaskSubmission,
   requestTaskRevision,
   requestTaskReopen,
@@ -51,27 +57,38 @@ export function deriveTaskDisplayStatus(task) {
   const hasMiniTasks = miniTasks.length > 0;
 
   // 1. Done
-  if (rawStatus === "completed" || rawStatus === "done" || task.approval === "Approved") {
+  if (rawStatus === "completed" || rawStatus === "done" || task.approval === "Approved" || task.approval === "Quick Accepted") {
     const allDone = miniTasks.every(
       (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
     );
-    if (allDone) return "Done";
+    if (allDone || rawStatus === "completed" || rawStatus === "done") return "Done";
   }
 
-  // 2. Waiting For Approval
-  if (rawStatus === "pending_review" || rawStatus === "pending review") {
+  // 2. Rework (orange)
+  if (rawStatus === "rework") return "Rework";
+
+  // 3. Waiting For Approval
+  if (rawStatus === "waiting_for_approval" || rawStatus === "pending_review" || rawStatus === "pending review") {
     return "Waiting For Approval";
   }
 
-  // 3. Checklist Completed
+  // 4. Waiting for Expert Product
+  if (rawStatus === "waiting_expert_product") return "Waiting for Expert Product";
+
+  // 5. Checklist Completed
+  if (rawStatus === "checklist_completed") return "Checklist Completed";
+
   const allCompleted = hasMiniTasks && miniTasks.every(
     (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
   );
   if (allCompleted) {
+    // All mini tasks done but no handover evidence yet — stays In Progress
+    if (!task.handoverEvidence) return "In Progress";
+    // Has evidence but status not updated (legacy) — return Checklist Completed
     return "Checklist Completed";
   }
 
-  // 4. Decline
+  // 6. Decline / Needs Revision
   if (
     rawStatus === "needs_revision" ||
     rawStatus === "needs revision" ||
@@ -81,10 +98,10 @@ export function deriveTaskDisplayStatus(task) {
     return "Decline";
   }
 
-  // 5. Not Started
+  // 7. Not Started
   if (!hasMiniTasks) return "Not Started";
 
-  // 6. In Progress (reopen requested or normal checklist progress)
+  // 8. In Progress
   if (
     rawStatus === "reopen_requested" ||
     rawStatus === "reopen requested"
@@ -282,6 +299,57 @@ export function useProjectProgress(projectId, role) {
     [role]
   );
 
+  // ---- Evidence-based task flow handlers (new spec) ----
+
+  const handleSubmitHandoverEvidence = useCallback(
+    (taskId, evidence) => {
+      if (role !== "expert") return null;
+      if (!areAllMiniTasksCompleted(taskId)) return null;
+      return submitTaskHandoverEvidence(taskId, expert?.fullName, evidence);
+    },
+    [role, areAllMiniTasksCompleted, expert]
+  );
+
+  const handleQuickAccept = useCallback(
+    (taskId) => {
+      if (role !== "client") return null;
+      return quickAcceptTask(taskId, client?.fullName);
+    },
+    [role, client]
+  );
+
+  const handleRequestProduct = useCallback(
+    (taskId) => {
+      if (role !== "client") return null;
+      return requestTaskProduct(taskId, client?.fullName);
+    },
+    [role, client]
+  );
+
+  const handleExpertSubmitProduct = useCallback(
+    (taskId, productLink, productFile) => {
+      if (role !== "expert") return null;
+      return expertSubmitTaskProduct(taskId, expert?.fullName, productLink, productFile);
+    },
+    [role, expert]
+  );
+
+  const handleClientAcceptProduct = useCallback(
+    (taskId) => {
+      if (role !== "client") return null;
+      return clientAcceptTaskProduct(taskId, client?.fullName);
+    },
+    [role, client]
+  );
+
+  const handleClientDeclineProduct = useCallback(
+    (taskId, feedback) => {
+      if (role !== "client") return null;
+      return clientDeclineTaskProduct(taskId, client?.fullName, feedback);
+    },
+    [role, client]
+  );
+
   // ---- Review workflow handlers ----
 
   const handleSubmitForReview = useCallback(
@@ -408,6 +476,15 @@ export function useProjectProgress(projectId, role) {
     handleRemoveMiniTask,
     handleReorderMiniTasks,
     handleUpdateMiniTask,
+    // Evidence-based task flow (new spec)
+    handleSubmitHandoverEvidence,
+    handleQuickAccept,
+    handleRequestProduct,
+    handleExpertSubmitProduct,
+    handleClientAcceptProduct,
+    handleClientDeclineProduct,
+
+    // Legacy review workflow handlers
     handleSubmitForReview,
     handleSubmitProduct,
     handleApproveTask,

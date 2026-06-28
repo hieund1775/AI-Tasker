@@ -107,7 +107,7 @@ export function ReportForm({
 
   if (!project) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="p-6 text-center text-muted-foreground">
         Project information not found.
       </div>
     );
@@ -116,8 +116,8 @@ export function ReportForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* ---- Auto-filled project info ---- */}
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+      <div className="bg-secondary/60 rounded-xl p-4 border border-border">
+        <h3 className="text-sm font-semibold text-foreground/80 mb-3">
           Project Information
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -157,7 +157,7 @@ export function ReportForm({
 
       {/* ---- Expert-entered fields ---- */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Report Reason <span className="text-red-500">*</span>
         </label>
         <input
@@ -166,7 +166,7 @@ export function ReportForm({
           onChange={(e) => setReason(e.target.value)}
           placeholder="e.g. Client has not paid after project completion"
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-            errors.reason ? "border-red-300" : "border-gray-300"
+            errors.reason ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -176,13 +176,13 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Dispute Type <span className="text-red-500">*</span>
         </label>
         <select
           value={disputeType}
           onChange={(e) => setDisputeType(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand-primary"
+          className="w-full px-4 py-2.5 border border-input rounded-lg text-sm focus:outline-none focus:border-brand-primary"
           disabled={isLoading}
         >
           {DISPUTE_TYPES.map((t) => (
@@ -194,7 +194,7 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Detailed Description <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -203,7 +203,7 @@ export function ReportForm({
           placeholder="Describe the issue in detail, timeline of events..."
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.description ? "border-red-300" : "border-gray-300"
+            errors.description ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -213,7 +213,7 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Desired Resolution <span className="text-red-500">*</span>
         </label>
         <textarea
@@ -222,7 +222,7 @@ export function ReportForm({
           placeholder="How would you like this to be resolved?"
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.desiredResolution ? "border-red-300" : "border-gray-300"
+            errors.desiredResolution ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -236,7 +236,7 @@ export function ReportForm({
       {/* ---- Evidence upload ---- */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-foreground/80">
             Evidence <span className="text-red-500">*</span>
           </label>
           <button
@@ -254,9 +254,9 @@ export function ReportForm({
         )}
 
         {evidence.length === 0 && (
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-            <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">
+          <div className="border-2 border-dashed border-input rounded-xl p-6 text-center">
+            <Upload className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
               No evidence added yet. Click &quot;Add Evidence&quot; to upload
               images, documents, or screenshots.
             </p>
@@ -267,14 +267,14 @@ export function ReportForm({
           {evidence.map((item) => (
             <div
               key={item.id}
-              className="p-3 border border-gray-200 rounded-lg bg-gray-50/50 space-y-3"
+              className="p-3 border border-border rounded-lg bg-secondary/50 space-y-3"
             >
               <div className="flex items-start justify-between">
-                <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+                <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <button
                   type="button"
                   onClick={() => removeEvidence(item.id)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition"
+                  className="p-1 text-muted-foreground hover:text-red-500 transition"
                   disabled={isLoading}
                 >
                   <X className="w-4 h-4" />
@@ -288,7 +288,7 @@ export function ReportForm({
                   updateEvidence(item.id, "name", e.target.value)
                 }
                 placeholder="Evidence name (e.g. Chat screenshot)"
-                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
+                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
                 disabled={isLoading}
               />
 
@@ -309,7 +309,7 @@ export function ReportForm({
                   updateEvidence(item.id, "note", e.target.value)
                 }
                 placeholder="Note for this evidence (optional)"
-                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
+                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
                 disabled={isLoading}
               />
             </div>
@@ -334,7 +334,7 @@ export function ReportForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
+          className="px-5 py-2.5 border border-input rounded-lg text-sm font-medium text-foreground/80 hover:bg-secondary/60 disabled:opacity-50 transition"
         >
           Cancel
         </button>
@@ -364,8 +364,8 @@ export function ReportForm({
 function InfoRow({ label, value }) {
   return (
     <div>
-      <span className="text-gray-500">{label}:</span>{" "}
-      <span className="font-medium text-gray-800">{value}</span>
+      <span className="text-muted-foreground">{label}:</span>{" "}
+      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
 }

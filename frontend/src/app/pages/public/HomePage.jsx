@@ -1,76 +1,130 @@
+import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
-import { Search, Users, Briefcase, ArrowRight } from "lucide-react";
+import { Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "next-themes";
+import { HeroSection } from "../../components/landing/HeroSection.jsx";
+import { HowItWorks } from "../../components/landing/HowItWorks.jsx";
+import { ProductShowcase } from "../../components/landing/ProductShowcase.jsx";
 
 export function HomePage() {
+  const { theme, setTheme, resolvedTheme } = useTheme();
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const themeRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (themeRef.current && !themeRef.current.contains(e.target)) {
+        setShowThemeMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const getThemeIcon = () => {
+    if (theme === "system") return <Monitor className="w-4 h-4" />;
+    return resolvedTheme === "dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />;
+  };
+
   return (
-    <div className="min-h-screen bg-white relative flex flex-col font-sans">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-2.5">
-            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">AI</span>
+      <nav className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-hover rounded-lg flex items-center justify-center relative overflow-hidden">
+              <div
+                className="absolute inset-0 opacity-30 rounded-lg"
+                style={{ background: 'radial-gradient(circle at 40% 30%, white 0%, transparent 60%)' }}
+              />
+              <span className="text-primary-foreground font-bold text-sm relative z-[1]">AI</span>
             </div>
-            <span className="text-[22px] font-bold text-gray-900">Tasker</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="px-5 py-2.5 text-[15px] font-medium text-gray-700 hover:text-brand-primary transition-colors">
+            <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+          </Link>
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <div className="relative" ref={themeRef}>
+              <button
+                type="button"
+                onClick={() => setShowThemeMenu(!showThemeMenu)}
+                className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                title="Change theme"
+              >
+                {getThemeIcon()}
+              </button>
+              {showThemeMenu && (
+                <div className="absolute right-0 top-10 w-36 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
+                  <div className="p-1">
+                    {[
+                      { mode: "light", icon: Sun, label: "Light" },
+                      { mode: "dark", icon: Moon, label: "Dark" },
+                      { mode: "system", icon: Monitor, label: "System" },
+                    ].map(({ mode, icon: Icon, label }) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => { setTheme(mode); setShowThemeMenu(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          theme === mode
+                            ? "bg-accent-light text-accent font-medium"
+                            : "text-foreground hover:bg-secondary"
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <Link
+              to="/login"
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
               Log In
             </Link>
-            <Link to="/signup" className="px-6 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-lg font-semibold text-[15px] shadow-sm transition-colors">
+            <Link
+              to="/signup"
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-all duration-200 hover:shadow-sm"
+            >
               Sign Up
             </Link>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-blue-50 to-white">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">Connect with Top AI Experts</h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Professional platform connecting businesses with skilled AI professionals for your projects
-          </p>
-          <div className="flex justify-center">
-            <Link to="/signup" className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium inline-flex items-center justify-center gap-2">
-              Get Started <ArrowRight className="w-5 h-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Hero */}
+      <HeroSection />
 
-      {/* Features */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { icon: Search, color: "bg-brand-primary-light text-brand-primary", title: "Post Your Project", desc: "Describe your AI project needs and requirements" },
-              { icon: Users, color: "bg-green-100 text-green-700", title: "Review Proposals", desc: "Receive and evaluate proposals from qualified experts" },
-              { icon: Briefcase, color: "bg-orange-100 text-orange-700", title: "Start Working", desc: "Collaborate with your chosen expert to complete the project" },
-            ].map((item, i) => (
-              <div key={i} className="text-center">
-                <div className={`w-16 h-16 ${item.color} rounded-lg flex items-center justify-center mx-auto mb-4`}>
-                  <item.icon className="w-8 h-8" />
+      {/* How It Works */}
+      <HowItWorks />
+
+      {/* Product Showcase */}
+      <ProductShowcase />
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-xs">AI</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{item.title}</h3>
-                <p className="text-gray-600">{item.desc}</p>
-              </div>
-            ))}
+                <span className="text-sm font-semibold text-foreground tracking-tight">Tasker</span>
+              </Link>
+              <span className="hidden sm:inline text-xs text-muted-foreground/40">|</span>
+              <p className="text-xs text-muted-foreground">
+                Connecting businesses with AI experts worldwide.
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground/60">
+              &copy; {new Date().getFullYear()} AI Tasker. All rights reserved.
+            </p>
           </div>
         </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50 flex-1">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Get Started?</h2>
-          <p className="text-xl text-gray-600 mb-8">Join thousands of businesses and AI experts on our platform</p>
-          <Link to="/signup" className="px-8 py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium inline-block">
-            Sign Up Now
-          </Link>
-        </div>
-      </section>
+      </footer>
     </div>
   );
 }

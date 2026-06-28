@@ -1,63 +1,105 @@
-import { FileText, Sparkles, Users, Rocket } from 'lucide-react';
+import { FileText, Handshake, Rocket, Sparkles, Users } from "lucide-react";
+import { motion } from "motion/react";
+import { useScrollReveal } from "../../hooks/useScrollReveal.js";
 
-export function HowItWorks() {
-  const steps = [
-    {
-      icon: FileText,
-      title: 'Describe your AI project',
-      description: 'Share your requirements and project details'
-    },
-    {
-      icon: Sparkles,
-      title: 'AI analyzes requirements',
-      description: 'Our AI processes and understands your needs'
-    },
-    {
-      icon: Users,
-      title: 'Get matched with experts',
-      description: 'Receive personalized expert recommendations'
-    },
-    {
-      icon: Rocket,
-      title: 'Start collaboration',
-      description: 'Begin working with your chosen expert'
-    }
-  ];
+const steps = [
+  {
+    icon: FileText,
+    title: "Post a real project brief",
+    description: "Clients share goals, budget, skills and timeline in a structured project post.",
+    accent: "text-accent",
+    bg: "bg-accent-light",
+  },
+  {
+    icon: Sparkles,
+    title: "AI ranks suitable experts",
+    description: "The platform highlights experts that match the project needs and domain.",
+    accent: "text-warning",
+    bg: "bg-warning-light",
+  },
+  {
+    icon: Users,
+    title: "Review proposals clearly",
+    description: "Clients compare proposals, experts, budgets and delivery timelines before hiring.",
+    accent: "text-success",
+    bg: "bg-success-light",
+  },
+  {
+    icon: Handshake,
+    title: "Collaborate to delivery",
+    description: "Accepted work becomes a tracked project with tasks, messages and payment records.",
+    accent: "text-destructive",
+    bg: "bg-destructive-light",
+  },
+];
+
+function StepCard({ step, index }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.2, triggerOnce: false });
+  const Icon = step.icon;
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-gray-50 via-white to-purple-50/20">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-          <p className="text-xl text-gray-600">Simple, fast, and powered by AI</p>
+    <motion.div
+      ref={ref}
+      initial={false}
+      animate={isVisible ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 28, scale: 0.98 }}
+      transition={{ duration: 0.45, delay: isVisible ? index * 0.08 : 0, ease: [0.22, 1, 0.36, 1] }}
+      className="relative"
+    >
+      <div className="group relative h-full overflow-hidden rounded-2xl border border-border bg-card p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-foreground/5">
+        <div className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-accent/45 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+        <div className="relative flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${step.bg} ${step.accent} ring-1 ring-current/10`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-bold text-secondary-foreground ring-1 ring-border">
+              {index + 1}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-foreground">{step.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.description}</p>
+          </div>
         </div>
+      </div>
+      {index < steps.length - 1 && (
+        <div className="absolute left-[calc(100%+0.75rem)] top-1/2 hidden w-10 items-center lg:flex">
+          <div className="h-px flex-1 bg-gradient-to-r from-border via-muted-foreground/30 to-transparent" />
+          <Rocket className="ml-1 h-4 w-4 text-muted-foreground/50" />
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {steps.map((step, index) => {
-            const Icon = step.icon;
-            return (
-              <div key={index} className="relative">
-                <div className="bg-white rounded-2xl p-8 border border-gray-200 hover:shadow-xl hover:border-purple-200 transition-all h-full group hover:scale-105">
-                  <div className="flex flex-col items-center text-center space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow">
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
+export function HowItWorks() {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.2, triggerOnce: false });
 
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
-                      {index + 1}
-                    </div>
+  return (
+    <section className="relative overflow-hidden bg-secondary/25 px-4 py-24 sm:px-6 lg:px-8">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_0%,var(--accent-light),transparent_45%)]" />
+      <div className="relative mx-auto max-w-7xl">
+        <motion.div
+          ref={ref}
+          initial={false}
+          animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto mb-14 max-w-2xl text-center"
+        >
+          <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            <Sparkles className="h-3.5 w-3.5 text-accent" />
+            How it works
+          </span>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">A clear flow from project idea to paid delivery</h2>
+          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+            The homepage now explains the actual product workflow: post project, match experts, review proposals, and manage delivery.
+          </p>
+        </motion.div>
 
-                    <h3 className="font-semibold text-gray-900">{step.title}</h3>
-                    <p className="text-sm text-gray-600 leading-relaxed">{step.description}</p>
-                  </div>
-                </div>
-
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-3 w-6 h-0.5 bg-gradient-to-r from-blue-300 to-purple-300" />
-                )}
-              </div>
-            );
-          })}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {steps.map((step, index) => (
+            <StepCard key={step.title} step={step} index={index} />
+          ))}
         </div>
       </div>
     </section>

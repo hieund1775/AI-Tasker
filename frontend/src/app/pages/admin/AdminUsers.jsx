@@ -143,10 +143,10 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "User",
       render: (val, row) => (
         <div>
-          <p className="text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-foreground">
             {val || row.name || "—"}
           </p>
-          <p className="text-xs text-gray-500">{row.email || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
         </div>
       ),
     },
@@ -156,7 +156,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       render: (val) => (
         <span
           className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            ROLE_COLORS[val?.toLowerCase()] || "bg-gray-100 text-gray-700"
+            ROLE_COLORS[val?.toLowerCase()] || "bg-secondary text-foreground/80"
           }`}
         >
           {val || "—"}
@@ -174,7 +174,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       key: "createdAt",
       label: "Joined",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -190,10 +190,10 @@ export function AdminUsers({ excludeRoles = [] }) {
         Back to Dashboard
       </BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         User Management
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage platform users.
       </p>
 
@@ -212,21 +212,21 @@ export function AdminUsers({ excludeRoles = [] }) {
       {/* Filter row */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by name or email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-card"
           >
             {ROLE_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

@@ -36,9 +36,9 @@ const typeIcons = {
 };
 
 const statusColors = {
-  completed: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  failed: "bg-red-100 text-red-700",
+  completed: "bg-success/10 text-success",
+  pending: "bg-warning/10 text-warning",
+  failed: "bg-destructive/10 text-destructive",
 };
 
 // ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ export function Billing() {
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
-      
+
       // Update local wallet state
       setData((prev) => ({
         ...prev,
@@ -213,10 +213,10 @@ export function Billing() {
     return (
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48" />
+          <div className="h-8 bg-secondary rounded w-48" />
           <div className="grid grid-cols-2 gap-4">
-            <div className="h-24 bg-gray-200 rounded-xl" />
-            <div className="h-24 bg-gray-200 rounded-xl" />
+            <div className="h-24 bg-secondary rounded-xl" />
+            <div className="h-24 bg-secondary rounded-xl" />
           </div>
         </div>
       </div>
@@ -226,16 +226,16 @@ export function Billing() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Billing &amp; Payments</h1>
-      <p className="text-gray-600 mb-8">Manage your wallet, escrow payments, and transaction history.</p>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Billing &amp; Payments</h1>
+      <p className="text-muted-foreground mb-8">Manage your wallet, escrow payments, and transaction history.</p>
 
       {/* Feedback banner */}
       {feedback && (
         <div
           className={`mb-6 p-4 rounded-xl text-sm font-medium ${
             feedback.type === "success"
-              ? "bg-green-50 text-green-700 border border-green-200"
-              : "bg-red-50 text-red-700 border border-red-200"
+              ? "bg-success-light text-success border border-success/20"
+              : "bg-destructive-light text-destructive border border-destructive/20"
           }`}
         >
           {feedback.message}
@@ -244,28 +244,28 @@ export function Billing() {
 
       {/* Wallet cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-brand-primary-light rounded-xl flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-brand-primary" />
+            <div className="w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Available Balance</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-muted-foreground">Available Balance</p>
+              <p className="text-2xl font-bold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-purple-700" />
+            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center">
+              <Shield className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">In Escrow</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm text-muted-foreground">In Escrow</p>
+              <p className="text-2xl font-bold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.escrowBalance ?? 0} />
               </p>
             </div>
@@ -275,16 +275,16 @@ export function Billing() {
 
       {/* Active projects with escrow */}
       {data?.activeProjects?.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900">Active Projects</h2>
+        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+          <div className="p-6 border-b border-border">
+            <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
           </div>
           <div className="divide-y">
             {data.activeProjects.map((proj) => (
               <div key={proj.id} className="p-6 flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{proj.title}</p>
-                  <p className="text-sm text-gray-500">
+                  <p className="font-medium text-foreground">{proj.title}</p>
+                  <p className="text-sm text-muted-foreground">
                     Escrow: <MoneyDisplay amount={proj.escrowAmount} />
                   </p>
                 </div>
@@ -298,20 +298,20 @@ export function Billing() {
 
       {/* Deposit to escrow */}
       {isEscrowRedirect && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-8">
-          <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Deposit to Escrow</h2>
+        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+          <div className="p-6 border-b border-border flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Deposit to Escrow</h2>
           </div>
 
           {showDepositForm && (
             <div className="p-6">
               <form onSubmit={handleDeposit} className="space-y-4 max-w-md">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-2">Project</label>
+                  <label className="block text-sm font-semibold text-muted-foreground mb-2">Project</label>
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-gray-50 cursor-not-allowed text-gray-600 font-medium"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
                     required
                     disabled={isEscrowRedirect}
                   >
@@ -328,14 +328,14 @@ export function Billing() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-600 mb-2">Amount</label>
+                  <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount</label>
                   <input
                     type="number"
                     min="1"
                     step="1"
                     value={depositAmount || ""}
                     onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-gray-50 cursor-not-allowed text-gray-600 font-medium"
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
                     placeholder="500"
                     required
                     disabled={isEscrowRedirect}
@@ -345,7 +345,7 @@ export function Billing() {
                   <button
                     type="submit"
                     disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
-                    className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold shadow-sm transition-all"
+                    className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
                   >
                     {submitting ? "Processing..." : "Xác nhận ký quỹ"}
                   </button>
@@ -353,7 +353,7 @@ export function Billing() {
                     <button
                       type="button"
                       onClick={() => setShowDepositForm(false)}
-                      className="h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold"
+                      className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-colors"
                     >
                       Cancel
                     </button>
@@ -366,49 +366,51 @@ export function Billing() {
       )}
 
       {/* Transaction history */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
-        <div className="p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
+      <div className="bg-card rounded-xl border border-border shadow-sm">
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
         </div>
 
         {!data?.transactions?.length ? (
           <div className="p-12 text-center">
-            <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No transactions yet.</p>
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+              <Clock className="w-7 h-7 text-muted-foreground/30" />
+            </div>
+            <p className="text-muted-foreground">No transactions yet.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Type</th>
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Description</th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Amount</th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-gray-500 uppercase">Date</th>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-border/50">
                 {data.transactions.map((tx) => {
                   const Icon = typeIcons[tx.type] || Clock;
                   return (
-                    <tr key={tx.id} className="hover:bg-gray-50/50">
+                    <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <Icon className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm text-gray-700">{typeLabels[tx.type] || tx.type}</span>
+                          <Icon className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm text-foreground">{typeLabels[tx.type] || tx.type}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">{tx.description}</td>
-                      <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 text-sm text-muted-foreground">{tx.description}</td>
+                      <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
                         <MoneyDisplay amount={tx.amount} />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-gray-100 text-gray-700"}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-secondary text-muted-foreground"}`}>
                           {tx.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-sm text-gray-500">
+                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
                         {new Date(tx.createdAt).toLocaleDateString()}
                       </td>
                     </tr>

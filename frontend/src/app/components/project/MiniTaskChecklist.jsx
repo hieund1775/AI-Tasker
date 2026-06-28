@@ -2,6 +2,7 @@ import { CheckSquare, Square, Loader2, AlertCircle, Edit3 } from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { cn } from "../../lib/utils.js";
+import { safeDateTimeFormat } from "../../lib/safety.js";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -39,10 +40,10 @@ export function MiniTaskChecklist({
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="flex items-center gap-3 p-2 rounded-lg bg-gray-50"
+            className="flex items-center gap-3 p-2 rounded-lg bg-secondary"
           >
-            <div className="w-4 h-4 rounded bg-gray-200" />
-            <div className="h-3 bg-gray-200 rounded w-3/4" />
+            <div className="w-4 h-4 rounded bg-muted" />
+            <div className="h-3 bg-muted rounded w-3/4" />
           </div>
         ))}
       </div>
@@ -57,7 +58,7 @@ export function MiniTaskChecklist({
     };
     return (
       <div className="py-4 text-center">
-        <p className="text-sm text-gray-400 italic">
+        <p className="text-sm text-muted-foreground italic">
           {emptyMessage || (editable ? defaultMessages.expert : defaultMessages.client)}
         </p>
       </div>
@@ -102,7 +103,7 @@ export function MiniTaskChecklist({
   return (
     <div className={cn("space-y-1", !compact && "space-y-2")}>
       {allComplete && (
-        <div className="flex items-center gap-2 text-sm text-brand-green font-medium mb-2 px-1">
+        <div className="flex items-center gap-2 text-sm text-success font-medium mb-2 px-1">
           <CheckSquare className="w-4 h-4" />
           All {miniTasks.length} mini tasks completed
         </div>
@@ -121,8 +122,8 @@ export function MiniTaskChecklist({
             key={mini.id || idx}
             className={cn(
               "flex items-start gap-3 rounded-lg transition-colors border border-transparent",
-              compact ? "p-1.5" : "p-3 hover:bg-gray-50/50 rounded-lg",
-              editable && !isDone && !isEditingThis && "hover:bg-gray-50"
+              compact ? "p-1.5" : "p-3 hover:bg-secondary/50 rounded-lg",
+              editable && !isDone && !isEditingThis && "hover:bg-secondary"
             )}
           >
             {/* Checkbox (only show when not editing) */}
@@ -134,8 +135,8 @@ export function MiniTaskChecklist({
                   className={cn(
                     "flex-shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
                     isDone
-                      ? "bg-brand-green border-brand-green text-white"
-                      : "border-gray-300 hover:border-brand-primary/50"
+                      ? "bg-success border-success text-success-foreground"
+                      : "border-input hover:border-primary/50"
                   )}
                   title={isDone ? "Mark as incomplete" : "Mark as complete"}
                 >
@@ -160,8 +161,8 @@ export function MiniTaskChecklist({
                   className={cn(
                     "flex-shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center",
                     isDone
-                      ? "bg-brand-green border-brand-green text-white"
-                      : "border-gray-200 bg-gray-50"
+                      ? "bg-success border-success text-success-foreground"
+                      : "border-border bg-muted"
                   )}
                 >
                   {isDone && (
@@ -185,59 +186,59 @@ export function MiniTaskChecklist({
 
             {/* Content / Edit Form */}
             {isEditingThis ? (
-              <div className="flex-1 min-w-0 space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200 text-left">
+              <div className="flex-1 min-w-0 space-y-3 p-3 bg-secondary rounded-lg border border-border text-left">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 font-sans">Tiêu đề MiniTask</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Tiêu đề MiniTask</label>
                   <input
                     type="text"
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans bg-white"
+                    className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring bg-input-background"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 font-sans">Mô tả</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Mô tả</label>
                   <textarea
                     value={editDesc}
                     onChange={(e) => setEditDesc(e.target.value)}
                     rows={2}
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none font-sans bg-white"
+                    className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring resize-none bg-input-background"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 font-sans">Link sản phẩm</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Link sản phẩm</label>
                     <input
                       type="text"
                       value={editLink}
                       onChange={(e) => setEditLink(e.target.value)}
                       placeholder="https://example.com/product"
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans bg-white"
+                      className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring bg-input-background"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1 font-sans">Tên file đính kèm</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Tên file đính kèm</label>
                     <input
                       type="text"
                       value={editFile}
                       onChange={(e) => setEditFile(e.target.value)}
                       placeholder="artifact_v1.zip"
-                      className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-primary font-sans bg-white"
+                      className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring bg-input-background"
                     />
                   </div>
                 </div>
-                <div className="flex justify-end gap-2 text-xs pt-2 border-t border-gray-200">
+                <div className="flex justify-end gap-2 text-xs pt-2 border-t border-border">
                   <button
                     type="button"
                     onClick={() => setEditingId(null)}
-                    className="px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 font-semibold font-sans"
+                    className="px-2.5 py-1.5 border border-border text-foreground rounded-md hover:bg-secondary font-semibold"
                   >
                     Hủy
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSave(mini.id)}
-                    className="px-2.5 py-1.5 bg-brand-primary text-white rounded-md hover:bg-brand-primary-hover font-semibold font-sans"
+                    className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary-hover font-semibold"
                   >
                     Lưu
                   </button>
@@ -249,38 +250,38 @@ export function MiniTaskChecklist({
                   className={cn(
                     "text-sm",
                     isDone
-                      ? "text-gray-400 line-through decoration-gray-300"
-                      : "text-gray-800 font-medium"
+                      ? "text-muted-foreground line-through decoration-muted-foreground/30"
+                      : "text-foreground font-medium"
                   )}
                 >
                   {mini.title}
                 </span>
                 {!compact && mini.description && (
-                  <p className="text-sm text-gray-500 mt-0.5">
+                  <p className="text-sm text-muted-foreground mt-0.5">
                     {mini.description}
                   </p>
                 )}
                 {!compact && mini.estimatedTime && (
-                  <p className="text-sm text-gray-400 mt-0.5 font-mono">
+                  <p className="text-sm text-muted-foreground mt-0.5 font-mono">
                     Est: {mini.estimatedTime}
                   </p>
                 )}
 
                 {/* Deliverables details */}
                 {(mini.productLink || mini.productFile) && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs bg-gray-50 p-2 rounded-lg border border-gray-100 w-fit">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs bg-secondary p-2 rounded-lg border border-border w-fit">
                     {mini.productLink && (
                       <a
                         href={mini.productLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-brand-primary hover:underline font-semibold flex items-center gap-0.5 font-sans"
+                        className="text-accent hover:underline font-semibold flex items-center gap-0.5"
                       >
                         Link sản phẩm
                       </a>
                     )}
                     {mini.productFile && (
-                      <span className="text-gray-600 font-medium bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-sans">
+                      <span className="text-muted-foreground font-medium bg-muted px-1.5 py-0.5 rounded border border-border">
                         File: {mini.productFile}
                       </span>
                     )}
@@ -289,24 +290,24 @@ export function MiniTaskChecklist({
 
                 {/* Revision info */}
                 {needsRevision && (
-                  <div className="mt-1.5 p-2 bg-orange-50 border border-orange-200 rounded-md text-left">
-                    <p className="text-sm font-semibold text-orange-700 flex items-center gap-1 font-sans">
+                  <div className="mt-1.5 p-2 bg-warning-light border border-warning/20 rounded-md text-left">
+                    <p className="text-sm font-semibold text-warning flex items-center gap-1">
                       <AlertCircle className="w-3 h-3" />
                       Needs Revision
                     </p>
                     {mini.revisionReason && (
-                      <p className="text-sm text-orange-600 mt-0.5 font-sans">
+                      <p className="text-sm text-warning mt-0.5">
                         Reason: {mini.revisionReason}
                       </p>
                     )}
                     {mini.revisionRequestedBy && (
-                      <p className="text-sm text-orange-500 mt-0.5 font-sans">
+                      <p className="text-sm text-warning mt-0.5">
                         Requested by: {mini.revisionRequestedBy}
                       </p>
                     )}
                     {mini.revisionRequestedAt && (
-                      <p className="text-sm text-orange-400 mt-0.5 font-mono">
-                        {new Date(mini.revisionRequestedAt).toLocaleDateString("en-US", {
+                      <p className="text-sm text-warning/70 mt-0.5 font-mono">
+                        {safeDateTimeFormat(mini.revisionRequestedAt, {
                           month: "short",
                           day: "numeric",
                           hour: "2-digit",
@@ -318,10 +319,10 @@ export function MiniTaskChecklist({
                 )}
                 {isDone && mini.completedAt && (
                   <div className="mt-1 text-left">
-                    <p className="text-sm text-brand-green font-sans">
+                    <p className="text-sm text-success">
                       Completed:{" "}
                       <span className="font-mono">
-                        {new Date(mini.completedAt).toLocaleDateString("en-US", {
+                        {safeDateTimeFormat(mini.completedAt, {
                           month: "short",
                           day: "numeric",
                           hour: "2-digit",
@@ -330,7 +331,7 @@ export function MiniTaskChecklist({
                       </span>
                     </p>
                     {mini.completedBy && (
-                      <p className="text-sm text-brand-green/70 font-sans">
+                      <p className="text-sm text-success/70">
                         by {mini.completedBy}
                       </p>
                     )}
@@ -346,13 +347,13 @@ export function MiniTaskChecklist({
                   <button
                     type="button"
                     onClick={() => startEditing(mini)}
-                    className="text-xs font-semibold text-brand-primary hover:text-brand-primary-hover px-2.5 py-1 border border-gray-250 rounded-lg bg-white shadow-sm transition-all font-sans cursor-pointer"
+                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer"
                   >
                     Sửa
                   </button>
                 )}
                 {compact && isDone && (
-                  <span className="text-sm text-brand-green font-medium font-sans">
+                  <span className="text-sm text-success font-medium">
                     Done
                   </span>
                 )}

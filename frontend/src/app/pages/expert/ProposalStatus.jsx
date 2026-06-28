@@ -3,13 +3,18 @@ import { Link } from "react-router";
 import {
   FileText,
   Eye,
+  Clock,
+  Send,
 } from "lucide-react";
 import { Button } from "../../components/ui/button.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
 
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
+import { safeDateFormat } from "../../lib/safety.js";
 
 // Status helpers — delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
@@ -21,6 +26,22 @@ function findConversationId(projectId, expertId) {
   const expertConvs = [];
   const conv = expertConvs.find((c) => c.projectId === projectId);
   return conv ? conv.id : null;
+}
+
+// ---------------------------------------------------------------------------
+// Relative time helper
+// ---------------------------------------------------------------------------
+
+function relativeTime(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  const diff = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff < 7) return `${diff} days ago`;
+  if (diff < 30) return `${Math.floor(diff / 7)}w ago`;
+  return safeDateFormat(dateStr, { month: "short", day: "numeric" });
 }
 
 // ---------------------------------------------------------------------------
@@ -89,115 +110,106 @@ export function ProposalStatus() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Proposals</h1>
-          <p className="text-gray-500 mt-0.5 text-sm">
-            Track your submitted proposals and their status
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="My Proposals"
+        subtitle="Track your submitted proposals and their status"
+      />
 
       {/* Empty state */}
       {proposals.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
-            No proposals submitted
-          </h3>
-          <p className="text-base text-gray-400">
-            No proposals have been submitted yet.
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
+          <div className="relative w-20 h-20 mx-auto mb-5">
+            <div className="absolute inset-0 rounded-full bg-muted/40" />
+            <div className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <Send className="w-9 h-9 text-muted-foreground/25" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">No proposals yet</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Browse available jobs and submit proposals to get started.
           </p>
+          <Link
+            to="/expert/find-jobs"
+            className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover text-sm font-medium inline-flex items-center gap-2 transition-colors"
+          >
+            Find Jobs
+          </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {proposals.map((proposal) => {
+        <div className="space-y-3">
+          {proposals.map((proposal, i) => {
             const statusCfg = getStatusConfig(proposal.status);
             const StatusIcon = statusCfg.icon;
             const convId = findConversationId(proposal.projectId, user?.id || "current-user");
+            const relTime = relativeTime(proposal.createdAt);
+
+            const statusBorderColor = (() => {
+              const s = proposal.status?.toLowerCase();
+              if (s === "pending") return "border-l-warning";
+              if (s === "accepted" || s === "active") return "border-l-success";
+              if (s === "under_review" || s === "under review") return "border-l-accent";
+              if (s === "declined" || s === "rejected") return "border-l-destructive";
+              if (s === "withdrawn") return "border-l-muted-foreground";
+              if (s === "pending_escrow" || s === "pending_pay" || s === "pending pay" || s === "pending escrow") return "border-l-amber-500";
+              return "border-l-muted";
+            })();
 
             return (
-              <div
-                key={proposal.id}
-                className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-md transition-shadow"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                  {/* Left: Info */}
-                  <div className="flex-1 min-w-0">
-                    {/* Status badge — above title */}
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-current ${statusCfg.className} mb-2`}
-                    >
-                      <StatusIcon className="w-3.5 h-3.5" />
-                      {statusCfg.label}
-                    </span>
+              <AnimatedReveal key={proposal.id} delay={i}>
+                <div
+                  className={`group bg-card rounded-xl border border-border p-5 hover:shadow-md transition-all duration-200 border-l-4 ${statusBorderColor}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                    {/* Left: Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusCfg.className}`}>
+                          <StatusIcon className="w-3.5 h-3.5" />
+                          {statusCfg.label}
+                        </span>
+                        {relTime && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {relTime}
+                          </span>
+                        )}
+                      </div>
 
-                    {/* Title */}
-                    <h3 className="font-semibold text-gray-900 text-lg leading-snug mb-2">
-                      {proposal.proposalTitle}
-                    </h3>
+                      <h3 className="font-semibold text-foreground text-lg leading-snug mb-2 group-hover:text-accent transition-colors">
+                        {proposal.proposalTitle}
+                      </h3>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base text-gray-500">
-                      <span>
-                        Client:{" "}
-                        <span className="font-medium text-gray-700">
-                          {proposal.clientName}
-                          {proposal.clientCompany ? ` · ${proposal.clientCompany}` : ""}
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+                        <span className="text-muted-foreground">
+                          Client: <span className="font-medium text-foreground">{proposal.clientName}{proposal.clientCompany ? ` · ${proposal.clientCompany}` : ""}</span>
                         </span>
-                      </span>
-                      <span>
-                        Bid:{" "}
-                        <span className="font-semibold text-gray-900">
-                          <MoneyDisplay amount={proposal.bidAmount} />
+                        <span className="text-muted-foreground">
+                          Bid: <span className="font-bold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
                         </span>
-                      </span>
-                      <span>
-                        Duration:{" "}
-                        <span className="font-medium text-gray-700">
-                          {proposal.durationDays} days
+                        <span className="text-muted-foreground">
+                          Duration: <span className="font-medium text-foreground">{proposal.durationDays} days</span>
                         </span>
-                      </span>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Submitted {safeDateFormat(proposal.createdAt, { year: "numeric", month: "long", day: "numeric" }, "—")}
+                      </p>
                     </div>
 
-                    <p className="text-sm text-gray-400 mt-2">
-                      Submitted{" "}
-                      {proposal.createdAt
-                        ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })
-                        : "—"}
-                    </p>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex flex-col gap-2 sm:min-w-[180px] items-stretch">
-                    <Button
-                      variant="default"
-                      size="default"
-                      asChild
-                      className="w-full"
-                    >
-                      <Link to={`/expert/proposals/${proposal.id}`}>
-                        <Eye className="w-4 h-4" />
-                        View Proposal
-                      </Link>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="default"
-                      asChild
-                      className="w-full"
-                    >
-                      <Link to={`/expert/jobs/${proposal.jobPostId}`}>
-                        View Detail
-                      </Link>
-                    </Button>
+                    {/* Right: Actions */}
+                    <div className="flex flex-col gap-2 sm:min-w-[170px] items-stretch">
+                      <Button variant="default" size="default" asChild className="w-full shadow-sm">
+                        <Link to={`/expert/proposals/${proposal.id}`}>
+                          <Eye className="w-4 h-4" /> View Proposal
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="default" asChild className="w-full">
+                        <Link to={`/expert/jobs/${proposal.jobPostId}`}>View Job</Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </AnimatedReveal>
             );
           })}
         </div>

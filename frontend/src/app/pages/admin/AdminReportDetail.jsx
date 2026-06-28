@@ -25,6 +25,7 @@ import {
   Loader2,
   Eye,
   Download,
+  Shield,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
@@ -32,6 +33,9 @@ import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import api from "../../../services/api.js";
 import {
   getReportDetail,
@@ -54,11 +58,11 @@ import {
 // ---------------------------------------------------------------------------
 
 const REPORT_STATUS_CONFIG = {
-  "Pending Admin": { color: "bg-yellow-100 text-yellow-750 border border-yellow-250", label: "Pending Admin" },
-  "Awaiting Expert": { color: "bg-amber-100 text-amber-750 border border-amber-250", label: "Awaiting Expert" },
-  "Awaiting Client": { color: "bg-blue-100 text-blue-750 border border-blue-250", label: "Awaiting Client" },
-  Resolved: { color: "bg-green-100 text-green-750 border border-green-250", label: "Resolved" },
-  Rejected: { color: "bg-red-100 text-red-750 border border-red-250", label: "Rejected" },
+  "Pending Admin": { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
+  "Awaiting Expert": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Expert" },
+  "Awaiting Client": { color: "bg-secondary text-secondary-foreground border border-border", label: "Awaiting Client" },
+  Resolved: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
+  Rejected: { color: "bg-red-100 text-red-700 border border-red-200", label: "Rejected" },
 };
 
 // ---------------------------------------------------------------------------
@@ -75,6 +79,9 @@ export function AdminReportDetail() {
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  // Tab state for Client/Expert panels — reporter is default
+  const [activePartyTab, setActivePartyTab] = useState("reporter"); // "reporter" | "responder"
 
   // Modal states
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -132,8 +139,13 @@ export function AdminReportDetail() {
     }
 
     function calculateTime() {
-      const now = new Date().getTime();
+      const now = Date.now();
       const deadline = new Date(report.replyDeadline).getTime();
+      if (Number.isNaN(deadline)) {
+        setTimeLeft("N/A");
+        setIsDeadlineExpired(false);
+        return;
+      }
       const diff = deadline - now;
 
       if (diff <= 0) {
@@ -391,9 +403,9 @@ export function AdminReportDetail() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="h-64 bg-gray-200 rounded-2xl" />
-          <div className="h-48 bg-gray-200 rounded-2xl" />
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="h-64 bg-muted rounded-2xl" />
+          <div className="h-48 bg-muted rounded-2xl" />
         </div>
       </div>
     );
@@ -408,12 +420,12 @@ export function AdminReportDetail() {
         <BackButton fallback="/admin/disputes" className="mb-6">
           Back to Dispute List
         </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
           <AlertTriangle className="w-12 h-12 text-red-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500">
+          <h3 className="text-lg font-semibold text-muted-foreground">
             {error || "Report Not Found"}
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             This report may have been removed or does not exist.
           </p>
         </div>
@@ -448,31 +460,29 @@ export function AdminReportDetail() {
         </div>
       )}
 
-      {/* ---- Header ---- */}
-      <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {report.reportName || report.projectTitle || `Report #${id}`}
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-            <StatusBadge status={report.status} config={REPORT_STATUS_CONFIG} />
-            {report.disputeType && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {report.disputeType}
-              </span>
-            )}
-          </div>
-        </div>
-        <p className="text-sm text-gray-500">
-          Submitted: {formatDateTime(report.submittedAt || report.createdAt)}
-        </p>
-      </div>
+      <PageHeader
+        title={report.reportName || report.projectTitle || `Report #${id}`}
+        subtitle="Dispute Report Detail — review evidence, collect responses, and make an escrow-safe decision."
+        badge={<StatusBadge status={report.status} config={REPORT_STATUS_CONFIG} />}
+        illustration={
+          <svg width="180" height="140" viewBox="0 0 180 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M90 15 L110 25 L110 45 L90 55 L70 45 L70 25 Z" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <circle cx="90" cy="35" r="12" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="90" y1="23" x2="90" y2="47" stroke="currentColor" strokeWidth="0.3" opacity="0.2" />
+            <line x1="78" y1="35" x2="102" y2="35" stroke="currentColor" strokeWidth="0.3" opacity="0.2" />
+            <rect x="55" y="70" width="70" height="50" rx="8" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="65" y1="80" x2="115" y2="80" stroke="currentColor" strokeWidth="0.3" opacity="0.2" />
+            <line x1="65" y1="88" x2="105" y2="88" stroke="currentColor" strokeWidth="0.3" opacity="0.15" />
+            <line x1="65" y1="96" x2="110" y2="96" stroke="currentColor" strokeWidth="0.3" opacity="0.15" />
+          </svg>
+        }
+      />
 
       {/* Deadline warning banner */}
       {(report.status === "Awaiting Expert" || report.status === "Awaiting Client") && (
-        <div className="mb-6 p-4 bg-red-55/70 border border-red-200 text-red-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="mb-6 p-4 bg-red-50/70 border border-red-200 text-red-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-105 rounded-lg text-red-650">
+            <div className="p-2 bg-red-100 rounded-lg text-red-600">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
@@ -522,156 +532,157 @@ export function AdminReportDetail() {
         <div className="lg:col-span-2 space-y-6">
           {/* Project info */}
           <SectionCard title="Project Information" icon={FileText}>
-            <DetailGrid>
-              <DetailItem label="Project ID" value={report.projectId} />
-              <DetailItem
-                label="Funds in Escrow"
-                value={
-                  <span className="font-semibold text-brand-primary">
-                    <MoneyDisplay
-                      amount={report.amount || report.escrowAmount || 0}
-                    />
-                  </span>
-                }
-              />
-              <DetailItem
-                label="Project Status"
-                value={report.projectStatus || "—"}
-              />
-              <DetailItem
-                label="Start Date"
-                value={
-                  report.projectStartDate
-                    ? formatDateTime(report.projectStartDate)
-                    : "—"
-                }
-              />
-              <DetailItem
-                label="Deadline"
-                value={
-                  report.projectDeadline
-                    ? formatDateTime(report.projectDeadline)
-                    : "—"
-                }
-              />
-            </DetailGrid>
-          </SectionCard>
-
-          {/* Client & Expert info */}
-          <SectionCard title="Parties Involved" icon={User}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Client Panel */}
-              <div className={`p-4 bg-blue-50/50 rounded-xl border border-blue-100 flex flex-col justify-between transition-all relative ${
-                report.status === "Awaiting Client" ? "filter blur-[1.5px] opacity-50 pointer-events-none select-none" : ""
-              }`}>
-                {report.status === "Awaiting Client" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                    <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
-                      Chờ giải trình...
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold text-blue-750 uppercase tracking-wider mb-1">
-                    Client
-                  </p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {report.clientName || report.clientId || "—"}
-                  </p>
-                  {report.clientEmail && (
-                    <p className="text-xs text-gray-500 mb-3">{report.clientEmail}</p>
-                  )}
-                  
-                  {/* Explanation */}
-                  {report.reportType === "type2" ? (
-                    <div className="mt-3 pt-3 border-t border-blue-100/50 text-xs">
-                      <strong className="block text-gray-700 font-semibold mb-1">Giải trình phản hồi:</strong>
-                      <p className="text-gray-655 italic leading-relaxed">
-                        {report.clientExplanation || "Chưa gửi giải trình."}
-                      </p>
-                      {report.clientExplanationEvidence && report.clientExplanationEvidence.length > 0 && (
-                        <div className="mt-2 text-[11px] text-gray-500">
-                          <strong>Tài liệu:</strong> {report.clientExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-3 pt-3 border-t border-blue-100/50 text-xs">
-                      <span className="text-gray-550 italic">Bên báo cáo (Khởi tố vi phạm)</span>
-                    </div>
-                  )}
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Project ID</p>
+                <p className="text-sm text-foreground">{report.projectId}</p>
               </div>
-
-              {/* Expert Panel */}
-              <div className={`p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col justify-between transition-all relative ${
-                report.status === "Awaiting Expert" ? "filter blur-[1.5px] opacity-50 pointer-events-none select-none" : ""
-              }`}>
-                {report.status === "Awaiting Expert" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                    <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
-                      Chờ giải trình...
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs font-bold text-purple-750 uppercase tracking-wider mb-1">
-                    Expert
-                  </p>
-                  <p className="text-base font-semibold text-gray-900">
-                    {report.expertName || report.expertId || "—"}
-                  </p>
-                  {report.expertEmail && (
-                    <p className="text-xs text-gray-500 mb-3">{report.expertEmail}</p>
-                  )}
-
-                  {/* Explanation */}
-                  {report.reportType === "type1" ? (
-                    <div className="mt-3 pt-3 border-t border-purple-100/50 text-xs">
-                      <strong className="block text-gray-700 font-semibold mb-1">Giải trình phản hồi:</strong>
-                      <p className="text-gray-655 italic leading-relaxed">
-                        {report.expertExplanation || "Chưa gửi giải trình."}
-                      </p>
-                      {report.expertExplanationEvidence && report.expertExplanationEvidence.length > 0 && (
-                        <div className="mt-2 text-[11px] text-gray-500">
-                          <strong>Tài liệu:</strong> {report.expertExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="mt-3 pt-3 border-t border-purple-100/50 text-xs">
-                      <span className="text-gray-550 italic">Bên báo cáo (Khởi tố vi phạm)</span>
-                    </div>
-                  )}
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Funds in Escrow</p>
+                <p className="text-sm text-foreground"><span className="font-semibold text-brand-primary"><MoneyDisplay amount={report.amount || report.escrowAmount || 0} /></span></p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Project Status</p>
+                <p className="text-sm text-foreground">{report.projectStatus || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Start Date</p>
+                <p className="text-sm text-foreground">{report.projectStartDate ? formatDateTime(report.projectStartDate) : "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
+                <p className="text-sm text-foreground">{report.projectDeadline ? formatDateTime(report.projectDeadline) : "—"}</p>
               </div>
             </div>
+          </SectionCard>
+
+          {/* Client & Expert info — Tab-based */}
+          <SectionCard title="Parties Involved" icon={User}>
+            {(() => {
+              const isReporterClient = report.reporterRole === "client" || report.reportType === "type2";
+              const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
+              const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
+              const reporterName = isReporterClient
+                ? (report.clientName || report.clientId || "—")
+                : (report.expertName || report.expertId || "—");
+              const responderName = isReporterClient
+                ? (report.expertName || report.expertId || "—")
+                : (report.clientName || report.clientId || "—");
+              const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
+              const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
+              // Reporter explanation
+              const reporterExplanation = isReporterClient ? report.clientExplanation : report.expertExplanation;
+              const reporterEvidence = isReporterClient ? report.clientExplanationEvidence : report.expertExplanationEvidence;
+              // Responder explanation
+              const responderExplanation = isReporterClient ? report.expertExplanation : report.clientExplanation;
+              const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
+              const hasResponderResponded = !!responderExplanation;
+
+              return (
+                <div className="space-y-4">
+                  {/* Tab bar */}
+                  <div className="flex border-b border-border">
+                    <button
+                      type="button"
+                      onClick={() => setActivePartyTab("reporter")}
+                      className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                        activePartyTab === "reporter"
+                          ? "border-brand-primary text-brand-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {reporterLabel}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActivePartyTab("responder")}
+                      className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                        activePartyTab === "responder"
+                          ? "border-brand-primary text-brand-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {responderLabel}
+                      {!hasResponderResponded && (
+                        <span className="ml-1.5 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">
+                          Pending
+                        </span>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Tab content */}
+                  {activePartyTab === "reporter" ? (
+                    <div className="p-4 bg-muted/40 rounded-xl border border-border">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-1">
+                        Reporter
+                      </p>
+                      <p className="text-base font-semibold text-foreground">{reporterName}</p>
+                      {reporterEmail && <p className="text-xs text-muted-foreground mb-3">{reporterEmail}</p>}
+                      <div className="mt-3 pt-3 border-t border-border text-xs">
+                        <strong className="block text-foreground/80 font-semibold mb-1">Report filed:</strong>
+                        <p className="text-muted-foreground leading-relaxed">{report.reason || report.reportName || "—"}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-muted/40 rounded-xl border border-border">
+                      <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-1">
+                        Responder
+                      </p>
+                      <p className="text-base font-semibold text-foreground">{responderName}</p>
+                      {responderEmail && <p className="text-xs text-muted-foreground mb-3">{responderEmail}</p>}
+                      {hasResponderResponded ? (
+                        <div className="mt-3 pt-3 border-t border-border text-xs">
+                          <strong className="block text-foreground/80 font-semibold mb-1">Giải trình phản hồi:</strong>
+                          <p className="text-muted-foreground italic leading-relaxed">
+                            {responderExplanation}
+                          </p>
+                          {safeArray(responderEvidence).length > 0 && (
+                            <div className="mt-2 text-[11px] text-muted-foreground">
+                              <strong>Tài liệu:</strong> {safeArray(responderEvidence).map(e => e.fileName || e.name).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-3 pt-3 border-t border-border text-xs">
+                          <span className="text-muted-foreground italic">
+                            {report.status === "Awaiting Expert" || report.status === "Awaiting Client"
+                              ? "Responder has not responded yet. Waiting for explanation..."
+                              : "Responder has not responded yet."}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </SectionCard>
 
           {/* Report content */}
           <SectionCard title="Report Content" icon={AlertTriangle}>
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">
                   Report Reason
                 </p>
-                <p className="text-sm text-gray-800">
+                <p className="text-sm text-foreground">
                   {report.reason || "—"}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">
                   Detailed Description
                 </p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                <p className="text-sm text-foreground whitespace-pre-wrap">
                   {report.description || "—"}
                 </p>
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">
                   Desired Resolution
                 </p>
-                <p className="text-sm text-gray-800">
+                <p className="text-sm text-foreground">
                   {report.desiredResolution || "—"}
                 </p>
               </div>
@@ -681,21 +692,21 @@ export function AdminReportDetail() {
           {/* Evidence */}
           <SectionCard title="Evidence" icon={Eye}>
             {!report.evidence || report.evidence.length === 0 ? (
-              <p className="text-sm text-gray-400">No evidence provided.</p>
+              <p className="text-sm text-muted-foreground">No evidence provided.</p>
             ) : (
               <div className="space-y-3">
-                {report.evidence.map((item, idx) => (
+                {safeArray(report.evidence).map((item, idx) => (
                   <div
                     key={item.id || idx}
-                    className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg"
+                    className="flex items-start gap-3 p-3 border border-border rounded-lg"
                   >
-                    <FileText className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                    <FileText className="w-5 h-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800">
+                      <p className="text-sm font-medium text-foreground">
                         {item.name || `Evidence ${idx + 1}`}
                       </p>
                       {item.note && (
-                        <p className="text-xs text-gray-500 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {item.note}
                         </p>
                       )}
@@ -720,8 +731,8 @@ export function AdminReportDetail() {
 
         {/* ---- Right: Actions sidebar ---- */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 animate-none">
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sticky top-4">
+            <h3 className="text-sm font-semibold text-foreground/80 mb-4 animate-none">
               Admin Actions
             </h3>
 
@@ -732,7 +743,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowAcceptModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -745,7 +756,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowRejectModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -764,7 +775,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={handleCreateChat}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-muted text-foreground hover:bg-muted/80 border border-border rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -777,7 +788,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowEvidenceModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <AlertTriangle className="w-4 h-4" />
                   Yêu cầu bằng chứng
@@ -792,7 +803,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={handleCreateChat}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-muted text-foreground hover:bg-muted/80 border border-border rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -805,14 +816,14 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowEvidenceModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="w-full h-11 px-5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   <AlertTriangle className="w-4 h-4" />
                   Yêu cầu bằng chứng
                 </button>
 
-                <div className="border-t border-gray-100 pt-3">
-                  <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+                <div className="border-t border-border/60 pt-3">
+                  <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
                     Settle Decision:
                   </p>
                   {isType2 ? (
@@ -840,7 +851,7 @@ export function AdminReportDetail() {
                         type="button"
                         onClick={() => setShowContinueModal(true)}
                         disabled={actionLoading}
-                        className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
+                        className="w-full h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
                       >
                         <Play className="w-4 h-4" />
                         Continue Project
@@ -849,7 +860,7 @@ export function AdminReportDetail() {
                         type="button"
                         onClick={() => setShowStopModal(true)}
                         disabled={actionLoading}
-                        className="w-full h-11 px-5 bg-red-65 text-red-705 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                        className="w-full h-11 px-5 bg-red-100 text-red-700 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                       >
                         <StopCircle className="w-4 h-4" />
                         Stop Project
@@ -862,8 +873,8 @@ export function AdminReportDetail() {
 
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
             {(isResolved || isRejected) && (
-              <div className="p-4 bg-gray-50 rounded-lg text-center font-sans border border-gray-150">
-                <p className="text-sm font-semibold text-gray-700">
+              <div className="p-4 bg-secondary/60 rounded-lg text-center font-sans border border-border">
+                <p className="text-sm font-semibold text-foreground/80">
                   {isResolved
                     ? `Resolved — ${
                         report.resolution === "force_payout"
@@ -883,7 +894,7 @@ export function AdminReportDetail() {
                       : "Report closed"}
                 </p>
                 {report.adminNote && (
-                  <p className="text-xs text-gray-500 mt-2 border-t border-gray-100 pt-2 italic">
+                  <p className="text-xs text-muted-foreground mt-2 border-t border-border/60 pt-2 italic">
                     Ghi chú: {report.adminNote}
                   </p>
                 )}
@@ -923,7 +934,7 @@ export function AdminReportDetail() {
           placeholder="Enter the reason for rejecting this report..."
           rows={3}
           className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${
-            rejectReasonError ? "border-red-300" : "border-gray-300"
+            rejectReasonError ? "border-red-300" : "border-input"
           }`}
           disabled={actionLoading}
         />
@@ -962,7 +973,7 @@ export function AdminReportDetail() {
         <div className="space-y-4">
           {/* Stop reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
               Final Decision Reason <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -974,7 +985,7 @@ export function AdminReportDetail() {
               placeholder="Enter reason for stopping the project..."
               rows={3}
               className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${
-                stopReasonError ? "border-red-300" : "border-gray-300"
+                stopReasonError ? "border-red-300" : "border-input"
               }`}
               disabled={actionLoading}
             />
@@ -985,11 +996,11 @@ export function AdminReportDetail() {
 
           {/* Money handling */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Handle Escrow Funds:
             </label>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-secondary/60 transition">
                 <input
                   type="radio"
                   name="moneyAction"
@@ -1000,10 +1011,10 @@ export function AdminReportDetail() {
                   disabled={actionLoading}
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-foreground">
                     Refund to Client
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Refund the full{" "}
                     <MoneyDisplay
                       amount={report?.amount || report?.escrowAmount || 0}
@@ -1012,7 +1023,7 @@ export function AdminReportDetail() {
                   </p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-secondary/60 transition">
                 <input
                   type="radio"
                   name="moneyAction"
@@ -1023,10 +1034,10 @@ export function AdminReportDetail() {
                   disabled={actionLoading}
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-foreground">
                     Release to Expert
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Transfer the full{" "}
                     <MoneyDisplay
                       amount={report?.amount || report?.escrowAmount || 0}
@@ -1060,7 +1071,7 @@ export function AdminReportDetail() {
           placeholder="Nhập nội dung/lý do chi tiết yêu cầu bổ sung bằng chứng..."
           rows={3}
           className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            evidenceNoteError ? "border-red-300" : "border-gray-300"
+            evidenceNoteError ? "border-red-300" : "border-input"
           }`}
           disabled={actionLoading}
         />
@@ -1089,7 +1100,7 @@ export function AdminReportDetail() {
           placeholder="Nhập lý do cưỡng chế giải ngân..."
           rows={3}
           className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            forceReasonError ? "border-red-300" : "border-gray-300"
+            forceReasonError ? "border-red-300" : "border-input"
           }`}
           disabled={actionLoading}
         />
@@ -1118,7 +1129,7 @@ export function AdminReportDetail() {
           placeholder="Nhập lý do cưỡng chế hoàn tiền..."
           rows={3}
           className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${
-            forceReasonError ? "border-red-300" : "border-gray-300"
+            forceReasonError ? "border-red-300" : "border-input"
           }`}
           disabled={actionLoading}
         />
@@ -1126,37 +1137,6 @@ export function AdminReportDetail() {
           <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
         )}
       </ConfirmationModal>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helper sub-components
-// ---------------------------------------------------------------------------
-
-function SectionCard({ title, icon: Icon, children }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-gray-400" />}
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function DetailGrid({ children }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>
-  );
-}
-
-function DetailItem({ label, value }) {
-  return (
-    <div>
-      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-      <p className="text-sm text-gray-800">{value}</p>
     </div>
   );
 }

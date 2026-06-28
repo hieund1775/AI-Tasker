@@ -7,6 +7,7 @@ import {
   deriveTaskProgress,
   getTaskStatusClass,
 } from "../../lib/projectTimelineStore.js";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
 
 // Import real mock DB functions for data persistence
 import {
@@ -172,10 +173,12 @@ export function TaskUpdatePage() {
   if (!task) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">Task not found</h3>
-          <p className="text-sm text-gray-400">The task you are looking for may have been removed.</p>
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-muted-foreground/30" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">Task not found</h3>
+          <p className="text-sm text-muted-foreground">The task you are looking for may have been removed.</p>
         </div>
       </div>
     );
@@ -183,18 +186,18 @@ export function TaskUpdatePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+      <div className="bg-card rounded-xl border border-border p-8">
         {/* Header */}
         <div className="mb-6">
           {project && (
-            <p className="text-sm text-brand-primary font-medium mb-1">{project.title}</p>
+            <p className="text-sm text-primary font-medium mb-1">{project.title}</p>
           )}
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{task.title}</h1>
-          <p className="text-gray-600">{task.description}</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">{task.title}</h1>
+          <p className="text-muted-foreground">{task.description}</p>
         </div>
 
         {/* Meta */}
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTaskStatusClass(derivedStatus)}`}>
             {derivedStatus}
           </span>
@@ -208,15 +211,15 @@ export function TaskUpdatePage() {
           )}
           {task.dueDate && (
             <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" /> Due: {new Date(task.dueDate).toLocaleDateString()}
+              <Clock className="w-4 h-4" /> Due: {safeDateFormat(task.dueDate)}
             </span>
           )}
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+        <div className="w-full bg-secondary rounded-full h-2 mb-6">
           <div
-            className="bg-brand-primary h-2 rounded-full transition-all"
+            className="bg-primary h-2 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -224,39 +227,39 @@ export function TaskUpdatePage() {
         {/* Expert notes */}
         {task.expertNotes && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Expert Notes
             </h3>
-            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-4">{task.expertNotes}</p>
+            <p className="text-sm text-muted-foreground bg-muted rounded-lg p-4">{task.expertNotes}</p>
           </div>
         )}
 
         {/* Client feedback */}
         {task.clientFeedback && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Client Feedback
             </h3>
-            <p className="text-sm text-gray-600 bg-brand-primary-light rounded-lg p-4">{task.clientFeedback}</p>
+            <p className="text-sm text-muted-foreground bg-primary-light rounded-lg p-4">{task.clientFeedback}</p>
           </div>
         )}
 
         {/* Mini Tasks */}
         {task.miniTasks?.length > 0 && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-4">
+            <h3 className="font-semibold text-foreground mb-4">
               Mini Tasks ({completedMiniTasks}/{totalMiniTasks})
             </h3>
             <div className="space-y-3">
-              {task.miniTasks.map((mt) => {
+              {safeArray(task.miniTasks).map((mt) => {
                 const isDone = mt.status === "done";
                 return (
                   <div
                     key={mt.id}
-                    className={`border rounded-xl p-4 transition ${
+                    className={`border rounded-xl p-4 transition-colors ${
                       isDone
-                        ? "bg-brand-green/10 border-brand-green/20"
-                        : "bg-white border-gray-200"
+                        ? "bg-success/10 border-success/20"
+                        : "bg-card border-border"
                     }`}
                   >
                     {/* Top row: checkbox + title + status badge */}
@@ -264,10 +267,10 @@ export function TaskUpdatePage() {
                       <button
                         type="button"
                         onClick={() => handleToggleMiniTask(mt.id)}
-                        className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
+                        className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                           isDone
-                            ? "bg-brand-green border-brand-green text-white"
-                            : "border-gray-300 hover:border-brand-primary/50 text-transparent"
+                            ? "bg-success border-success text-success-foreground"
+                            : "border-border hover:border-ring/50 text-transparent"
                         }`}
                         title={isDone ? "Mark as incomplete" : "Mark as done"}
                       >
@@ -278,7 +281,7 @@ export function TaskUpdatePage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
                             className={`text-sm font-medium ${
-                              isDone ? "line-through text-gray-400" : "text-gray-900"
+                              isDone ? "line-through text-muted-foreground" : "text-foreground"
                             }`}
                           >
                             {mt.title}
@@ -286,8 +289,8 @@ export function TaskUpdatePage() {
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               isDone
-                                ? "bg-brand-green/20 text-brand-green"
-                                : "bg-gray-100 text-gray-600"
+                                ? "bg-success/20 text-success"
+                                : "bg-secondary text-muted-foreground"
                             }`}
                           >
                             {isDone ? "Done" : "Todo"}
@@ -300,7 +303,7 @@ export function TaskUpdatePage() {
                           onChange={(e) => handleNoteChange(mt.id, e.target.value)}
                           placeholder="Add a note..."
                           rows={2}
-                          className="mt-2 w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-primary/50 resize-none bg-white"
+                          className="mt-2 w-full text-xs border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/20 resize-none bg-input-background"
                         />
                       </div>
                     </div>
@@ -318,7 +321,7 @@ export function TaskUpdatePage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition"
+                className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -328,10 +331,10 @@ export function TaskUpdatePage() {
                 type="button"
                 onClick={handleDone}
                 disabled={!allMiniTasksDone || submitting}
-                className={`h-11 px-5 rounded-[14px] text-base font-semibold inline-flex items-center gap-2 transition ${
+                className={`h-11 px-5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors ${
                   allMiniTasksDone && !submitting
-                    ? "bg-brand-primary text-white hover:bg-brand-primary-hover"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    ? "bg-primary text-primary-foreground hover:bg-primary-hover"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {submitting ? (
@@ -348,7 +351,7 @@ export function TaskUpdatePage() {
               </button>
             </div>
             {!allMiniTasksDone && (
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 Complete all mini tasks ({completedMiniTasks}/{totalMiniTasks}) to enable Done.
               </p>
             )}
@@ -357,7 +360,7 @@ export function TaskUpdatePage() {
 
         {/* ── Submitted toast ── */}
         {submitted && (
-          <div className="fixed bottom-6 right-6 bg-brand-green text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 animate-bounce">
+          <div className="fixed bottom-6 right-6 bg-success text-success-foreground px-5 py-3 rounded-xl shadow-sm text-sm font-medium z-50 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 inline mr-2" />
             Task submitted for client review!
           </div>
@@ -366,26 +369,26 @@ export function TaskUpdatePage() {
         {/* Feedback form (client reviewing) */}
         {role === "client" && action === "review" && derivedStatus === "Pending Review" && (
           <div className="border-t pt-6 mt-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Review Task</h3>
+            <h3 className="font-semibold text-foreground mb-3">Review Task</h3>
             <textarea
               rows={3}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-input-background"
               placeholder="Add feedback (required for requesting changes)..."
             />
             <div className="flex gap-3 mt-3">
               <button
                 onClick={handleClientApprove}
                 disabled={submitting}
-                className="h-11 px-5 bg-brand-green text-white rounded-[14px] hover:bg-brand-green/90 text-base font-semibold disabled:opacity-50"
+                className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:bg-success/85 text-sm font-semibold disabled:opacity-50 transition-colors"
               >
                 {submitting ? "..." : "Approve"}
               </button>
               <button
                 onClick={handleClientRequestChanges}
                 disabled={!feedbackText.trim() || submitting}
-                className="h-11 px-5 bg-orange-600 text-white rounded-[14px] hover:bg-orange-700 text-base font-semibold disabled:opacity-50"
+                className="h-11 px-5 bg-warning text-warning-foreground rounded-xl hover:bg-warning/85 text-sm font-semibold disabled:opacity-50 transition-colors"
               >
                 {submitting ? "..." : "Request Changes"}
               </button>
