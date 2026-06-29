@@ -46,6 +46,7 @@ import { AdminProjects } from "./pages/admin/AdminProjects.jsx";
 import { AdminReviews } from "./pages/admin/AdminReviews.jsx";
 import { AdminJobPosts } from "./pages/admin/AdminJobPosts.jsx";
 import { AdminCategoryTags } from "./pages/admin/AdminCategoryTags.jsx";
+import { AdminContractCancellations } from "./pages/admin/AdminContractCancellations.jsx";
 
 // Owner Pages
 import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
@@ -142,6 +143,7 @@ export const router = createBrowserRouter([
               { path: "admin/reviews", Component: AdminReviews },
               { path: "admin/job-posts", Component: AdminJobPosts },
               { path: "admin/category-tags", Component: AdminCategoryTags },
+              { path: "admin/contract-cancellations", Component: AdminContractCancellations },
               { path: "admin/revenue", Component: AdminRevenue },
               { path: "admin/profile", Component: AdminProfile },
               { path: "admin/profile/edit", Component: EditAdminProfile },

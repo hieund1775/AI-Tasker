@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, AlertTriangle } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, AlertTriangle, Clock } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -19,6 +19,19 @@ import { ReportForm } from "../../components/report/ReportForm.jsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+
+// Small condition checklist row for the final handover section
+function ConditionRow({ met, label, detail }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${met ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+        <CheckCircle2 className="w-3.5 h-3.5" />
+      </div>
+      <span className={met ? "text-foreground font-medium" : "text-muted-foreground"}>{label}</span>
+      <span className="text-xs text-muted-foreground/60 ml-auto">{detail}</span>
+    </div>
+  );
+}
 
 // =============================================================================
 // ClientProjectManagement — client-side project progress management page.
@@ -72,6 +85,8 @@ export default function ClientProjectDetail() {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [cancelConfirmation, setCancelConfirmation] = useState("");
   const [cancelReason, setCancelReason] = useState("");
+  const [toppedUpEscrow, setToppedUpEscrow] = useState(null); // null = no mock top-up applied
+  const [topUpLoading, setTopUpLoading] = useState(false);
 
   const isDisputed = project?.status?.toLowerCase() === "disputed";
   const isContractCancelled = project?.status?.toLowerCase() === "contract_cancelled";
@@ -330,14 +345,6 @@ export default function ClientProjectDetail() {
                       ⚠️ Phản hồi vi phạm
                     </button>
                   )}
-                  {/* Report violation button (from origin/develop) */}
-                  <button
-                    type="button"
-                    onClick={() => setShowReportForm(true)}
-                    className="h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-                  >
-                    <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                  </button>
                   {/* Cancel Contract — blocked by terminal/final states, NOT by progress */}
                   {canCancel && (
                     <button
@@ -424,86 +431,102 @@ export default function ClientProjectDetail() {
             {project.status !== "completed" && !isFullFreeze && (() => {
               const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
               const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
+              const isSubmitted = project.finalDeliveryStatus === "Final Product Submitted";
+              const isAccepted = project.finalDeliveryStatus === "Accepted";
+              const isDeclined = project.finalDeliveryStatus === "Declined";
+
               return (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
-                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-sans">
-                    <Send className="w-5 h-5 text-brand-primary" /> Nghiệm thu dự án tổng thể (Project Final Handover)
-                  </h2>
-                  
+                <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                  {/* Header */}
+                  <div className="p-5 pb-3">
+                    <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center">
+                        <Send className="w-4 h-4 text-brand-primary" />
+                      </div>
+                      Nghiệm thu dự án tổng thể (Project Final Handover)
+                    </h2>
+                  </div>
+
+                  {/* Decline reason banner */}
                   {project.finalWorkDeclineReason && (
-                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm">
+                    <div className="mx-5 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-sm mb-2">
                       <strong className="block font-semibold mb-1">Yêu cầu sửa đổi sản phẩm bàn giao cuối cùng:</strong>
                       {project.finalWorkDeclineReason}
                     </div>
                   )}
 
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl">
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-700">
-                        {!isReadyForFinalSubmit ? (
-                          <span className="text-gray-400 italic">
-                            Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
-                          </span>
-                        ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
-                          <span className="text-brand-primary font-semibold">
-                            Chuyên gia đã nộp sản phẩm tổng thể. Vui lòng xem và thẩm định.
-                          </span>
-                        ) : project.finalDeliveryStatus === "Accepted" ? (
-                          <span className="text-green-600 font-semibold">
-                            Đã phê duyệt sản phẩm tổng thể. Vui lòng bấm Giải ngân.
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 font-semibold animate-pulse">
-                            Chờ expert gửi sản phẩm tổng
-                          </span>
-                        )}
-                      </p>
-                      {project.finalDeliveryStatus === "Final Product Submitted" && (
-                        <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
-                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                          {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>}
-                          {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-gray-700">{project.finalProjectImage}</span></p>}
+                  {/* Readiness checklist */}
+                  <div className="px-5 pb-2">
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Conditions</p>
+                    <div className="space-y-1.5">
+                      <ConditionRow met={overallProgress === 100} label="Progress reaches 100%" detail={`${overallProgress}%`} />
+                      <ConditionRow met={allUseCasesDone} label="All Use Cases approved" detail={`${useCases.filter(uc => uc.status === "done").length}/${useCases.length}`} />
+                      <ConditionRow met={isSubmitted || isAccepted} label="Final submission completed" detail={isAccepted ? "Accepted" : isSubmitted ? "Submitted" : "Pending"} />
+                    </div>
+                  </div>
+
+                  {/* Status + actions */}
+                  <div className="mx-5 mb-5 p-4 bg-secondary/40 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1 min-w-0">
+                      {/* Status text */}
+                      {!isReadyForFinalSubmit ? (
+                        <p className="text-sm text-muted-foreground">
+                          Project has not met all conditions for final handover yet.
+                        </p>
+                      ) : isAccepted ? (
+                        <p className="text-sm text-success font-semibold">
+                          Final delivery approved. You can now release payment.
+                        </p>
+                      ) : isDeclined ? (
+                        <p className="text-sm text-destructive font-semibold">
+                          Final delivery was declined. Expert must resubmit.
+                        </p>
+                      ) : isSubmitted ? (
+                        <p className="text-sm text-brand-primary font-semibold">
+                          Expert has submitted the final deliverables for your review.
+                        </p>
+                      ) : (
+                        <p className="text-sm text-amber-600 font-semibold">
+                          Waiting for expert to submit final deliverables.
+                        </p>
+                      )}
+
+                      {/* Delivery details */}
+                      {isSubmitted && (
+                        <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
+                          {project.finalProjectLink && <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>}
+                          {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-medium text-foreground/80">{project.finalProjectFile}</span></p>}
+                          {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-medium text-foreground/80">{project.finalProjectImage}</span></p>}
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Xem sản phẩm tổng button */}
-                      {!isReadyForFinalSubmit ? (
-                        <button
-                          disabled
-                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                          title="Dự án chưa hoàn thành tất cả Use Cases"
-                        >
-                          Xem sản phẩm tổng
-                        </button>
-                      ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isReadyForFinalSubmit && (isSubmitted || isAccepted) ? (
                         <button
                           type="button"
                           onClick={() => setShowFinalWorkModal(true)}
-                          className="h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                          className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-semibold text-sm inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
                         >
-                          Xem sản phẩm tổng
+                          <Send className="w-4 h-4" /> Xem sản phẩm tổng
                         </button>
                       ) : (
                         <button
                           disabled
-                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                          title="Chờ expert gửi sản phẩm tổng"
+                          className="h-10 px-4 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed"
                         >
-                          Chờ expert gửi sản phẩm tổng
+                          <Send className="w-4 h-4" /> Xem sản phẩm tổng
                         </button>
                       )}
 
-                      {/* Release payment button */}
-                      {isReadyForFinalSubmit && project.finalDeliveryStatus === "Accepted" && (
+                      {isAccepted && (
                         <button
                           type="button"
                           disabled={releaseLoading}
                           onClick={handleReleasePayment}
-                          className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                          className="h-10 px-4 bg-success hover:bg-success/90 text-success-foreground rounded-xl font-semibold text-sm inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
                         >
-                          <CreditCard className="w-4 h-4" /> Release Payment (Giải ngân)
+                          <CreditCard className="w-4 h-4" /> Giải ngân
                         </button>
                       )}
                     </div>
@@ -731,18 +754,42 @@ export default function ClientProjectDetail() {
       )}
       {/* Cancel Contract Confirmation Modal */}
       {showCancelModal && (() => {
-        // Pre-compute breakdown for modal preview
         const contractAmount = project?.escrowAmount || project?.budget || 0;
+        const escrowAmount = toppedUpEscrow != null ? toppedUpEscrow : contractAmount;
         const progressRate = overallProgress / 100;
-        const progressPayout = Math.round(contractAmount * progressRate * 100) / 100;
-        const compensationFee = Math.round(contractAmount * 0.10 * 100) / 100;
+        const completedWorkAmount = Math.round(contractAmount * progressRate * 100) / 100;
+        const cancellationFee = Math.round(contractAmount * 0.10 * 100) / 100;
         const platformServiceFee = Math.round(contractAmount * 0.05 * 100) / 100;
+        const totalPayable = Math.round((completedWorkAmount + cancellationFee + platformServiceFee) * 100) / 100;
+        const progressPayout = completedWorkAmount;
+        const compensationFee = cancellationFee;
         const rawExpertPayout = progressPayout + compensationFee;
-        const expertPayout = Math.round(Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100) / 100;
-        const clientRefund = Math.round(Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100) / 100;
+        const expertPayout = Math.round(Math.min(escrowAmount - platformServiceFee, rawExpertPayout) * 100) / 100;
+        const refundAmount = Math.round(Math.max(0, escrowAmount - totalPayable) * 100) / 100;
+        const missingAmount = Math.round(Math.max(0, totalPayable - escrowAmount) * 100) / 100;
+        const canSubmit = missingAmount === 0;
+        const topUpNeeded = Math.round(missingAmount * 100) / 100;
+
+        const handleMockTopUp = () => {
+          setTopUpLoading(true);
+          // Simulate payment with a brief delay
+          setTimeout(() => {
+            setToppedUpEscrow(totalPayable); // top up to exact totalPayable needed
+            setTopUpLoading(false);
+            toast.success(`Mock top-up of $${topUpNeeded.toLocaleString()} completed. You can now submit cancellation.`);
+          }, 800);
+        };
+
+        const handleClose = () => {
+          setShowCancelModal(false);
+          setCancelConfirmation("");
+          setCancelReason("");
+          setToppedUpEscrow(null);
+        };
+
         return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
               <div className="p-2 bg-red-50 text-red-600 rounded-lg">
@@ -750,22 +797,95 @@ export default function ClientProjectDetail() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-foreground font-sans">Cancel Contract</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-sans">This action will end the project and distribute the escrow based on current progress</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">This action will end the project and distribute escrow based on current progress</p>
               </div>
             </div>
 
             {/* Content */}
             <div className="p-6 space-y-4 text-sm font-sans">
+              {/* Payment Breakdown Card */}
               <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-xl">
-                <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
-                <div className="border-t border-border my-2" />
-                <div className="flex justify-between"><span className="text-muted-foreground">Expert Progress Pay:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={progressPayout} /></span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Expert Compensation (10%):</span><span className="font-semibold text-foreground"><MoneyDisplay amount={compensationFee} /></span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Platform Service Fee (5%):</span><span className="font-semibold text-foreground"><MoneyDisplay amount={platformServiceFee} /></span></div>
-                <div className="border-t border-border my-2" />
-                <div className="flex justify-between text-base"><span className="font-bold text-foreground">Expert Total Payout:</span><span className="font-bold text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
-                <div className="flex justify-between text-base"><span className="font-bold text-foreground">Your Refund:</span><span className="font-bold text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                <h4 className="font-bold text-foreground text-xs uppercase tracking-wider mb-2">Payment Breakdown</h4>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Escrow Deposited:</span>
+                  <span className="font-semibold text-foreground"><MoneyDisplay amount={escrowAmount} /></span>
+                </div>
+                {toppedUpEscrow != null && (
+                  <div className="flex justify-between text-xs">
+                    <span className="text-green-600">+ Top-up added:</span>
+                    <span className="font-semibold text-green-600"><MoneyDisplay amount={toppedUpEscrow - contractAmount} /></span>
+                  </div>
+                )}
+                <div className="border-t border-border my-1" />
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Current Progress:</span>
+                  <span className="font-semibold text-foreground">{overallProgress}%</span>
+                </div>
+                <div className="border-t border-border my-1" />
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Completed Work Payable ({overallProgress}%):</span>
+                  <span className="font-semibold text-foreground"><MoneyDisplay amount={completedWorkAmount} /></span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Cancellation Fee (10%):</span>
+                  <span className="font-semibold text-foreground"><MoneyDisplay amount={cancellationFee} /></span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Platform Service Fee (5%):</span>
+                  <span className="font-semibold text-foreground"><MoneyDisplay amount={platformServiceFee} /></span>
+                </div>
+                <div className="border-t border-border my-1" />
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold text-foreground">Total Payable:</span>
+                  <span className="font-bold text-foreground"><MoneyDisplay amount={totalPayable} /></span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold text-foreground">Expert Payout:</span>
+                  <span className="font-bold text-amber-600"><MoneyDisplay amount={expertPayout} /></span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold text-foreground">Your Refund:</span>
+                  <span className="font-bold text-green-600"><MoneyDisplay amount={refundAmount} /></span>
+                </div>
+
+                {/* Missing Amount Warning */}
+                {missingAmount > 0 && (
+                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-bold text-red-700">Missing Amount:</span>
+                      <span className="font-bold text-red-700"><MoneyDisplay amount={missingAmount} /></span>
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">
+                      Escrow is insufficient. You must top up <strong><MoneyDisplay amount={missingAmount} /></strong> before submitting cancellation.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={topUpLoading}
+                      onClick={handleMockTopUp}
+                      className="mt-2 w-full h-9 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-lg font-bold text-xs transition-colors inline-flex items-center justify-center gap-1.5"
+                    >
+                      {topUpLoading ? (
+                        "Processing top-up..."
+                      ) : (
+                        <>💳 Top Up <MoneyDisplay amount={missingAmount} /></>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Sufficient escrow message */}
+                {canSubmit && missingAmount === 0 && toppedUpEscrow == null && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+                    ✓ Escrow covers all payables. You can submit cancellation.
+                  </div>
+                )}
+
+                {/* Top-up success */}
+                {canSubmit && toppedUpEscrow != null && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs text-green-700">
+                    ✓ Top-up applied. Escrow now covers total payables. You can submit cancellation.
+                  </div>
+                )}
               </div>
 
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
@@ -797,6 +917,12 @@ export default function ClientProjectDetail() {
                   className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-400 text-foreground text-sm font-mono"
                 />
               </div>
+
+              {!canSubmit && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-semibold">
+                  ⚠️ Submit disabled — please top up the missing amount first.
+                </div>
+              )}
             </div>
 
             {/* Footer */}
@@ -804,20 +930,17 @@ export default function ClientProjectDetail() {
               <button
                 type="button"
                 disabled={cancelLoading}
-                onClick={() => {
-                  setShowCancelModal(false);
-                  setCancelConfirmation("");
-                  setCancelReason("");
-                }}
+                onClick={handleClose}
                 className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
               >
                 Close
               </button>
               <button
                 type="button"
-                disabled={cancelLoading || cancelConfirmation !== "CANCEL"}
+                disabled={cancelLoading || cancelConfirmation !== "CANCEL" || !canSubmit}
                 onClick={handleCancelContract}
                 className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                title={!canSubmit ? "Please top up the missing amount before submitting" : ""}
               >
                 {cancelLoading ? "Processing..." : "Confirm Cancellation"}
               </button>

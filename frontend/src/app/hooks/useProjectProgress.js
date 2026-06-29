@@ -365,7 +365,7 @@ export function useProjectProgress(projectId, role) {
       if (!task) return;
 
       if (!miniTaskId) {
-        // Toggle the task itself
+        // Toggle the task itself (not a mini task)
         const isCurrentlyCompleted = task.status === "completed" || task.status === "done" || task.progress === 100;
         const newStatus = isCurrentlyCompleted ? "not_started" : "completed";
         const newProgress = isCurrentlyCompleted ? 0 : 100;
@@ -373,7 +373,7 @@ export function useProjectProgress(projectId, role) {
         updateTask(taskId, {
           status: newStatus,
           progress: newProgress,
-          approval: newStatus === "completed" ? "Approved" : null
+          approval: newStatus === "completed" ? "Approved" : null,
         });
 
         if (project) {
@@ -381,29 +381,34 @@ export function useProjectProgress(projectId, role) {
             actor: "Expert",
             message: isCurrentlyCompleted
               ? `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành "${task.title}"`
-              : `[Expert] hoàn thành nhiệm vụ "${task.title}"`
+              : `[Expert] hoàn thành nhiệm vụ "${task.title}"`,
           });
         }
-        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        // updateTask → _update → triggerDbUpdate already dispatches aitasker_db_update
         return;
       }
 
+      // Toggle single mini task — activity first, then DB (DB fires its own reload event)
       const mt = task.miniTasks?.find(m => m.id === miniTaskId);
-      const isCompleted = mt ? !(mt.isCompleted === true || mt.status === "done" || mt.status === "completed") : false;
+      if (!mt) return;
 
-      toggleMiniTaskCompletion(taskId, miniTaskId, expert?.fullName);
+      // Guard: don't add duplicate activity logs
+      const alreadyCompleted = mt.isCompleted === true || mt.status === "done" || mt.status === "completed";
+      const willBeCompleted = !alreadyCompleted;
 
-      if (task && mt && project) {
+      if (project) {
         addProjectActivity(project.id, {
           actor: "Expert",
-          message: !isCompleted
-            ? `[Expert] đã thay đổi milestone: hủy hoàn thành "${mt.title}" của task "${task.title}"`
-            : `[Expert] hoàn thành milestone "${mt.title}" của task "${task.title}"`
+          message: willBeCompleted
+            ? `[Expert] hoàn thành milestone "${mt.title || "không tên"}" của task "${task.title}"`
+            : `[Expert] đã thay đổi milestone: hủy hoàn thành "${mt.title || "không tên"}" của task "${task.title}"`,
         });
       }
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+
+      // This persists to mock DB + localStorage, then fires aitasker_db_update
+      toggleMiniTaskCompletion(taskId, miniTaskId, expert?.fullName);
     },
-    [role, expert, tasks, project]
+    [role, expert, tasks, project],
   );
 
   const handleAddMiniTask = useCallback(

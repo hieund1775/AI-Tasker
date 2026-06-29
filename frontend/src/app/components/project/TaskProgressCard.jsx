@@ -71,8 +71,6 @@ export function TaskProgressCard({
   // Inline editing states for expert
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [descriptionInput, setDescriptionInput] = useState(task?.description || "");
-  const [editingMiniTaskId, setEditingMiniTaskId] = useState(null);
-  const [miniTaskTitleInput, setMiniTaskTitleInput] = useState("");
 
   const handleSaveDescription = async () => {
     try {
@@ -82,27 +80,6 @@ export function TaskProgressCard({
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể cập nhật mô tả.");
-    }
-  };
-
-  const handleSaveMiniTask = async (mtId) => {
-    if (!miniTaskTitleInput.trim()) {
-      toast.error("Tiêu đề milestone không được để trống!");
-      return;
-    }
-    try {
-      const updatedMiniTasks = (task.miniTasks || []).map((mt) => {
-        if (mt.id === mtId) {
-          return { ...mt, title: miniTaskTitleInput.trim() };
-        }
-        return mt;
-      });
-      updateTask(task.id, { miniTasks: updatedMiniTasks });
-      setEditingMiniTaskId(null);
-      toast.success("Cập nhật milestone thành công!");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    } catch (err) {
-      toast.error("Không thể cập nhật milestone.");
     }
   };
 
@@ -351,7 +328,6 @@ export function TaskProgressCard({
           <div className="space-y-2.5">
             {task.miniTasks.map((mt) => {
               const isMtCompleted = mt.isCompleted === true || mt.status === "done" || mt.status === "completed";
-              const isEditing = editingMiniTaskId === mt.id;
 
               return (
                 <div key={mt.id} className="p-3 bg-gray-50/50 border border-gray-200/65 rounded-xl space-y-2">
@@ -377,53 +353,12 @@ export function TaskProgressCard({
                     )}
 
                     <div className="flex-1 min-w-0">
-                      {isEditing ? (
-                        <div className="space-y-2">
-                          <input
-                            type="text"
-                            value={miniTaskTitleInput}
-                            onChange={(e) => setMiniTaskTitleInput(e.target.value)}
-                            placeholder="Tên milestone..."
-                            className="w-full text-sm border border-gray-300 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-brand-primary"
-                          />
-                          <div className="flex justify-end gap-1.5 text-xs">
-                            <button
-                              type="button"
-                              onClick={() => setEditingMiniTaskId(null)}
-                              className="px-2 py-1 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                            >
-                              Hủy
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveMiniTask(mt.id)}
-                              className="px-2 py-1 bg-brand-primary text-white rounded-md font-semibold"
-                            >
-                              Lưu
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start justify-between gap-2">
-                          <p className={cn(
-                            "text-sm font-medium text-gray-800 text-left",
-                            isMtCompleted && "line-through text-gray-400"
-                          )}>
-                            {mt.title || "Milestone không tên"}
-                          </p>
-                          {role === "expert" && !readOnly && (
-                            <button
-                              onClick={() => {
-                                setEditingMiniTaskId(mt.id);
-                                setMiniTaskTitleInput(mt.title || "");
-                              }}
-                              className="text-xs text-brand-primary hover:underline font-semibold flex-shrink-0"
-                            >
-                              Sửa
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <p className={cn(
+                        "text-sm font-medium text-gray-800 text-left",
+                        isMtCompleted && "line-through text-gray-400"
+                      )}>
+                        {mt.title || "Milestone không tên"}
+                      </p>
                     </div>
                   </div>
                 </div>

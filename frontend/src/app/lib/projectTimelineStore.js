@@ -11,6 +11,13 @@
 
 import { api } from "../../services/api.js";
 import {
+  parseSafeDate,
+  addDays,
+  getRemainingTime,
+  formatDate,
+  nowDate,
+} from "../utils/dateTimeUtils.js";
+import {
   listTasks,
   listProjects,
   submitTaskForReview,
@@ -91,9 +98,20 @@ const _runtimeExtensionRequests = new Map();
  * @returns the full log entry
  */
 export function addProjectActivity(projectId, { actor, message }) {
+  // ponytail: dedup — skip if same actor+message was logged within the last second
+  const now = Date.now();
+  const logs = _runtimeActivityLogs.get(projectId) || [];
+  const recentDuplicate = logs.some(
+    (entry) =>
+      entry.actor === actor &&
+      entry.message === message &&
+      now - new Date(entry.time).getTime() < 1000,
+  );
+  if (recentDuplicate) return null;
+
   const timeStr = new Date().toISOString();
   const entry = {
-    id: `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `runtime-${now}-${Math.random().toString(36).slice(2, 7)}`,
     actor,
     userRole: actor,
     userName: actor === "Expert" ? "Chuyên gia" : (actor === "Client" ? "Khách hàng" : actor),
@@ -547,60 +565,66 @@ export function getDeadlineInfo(deadlineDate) {
   if (!deadlineDate) {
     return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false, urgency: "normal", daysRemaining: null };
   }
-  const deadline = new Date(deadlineDate);
-  const now = new Date();
-  const diffMs = deadline.getTime() - now.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-  const isOverdue = diffMs < 0;
+
+  // Handle relative days offset (e.g. 14 or 30) — for demo data
+  let deadline = parseSafeDate(deadlineDate);
+  const num = Number(deadlineDate);
+  if (!deadline && !isNaN(num) && num < 1000) {
+    deadline = addDays(nowDate(), num);
+  }
+  if (!deadline) {
+    return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false, urgency: "normal", daysRemaining: null };
+  }
+
+  const now = nowDate();
+  const { remainingDays, isOverdue } = getRemainingTime(deadline, now);
 
   let urgency = "normal";
   if (isOverdue) {
     urgency = "overdue";
-  } else if (diffDays <= 1) {
+  } else if (remainingDays <= 1) {
     urgency = "warning";
   }
 
   let remainingText;
   if (isOverdue) {
-    const absDays = Math.abs(diffDays);
-    remainingText = absDays === 1 ? "Overdue by 1 day" : `Overdue by ${absDays} days`;
-  } else if (diffDays === 0) {
+    remainingText = remainingDays === 1 ? "Overdue by 1 day" : `Overdue by ${remainingDays} days`;
+  } else if (remainingDays === 0) {
     remainingText = "Due today";
-  } else if (diffDays === 1) {
+  } else if (remainingDays === 1) {
     remainingText = "Due tomorrow";
   } else {
-    remainingText = `Due in ${diffDays} days`;
+    remainingText = `Due in ${remainingDays} days`;
   }
 
   return {
-    formattedDate: deadline.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }),
+    formattedDate: formatDate(deadline),
     remainingText,
     isOverdue,
     urgency,
+    daysRemaining: remainingDays,
   };
 }
 
 export function getRemainingTimelineText(deadlineDate) {
   if (!deadlineDate) return "N/A";
 
-  let deadline = new Date(deadlineDate);
-
-  // Handle relative days offset (e.g. 14 or 30)
+  // Handle relative days offset (e.g. 14 or 30) — for demo data
+  let deadline = parseSafeDate(deadlineDate);
   const num = Number(deadlineDate);
-  if (!isNaN(num) && num < 1000) {
-    deadline = new Date();
-    deadline.setDate(deadline.getDate() + num);
+  if (!deadline && !isNaN(num) && num < 1000) {
+    deadline = addDays(nowDate(), num);
   }
+  if (!deadline) return "N/A";
 
-  const now = new Date();
+  const now = nowDate();
   const diffMs = deadline.getTime() - now.getTime();
 
   if (diffMs <= 0) {
-    return "Đã quá hạn";
+    const abs = Math.abs(diffMs);
+    const absDays = Math.floor(abs / (24 * 60 * 60 * 1000));
+    const absHours = Math.floor((abs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    return `Quá hạn: ${absDays} ngày ${absHours} giờ`;
   }
 
   const diffSec = Math.floor(diffMs / 1000);

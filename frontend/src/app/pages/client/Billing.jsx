@@ -57,10 +57,27 @@ export function Billing() {
 
   // Escrow deposit form
   const [showDepositForm, setShowDepositForm] = useState(location.state?.escrowRedirect || false);
-  const [depositAmount, setDepositAmount] = useState(location.state?.amount || 0);
+  const [depositAmount, setDepositAmount] = useState(location.state?.amount || "");
   const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+
+  // Auto-derive amount when project changes (for non-redirect flow)
+  useEffect(() => {
+    if (isEscrowRedirect) return;
+    if (!selectedProject || !data?.activeProjects?.length) return;
+    const proj = data.activeProjects.find(p => String(p.id) === String(selectedProject));
+    if (proj?.escrowAmount && !depositAmount) {
+      setDepositAmount(proj.escrowAmount);
+    }
+  }, [selectedProject, data?.activeProjects, isEscrowRedirect, depositAmount]);
+
+  // Auto-select first eligible project
+  useEffect(() => {
+    if (isEscrowRedirect) return;
+    if (selectedProject || !data?.activeProjects?.length) return;
+    setSelectedProject(data.activeProjects[0].id);
+  }, [data?.activeProjects, selectedProject, isEscrowRedirect]);
 
   // Wallet top-up states
   const [showTopUpForm, setShowTopUpForm] = useState(false);
@@ -348,6 +365,17 @@ export function Billing() {
                   </p>
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProject(proj.id);
+                      setDepositAmount(proj.escrowAmount || "");
+                      setShowDepositForm(true);
+                    }}
+                    className="h-9 px-4 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-sm font-semibold transition-colors"
+                  >
+                    Deposit
+                  </button>
                 </div>
               </div>
             ))}
@@ -356,7 +384,7 @@ export function Billing() {
       )}
 
       {/* Deposit to escrow */}
-      {isEscrowRedirect && (
+      {(isEscrowRedirect || showDepositForm) && (
         <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Deposit to Escrow</h2>
@@ -370,7 +398,7 @@ export function Billing() {
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
+                    className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
                     required
                     disabled={isEscrowRedirect}
                   >
@@ -392,9 +420,9 @@ export function Billing() {
                     type="number"
                     min="1"
                     step="1"
-                    value={depositAmount || ""}
-                    onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-card text-foreground font-medium"
                     placeholder="500"
                     required
                     disabled={isEscrowRedirect}
@@ -403,7 +431,7 @@ export function Billing() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="submit"
-                    disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
+                    disabled={submitting || Number(depositAmount) <= 0 || !selectedProject}
                     className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
                   >
                     {submitting ? "Processing..." : "Xác nhận ký quỹ"}

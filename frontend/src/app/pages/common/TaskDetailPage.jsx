@@ -875,9 +875,6 @@ export default function TaskDetailPage() {
           miniTasks={miniTasks}
           editable={canToggleMiniTasks}
           onToggle={(miniTaskId) => handleToggleMiniTask(taskId, miniTaskId)}
-          onUpdate={(miniTaskId, updates) =>
-            handleUpdateMiniTask(taskId, miniTaskId, updates)
-          }
           compact={false}
         />
 

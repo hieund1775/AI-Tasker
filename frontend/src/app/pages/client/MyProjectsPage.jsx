@@ -121,7 +121,18 @@ export function MyProjectsList() {
         api.experts.list().catch(() => []),
       ]);
 
-      const rawProjects = userRes?.jobPosts || [];
+      // Merge job posts and projects (projects may exist without jobPostId)
+      const jobPosts = userRes?.jobPosts || [];
+      const userProjects = userRes?.projects || [];
+      const projectMap = new Map();
+      jobPosts.forEach((p) => { projectMap.set(p.id, { ...p, _source: "jobPost" }); });
+      userProjects.forEach((p) => {
+        if (!projectMap.has(p.id)) {
+          projectMap.set(p.id, { ...p, _source: "project" });
+        }
+      });
+      const rawProjects = Array.from(projectMap.values());
+
       const projectsWithCounts = await Promise.all(
         rawProjects.map(async (project) => {
           try {
@@ -458,7 +469,7 @@ export function MyProjectsList() {
             <div>
               <h4 className="text-sm text-muted-foreground mb-0.5">Timeline gốc</h4>
               <p className="font-semibold text-foreground">
-                {selectedProject.originalUseCaseDays || selectedProject.deadline || "—"} ngày
+                {selectedProject.totalDurationDays ?? selectedProject.originalUseCaseDays ?? selectedProject.deadline ?? "—"} ngày
               </p>
             </div>
             <div>

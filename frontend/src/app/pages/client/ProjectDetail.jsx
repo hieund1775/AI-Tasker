@@ -243,7 +243,7 @@ export function ProjectDetail() {
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            Timeline gốc: {project.originalUseCaseDays || project.deadline || "—"} ngày
+            Timeline gốc: {project.totalDurationDays ?? project.originalUseCaseDays ?? project.deadline ?? "—"} ngày
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-4 h-4" />

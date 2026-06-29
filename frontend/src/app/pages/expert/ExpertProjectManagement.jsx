@@ -164,6 +164,8 @@ export default function ExpertProjectDetail() {
 
   const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
   const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
+  const isSubmitted = project.finalDeliveryStatus === "Final Product Submitted";
+  const isAccepted = project.finalDeliveryStatus === "Accepted";
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
@@ -229,15 +231,6 @@ export default function ExpertProjectDetail() {
                   ⚠️ Phản hồi vi phạm
                 </button>
               )}
-              {!isDisputed && !hasPendingReportFromMe && (
-                <button
-                  type="button"
-                  onClick={() => setShowReportForm(true)}
-                  className="h-11 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-                >
-                  <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                </button>
-              )}
               {hasPendingReportFromMe && (
                 <button
                   disabled
@@ -280,68 +273,96 @@ export default function ExpertProjectDetail() {
         {/* Project Final Handover Section */}
         {project.status !== "completed" && !isFullFreeze && (
           <AnimatedReveal delay={2}>
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
-                <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
-              </h2>
+            <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="p-5 pb-3">
+                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center">
+                    <Send className="w-4 h-4 text-brand-primary" />
+                  </div>
+                  Final Project Handover
+                </h2>
+              </div>
 
               {project.finalWorkDeclineReason && (
-                <div className="p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-sm font-sans">
+                <div className="mx-5 p-4 bg-destructive/10 text-destructive rounded-xl border border-destructive/20 text-sm mb-2">
                   <strong className="block font-semibold mb-1">Revision Requested:</strong>
                   {project.finalWorkDeclineReason}
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/60 p-4 rounded-xl font-sans">
-                <div className="space-y-1">
+              {/* Readiness checklist */}
+              <div className="px-5 pb-2">
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Conditions</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${overallProgress === 100 ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                    <span className={overallProgress === 100 ? "text-foreground font-medium" : "text-muted-foreground"}>Progress reaches 100%</span>
+                    <span className="text-xs text-muted-foreground/60 ml-auto">{overallProgress}%</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${allUseCasesDone ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                    <span className={allUseCasesDone ? "text-foreground font-medium" : "text-muted-foreground"}>All Use Cases approved</span>
+                    <span className="text-xs text-muted-foreground/60 ml-auto">{useCases.filter(uc => uc.status === "done").length}/{useCases.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${isSubmitted || isAccepted ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </div>
+                    <span className={(isSubmitted || isAccepted) ? "text-foreground font-medium" : "text-muted-foreground"}>Final submission</span>
+                    <span className="text-xs text-muted-foreground/60 ml-auto">{isAccepted ? "Accepted" : isSubmitted ? "Submitted" : "Pending"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mx-5 mb-5 p-4 bg-secondary/40 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="space-y-1 min-w-0">
                   <p className="text-sm text-foreground/80">
                     {!isReadyForFinalSubmit ? (
-                      <span className="text-muted-foreground italic">
-                        Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
+                      <span className="text-muted-foreground">
+                        Complete all milestones and use cases before submitting the final deliverables.
                       </span>
-                    ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
+                    ) : isSubmitted ? (
                       <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                        ✓ Đã nộp sản phẩm tổng. Đang chờ Client thẩm định.
+                        Submitted — waiting for client review.
                       </span>
-                    ) : project.finalDeliveryStatus === "Accepted" ? (
+                    ) : isAccepted ? (
                       <span className="text-success font-semibold flex items-center gap-1.5">
-                        ✓ Sản phẩm bàn giao đã được chấp nhận! Đang chờ thanh toán.
+                        Accepted! Awaiting payment release.
                       </span>
                     ) : (
                       <span className="text-muted-foreground">
-                        Tất cả các mốc công việc đã hoàn thành. Hãy cung cấp Link và File sản phẩm để bàn giao dự án.
+                        All milestones complete. Provide the project link and files to hand over.
                       </span>
                     )}
                   </p>
-                  {project.finalDeliveryStatus === "Final Product Submitted" && (
+                  {isSubmitted && (
                     <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
-                      <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                      {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectFile}</span></p>}
-                      {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectImage}</span></p>}
+                      {project.finalProjectLink && <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>}
+                      {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-medium text-foreground/80">{project.finalProjectFile}</span></p>}
+                      {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-medium text-foreground/80">{project.finalProjectImage}</span></p>}
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   {!isReadyForFinalSubmit ? (
-                    <button
-                      disabled
-                      className="h-11 px-6 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
-                      title="Cần hoàn thành 100% tất cả Use Cases để nộp"
-                    >
+                    <button disabled className="h-10 px-4 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed">
                       Nộp sản phẩm tổng
                     </button>
-                  ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
-                    <button
-                      disabled
-                      className="h-11 px-6 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
-                    >
-                      ✓ Đã nộp bàn giao
-                    </button>
-                  ) : project.finalDeliveryStatus === "Accepted" ? (
-                    <span className="px-3 py-2 bg-success/10 text-success border border-success/20 rounded-xl text-xs font-bold uppercase tracking-wider">
-                      Đã nghiệm thu
-                    </span>
+                  ) : isSubmitted || isAccepted ? (
+                    isAccepted ? (
+                      <span className="px-3 py-2 bg-success/10 text-success border border-success/20 rounded-xl text-xs font-bold uppercase tracking-wider">
+                        Đã nghiệm thu
+                      </span>
+                    ) : (
+                      <button disabled className="h-10 px-4 bg-muted text-muted-foreground border border-border rounded-xl font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed">
+                        Đã nộp bàn giao
+                      </button>
+                    )
                   ) : (
                     <button
                       type="button"
@@ -351,7 +372,7 @@ export default function ExpertProjectDetail() {
                         setProjectImage(project.finalProjectImage || "");
                         setShowSubmitModal(true);
                       }}
-                      className="h-11 px-6 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                      className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-semibold text-sm inline-flex items-center gap-2 transition-colors cursor-pointer"
                     >
                       <Send className="w-4 h-4" /> Nộp sản phẩm tổng
                     </button>

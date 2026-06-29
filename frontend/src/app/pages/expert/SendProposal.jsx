@@ -11,6 +11,7 @@ import {
   GitBranch,
   Lightbulb,
   AlertTriangle,
+  Lock,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -48,7 +49,7 @@ function getUseCaseDays(useCase) {
 
 function createTaskForUseCase(useCase, useCaseIndex, taskIndex = 1) {
   const duration = getUseCaseDays(useCase) || 1;
-  const title = useCase?.description || useCase?.title || getUseCaseTitle(useCase, useCaseIndex);
+  const title = "";
   return {
     id: `task-${useCaseIndex + 1}-${taskIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
     useCaseIndex,
@@ -109,7 +110,7 @@ export function SendProposal() {
           id: t.id || `task-${uc.id}-${idx + 1}`,
           useCaseId: t.useCaseId || uc.id,
           useCaseTitle: uc.title || uc.nameAndDeadline,
-          title: t.title || uc.title || `Task ${idx + 1}`,
+          title: t.title || "",
           description: t.description || "",
           source: "client",
           approvalStatus: "accepted",
@@ -125,11 +126,11 @@ export function SendProposal() {
         id: `task-fb-${uc.id}`,
         useCaseId: uc.id,
         useCaseTitle: uc.title || uc.nameAndDeadline,
-        title: uc.title || uc.nameAndDeadline || "Use Case Task",
+        title: "",
         description: uc.description || "",
         source: "client_use_case_fallback",
         approvalStatus: "accepted",
-        locked: true,
+        locked: false,
         price: 0,
         completionDays: Number(uc.originalDurationDays) || 1,
         miniTasks: [{ id: `mt-${now}-fb-${uc.id}`, title: "" }],
@@ -306,12 +307,11 @@ export function SendProposal() {
             id: `task-fb-${uc.id}`,
             useCaseId: uc.id,
             useCaseTitle: uc.title || uc.nameAndDeadline,
-            title: uc.title || uc.nameAndDeadline || "Client Use Case Task",
+            title: "",
             description: uc.description || "",
             source: "client_use_case_fallback",
             approvalStatus: "accepted",
-            locked: true,
-            price: 0,
+            locked: false,
             completionDays: Number(uc.originalDurationDays || 1),
             miniTasks: [],
           });
@@ -376,8 +376,8 @@ export function SendProposal() {
   }, [tasks, useCases]);
 
   const totalBidAmount = useMemo(
-    () => useCaseTotals.reduce((sum, uc) => sum + uc.amount, 0),
-    [useCaseTotals],
+    () => Number(form.bidAmount) || 0,
+    [form.bidAmount],
   );
 
   const totalDurationDays = useMemo(
@@ -403,85 +403,53 @@ export function SendProposal() {
     // aiPlan = { useCases: [{ useCaseId, tasks: [{ taskId, taskTitle, miniTasks: [...] }] }] }
     if (!aiPlan?.useCases) return { updatedCount: 0 };
 
-    const normalize = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
-
-    // ponytail: pre-compute updatedCount from current tasks snapshot —
-    // the setTasks updater runs async in React 18 so closure-updatedCount is always 0 at return
+    // ponytail: pre-compute count — setTasks runs async
     let updatedCount = 0;
     for (const ucBlock of aiPlan.useCases) {
-      for (const taskBlock of ucBlock.tasks || []) {
-        if (!taskBlock.miniTasks?.length) continue;
-        let idx = tasks.findIndex(t => t.id === taskBlock.taskId);
-        if (idx === -1) {
-          idx = tasks.findIndex(t =>
-            t.useCaseId === ucBlock.useCaseId &&
-            normalize(t.title) === normalize(taskBlock.taskTitle)
-          );
-        }
-        if (idx !== -1) updatedCount++;
-        else {
-          const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
-          if (uc) updatedCount++; // fallback task will be created
-        }
-      }
+      updatedCount += (ucBlock.tasks || []).filter(t => t.miniTasks?.length).length;
     }
 
     setTasks(prev => {
-      let nextTasks = [...prev];
-
+      // Build AI-generated proposed task cards (yellow, editable)
+      const aiTasks = [];
       for (const ucBlock of aiPlan.useCases) {
         for (const taskBlock of ucBlock.tasks || []) {
           if (!taskBlock.miniTasks?.length) continue;
 
           const generatedMiniTasks = taskBlock.miniTasks.map(mt => ({
             id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            taskId: taskBlock.taskId || `task-fb-${ucBlock.useCaseId}`,
+            taskId: taskBlock.taskId || `task-ai-${ucBlock.useCaseId}`,
             title: mt.title,
             description: mt.description || "",
             status: "pending",
             isCompleted: false,
           }));
 
-          // Try match by taskId first, then by useCaseId + normalized title
-          let idx = nextTasks.findIndex(t => t.id === taskBlock.taskId);
-          if (idx === -1) {
-            idx = nextTasks.findIndex(t =>
-              t.useCaseId === ucBlock.useCaseId &&
-              normalize(t.title) === normalize(taskBlock.taskTitle)
-            );
-          }
-
-          if (idx !== -1) {
-            const hasRealContent = nextTasks[idx].miniTasks.some(mt => mt.title?.trim());
-            nextTasks[idx] = {
-              ...nextTasks[idx],
-              miniTasks: hasRealContent
-                ? [...nextTasks[idx].miniTasks, ...generatedMiniTasks]
-                : generatedMiniTasks,
-            };
-          } else {
-            // ponytail: no matching task exists — create fallback under the use case
-            const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
-            if (!uc) continue;
-
-            nextTasks.push({
-              id: taskBlock.taskId || `task-fb-${uc.id}`,
-              useCaseId: uc.id,
-              useCaseTitle: uc.title || uc.nameAndDeadline,
-              title: taskBlock.taskTitle || uc.title || "Client Use Case Task",
-              description: uc.description || "",
-              source: "client_use_case_fallback",
-              approvalStatus: "accepted",
-              locked: true,
-              price: 0,
-              completionDays: Number(uc.originalDurationDays || 1),
-              miniTasks: generatedMiniTasks,
-            });
-          }
+          aiTasks.push({
+            id: taskBlock.taskId || `task-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            useCaseId: ucBlock.useCaseId,
+            useCaseTitle: project?.useCases?.find(u => String(u.id) === String(ucBlock.useCaseId))?.title || "",
+            title: taskBlock.taskTitle || "",
+            description: taskBlock.taskDescription || "",
+            source: "expert",
+            approvalStatus: "pending_client_approval",
+            locked: false,
+            price: 0,
+            completionDays: taskBlock.days || 1,
+            miniTasks: generatedMiniTasks,
+          });
         }
       }
 
-      return dedupeTasks(nextTasks);
+      // Remove empty placeholder forms — keep only tasks with real content
+      const isEmpty = (task) =>
+        !(task.title || "").trim() &&
+        !(task.description || "").trim() &&
+        (!task.miniTasks || task.miniTasks.every(mt => !(mt.title || "").trim()));
+
+      const kept = prev.filter(t => !isEmpty(t));
+
+      return dedupeTasks([...kept, ...aiTasks]);
     });
 
     return { updatedCount };
@@ -506,8 +474,8 @@ export function SendProposal() {
     setSubmitting(true);
 
     try {
-      // Compute totals from tasks
-      const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+      // Compute totals from form + tasks
+      const totalBid = Number(form.bidAmount) || 0;
       const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
       const clientBudget = project?.originalBudget || project?.budget || 0;
       const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
@@ -748,6 +716,7 @@ export function SendProposal() {
                           <div className="p-4 bg-accent-light/30 border-b border-border">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
+                                <Lock className="w-3.5 h-3.5 text-blue-500" />
                                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
                                   Client Use Case
                                 </span>
@@ -774,7 +743,7 @@ export function SendProposal() {
 
                             {ucTasks.map((task) => {
                               const tIdx = tasks.findIndex(t => t.id === task.id);
-                              const isClientTask = task.source === "client" || task.source === "client_use_case_fallback";
+                              const isClientTask = task.source === "client";
                               const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
 
                               return (
@@ -784,7 +753,7 @@ export function SendProposal() {
                                     isProposed
                                       ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"
                                       : isClientTask
-                                        ? "bg-blue-50/20 border-blue-100 dark:bg-blue-950/10 dark:border-blue-900"
+                                        ? "bg-blue-50/20 border-blue-100 dark:bg-blue-950/10 dark:border-blue-900 pointer-events-none opacity-90"
                                         : "bg-secondary/40 border-border"
                                   }`}
                                 >
@@ -869,18 +838,6 @@ export function SendProposal() {
                                         value={task.completionDays || 1}
                                         onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }}
                                         placeholder="1"
-                                        className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card"
-                                      />
-                                    </div>
-                                    <div className="w-28">
-                                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                                        Price
-                                      </label>
-                                      <input
-                                        type="number" min="0" step="100"
-                                        value={task.price || 0}
-                                        onChange={(e) => { const nt = [...tasks]; nt[tIdx].price = Math.max(0, Number(e.target.value) || 0); setTasks(nt); }}
-                                        placeholder="1000"
                                         className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card"
                                       />
                                     </div>
@@ -994,7 +951,6 @@ export function SendProposal() {
                               required
                             />
                             <input type="number" min="1" value={task.completionDays || 1} onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} placeholder="Days" className="w-20 px-2 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" />
-                            <input type="number" min="0" step="100" value={task.price || 0} onChange={(e) => { const nt = [...tasks]; nt[tIdx].price = Math.max(0, Number(e.target.value) || 0); setTasks(nt); }} placeholder="Price" className="w-24 px-2 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" />
                             {tasks.length > 1 && (
                               <button type="button" onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="h-8 px-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center">
                                 Remove
@@ -1070,34 +1026,39 @@ export function SendProposal() {
               </SectionCard>
             )}
 
+            <AnimatedReveal delay={3}>
+              <SectionCard title="Total Estimated Bid" icon={BarChart3} padding="lg">
+                <div className="relative max-w-xs">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={form.bidAmount || ""}
+                    onChange={(e) => updateField("bidAmount", e.target.value === "" ? 0 : Number(e.target.value))}
+                    placeholder="Enter total bid amount"
+                    className="w-full pl-8 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm font-semibold bg-card text-foreground"
+                  />
+                </div>
+                {project?.budget !== undefined && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Client budget: <span className="font-semibold text-foreground">${Number(project.budget).toLocaleString()}</span>
+                  </p>
+                )}
+              </SectionCard>
+            </AnimatedReveal>
+
             <AnimatedReveal delay={4}>
-              <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount</label>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Auto-computed from tasks: {totalBidAmount.toLocaleString()}
-                    </div>
-                    <input
-                      type="number"
-                      value={totalBidAmount}
-                      readOnly
-                      className="w-full px-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground"
-                    />
+              <SectionCard title="Timeline Summary" icon={Calendar} padding="lg">
+                <div>
+                  <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration</label>
+                  <div className="text-xs text-muted-foreground mb-1">
+                    Auto-computed from tasks: {totalDurationDays} days
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration</label>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      Auto-computed from tasks: {totalDurationDays} days
-                    </div>
-                    <div className="relative">
-                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input
-                        type="number"
-                        value={totalDurationDays}
-                        readOnly
-                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground"
-                      />
+                  <div className="relative max-w-xs">
+                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <div className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground">
+                      {totalDurationDays} days
                     </div>
                   </div>
                 </div>
@@ -1186,7 +1147,7 @@ export function SendProposal() {
 
             {/* Deviation Warnings */}
             {(() => {
-              const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+              const totalBid = Number(form.bidAmount) || 0;
               const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
               const clientBudget = project?.originalBudget || project?.budget || 0;
               const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
@@ -1225,7 +1186,7 @@ export function SendProposal() {
             {/* Submit */}
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
               {(() => {
-                const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+                const totalBid = Number(form.bidAmount) || 0;
                 const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
                 const clientBudget = project?.originalBudget || project?.budget || 0;
                 const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;

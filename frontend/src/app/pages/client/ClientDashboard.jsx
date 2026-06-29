@@ -161,16 +161,24 @@ export function ClientDashboard() {
           api.users.getById(user.id),
           api.payments.getWallet(user.id).catch(() => ({ balance: 0 })),
         ]);
-        
+
+        // Merge job posts + projects (projects may exist without jobPostId)
         const rawPosts = userRes?.jobPosts || [];
+        const rawProjects = userRes?.projects || [];
+        const projectMap = new Map();
+        rawPosts.forEach((p) => { projectMap.set(p.id, { ...p, _source: "jobPost" }); });
+        rawProjects.forEach((p) => {
+          // Don't duplicate if already in jobPosts
+          if (!projectMap.has(p.id)) {
+            projectMap.set(p.id, { ...p, _source: "project" });
+          }
+        });
+
         const chosenMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
-        const mappedPosts = rawPosts.map((p) => {
+        const mappedPosts = Array.from(projectMap.values()).map((p) => {
           const chosenExpertId = chosenMapping[p.id];
           if (chosenExpertId) {
-            return {
-              ...p,
-              assignedExpertId: chosenExpertId,
-            };
+            return { ...p, assignedExpertId: chosenExpertId };
           }
           return p;
         });
