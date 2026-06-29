@@ -1,14 +1,10 @@
-﻿import { useEffect, useRef, useState } from "react";
-import { ClipboardList, ArrowRight, ThumbsUp, AlertTriangle, FileText, Check, X, Clock3, RotateCcw } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { ClipboardList } from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { TaskProgressCard } from "./TaskProgressCard.jsx";
 import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTimelineIllustration.jsx";
 import { cn } from "../../lib/utils.js";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
-import { StatusBadge } from "../shared/StatusBadge.jsx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog.jsx";
 
 // =============================================================================
 // ProjectProgressPanel — overall project progress section with task cards.
@@ -25,182 +21,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog.j
 
 export function ProjectProgressPanel({
   tasks = [],
-  useCases = [],
   overallProgress = 0,
   role = "client",
   projectId,
   onToggleMiniTask,
   focusTaskId,
   loading = false,
-  readOnly = false,
-  onApproveTask,
-  onRequestUrgentSubmission,
-  onRequestRevision,
-  onUseCaseSubmitForReview,
-  onUseCaseApprove,
-  onUseCaseRequestProduct,
-  onUseCaseSubmitProduct,
-  onUseCaseDeclineProduct,
+  project = null,
 }) {
   const taskRefs = useRef({});
-  const navigate = useNavigate();
-
-  const getTaskDuration = (t) => {
-    if (t.durationDays) return Number(t.durationDays);
-    if (t.deadline) {
-      const start = t.createdAt ? new Date(t.createdAt) : new Date();
-      const end = new Date(t.deadline);
-      const diffMs = end - start;
-      if (diffMs > 0) {
-        return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      }
-    }
-    return 5; // default fallback
-  };
-
-  // States for client-side inline task deliverables review modal
-  const [activeReviewTask, setActiveReviewTask] = useState(null);
-  const [showDeclineForm, setShowDeclineForm] = useState(false);
-  const [declineReason, setDeclineReason] = useState("");
-  const [actionLoading, setActionLoading] = useState(false);
-  const [activeExpertUseCaseIndex, setActiveExpertUseCaseIndex] = useState(null);
-
-  // States for Use Case product submission
-  const [ucProductLink, setUcProductLink] = useState("");
-  const [ucProductFile, setUcProductFile] = useState("");
-  const [ucProductImage, setUcProductImage] = useState("");
-
-  // States for client-side Use Case review modal
-  const [activeReviewUseCaseIndex, setActiveReviewUseCaseIndex] = useState(null);
-  const [useCaseDeclineReason, setUseCaseDeclineReason] = useState("");
-  const [showUseCaseDeclineForm, setShowUseCaseDeclineForm] = useState(false);
-
-  const handleApprove = async (taskId) => {
-    if (readOnly || !onApproveTask) return;
-    setActionLoading(true);
-    try {
-      await onApproveTask(taskId);
-      toast.success("Đã phê duyệt milestone thành công!");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      setActiveReviewTask(null);
-    } catch (err) {
-      toast.error("Không thể phê duyệt milestone.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleRequestUrgent = async (taskId) => {
-    if (readOnly || !onRequestUrgentSubmission) return;
-    setActionLoading(true);
-    try {
-      await onRequestUrgentSubmission(taskId);
-      toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo!");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    } catch (err) {
-      toast.error("Không thể yêu cầu sản phẩm.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeclineSubmit = async (taskId) => {
-    if (readOnly || !onRequestRevision || !declineReason.trim()) return;
-    setActionLoading(true);
-    try {
-      await onRequestRevision(taskId, declineReason.trim());
-      toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
-      setShowDeclineForm(false);
-      setDeclineReason("");
-      setActiveReviewTask(null);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    } catch (err) {
-      toast.error("Không thể gửi phản hồi từ chối.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUseCaseSubmitForReviewWrapper = async (useCaseIndex) => {
-    if (readOnly || !onUseCaseSubmitForReview) return;
-    setActionLoading(true);
-    try {
-      await onUseCaseSubmitForReview(useCaseIndex);
-      toast.success("Đã gửi yêu cầu phê duyệt Use Case thành công!");
-    } catch (err) {
-      toast.error("Không thể gửi yêu cầu phê duyệt.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUseCaseApproveWrapper = async (useCaseIndex) => {
-    if (readOnly || !onUseCaseApprove) return;
-    setActionLoading(true);
-    try {
-      await onUseCaseApprove(useCaseIndex);
-      toast.success("Đã phê duyệt Use Case thành công!");
-      setActiveReviewUseCaseIndex(null);
-    } catch (err) {
-      toast.error("Không thể phê duyệt Use Case.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUseCaseRequestProductWrapper = async (useCaseIndex) => {
-    if (readOnly || !onUseCaseRequestProduct) return;
-    setActionLoading(true);
-    try {
-      await onUseCaseRequestProduct(useCaseIndex);
-      toast.success("Đã yêu cầu sản phẩm bàn giao thành công!");
-    } catch (err) {
-      toast.error("Không thể yêu cầu sản phẩm bàn giao.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUseCaseSubmitProductWrapper = async (useCaseIndex) => {
-    if (readOnly || !onUseCaseSubmitProduct) return;
-    if (!ucProductLink.trim() && !ucProductFile.trim() && !ucProductImage.trim()) {
-      toast.error("Vui lòng cung cấp ít nhất một liên kết, tệp hoặc hình ảnh!");
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await onUseCaseSubmitProduct(useCaseIndex, {
-        productLink: ucProductLink.trim(),
-        productFile: ucProductFile.trim(),
-        productImage: ucProductImage.trim()
-      });
-      toast.success("Đã nộp sản phẩm bàn giao thành công!");
-      setUcProductLink("");
-      setUcProductFile("");
-      setUcProductImage("");
-      setActiveExpertUseCaseIndex(null);
-    } catch (err) {
-      toast.error("Không thể nộp sản phẩm bàn giao.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUseCaseDeclineProductWrapper = async (useCaseIndex) => {
-    if (readOnly || !onUseCaseDeclineProduct || !useCaseDeclineReason.trim()) return;
-    setActionLoading(true);
-    try {
-      await onUseCaseDeclineProduct(useCaseIndex, useCaseDeclineReason.trim());
-      toast.success("Đã gửi lý do từ chối sản phẩm thành công!");
-      setUseCaseDeclineReason("");
-      setShowUseCaseDeclineForm(false);
-      setActiveReviewUseCaseIndex(null);
-    } catch (err) {
-      toast.error("Không thể gửi lý do từ chối.");
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   // Scroll to focused task when focusTaskId changes
   useEffect(() => {
@@ -237,18 +66,7 @@ export function ProjectProgressPanel({
     );
   }
 
-  if (role === "client" && useCases.length === 0) {
-    return (
-      <EmptyState
-        icon={ClipboardList}
-        title="No use cases found"
-        description="No use cases found for this project."
-        size="md"
-      />
-    );
-  }
-
-  if (role === "expert" && tasks.length === 0) {
+  if (tasks.length === 0) {
     return (
       <EmptyState
         icon={ClipboardList}
@@ -265,13 +83,13 @@ export function ProjectProgressPanel({
   ).length;
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 space-y-5">
+    <div className="bg-card rounded-xl border border-border p-6 space-y-6">
       {/* Overall progress header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Project Progress</h2>
           <p className="text-sm text-muted-foreground">
-            Progress is automatically calculated from completed Mini Tasks.
+            Progress is automatically calculated from completed Minitasks.
           </p>
           {tasks.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
@@ -304,29 +122,121 @@ export function ProjectProgressPanel({
         />
       </div>
 
-      {/* Task cards */}
-      <div className="space-y-4 pt-2">
-        <h3 className="section-header">
-          Milestones ({tasks.length})
-        </h3>
-        <div className="space-y-4">
-          {tasks.map((task) => (
-            <div
-              key={task.id}
-              ref={(el) => {
-                if (el) taskRefs.current[task.id] = el;
-              }}
-              id={task.id}
-            >
-              <TaskProgressCard
-                task={task}
-                role={role}
-                projectId={projectId}
-              />
-            </div>
-          ))}
+      {/* Tasks & Milestones wrapped by Client Use Case cards */}
+      {project?.useCases && project.useCases.length > 0 ? (
+        <div className="space-y-6 pt-2">
+          {project.useCases.map((uc, ucIdx) => {
+            const ucTasks = tasks.filter((t) => {
+              if (t.useCaseId === uc.id) return true;
+              const hasValidUseCase = project.useCases.some((item) => item.id === t.useCaseId);
+              if (!hasValidUseCase && project.useCases[0]?.id === uc.id) return true;
+              return false;
+            });
+
+            // Calculate Use Case progress based on child tasks' minitasks
+            let totalMinis = 0;
+            let completedMinis = 0;
+            ucTasks.forEach((task) => {
+              const miniTasks = task.miniTasks || [];
+              totalMinis += miniTasks.length;
+              completedMinis += miniTasks.filter(
+                (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
+              ).length;
+            });
+            const ucProgressPercent =
+              totalMinis > 0 ? Math.round((completedMinis / totalMinis) * 100) : 0;
+
+            return (
+              <div key={uc.id || ucIdx} className="border border-border rounded-2xl overflow-hidden bg-card shadow-sm text-left">
+                {/* Use Case Header */}
+                <div className="p-4 bg-accent-light/35 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                        Client Use Case
+                      </span>
+                      <h4 className="font-bold text-foreground text-sm">
+                        {uc.title || uc.nameAndDeadline}
+                      </h4>
+                    </div>
+                    {uc.description && (
+                      <p className="text-xs text-muted-foreground">{uc.description}</p>
+                    )}
+                  </div>
+
+                  {/* Use Case Milestone Progress & Duration */}
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground font-medium">Use Case Progress:</span>
+                      <span className="text-xs font-bold text-primary font-mono">{ucProgressPercent}%</span>
+                      <div className="w-20 bg-secondary h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-primary h-full rounded-full transition-all duration-500"
+                          style={{ width: `${ucProgressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full font-bold whitespace-nowrap">
+                      {uc.originalDurationDays || 1} days
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tasks belonging to this Use Case */}
+                <div className="p-4 space-y-4">
+                  {ucTasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic text-center py-2">
+                      No tasks proposed for this use case.
+                    </p>
+                  ) : (
+                    ucTasks.map((task) => (
+                      <div
+                        key={task.id}
+                        ref={(el) => {
+                          if (el) taskRefs.current[task.id] = el;
+                        }}
+                        id={task.id}
+                      >
+                        <TaskProgressCard
+                          task={task}
+                          role={role}
+                          projectId={projectId}
+                          onToggleMiniTask={onToggleMiniTask}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+      ) : (
+        /* Flat fallback list */
+        <div className="space-y-4 pt-2">
+          <h3 className="section-header">
+            Milestones ({tasks.length})
+          </h3>
+          <div className="space-y-4">
+            {tasks.map((task) => (
+              <div
+                key={task.id}
+                ref={(el) => {
+                  if (el) taskRefs.current[task.id] = el;
+                }}
+                id={task.id}
+              >
+                <TaskProgressCard
+                  task={task}
+                  role={role}
+                  projectId={projectId}
+                  onToggleMiniTask={onToggleMiniTask}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

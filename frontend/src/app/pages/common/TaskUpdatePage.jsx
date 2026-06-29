@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router";
 import { Clock, CheckCircle2, MessageSquare, User, ArrowLeft, Check, Loader2 } from "lucide-react";
 
@@ -19,6 +19,7 @@ import {
   requestTaskRevision,
   listProjects,
   listUsers,
+  updateTask,
 } from "../../../data/mockDatabase.js";
 
 /**
@@ -98,14 +99,18 @@ export function TaskUpdatePage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Controlled note inputs — seeded from mock DB on first render
-  const [miniTaskNotes, setMiniTaskNotes] = useState(() => {
-    const notes = {};
+  const [productLink, setProductLink] = useState(task?.productLink || "");
+  const [productFile, setProductFile] = useState(task?.productFile || "");
+
+  // Controlled title inputs
+  const [miniTaskTitles, setMiniTaskTitles] = useState(() => {
+    const titles = {};
     task?.miniTasks?.forEach((mt) => {
-      notes[mt.id] = mt.note || "";
+      titles[mt.id] = mt.title || "";
     });
-    return notes;
+    return titles;
   });
+
   // Debounce timers for note auto-save
   const noteTimers = useRef({});
 
@@ -113,21 +118,21 @@ export function TaskUpdatePage() {
   const handleToggleMiniTask = useCallback((miniTaskId) => {
     const updated = toggleMockMiniTask(taskId, miniTaskId, actorName);
     if (updated) {
-      // Force re-render — React reads fresh mock DB on next render
-      setMiniTaskNotes((prev) => ({ ...prev }));
+      // Force re-render
+      setMiniTaskTitles((prev) => ({ ...prev }));
     }
   }, [taskId, actorName]);
 
-  // ---- Mini task note change (debounced auto-save) ----
-  const handleNoteChange = useCallback((miniTaskId, value) => {
-    setMiniTaskNotes((prev) => ({ ...prev, [miniTaskId]: value }));
+  // ---- Mini task title change (debounced auto-save) ----
+  const handleTitleChange = useCallback((miniTaskId, value) => {
+    setMiniTaskTitles((prev) => ({ ...prev, [miniTaskId]: value }));
 
-    // Debounce the mock-DB write (300ms after last keystroke)
-    if (noteTimers.current[miniTaskId]) {
-      clearTimeout(noteTimers.current[miniTaskId]);
+    if (noteTimers.current[`title-${miniTaskId}`]) {
+      clearTimeout(noteTimers.current[`title-${miniTaskId}`]);
     }
-    noteTimers.current[miniTaskId] = setTimeout(() => {
-      updateMockMiniTaskNote(taskId, miniTaskId, value);
+    noteTimers.current[`title-${miniTaskId}`] = setTimeout(() => {
+      updateMiniTaskInTask(taskId, miniTaskId, { title: value });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     }, 300);
   }, [taskId]);
 
@@ -135,6 +140,11 @@ export function TaskUpdatePage() {
   const handleDone = useCallback(() => {
     if (!allMiniTasksDone || submitting) return;
     setSubmitting(true);
+    // Persist deliverables first
+    updateTask(taskId, {
+      productLink: productLink.trim(),
+      productFile: productFile.trim(),
+    });
     const updated = markTaskSubmitted(taskId, actorName);
     if (updated) {
       setSubmitted(true);
@@ -142,7 +152,7 @@ export function TaskUpdatePage() {
       navigate(-1);
     }
     setSubmitting(false);
-  }, [taskId, allMiniTasksDone, submitting, navigate, actorName]);
+  }, [taskId, allMiniTasksDone, submitting, navigate, actorName, productLink, productFile]);
 
   // ---- Client approve ----
   const handleClientApprove = useCallback(() => {
@@ -240,15 +250,13 @@ export function TaskUpdatePage() {
             <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Client Feedback
             </h3>
-            <p className="text-sm text-muted-foreground bg-primary-light rounded-lg p-4">{task.clientFeedback}</p>
           </div>
         )}
-
-        {/* Mini Tasks */}
+        {/* Task Breakdown: task lớn và các task con */}
         {task.miniTasks?.length > 0 && (
           <div className="border-t pt-6 mb-6">
             <h3 className="font-semibold text-foreground mb-4">
-              Mini Tasks ({completedMiniTasks}/{totalMiniTasks})
+              Task: {task.title} ({completedMiniTasks}/{totalMiniTasks} hoàn thành)
             </h3>
             <div className="space-y-3">
               {safeArray(task.miniTasks).map((mt) => {
@@ -262,7 +270,7 @@ export function TaskUpdatePage() {
                         : "bg-card border-border"
                     }`}
                   >
-                    {/* Top row: checkbox + title + status badge */}
+                    {/* Top row: checkbox + title input (expert edits) + status badge */}
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
@@ -279,13 +287,25 @@ export function TaskUpdatePage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`text-sm font-medium ${
-                              isDone ? "line-through text-muted-foreground" : "text-foreground"
-                            }`}
-                          >
-                            {mt.title}
-                          </span>
+                          {role === "expert" ? (
+                            <input
+                              type="text"
+                              value={miniTaskTitles[mt.id] || ""}
+                              onChange={(e) => handleTitleChange(mt.id, e.target.value)}
+                              placeholder="Task name"
+                              className={`text-sm font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none text-foreground py-0.5 px-1 w-full max-w-md ${
+                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            />
+                          ) : (
+                            <span
+                              className={`text-sm font-semibold ${
+                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            >
+                              {mt.title}
+                            </span>
+                          )}
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               isDone
@@ -296,20 +316,44 @@ export function TaskUpdatePage() {
                             {isDone ? "Done" : "Todo"}
                           </span>
                         </div>
-
-                        {/* Expert note textarea */}
-                        <textarea
-                          value={miniTaskNotes[mt.id] || ""}
-                          onChange={(e) => handleNoteChange(mt.id, e.target.value)}
-                          placeholder="Add a note..."
-                          rows={2}
-                          className="mt-2 w-full text-xs border border-border rounded-lg px-3 py-2 focus:outline-none focus:border-ring/50 focus:ring-1 focus:ring-ring/20 resize-none bg-input-background"
-                        />
                       </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Deliverables: Link sản phẩm + Tên file đính kèm */}
+        {role === "expert" && (
+          <div className="border-t pt-6 mb-6">
+            <h3 className="font-semibold text-foreground mb-4">Sản phẩm bàn giao</h3>
+            <div className="space-y-4 max-w-md bg-muted/40 p-4 border border-border rounded-xl">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Link sản phẩm
+                </label>
+                <input
+                  type="text"
+                  value={productLink}
+                  onChange={(e) => setProductLink(e.target.value)}
+                  placeholder="https://example.com/demo-product"
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Tên file đính kèm
+                </label>
+                <input
+                  type="text"
+                  value={productFile}
+                  onChange={(e) => setProductFile(e.target.value)}
+                  placeholder="project_output_v1.zip"
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground"
+                />
+              </div>
             </div>
           </div>
         )}

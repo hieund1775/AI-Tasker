@@ -34,11 +34,6 @@ async function request(endpoint, options = {}) {
     timeout = 5000, // 5 s default — fail fast for unavailable backends
     ...rest
   } = options;
-
-  const httpMethod = method || (body ? "POST" : "GET");
-
-  // Mock interceptor disabled - proceed with real API calls
-
   const url = `${API_BASE_URL}${endpoint}`;
 
   const headers = {
@@ -53,6 +48,7 @@ async function request(endpoint, options = {}) {
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
+  const httpMethod = method || (body ? "POST" : "GET");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   const init = {
@@ -242,7 +238,7 @@ export const api = {
     },
   },
 
-   projects: {
+  projects: {
     create: (data) => post("/Projects", data),
     list: (params) => {
       const query = buildQuery(params);
@@ -250,7 +246,6 @@ export const api = {
     },
     getByClient: (clientId) => get(`/Projects/client/${clientId}`),
     getByExpert: (expertId) => get(`/Projects/expert/${expertId}`),
-    update: (id, data) => put(`/Projects/${id}`, data),
     updateStatus: (id, status) => put(`/Projects/${id}/status?status=${encodeURIComponent(status)}`),
     submitWork: (id, projectLink) => put(`/Projects/${id}/submit-work?projectLink=${encodeURIComponent(projectLink)}`),
   },
@@ -266,9 +261,6 @@ export const api = {
     update: (id, data) => put(`/JobPosts/${id}`, data),
   },
 
-  categoryTags: {
-    getSkills: () => get("/category-tags/skills"),
-  },
   // ===========================================================================
   // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.
@@ -311,10 +303,6 @@ export const api = {
   payments: {
     getWallet: (userId) => get(`/Users/${userId}`).then(u => u?.wallet || { balance: 0 }),
     getTransactions: () => get("/interactions").catch(() => []),
-    depositWallet: (data) => post("/interactions/transaction", {
-      amount: data.amount,
-      type: "deposit"
-    }),
     depositEscrow: (data) => post("/interactions/transaction", {
       projectId: data.projectId,
       amount: data.amount,
@@ -337,39 +325,10 @@ export const api = {
     markAllRead: () => put("/notifications/read-all"),
   },
 
-  contracts: {
-    // TODO: Backend endpoint not yet confirmed — placeholder
-    create: (data) => {
-      // TODO: Connect to real endpoint e.g. post("/Contracts", data)
-      return post("/Contracts", data);
-    },
-    // TODO: Backend endpoint not yet confirmed — placeholder
-    getById: (id) => {
-      // TODO: Connect to real endpoint e.g. get(`/Contracts/${id}`)
-      return get(`/Contracts/${id}`);
-    },
-    // TODO: Backend endpoint not yet confirmed — placeholder
-    getByProject: (projectId) => {
-      // TODO: Connect to real endpoint e.g. get(`/Contracts/project/${projectId}`)
-      return get(`/Contracts/project/${projectId}`);
-    },
-    // TODO: Backend endpoint not yet confirmed — placeholder
-    getByExpert: (expertId) => {
-      // TODO: Connect to real endpoint e.g. get(`/Contracts/expert/${expertId}`)
-      return get(`/Contracts/expert/${expertId}`).catch(() => []);
-    },
-    // TODO: Backend endpoint not yet confirmed — placeholder
-    updateStatus: (id, status) => {
-      // TODO: Connect to real endpoint e.g. put(`/Contracts/${id}/status?status=...`)
-      return put(`/Contracts/${id}/status?status=${encodeURIComponent(status)}`);
-    },
-  },
-
   proposals: {
     create: (data) => post("/Proposals/submit-proposal", data),
     getByJob: (jobPostId) => get(`/Proposals/job/${jobPostId}`),
     getByExpert: (expertId) => get(`/Proposals/expert/${expertId}`),
-    getById: (id) => get(`/Proposals/${id}`),
     update: (id, data) => put(`/Proposals/${id}`, data),
     updateStatus: (id, status) => put(`/Proposals/${id}/status?status=${encodeURIComponent(status)}`),
     delete: (id) => del(`/Proposals/${id}`),

@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import {
-  AlertTriangle,
   MessageSquare,
   CheckCircle,
   XCircle,
@@ -88,13 +87,6 @@ export function ProposalCard({
               </p>
             )}
 
-            {proposal.extensionRequested && (
-              <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-                <AlertTriangle className="w-4 h-4" />
-                Expert requests timeline extension for at least one Use Case.
-              </div>
-            )}
-
             {/* Expert skills */}
             {proposal.expert?.skills?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-3">
@@ -165,15 +157,7 @@ export function ProposalCard({
                                 </div>
                               )}
                             </div>
-                            {task.description && (
-                              <p className="text-xs text-muted-foreground">{task.description}</p>
-                            )}
-                            {(task.miniTasks || []).slice(0, 3).map(m => (
-                              <p key={m.id} className="text-xs text-muted-foreground pl-3">• {m.title}</p>
-                            ))}
-                            {(task.miniTasks || []).length > 3 && (
-                              <p className="text-xs text-muted-foreground/60 pl-3">+{(task.miniTasks || []).length - 3} more</p>
-                            )}
+
                           </div>
                         );
                       })}
@@ -191,12 +175,7 @@ export function ProposalCard({
                           ) : null}
                           <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
                         </div>
-                        {(task.miniTasks || []).slice(0, 3).map(m => (
-                          <p key={m.id} className="text-xs text-muted-foreground pl-3">• {m.title}</p>
-                        ))}
-                        {(task.miniTasks || []).length > 3 && (
-                          <p className="text-xs text-muted-foreground/60 pl-3">+{(task.miniTasks || []).length - 3} more</p>
-                        )}
+
                       </div>
                     ))}
 
@@ -241,12 +220,7 @@ export function ProposalCard({
                                 </div>
                               )}
                             </div>
-                            {(task.miniTasks || []).slice(0, 3).map(m => (
-                              <p key={m.id} className="text-xs text-muted-foreground pl-3">• {m.title}</p>
-                            ))}
-                            {(task.miniTasks || []).length > 3 && (
-                              <p className="text-xs text-muted-foreground/60 pl-3">+{(task.miniTasks || []).length - 3} more</p>
-                            )}
+
                           </div>
                           );
                         })}
@@ -263,19 +237,18 @@ export function ProposalCard({
         <div className="flex flex-col items-start md:items-end gap-3 md:min-w-[180px] flex-shrink-0">
           {/* Bid amount */}
           <div className="text-right">
-            <p className="text-lg font-bold text-foreground">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Bid</span>
+            <p className="text-lg font-bold text-accent">
               <MoneyDisplay amount={proposal.bidAmount} />
             </p>
-            <p className="text-xs text-muted-foreground">
-              {proposal.durationDays
-                ? `${proposal.durationDays} days`
-                : ""}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Duration: {proposal.durationDays || proposal.estimatedDays || 0} days
             </p>
           </div>
 
           {/* Actions */}
           {!hasBeenActed && (
-            <div className="flex flex-col gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Link
                 to="/messenger"
                 className="min-w-[140px] justify-center h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"

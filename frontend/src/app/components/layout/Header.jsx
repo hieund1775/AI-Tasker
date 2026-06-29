@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import {
-  Menu,
-  User,
-  LogOut,
-  Bell,
-  Wallet,
-  X,
-  Sun,
-  Moon,
-  Monitor,
-} from "lucide-react";
+import { Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { timeAgo } from "../../lib/dateUtils.js";
@@ -41,8 +31,7 @@ export function Header() {
   const { theme, setTheme, resolvedTheme } = useTheme();
 
   const getThemeIcon = () => {
-    if (theme === "system")
-      return <Monitor className="w-4.5 h-4.5 stroke-[1.8]" />;
+    if (theme === "system") return <Monitor className="w-4.5 h-4.5 stroke-[1.8]" />;
     return resolvedTheme === "dark" ? (
       <Moon className="w-4.5 h-4.5 stroke-[1.8]" />
     ) : (
@@ -59,8 +48,7 @@ export function Header() {
   useEffect(() => {
     if (isAuthenticated) {
       const loadNotifications = () => {
-        api.notifications
-          .getList()
+        api.notifications.getList()
           .then((data) => {
             if (Array.isArray(data)) {
               const mapped = data.map((n) => ({
@@ -76,11 +64,7 @@ export function Header() {
               const pathParts = location.pathname.split("/");
               if (pathParts[1] === "messenger" && pathParts[2]) {
                 const activeConvId = pathParts[2];
-                setNotifications(
-                  mapped.filter(
-                    (n) => n.linkTo !== `/messenger/${activeConvId}`,
-                  ),
-                );
+                setNotifications(mapped.filter((n) => n.linkTo !== `/messenger/${activeConvId}`));
               } else {
                 setNotifications(mapped);
               }
@@ -114,16 +98,10 @@ export function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
-      if (
-        mobileMenuRef.current &&
-        !mobileMenuRef.current.contains(event.target)
-      ) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
         setShowMobileMenu(false);
       }
-      if (
-        themeDropdownRef.current &&
-        !themeDropdownRef.current.contains(event.target)
-      ) {
+      if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target)) {
         setShowThemeMenu(false);
       }
     }
@@ -137,8 +115,7 @@ export function Header() {
   };
 
   // Common nav link style
-  const navLinkClass =
-    "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-foreground after:transition-all hover:after:w-full";
+  const navLinkClass = "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-foreground after:transition-all hover:after:w-full";
   const activeNavClass = "text-sm font-medium text-foreground";
 
   return (
@@ -148,13 +125,9 @@ export function Header() {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">
-                AI
-              </span>
+              <span className="text-primary-foreground font-bold text-sm">AI</span>
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">
-              Tasker
-            </span>
+            <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
           </Link>
 
           {/* Navigation Link Items — desktop only */}
@@ -162,22 +135,14 @@ export function Header() {
             <nav className="hidden md:flex items-center gap-6">
               <Link
                 to={`/${role}/dashboard`}
-                className={
-                  location.pathname === `/${role}/dashboard`
-                    ? activeNavClass
-                    : navLinkClass
-                }
+                className={location.pathname === `/${role}/dashboard` ? activeNavClass : navLinkClass}
               >
                 Dashboard
               </Link>
               {role === "client" && (
                 <Link
                   to="/client/experts"
-                  className={
-                    location.pathname.startsWith("/client/experts")
-                      ? activeNavClass
-                      : navLinkClass
-                  }
+                  className={location.pathname.startsWith("/client/experts") ? activeNavClass : navLinkClass}
                 >
                   Find Experts
                 </Link>
@@ -185,22 +150,14 @@ export function Header() {
               {role === "expert" && (
                 <Link
                   to="/expert/proposals"
-                  className={
-                    location.pathname.startsWith("/expert/proposals")
-                      ? activeNavClass
-                      : navLinkClass
-                  }
+                  className={location.pathname.startsWith("/expert/proposals") ? activeNavClass : navLinkClass}
                 >
                   My Proposals
                 </Link>
               )}
               <Link
                 to="/messenger"
-                className={
-                  location.pathname.startsWith("/messenger")
-                    ? activeNavClass
-                    : navLinkClass
-                }
+                className={location.pathname.startsWith("/messenger") ? activeNavClass : navLinkClass}
               >
                 Messages
               </Link>
@@ -234,10 +191,7 @@ export function Header() {
                 )}
 
                 {/* Theme Toggle Dropdown */}
-                <div
-                  className="relative flex items-center justify-center"
-                  ref={themeDropdownRef}
-                >
+                <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowThemeMenu(!showThemeMenu)}
@@ -288,10 +242,7 @@ export function Header() {
                 </div>
 
                 {/* Notification Bell */}
-                <div
-                  className="relative flex items-center justify-center"
-                  ref={dropdownRef}
-                >
+                <div className="relative flex items-center justify-center" ref={dropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowNotifications(!showNotifications)}
@@ -335,10 +286,7 @@ export function Header() {
                                 try {
                                   await api.notifications.markRead(noti.id);
                                 } catch (err) {
-                                  console.error(
-                                    "Failed to mark notification as read:",
-                                    err,
-                                  );
+                                  console.error("Failed to mark notification as read:", err);
                                 }
                                 setShowNotifications(false);
                                 if (noti.linkTo) navigate(noti.linkTo);
@@ -382,15 +330,6 @@ export function Header() {
                   )}
                 </div>
 
-                {/* Wallet */}
-                <Link
-                  to={role === "client" ? "/client/billing" : `/${role}/wallet`}
-                  className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all flex items-center justify-center"
-                  title="Wallet"
-                >
-                  <Wallet className="w-5 h-5 stroke-[2.2]" />
-                </Link>
-
                 {/* Profile Link */}
                 <Link
                   to={`/${role}/profile`}
@@ -430,11 +369,7 @@ export function Header() {
               className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
               onClick={() => setShowMobileMenu(!showMobileMenu)}
             >
-              {showMobileMenu ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
+              {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import {
   listProjects,
   listTasks,
   listUsers,
+  listJobPosts,
   addMiniTaskToTask,
   removeMiniTaskFromTask,
   reorderMiniTasksInTask,
@@ -16,7 +17,6 @@ import {
   expertSubmitTaskProduct,
   clientAcceptTaskProduct,
   clientDeclineTaskProduct,
-  updateTask,
   approveTaskSubmission,
   requestTaskRevision,
   requestTaskReopen,
@@ -26,16 +26,11 @@ import {
   submitProjectFinalWork,
   acceptProjectFinalDelivery,
   declineProjectFinalDelivery,
-  listReports,
-  getJobPostById,
 } from "../../data/mockDatabase.js";
-import { api } from "../../services/api.js";
 import {
   getOverallProgress,
   deriveTaskProgress,
   getDeadlineInfo,
-  getMergedActivityLogs,
-  addProjectActivity,
 } from "../lib/projectTimelineStore.js";
 
 // =============================================================================
@@ -63,68 +58,55 @@ export function deriveTaskDisplayStatus(task) {
   const hasMiniTasks = miniTasks.length > 0;
 
   // 1. Done
-  if (
-    rawStatus === "completed" ||
-    rawStatus === "done" ||
-    task.approval === "Approved" ||
-    task.approval === "Quick Accepted"
-  ) {
+  if (rawStatus === "completed" || rawStatus === "done" || task.approval === "Approved" || task.approval === "Quick Accepted") {
     const allDone = miniTasks.every(
-      (mt) =>
-        mt.isCompleted === true ||
-        mt.status === "done" ||
-        mt.status === "completed",
+      (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
     );
     if (allDone || rawStatus === "completed" || rawStatus === "done") return "Done";
   }
 
-  // 2. Waiting for expert product (with rework sub-state)
-  if (rawStatus === "waiting_expert_product") {
-    if (task.reworkStatus === "rework") {
-      return "Rework";
-    }
-    return "Waiting for Expert Product";
-  }
+  // 2. Rework (orange)
+  if (rawStatus === "rework") return "Rework";
 
-  // 3. Rework / revision must win even if the checklist remains 100%.
-  if (
-    rawStatus === "needs_revision" ||
-    rawStatus === "needs revision" ||
-    rawStatus === "decline" ||
-    rawStatus === "declined" ||
-    task.reworkStatus === "rework"
-  ) {
-    return "Rework";
-  }
-
-  // 4. Waiting For Approval
-  if (rawStatus === "pending_review" || rawStatus === "pending review") {
+  // 3. Waiting For Approval
+  if (rawStatus === "waiting_for_approval" || rawStatus === "pending_review" || rawStatus === "pending review") {
     return "Waiting For Approval";
   }
+
+  // 4. Waiting for Expert Product
+  if (rawStatus === "waiting_expert_product") return "Waiting for Expert Product";
 
   // 5. Checklist Completed
   if (rawStatus === "checklist_completed") return "Checklist Completed";
 
-  // 6. Checklist Completed (Only when all completed AND evidence is provided!)
-  const allCompleted =
-    hasMiniTasks &&
-    miniTasks.every(
-      (mt) =>
-        mt.isCompleted === true ||
-        mt.status === "done" ||
-        mt.status === "completed",
-    );
+  const allCompleted = hasMiniTasks && miniTasks.every(
+    (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
+  );
   if (allCompleted) {
-    if (task.evidence && task.evidence.trim() !== "") {
-      return "Checklist Completed";
-    }
+    // All mini tasks done but no handover evidence yet — stays In Progress
+    if (!task.handoverEvidence) return "In Progress";
+    // Has evidence but status not updated (legacy) — return Checklist Completed
+    return "Checklist Completed";
+  }
+
+  // 6. Decline / Needs Revision
+  if (
+    rawStatus === "needs_revision" ||
+    rawStatus === "needs revision" ||
+    rawStatus === "decline" ||
+    rawStatus === "declined"
+  ) {
+    return "Decline";
   }
 
   // 7. Not Started
   if (!hasMiniTasks) return "Not Started";
 
   // 8. In Progress
-  if (rawStatus === "reopen_requested" || rawStatus === "reopen requested") {
+  if (
+    rawStatus === "reopen_requested" ||
+    rawStatus === "reopen requested"
+  ) {
     return "In Progress";
   }
 
@@ -133,7 +115,7 @@ export function deriveTaskDisplayStatus(task) {
       mt.isCompleted === true ||
       mt.status === "done" ||
       mt.status === "completed" ||
-      mt.status === "in_progress",
+      mt.status === "in_progress"
   );
   if (hasAnyProgress) return "In Progress";
 
@@ -148,10 +130,8 @@ export function useProjectProgress(projectId, role) {
   const [tasks, setTasks] = useState([]);
   const [expert, setExpert] = useState(null);
   const [client, setClient] = useState(null);
-  const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activityLogs, setActivityLogs] = useState([]);
 
   // ---- Data loader ----
   const loadData = useCallback(() => {
@@ -162,34 +142,35 @@ export function useProjectProgress(projectId, role) {
 
     try {
       const projectsList = listProjects();
-      let foundProject = projectsList.find((p) => p.id === projectId);
+      const foundProject = projectsList.find((p) => p.id === projectId);
       if (!foundProject) {
-        foundProject = projectsList.find((p) => p.jobPostId === projectId);
-      }
-
-      if (!foundProject) {
-        setProject(null);
+        setError("Project not found");
         setLoading(false);
         return;
       }
 
-      let projectUseCases = foundProject.useCases || [];
-      if (projectUseCases.length === 0 && foundProject.jobPostId) {
-        try {
-          const job = getJobPostById(foundProject.jobPostId);
-          if (job && job.useCases) {
-            projectUseCases = job.useCases;
-          }
-        } catch (e) {
-          console.error("Failed to load fallback useCases:", e);
+      // Self-healing: Ensure project always has useCases
+      if (!foundProject.useCases || foundProject.useCases.length === 0) {
+        const jobs = listJobPosts();
+        const associatedJob = jobs.find((j) => j.id === foundProject.jobPostId);
+        if (associatedJob && associatedJob.useCases && associatedJob.useCases.length > 0) {
+          foundProject.useCases = associatedJob.useCases;
+        } else {
+          foundProject.useCases = [
+            {
+              id: "uc-default",
+              title: foundProject.title || "Project Tasks",
+              originalDurationDays: foundProject.deadline || 30,
+            },
+          ];
         }
       }
-      foundProject.useCases = projectUseCases;
+
       setProject(foundProject);
 
       // Load tasks for this project — first from the global task list,
       // then fall back to embedded project.tasks (from accepted proposals).
-      const projectTasks = listTasks((t) => t.projectId === foundProject.id);
+      const projectTasks = listTasks((t) => t.projectId === projectId);
 
       const embeddedTasks = Array.isArray(foundProject.tasks)
         ? foundProject.tasks.map((task) => ({
@@ -213,67 +194,28 @@ export function useProjectProgress(projectId, role) {
           }))
         : [];
 
-      const finalTasks = embeddedTasks.length > 0
-        ? embeddedTasks.map((et) => {
-            const pt = projectTasks.find((t) => t.id === et.id);
-            return pt ? pt : et;
-          })
-        : projectTasks;
+      const finalTasks =
+        projectTasks.length > 0 ? projectTasks : embeddedTasks;
 
       console.log("[useProjectProgress] projectId:", projectId);
-      console.log(
-        "[useProjectProgress] projectTasks from listTasks:",
-        projectTasks.length,
-      );
-      console.log(
-        "[useProjectProgress] embedded project.tasks:",
-        embeddedTasks.length,
-      );
+      console.log("[useProjectProgress] projectTasks from listTasks:", projectTasks.length);
+      console.log("[useProjectProgress] embedded project.tasks:", embeddedTasks.length);
       console.log("[useProjectProgress] final tasks:", finalTasks.length);
       console.log("[useProjectProgress] final tasks detail:", finalTasks);
 
-      const enrichedFinalTasks = finalTasks.map((task, idx) => {
-        const derivedUcIndex = task.useCaseIndex != null ? Number(task.useCaseIndex) : (idx % (foundProject.useCases?.length || 1));
-        const derivedUcId = task.useCaseId || (foundProject.useCases && foundProject.useCases[derivedUcIndex]?.id) || "";
-        return {
-          ...task,
-          useCaseIndex: derivedUcIndex,
-          useCaseId: derivedUcId,
-          useCaseTitle: task.useCaseTitle || (foundProject.useCases && foundProject.useCases[derivedUcIndex]?.title) || "",
-        };
-      });
-
-      setTasks(enrichedFinalTasks);
+      setTasks(finalTasks);
 
       // Load expert user
       if (foundProject.assignedExpertId) {
-        const expertUser = listUsers().find(
-          (u) => u.id === foundProject.assignedExpertId,
-        );
+        const expertUser = listUsers().find((u) => u.id === foundProject.assignedExpertId);
         setExpert(expertUser || null);
       }
 
       // Load client user
       if (foundProject.clientId) {
-        const clientUser = listUsers().find(
-          (u) => u.id === foundProject.clientId,
-        );
+        const clientUser = listUsers().find((u) => u.id === foundProject.clientId);
         setClient(clientUser || null);
       }
-
-      // Load active report for the project
-      const reports = listReports((r) => r.projectId === projectId);
-      const activeReport =
-        reports.find(
-          (r) => r.status !== "Rejected" && r.status !== "Resolved",
-        ) ||
-        reports[0] ||
-        null;
-      setReport(activeReport);
-
-      // Load activity logs
-      const logs = getMergedActivityLogs(foundProject.id);
-      setActivityLogs(logs);
 
       setError(null);
     } catch (err) {
@@ -318,23 +260,7 @@ export function useProjectProgress(projectId, role) {
 
   const overallProgress = getOverallProgress(tasks);
   const totalTasks = tasks.length;
-  const completedTasks = tasksWithProgress.filter(
-    (t) => t.displayStatus === "Done",
-  ).length;
-
-  const useCasesWithProgress = (project?.useCases || []).map((uc, index) => {
-    const ucTasks = tasksWithProgress.filter((t) => t.useCaseId ? t.useCaseId === uc.id : Number(t.useCaseIndex) === index);
-    let progress = 0;
-    if (ucTasks.length > 0) {
-      const totalTaskProgress = ucTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
-      progress = Math.round(totalTaskProgress / ucTasks.length);
-    }
-    return {
-      ...uc,
-      index,
-      progress,
-    };
-  });
+  const completedTasks = tasksWithProgress.filter((t) => t.displayStatus === "Done").length;
 
   // Check if all mini tasks are completed for a specific task
   const areAllMiniTasksCompleted = useCallback(
@@ -342,18 +268,12 @@ export function useProjectProgress(projectId, role) {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return false;
       const miniTasks = task.miniTasks || [];
-      if (miniTasks.length === 0) {
-        const rawStatus = task.status?.toLowerCase();
-        return rawStatus === "completed" || rawStatus === "done" || task.approval === "Approved";
-      }
+      if (miniTasks.length === 0) return false;
       return miniTasks.every(
-        (mt) =>
-          mt.isCompleted === true ||
-          mt.status === "done" ||
-          mt.status === "completed",
+        (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
       );
     },
-    [tasks],
+    [tasks]
   );
 
   // ---- Mutation handlers ----
@@ -361,54 +281,9 @@ export function useProjectProgress(projectId, role) {
   const handleToggleMiniTask = useCallback(
     (taskId, miniTaskId) => {
       if (role !== "expert") return;
-      const task = tasks.find(t => t.id === taskId);
-      if (!task) return;
-
-      if (!miniTaskId) {
-        // Toggle the task itself (not a mini task)
-        const isCurrentlyCompleted = task.status === "completed" || task.status === "done" || task.progress === 100;
-        const newStatus = isCurrentlyCompleted ? "not_started" : "completed";
-        const newProgress = isCurrentlyCompleted ? 0 : 100;
-
-        updateTask(taskId, {
-          status: newStatus,
-          progress: newProgress,
-          approval: newStatus === "completed" ? "Approved" : null,
-        });
-
-        if (project) {
-          addProjectActivity(project.id, {
-            actor: "Expert",
-            message: isCurrentlyCompleted
-              ? `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành "${task.title}"`
-              : `[Expert] hoàn thành nhiệm vụ "${task.title}"`,
-          });
-        }
-        // updateTask → _update → triggerDbUpdate already dispatches aitasker_db_update
-        return;
-      }
-
-      // Toggle single mini task — activity first, then DB (DB fires its own reload event)
-      const mt = task.miniTasks?.find(m => m.id === miniTaskId);
-      if (!mt) return;
-
-      // Guard: don't add duplicate activity logs
-      const alreadyCompleted = mt.isCompleted === true || mt.status === "done" || mt.status === "completed";
-      const willBeCompleted = !alreadyCompleted;
-
-      if (project) {
-        addProjectActivity(project.id, {
-          actor: "Expert",
-          message: willBeCompleted
-            ? `[Expert] hoàn thành milestone "${mt.title || "không tên"}" của task "${task.title}"`
-            : `[Expert] đã thay đổi milestone: hủy hoàn thành "${mt.title || "không tên"}" của task "${task.title}"`,
-        });
-      }
-
-      // This persists to mock DB + localStorage, then fires aitasker_db_update
       toggleMiniTaskCompletion(taskId, miniTaskId, expert?.fullName);
     },
-    [role, expert, tasks, project],
+    [role, expert]
   );
 
   const handleAddMiniTask = useCallback(
@@ -416,7 +291,7 @@ export function useProjectProgress(projectId, role) {
       if (role !== "expert") return null;
       return addMiniTaskToTask(taskId, miniTaskData, expert?.fullName);
     },
-    [role, expert],
+    [role, expert]
   );
 
   const handleRemoveMiniTask = useCallback(
@@ -424,7 +299,7 @@ export function useProjectProgress(projectId, role) {
       if (role !== "expert") return null;
       return removeMiniTaskFromTask(taskId, miniTaskId);
     },
-    [role],
+    [role]
   );
 
   const handleReorderMiniTasks = useCallback(
@@ -432,42 +307,15 @@ export function useProjectProgress(projectId, role) {
       if (role !== "expert") return null;
       return reorderMiniTasksInTask(taskId, orderedIds);
     },
-    [role],
+    [role]
   );
 
   const handleUpdateMiniTask = useCallback(
     (taskId, miniTaskId, updates) => {
       if (role !== "expert") return null;
-      const task = tasks.find((t) => t.id === taskId);
-      const oldMt = task?.miniTasks?.find((m) => m.id === miniTaskId);
-      const res = updateMiniTaskInTask(taskId, miniTaskId, updates);
-      if (task && oldMt && updates.title && oldMt.title !== updates.title && project) {
-        addProjectActivity(project.id, {
-          actor: "Expert",
-          message: `[Expert] đã thay đổi tiêu đề milestone của task "${task.title}" từ "${oldMt.title}" thành "${updates.title}"`
-        });
-      }
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      return res;
+      return updateMiniTaskInTask(taskId, miniTaskId, updates);
     },
-    [role, tasks, project],
-  );
-
-  const handleUpdateTask = useCallback(
-    (taskId, updates) => {
-      if (role !== "expert") return null;
-      const oldTask = tasks.find((t) => t.id === taskId);
-      const res = updateTask(taskId, updates);
-      if (oldTask && updates.title && oldTask.title !== updates.title && project) {
-        addProjectActivity(project.id, {
-          actor: "Expert",
-          message: `[Expert] đã thay đổi tiêu đề nhiệm vụ từ "${oldTask.title}" thành "${updates.title}"`
-        });
-      }
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      return res;
-    },
-    [role, tasks, project],
+    [role]
   );
 
   // ---- Evidence-based task flow handlers (new spec) ----
@@ -529,20 +377,15 @@ export function useProjectProgress(projectId, role) {
       if (!areAllMiniTasksCompleted(taskId)) return null;
       return submitTaskForReview(taskId, expert?.fullName);
     },
-    [role, areAllMiniTasksCompleted, expert],
+    [role, areAllMiniTasksCompleted, expert]
   );
 
   const handleSubmitProduct = useCallback(
     (taskId, productLink, productFile) => {
       if (role !== "expert") return null;
-      return submitTaskProduct(
-        taskId,
-        expert?.fullName,
-        productLink,
-        productFile,
-      );
+      return submitTaskProduct(taskId, expert?.fullName, productLink, productFile);
     },
-    [role, expert],
+    [role, expert]
   );
 
   const handleApproveTask = useCallback(
@@ -550,7 +393,7 @@ export function useProjectProgress(projectId, role) {
       if (role !== "client") return null;
       return approveTaskSubmission(taskId, client?.fullName);
     },
-    [role, client],
+    [role, client]
   );
 
   const handleRequestRevision = useCallback(
@@ -558,7 +401,7 @@ export function useProjectProgress(projectId, role) {
       if (role !== "client") return null;
       return requestTaskRevision(taskId, client?.fullName, feedback);
     },
-    [role, client],
+    [role, client]
   );
 
   // Keep old handler for backward compat
@@ -568,7 +411,7 @@ export function useProjectProgress(projectId, role) {
       if (!areAllMiniTasksCompleted(taskId)) return null;
       return submitTaskForReview(taskId, expert?.fullName);
     },
-    [role, areAllMiniTasksCompleted, expert],
+    [role, areAllMiniTasksCompleted, expert]
   );
 
   const handleRequestReopen = useCallback(
@@ -576,7 +419,7 @@ export function useProjectProgress(projectId, role) {
       if (role !== "client") return null;
       return requestTaskReopen(taskId, client?.fullName);
     },
-    [role, client],
+    [role, client]
   );
 
   const handleRequestUrgentSubmission = useCallback(
@@ -584,194 +427,46 @@ export function useProjectProgress(projectId, role) {
       if (role !== "client") return null;
       return requestUrgentSubmission(taskId, client?.fullName, client?.id);
     },
-    [role, client],
+    [role, client]
   );
 
   const handleRequestMiniTaskRevision = useCallback(
     (taskId, miniTaskIds, feedback) => {
       if (role !== "client") return null;
       if (!miniTaskIds || miniTaskIds.length === 0) return null;
-      return requestMiniTaskRevision(
-        taskId,
-        miniTaskIds,
-        client?.fullName,
-        feedback,
-      );
+      return requestMiniTaskRevision(taskId, miniTaskIds, client?.fullName, feedback);
     },
-    [role, client],
+    [role, client]
   );
 
   const handleSubmitProjectFinalWork = useCallback(
     (projectLink, projectFile) => {
-      const result = submitProjectFinalWork(
-        projectId,
-        expert?.fullName || "Expert",
-        projectLink,
-        projectFile,
-      );
-      addProjectActivity(projectId, {
-        actor: "Expert",
-        message: `[Expert] đã nộp bàn giao sản phẩm tổng thể.`
-      });
+      const result = submitProjectFinalWork(projectId, expert?.fullName || "Expert", projectLink, projectFile);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       return result;
     },
-    [projectId, expert],
+    [projectId, expert]
   );
 
-  const handleAcceptProjectFinalDelivery = useCallback(() => {
-    if (role !== "client") return null;
-    const result = acceptProjectFinalDelivery(
-      projectId,
-      client?.fullName || "Client",
-    );
-    addProjectActivity(projectId, {
-      actor: "Client",
-      message: `[Client] đã chấp nhận sản phẩm tổng thể. Tiến hành giải ngân và hoàn thành dự án.`
-    });
-    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    return result;
-  }, [projectId, role, client]);
+  const handleAcceptProjectFinalDelivery = useCallback(
+    () => {
+      if (role !== "client") return null;
+      const result = acceptProjectFinalDelivery(projectId, client?.fullName || "Client");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      return result;
+    },
+    [projectId, role, client]
+  );
 
   const handleDeclineProjectFinalDelivery = useCallback(
     (feedback) => {
       if (role !== "client") return null;
-      const result = declineProjectFinalDelivery(
-        projectId,
-        client?.fullName || "Client",
-        feedback,
-      );
-      addProjectActivity(projectId, {
-        actor: "Client",
-        message: `[Client] từ chối sản phẩm tổng thể. Lý do: "${feedback}"`
-      });
+      const result = declineProjectFinalDelivery(projectId, client?.fullName || "Client", feedback);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       return result;
     },
-    [projectId, role, client],
+    [projectId, role, client]
   );
-
-  const handleUseCaseSubmitForReview = useCallback(
-    async (useCaseIndex) => {
-      if (role !== "expert" || !project) return;
-      const updatedUseCases = [...(project.useCases || [])];
-      if (!updatedUseCases[useCaseIndex]) return;
-      updatedUseCases[useCaseIndex] = {
-        ...updatedUseCases[useCaseIndex],
-        status: "waiting_client_review"
-      };
-
-      addProjectActivity(project.id, {
-        actor: "Expert",
-        message: `[Expert] yêu cầu duyệt Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}"`
-      });
-
-      await api.projects.update(project.id, { useCases: updatedUseCases });
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    },
-    [project, role]
-  );
-
-  const handleUseCaseApprove = useCallback(
-    async (useCaseIndex) => {
-      if (role !== "client" || !project) return;
-      const updatedUseCases = [...(project.useCases || [])];
-      if (!updatedUseCases[useCaseIndex]) return;
-      updatedUseCases[useCaseIndex] = {
-        ...updatedUseCases[useCaseIndex],
-        status: "done",
-        progress: 100
-      };
-
-      addProjectActivity(project.id, {
-        actor: "Client",
-        message: `[Client] phê duyệt Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}" (Trạng thái: Hoàn thành)`
-      });
-
-      // Mark all tasks belonging to this Use Case as completed
-      const ucId = updatedUseCases[useCaseIndex]?.id;
-      const ucTasks = tasksWithProgress.filter((t) => t.useCaseId && ucId ? t.useCaseId === ucId : Number(t.useCaseIndex) === useCaseIndex);
-      ucTasks.forEach(task => {
-        approveTaskSubmission(task.id, client?.fullName || "Client");
-      });
-
-      await api.projects.update(project.id, { useCases: updatedUseCases });
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    },
-    [project, role, tasksWithProgress, client]
-  );
-
-  const handleUseCaseRequestProduct = useCallback(
-    async (useCaseIndex) => {
-      if (role !== "client" || !project) return;
-      const updatedUseCases = [...(project.useCases || [])];
-      if (!updatedUseCases[useCaseIndex]) return;
-      updatedUseCases[useCaseIndex] = {
-        ...updatedUseCases[useCaseIndex],
-        status: "submit_product" // Expert will see "submit_product", Client sees "Chờ expert gửi sản phẩm"
-      };
-
-      addProjectActivity(project.id, {
-        actor: "Client",
-        message: `[Client] yêu cầu sản phẩm cho Use Case #${useCaseIndex + 1}: "${updatedUseCases[useCaseIndex].nameAndDeadline || updatedUseCases[useCaseIndex].name}"`
-      });
-
-      await api.projects.update(project.id, { useCases: updatedUseCases });
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    },
-    [project, role]
-  );
-
-  const handleUseCaseSubmitProduct = useCallback(
-    async (useCaseIndex, deliverableData) => {
-      if (role !== "expert" || !project) return;
-      const updatedUseCases = [...(project.useCases || [])];
-      if (!updatedUseCases[useCaseIndex]) return;
-      updatedUseCases[useCaseIndex] = {
-        ...updatedUseCases[useCaseIndex],
-        status: "waiting_client_review",
-        productLink: deliverableData.productLink || "",
-        productFile: deliverableData.productFile || "",
-        productImage: deliverableData.productImage || "",
-        declineReason: null // Clear decline reason on resubmit
-      };
-
-      addProjectActivity(project.id, {
-        actor: "Expert",
-        message: `[Expert] nộp sản phẩm cho Use Case #${useCaseIndex + 1}. Link: ${deliverableData.productLink || "N/A"}, File: ${deliverableData.productFile || "N/A"}`
-      });
-
-      await api.projects.update(project.id, { useCases: updatedUseCases });
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    },
-    [project, role]
-  );
-
-  const handleUseCaseDeclineProduct = useCallback(
-    async (useCaseIndex, reason) => {
-      if (role !== "client" || !project) return;
-      const updatedUseCases = [...(project.useCases || [])];
-      if (!updatedUseCases[useCaseIndex]) return;
-      updatedUseCases[useCaseIndex] = {
-        ...updatedUseCases[useCaseIndex],
-        status: "rework",
-        declineReason: reason
-      };
-
-      addProjectActivity(project.id, {
-        actor: "Client",
-        message: `[Client] từ chối sản phẩm Use Case #${useCaseIndex + 1}. Lý do: "${reason}"`
-      });
-
-      await api.projects.update(project.id, { useCases: updatedUseCases });
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    },
-    [project, role]
-  );
-
-  const isDisputed = project?.status?.toLowerCase() === "disputed";
-  const isFullFreeze = isDisputed && report?.reporterRole === "client";
-  const isSelectiveFreeze = isDisputed && report?.reporterRole === "expert";
 
   // ---- Focus task handling ----
   const focusTaskId = searchParams.get("focusTaskId");
@@ -780,15 +475,10 @@ export function useProjectProgress(projectId, role) {
     // State
     project,
     tasks: tasksWithProgress,
-    useCases: useCasesWithProgress,
     expert,
     client,
-    report,
-    isFullFreeze,
-    isSelectiveFreeze,
     loading,
     error,
-    activityLogs,
 
     // Derived
     overallProgress,
@@ -805,7 +495,6 @@ export function useProjectProgress(projectId, role) {
     handleRemoveMiniTask,
     handleReorderMiniTasks,
     handleUpdateMiniTask,
-    handleUpdateTask,
     // Evidence-based task flow (new spec)
     handleSubmitHandoverEvidence,
     handleQuickAccept,
@@ -826,13 +515,6 @@ export function useProjectProgress(projectId, role) {
     handleSubmitProjectFinalWork,
     handleAcceptProjectFinalDelivery,
     handleDeclineProjectFinalDelivery,
-
-    // Use Case Mutations
-    handleUseCaseSubmitForReview,
-    handleUseCaseApprove,
-    handleUseCaseRequestProduct,
-    handleUseCaseSubmitProduct,
-    handleUseCaseDeclineProduct,
 
     // Reload
     retry: loadData,

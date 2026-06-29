@@ -1,52 +1,25 @@
-import {
-  MessageSquare,
-  Calendar,
-  Tag,
-  Clock,
-  User,
-  Briefcase,
-  AlertCircle,
-  Target,
-  Timer,
-  DollarSign,
-  TrendingUp,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { MessageSquare, Calendar, Tag, Clock, User, Briefcase, ClipboardList } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { Button } from "../ui/button.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { cn } from "../../lib/utils.js";
-
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
-import {
-  parseSafeDate,
-  addDays,
-  getRemainingText,
-  resolveStartDate,
-  resolveOriginalTimelineDays,
-  formatDate,
-} from "../../utils/dateTimeUtils.js";
 
 // =============================================================================
 // ProjectHeaderCard — project info header with status, names, budget, dates, tags.
+//
+// Props:
+//   project        — project object
+//   client         — client user object (optional)
+//   expert         — expert user object (optional)
+//   role           — "client" | "expert" (determines what info to show)
+//   overallProgress — 0-100 number
+//   loading        — boolean, shows skeleton
+//   onMessage      — () => void — navigate to messenger
+//   children       — slot for role-specific action buttons (escrow, submit, etc.)
 // =============================================================================
-
-// Tiny stat tile used in the summary grid
-function StatTile({ icon: Icon, label, value, subtext, accent, loading }) {
-  if (loading) return <Skeleton className="h-[88px] rounded-xl" />;
-  return (
-    <div className="bg-secondary/30 border border-border/60 rounded-xl p-4 flex flex-col gap-1.5 hover:border-border transition-colors">
-      <div className="flex items-center gap-2">
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", accent || "bg-muted")}>
-          <Icon className="w-4 h-4 text-foreground/70" />
-        </div>
-        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="text-base font-bold text-foreground pl-10">{value}</p>
-      {subtext && <p className="text-[10px] text-muted-foreground/60 pl-10 -mt-0.5">{subtext}</p>}
-    </div>
-  );
-}
 
 export function ProjectHeaderCard({
   project,
@@ -58,6 +31,19 @@ export function ProjectHeaderCard({
   onMessage,
   children,
 }) {
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (!project) return;
+    const status = project.status?.toLowerCase();
+    if (["active", "in_progress", "in progress", "disputed"].includes(status)) {
+      const interval = setInterval(() => {
+        setTick((t) => t + 1);
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [project?.status]);
+
   if (loading) {
     return (
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
@@ -78,214 +64,207 @@ export function ProjectHeaderCard({
 
   if (!project) return null;
 
-  // ---- Date calculations ----
-  const startDateSrc = resolveStartDate(project);
-  const startDateFormatted = formatDate(startDateSrc);
+  const startDate = safeDateFormat(project.createdAt, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
-  const originalTimelineDays = resolveOriginalTimelineDays(project);
-
-  const endDateSrc =
-    parseSafeDate(project.endDate) ||
-    (originalTimelineDays > 0 ? addDays(startDateSrc, originalTimelineDays) : null);
-
-  const endDateFormatted = endDateSrc ? formatDate(endDateSrc) : null;
-  const remainingText = getRemainingText(endDateSrc);
-
-  // Implementation timeline — from tasks if available, otherwise project deadline
-  const implementationDays = (() => {
-    if (project.tasks && project.tasks.length > 0) {
-      const total = project.tasks.reduce(
-        (sum, t) => sum + (Number(t.completionDays) || Number(t.durationDays) || 0),
-        0,
-      );
-      if (total > 0) return total;
+  const endDate = (() => {
+    if (!project.deadline) return "N/A";
+    const num = Number(project.deadline);
+    if (!Number.isNaN(num) && num < 1000) {
+      const d = new Date(project.createdAt || new Date());
+      d.setDate(d.getDate() + num);
+      return safeDateFormat(d, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
     }
-    const dl = Number(project.deadline);
-    return Number.isFinite(dl) && dl < 1000 ? dl : null;
+    return safeDateFormat(project.deadline, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }, String(project.deadline));
   })();
 
-  const implementationEndSrc = implementationDays
-    ? addDays(startDateSrc, implementationDays)
-    : null;
+  const remainingTime = (() => {
+    if (!project) return "N/A";
+    const status = project.status?.toLowerCase();
+
+    // If finished
+    if (["completed", "payment_released", "closed"].includes(status)) {
+      return "0 ngày (Đã hoàn thành)";
+    }
+
+    // If active / in progress / disputed
+    if (["active", "in_progress", "in progress", "disputed"].includes(status)) {
+      let end = null;
+      if (project.deadline) {
+        const num = Number(project.deadline);
+        if (!Number.isNaN(num) && num < 1000) {
+          const d = new Date(project.createdAt || new Date());
+          d.setDate(d.getDate() + num);
+          end = d;
+        } else {
+          end = new Date(project.deadline);
+        }
+      }
+      if (!end || Number.isNaN(end.getTime())) {
+        return "N/A";
+      }
+
+      const now = new Date();
+      const diffMs = end.getTime() - now.getTime();
+      if (diffMs <= 0) {
+        return "Quá hạn";
+      }
+
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHrs = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHrs / 24);
+
+      if (diffDays > 0) {
+        return `${diffDays} ngày còn lại`;
+      } else if (diffHrs > 0) {
+        return `${diffHrs} giờ còn lại`;
+      } else if (diffMins > 0) {
+        return `${diffMins} phút còn lại`;
+      } else {
+        return `${diffSecs} giây còn lại`;
+      }
+    }
+
+    // Default/Not started: show use case total duration
+    const useCaseDays = project.useCases?.reduce((sum, uc) => sum + (Number(uc.originalDurationDays || uc.durationDays) || 0), 0) || 0;
+    return `${useCaseDays} ngày`;
+  })();
 
   const otherPerson = role === "client" ? expert : client;
   const otherRoleLabel = role === "client" ? "Expert" : "Client";
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-      {/* ── Top section: title + actions ── */}
-      <div className="p-6 pb-4">
-        <div className="flex flex-col lg:flex-row justify-between gap-4">
-          {/* Left */}
-          <div className="flex-1 min-w-0">
-            <StatusBadge status={project.status} entity="project" className="mb-2" />
+    <div className="bg-card rounded-xl border border-border p-6 relative overflow-hidden">
+      {/* Gradient top accent */}
+      <div className="absolute top-0 left-4 right-4 h-[2px] rounded-full bg-gradient-to-r from-accent/60 via-accent/30 to-transparent" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* Left: project info */}
+        <div className="flex-1 min-w-0">
+          <StatusBadge status={project.status} entity="project" className="mb-2" />
 
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground mt-0.5 truncate">
-              {project.title || "Untitled Project"}
-            </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mt-1 truncate">
+            {project.title || "Untitled Project"}
+          </h1>
 
-            {otherPerson && (
-              <p className="text-muted-foreground mt-1.5 text-sm flex items-center gap-1.5">
-                <User className="w-4 h-4" />
-                {otherRoleLabel}:{" "}
-                <span className="text-foreground font-semibold">
-                  {otherPerson.fullName || otherPerson.name || "—"}
-                </span>
-              </p>
+          {/* Other person info */}
+          {otherPerson && (
+            <p className="text-muted-foreground mt-1 text-sm flex items-center gap-1.5">
+              <User className="w-4 h-4" />
+              {otherRoleLabel}:{" "}
+              <span className="text-foreground font-semibold">
+                {otherPerson.fullName || otherPerson.name || "—"}
+              </span>
+            </p>
+          )}
+
+          {/* Category & Specialization */}
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-[13px] text-muted-foreground">
+            {(project.category || project.aiCategoryDomain?.name) && (
+              <span className="flex items-center gap-1">
+                <Briefcase className="w-4 h-4" />
+                {project.aiCategoryDomain?.name || project.category}
+              </span>
             )}
+            {project.specialization && (
+              <span className="flex items-center gap-1">
+                <Tag className="w-4 h-4" />
+                {project.specialization}
+              </span>
+            )}
+          </div>
 
-            {/* Category & tags */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[13px] text-muted-foreground">
-              {(project.category || project.aiCategoryDomain?.name) && (
-                <span className="flex items-center gap-1">
-                  <Briefcase className="w-3.5 h-3.5" />
-                  {project.aiCategoryDomain?.name || project.category}
+          {/* Tags / Skills */}
+          {project.requiredSkills && project.requiredSkills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {project.requiredSkills.slice(0, 5).map((skill) => (
+                <span
+                  key={skill}
+                  className="px-2 py-0.5 bg-secondary text-muted-foreground rounded-md text-[13px] font-medium"
+                >
+                  {skill}
                 </span>
-              )}
-              {project.specialization && (
-                <span className="flex items-center gap-1">
-                  <Tag className="w-3.5 h-3.5" />
-                  {project.specialization}
-                </span>
-              )}
+              ))}
             </div>
-
-            {/* Skills */}
-            {project.requiredSkills && project.requiredSkills.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {project.requiredSkills.slice(0, 5).map((skill) => (
-                  <span
-                    key={skill}
-                    className="px-2 py-0.5 bg-muted text-muted-foreground rounded-md text-[12px] font-medium"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Right: actions */}
-          <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
-            {onMessage && (
-              <Button variant="outline" size="default" onClick={onMessage}>
-                <MessageSquare className="w-4 h-4" />
-                Message
-              </Button>
-            )}
-            {children}
-          </div>
+          )}
         </div>
 
-        {/* ── Progress bar ── */}
-        <div className="mt-5">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
-            <span className="text-sm font-bold text-foreground font-mono">{overallProgress}%</span>
-          </div>
-          <div className="w-full bg-secondary h-2.5 rounded-full overflow-hidden">
-            <div
-              className={cn(
-                "h-full rounded-full transition-all duration-700",
-                overallProgress >= 100 ? "bg-success" : overallProgress >= 50 ? "bg-brand-primary" : "bg-amber-500",
-              )}
-              style={{ width: `${overallProgress}%` }}
-            />
-          </div>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">
-            {overallProgress >= 100
-              ? "All tasks completed"
-              : overallProgress >= 50
-                ? "More than halfway there"
-                : overallProgress > 0
-                  ? "In progress"
-                  : "Not started yet"}
-          </p>
+        {/* Right: action buttons */}
+        <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+          {/* Message button */}
+          {onMessage && (
+            <Button
+              variant="outline"
+              size="default"
+              onClick={onMessage}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Message
+            </Button>
+          )}
+
+          {/* Slot for role-specific buttons (escrow, submit, etc.) */}
+          {children}
         </div>
       </div>
 
-      {/* ── Summary stat tiles ── */}
-      <div className="border-t border-border bg-muted/20 px-6 py-5">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {/* Original Timeline */}
-          <StatTile
-            icon={Target}
-            label="Original Timeline"
-            value={originalTimelineDays > 0 ? `${originalTimelineDays} days` : "Not set"}
-            subtext="Client baseline"
-            accent="bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
-          />
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-5 pt-4 border-t border-border">
+        {/* Start Date */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
+            <Calendar className="w-3.5 h-3.5" /> Start Date
+          </p>
+          <p className="text-sm font-medium text-foreground">{startDate}</p>
+        </div>
 
-          {/* Implementation Timeline */}
-          <StatTile
-            icon={Timer}
-            label="Implementation"
-            value={implementationDays ? `${implementationDays} days` : "Not set"}
-            subtext={implementationEndSrc ? `Est. ${formatDate(implementationEndSrc)}` : "Expert plan"}
-            accent="bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400"
-          />
+        {/* Remaining Time */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
+            <Clock className="w-3.5 h-3.5 text-accent" /> Remaining Time
+          </p>
+          <p className="text-sm font-semibold text-foreground">{remainingTime}</p>
+        </div>
 
-          {/* Start Date */}
-          <StatTile
-            icon={Calendar}
-            label="Start Date"
-            value={startDateFormatted}
-            subtext="Contract start"
-            accent="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
-          />
+        {/* End Date / Deadline */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
+            <Clock className="w-3.5 h-3.5" /> End Date
+          </p>
+          <p className="text-sm font-medium text-foreground">{endDate}</p>
+        </div>
 
-          {/* End Date */}
-          <StatTile
-            icon={Clock}
-            label="End Date"
-            value={endDateFormatted || "To be determined"}
-            subtext={endDateFormatted ? "Estimated completion" : "Awaiting schedule"}
-            accent="bg-violet-50 text-violet-600 dark:bg-violet-950/40 dark:text-violet-400"
-          />
+        {/* Total Budget */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Total Budget</p>
+          <p className="text-sm font-semibold text-foreground">
+            <MoneyDisplay amount={project.budget || project.escrowAmount || 0} />
+          </p>
+        </div>
 
-          {/* Timeline Remaining */}
-          <StatTile
-            icon={AlertCircle}
-            label="Timeline còn lại"
-            value={remainingText}
-            subtext={endDateSrc ? "" : "Waiting for end date"}
-            accent={
-              remainingText.includes("Quá hạn")
-                ? "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
-                : "bg-brand-primary/10 text-brand-primary dark:bg-brand-primary/20"
-            }
-          />
-
-          {/* Total Budget */}
-          <StatTile
-            icon={DollarSign}
-            label="Total Budget"
-            value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
-            subtext="Escrow secured"
-            accent="bg-green-50 text-green-600 dark:bg-green-950/40 dark:text-green-400"
-          />
-
-          {/* Progress (larger card) */}
-          <div className="bg-secondary/30 border border-border/60 rounded-xl p-4 flex flex-col gap-1.5 md:col-span-1">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-brand-primary" />
-              </div>
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
-            </div>
-            <p className="text-2xl font-bold text-foreground font-mono">{overallProgress}%</p>
-            <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+        {/* Progress */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Progress</p>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-primary font-mono">
+              {overallProgress}%
+            </span>
+            <div className="flex-1 bg-secondary h-1.5 rounded-full overflow-hidden max-w-[80px]">
               <div
-                className={cn(
-                  "h-full rounded-full transition-all duration-700",
-                  overallProgress >= 100 ? "bg-success" : overallProgress >= 50 ? "bg-brand-primary" : "bg-amber-500",
-                )}
+                className="bg-primary h-full rounded-full transition-all duration-500"
                 style={{ width: `${overallProgress}%` }}
               />
             </div>
-            <p className="text-[10px] text-muted-foreground/60">
-              Overall completion
-            </p>
           </div>
         </div>
       </div>

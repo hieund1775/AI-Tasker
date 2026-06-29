@@ -17,8 +17,6 @@ import { EditClientProfile } from "./pages/client/EditClientProfile.jsx";
 import { MyProjectsList } from "./pages/client/MyProjectsPage.jsx";
 import { PublicExpertProfile } from "./components/shared/PublicExpertProfile.jsx";
 import { Billing } from "./pages/client/Billing.jsx";
-import { CreateContract } from "./pages/client/CreateContract.jsx";
-import { ClientProposalDetail } from "./pages/client/ClientProposalDetail.jsx";
 
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
@@ -31,8 +29,6 @@ import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
 import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
-import { ExpertContractView } from "./pages/expert/ExpertContractView.jsx";
-import { ExpertUseCaseUpdatePage } from "./pages/expert/ExpertUseCaseUpdatePage.jsx";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -46,7 +42,6 @@ import { AdminProjects } from "./pages/admin/AdminProjects.jsx";
 import { AdminReviews } from "./pages/admin/AdminReviews.jsx";
 import { AdminJobPosts } from "./pages/admin/AdminJobPosts.jsx";
 import { AdminCategoryTags } from "./pages/admin/AdminCategoryTags.jsx";
-import { AdminContractCancellations } from "./pages/admin/AdminContractCancellations.jsx";
 
 // Owner Pages
 import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
@@ -105,8 +100,6 @@ export const router = createBrowserRouter([
               { path: "client/profile", Component: ClientProfile },
               { path: "client/profile/edit", Component: EditClientProfile },
               { path: "client/billing", Component: Billing },
-              { path: "client/contracts/create", Component: CreateContract },
-              { path: "client/proposals/:id", Component: ClientProposalDetail },
             ],
           },
 
@@ -122,12 +115,10 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/projects/:id/usecase/:useCaseId", Component: ExpertUseCaseUpdatePage },
               { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
               { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
-              { path: "expert/contracts/:contractId", Component: ExpertContractView },
             ],
           },
 
@@ -143,7 +134,6 @@ export const router = createBrowserRouter([
               { path: "admin/reviews", Component: AdminReviews },
               { path: "admin/job-posts", Component: AdminJobPosts },
               { path: "admin/category-tags", Component: AdminCategoryTags },
-              { path: "admin/contract-cancellations", Component: AdminContractCancellations },
               { path: "admin/revenue", Component: AdminRevenue },
               { path: "admin/profile", Component: AdminProfile },
               { path: "admin/profile/edit", Component: EditAdminProfile },

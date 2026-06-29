@@ -11,13 +11,6 @@
 
 import { api } from "../../services/api.js";
 import {
-  parseSafeDate,
-  addDays,
-  getRemainingTime,
-  formatDate,
-  nowDate,
-} from "../utils/dateTimeUtils.js";
-import {
   listTasks,
   listProjects,
   submitTaskForReview,
@@ -98,27 +91,11 @@ const _runtimeExtensionRequests = new Map();
  * @returns the full log entry
  */
 export function addProjectActivity(projectId, { actor, message }) {
-  // ponytail: dedup — skip if same actor+message was logged within the last second
-  const now = Date.now();
-  const logs = _runtimeActivityLogs.get(projectId) || [];
-  const recentDuplicate = logs.some(
-    (entry) =>
-      entry.actor === actor &&
-      entry.message === message &&
-      now - new Date(entry.time).getTime() < 1000,
-  );
-  if (recentDuplicate) return null;
-
-  const timeStr = new Date().toISOString();
   const entry = {
-    id: `runtime-${now}-${Math.random().toString(36).slice(2, 7)}`,
+    id: `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     actor,
-    userRole: actor,
-    userName: actor === "Expert" ? "Chuyên gia" : (actor === "Client" ? "Khách hàng" : actor),
-    time: timeStr,
-    timestamp: timeStr,
+    time: new Date().toISOString(),
     message,
-    actionDescription: message,
   };
   if (!_runtimeActivityLogs.has(projectId)) {
     _runtimeActivityLogs.set(projectId, []);
@@ -136,7 +113,7 @@ export function addProjectActivity(projectId, { actor, message }) {
 }
 
 /** Get merged static + runtime activity logs for a project, newest first. */
-export function getMergedActivityLogs(projectId) {
+function getMergedActivityLogs(projectId) {
   // TODO: Replace with API call — api.timeline.getActivityLogs(projectId)
   const staticLogs = [].map((log) => ({
     id: log.id,
@@ -513,11 +490,7 @@ export function deriveTaskStatus(task) {
 export function deriveTaskProgress(task) {
   const miniTasks = task?.miniTasks || [];
   const total = miniTasks.length;
-  if (total === 0) {
-    const rawStatus = task?.status?.toLowerCase();
-    const isCompleted = rawStatus === "completed" || rawStatus === "done" || task?.approval === "Approved";
-    return { completed: isCompleted ? 1 : 0, total: 1, percent: isCompleted ? 100 : 0 };
-  }
+  if (total === 0) return { completed: 0, total: 0, percent: 0 };
   const completed = miniTasks.filter(
     (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed",
   ).length;
@@ -565,88 +538,40 @@ export function getDeadlineInfo(deadlineDate) {
   if (!deadlineDate) {
     return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false, urgency: "normal", daysRemaining: null };
   }
-
-  // Handle relative days offset (e.g. 14 or 30) — for demo data
-  let deadline = parseSafeDate(deadlineDate);
-  const num = Number(deadlineDate);
-  if (!deadline && !isNaN(num) && num < 1000) {
-    deadline = addDays(nowDate(), num);
-  }
-  if (!deadline) {
-    return { formattedDate: "N/A", remainingText: "N/A", isOverdue: false, urgency: "normal", daysRemaining: null };
-  }
-
-  const now = nowDate();
-  const { remainingDays, isOverdue } = getRemainingTime(deadline, now);
+  const deadline = new Date(deadlineDate);
+  const now = new Date();
+  const diffMs = deadline.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const isOverdue = diffMs < 0;
 
   let urgency = "normal";
   if (isOverdue) {
     urgency = "overdue";
-  } else if (remainingDays <= 1) {
+  } else if (diffDays <= 1) {
     urgency = "warning";
   }
 
   let remainingText;
   if (isOverdue) {
-    remainingText = remainingDays === 1 ? "Overdue by 1 day" : `Overdue by ${remainingDays} days`;
-  } else if (remainingDays === 0) {
+    const absDays = Math.abs(diffDays);
+    remainingText = absDays === 1 ? "Overdue by 1 day" : `Overdue by ${absDays} days`;
+  } else if (diffDays === 0) {
     remainingText = "Due today";
-  } else if (remainingDays === 1) {
+  } else if (diffDays === 1) {
     remainingText = "Due tomorrow";
   } else {
-    remainingText = `Due in ${remainingDays} days`;
+    remainingText = `Due in ${diffDays} days`;
   }
 
   return {
-    formattedDate: formatDate(deadline),
+    formattedDate: deadline.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
     remainingText,
     isOverdue,
     urgency,
-    daysRemaining: remainingDays,
+    daysRemaining: isOverdue ? -Math.abs(diffDays) : diffDays,
   };
 }
-
-export function getRemainingTimelineText(deadlineDate) {
-  if (!deadlineDate) return "N/A";
-
-  // Handle relative days offset (e.g. 14 or 30) — for demo data
-  let deadline = parseSafeDate(deadlineDate);
-  const num = Number(deadlineDate);
-  if (!deadline && !isNaN(num) && num < 1000) {
-    deadline = addDays(nowDate(), num);
-  }
-  if (!deadline) return "N/A";
-
-  const now = nowDate();
-  const diffMs = deadline.getTime() - now.getTime();
-
-  if (diffMs <= 0) {
-    const abs = Math.abs(diffMs);
-    const absDays = Math.floor(abs / (24 * 60 * 60 * 1000));
-    const absHours = Math.floor((abs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-    return `Quá hạn: ${absDays} ngày ${absHours} giờ`;
-  }
-
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHours = Math.floor(diffMin / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays >= 30) {
-    const months = Math.floor(diffDays / 30);
-    const remDays = diffDays % 30;
-    return `${months} tháng ${remDays} ngày`;
-  } else if (diffDays >= 1) {
-    const hours = diffHours % 24;
-    return `${diffDays} ngày ${hours} giờ`;
-  } else if (diffHours >= 1) {
-    const minutes = diffMin % 60;
-    return `${diffHours} giờ ${minutes} phút`;
-  } else if (diffMin >= 1) {
-    const seconds = diffSec % 60;
-    return `${diffMin} phút ${seconds} giây`;
-  } else {
-    return `${diffSec} giây`;
-  }
-}
-

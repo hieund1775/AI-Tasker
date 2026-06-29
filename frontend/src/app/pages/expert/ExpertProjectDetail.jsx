@@ -15,7 +15,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router";
-import { Clock, ReceiptText, User, AlertTriangle, MessageSquare } from "lucide-react";
+import { Clock, ReceiptText, User, AlertTriangle } from "lucide-react";
 import { ProjectTimelineManager } from "../../components/project/ProjectTimelineManager.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
@@ -260,11 +260,7 @@ export function ExpertProjectDetail() {
               </span>
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                Timeline gốc: {project.totalDurationDays ?? project.originalUseCaseDays ?? project.deadline ?? "—"} ngày
-              </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-4 h-4" />
-                Deadline: {project.deadline || "—"} ngày
+                Duration: {project.durationValue} {project.durationUnit}
               </span>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center ${badgeClass}`}
@@ -299,10 +295,10 @@ export function ExpertProjectDetail() {
             {/* Message Client */}
             {client && !isDisputed && (
               <Link
-                to={`/messenger?expertId=${project.clientId}`}
+                to="/messenger"
                 className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
               >
-                <MessageSquare className="w-5 h-5" /> Message Client
+                <User className="w-4 h-4" /> Message Client
               </Link>
             )}
           </div>

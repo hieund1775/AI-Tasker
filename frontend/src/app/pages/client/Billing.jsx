@@ -57,32 +57,10 @@ export function Billing() {
 
   // Escrow deposit form
   const [showDepositForm, setShowDepositForm] = useState(location.state?.escrowRedirect || false);
-  const [depositAmount, setDepositAmount] = useState(location.state?.amount || "");
+  const [depositAmount, setDepositAmount] = useState(location.state?.amount || 0);
   const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
-
-  // Auto-derive amount when project changes (for non-redirect flow)
-  useEffect(() => {
-    if (isEscrowRedirect) return;
-    if (!selectedProject || !data?.activeProjects?.length) return;
-    const proj = data.activeProjects.find(p => String(p.id) === String(selectedProject));
-    if (proj?.escrowAmount && !depositAmount) {
-      setDepositAmount(proj.escrowAmount);
-    }
-  }, [selectedProject, data?.activeProjects, isEscrowRedirect, depositAmount]);
-
-  // Auto-select first eligible project
-  useEffect(() => {
-    if (isEscrowRedirect) return;
-    if (selectedProject || !data?.activeProjects?.length) return;
-    setSelectedProject(data.activeProjects[0].id);
-  }, [data?.activeProjects, selectedProject, isEscrowRedirect]);
-
-  // Wallet top-up states
-  const [showTopUpForm, setShowTopUpForm] = useState(false);
-  const [topUpAmount, setTopUpAmount] = useState("");
-  const [submittingTopUp, setSubmittingTopUp] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -151,8 +129,8 @@ export function Billing() {
       });
 
       if (isEscrowRedirect) {
-        // Update project status to "Accepted"
-        await api.jobPosts.update(selectedProject, { status: "Accepted" });
+        // Update project status to "in_progress" (active)
+        await api.jobPosts.update(selectedProject, { status: "in_progress" });
         // Update proposal status to "accepted"
         const proposalId = location.state.proposalId;
         if (proposalId) {
@@ -160,7 +138,7 @@ export function Billing() {
         }
       }
 
-      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Chấp nhận (Accepted)." });
+      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Kích Hoạt (Active)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
@@ -182,7 +160,7 @@ export function Billing() {
     } catch {
       // Demo fallback — update locally
       if (isEscrowRedirect) {
-        await api.jobPosts.update(selectedProject, { status: "Accepted" });
+        await api.jobPosts.update(selectedProject, { status: "in_progress" });
         const proposalId = location.state.proposalId;
         if (proposalId) {
           await api.proposals.updateStatus(proposalId, "accepted");
@@ -210,7 +188,7 @@ export function Billing() {
           ...prev.transactions,
         ],
       }));
-      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Chấp nhận (Accepted)." });
+      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Kích Hoạt (Active)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
@@ -228,53 +206,6 @@ export function Billing() {
       await api.payments.releaseEscrow({ transactionId });
     } catch {
       // Demo — no visual change needed
-    }
-  };
-
-  const handleTopUp = async (e) => {
-    e.preventDefault();
-    if (!topUpAmount || Number(topUpAmount) <= 0) return;
-
-    setSubmittingTopUp(true);
-    setFeedback(null);
-    try {
-      await api.payments.depositWallet({
-        amount: Number(topUpAmount),
-      });
-
-      setFeedback({
-        type: "success",
-        message: `Nạp tiền thành công! Đã cộng $${Number(topUpAmount).toLocaleString()} vào ví khả dụng.`
-      });
-      setShowTopUpForm(false);
-
-      // Update local state balance immediately
-      setData((prev) => ({
-        ...prev,
-        wallet: {
-          ...prev.wallet,
-          balance: Number(((prev.wallet?.balance || 0) + Number(topUpAmount)).toFixed(2)),
-        },
-        transactions: [
-          {
-            id: `tx-${Date.now()}`,
-            type: "deposit",
-            amount: Number(topUpAmount),
-            description: `Nạp tiền vào ví khả dụng`,
-            status: "completed",
-            createdAt: new Date().toISOString(),
-          },
-          ...prev.transactions,
-        ],
-      }));
-      setTopUpAmount(0);
-    } catch (err) {
-      setFeedback({
-        type: "error",
-        message: err.message || "Đã xảy ra lỗi khi nạp tiền. Vui lòng thử lại."
-      });
-    } finally {
-      setSubmittingTopUp(false);
     }
   };
 
@@ -325,13 +256,6 @@ export function Billing() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowTopUpForm(true)}
-            className="w-full mt-2 h-10 px-4 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover flex items-center justify-center gap-2 text-sm font-semibold transition-all shadow-sm cursor-pointer border-none"
-          >
-            <PlusCircle className="w-4 h-4" /> Nạp tiền vào ví
-          </button>
         </div>
 
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
@@ -365,17 +289,6 @@ export function Billing() {
                   </p>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedProject(proj.id);
-                      setDepositAmount(proj.escrowAmount || "");
-                      setShowDepositForm(true);
-                    }}
-                    className="h-9 px-4 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-sm font-semibold transition-colors"
-                  >
-                    Deposit
-                  </button>
                 </div>
               </div>
             ))}
@@ -384,7 +297,7 @@ export function Billing() {
       )}
 
       {/* Deposit to escrow */}
-      {(isEscrowRedirect || showDepositForm) && (
+      {isEscrowRedirect && (
         <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Deposit to Escrow</h2>
@@ -398,7 +311,7 @@ export function Billing() {
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
                     required
                     disabled={isEscrowRedirect}
                   >
@@ -420,9 +333,9 @@ export function Billing() {
                     type="number"
                     min="1"
                     step="1"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-card text-foreground font-medium"
+                    value={depositAmount || ""}
+                    onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
                     placeholder="500"
                     required
                     disabled={isEscrowRedirect}
@@ -431,7 +344,7 @@ export function Billing() {
                 <div className="flex gap-3 pt-2">
                   <button
                     type="submit"
-                    disabled={submitting || Number(depositAmount) <= 0 || !selectedProject}
+                    disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
                     className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
                   >
                     {submitting ? "Processing..." : "Xác nhận ký quỹ"}
@@ -508,54 +421,6 @@ export function Billing() {
           </div>
         )}
       </div>
-
-      {/* Top Up Modal */}
-      {showTopUpForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-200 text-left">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Nạp tiền vào tài khoản</h3>
-            <p className="text-sm text-gray-500 mb-6">Nhập số tiền bạn muốn nạp vào ví khả dụng để chi trả và ký quỹ.</p>
-            <form onSubmit={handleTopUp} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Số tiền nạp (USD)</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-gray-400 font-semibold">$</span>
-                  <input
-                    type="number"
-                    min="10"
-                    step="1"
-                    value={topUpAmount}
-                    onChange={(e) => setTopUpAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:border-brand-primary text-gray-950 font-bold"
-                    placeholder="100"
-                    required
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  disabled={submittingTopUp || !topUpAmount || topUpAmount <= 0}
-                  className="flex-1 h-11 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-base font-semibold shadow-sm transition-all border-none cursor-pointer"
-                >
-                  {submittingTopUp ? "Đang xử lý..." : "Nạp tiền ngay"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowTopUpForm(false);
-                    setTopUpAmount("");
-                  }}
-                  className="px-4 border border-gray-300 rounded-xl hover:bg-gray-50 text-base font-semibold cursor-pointer"
-                >
-                  Hủy
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

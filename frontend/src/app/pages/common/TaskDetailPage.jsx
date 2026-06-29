@@ -18,17 +18,14 @@ import {
   FileText,
 } from "lucide-react";
 import { Button } from "../../components/ui/button.jsx";
-import {
-  useProjectProgress,
-  deriveTaskDisplayStatus,
-} from "../../hooks/useProjectProgress.js";
+import { useProjectProgress, deriveTaskDisplayStatus } from "../../hooks/useProjectProgress.js";
 import { MiniTaskChecklist } from "../../components/project/MiniTaskChecklist.jsx";
 import { TaskActivityTimeline } from "../../components/project/TaskActivityTimeline.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
-import { getDeadlineInfo, getRemainingTimelineText } from "../../lib/projectTimelineStore.js";
+import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -66,9 +63,6 @@ export default function TaskDetailPage() {
     tasks,
     expert,
     client,
-    report,
-    isFullFreeze,
-    isSelectiveFreeze,
     loading,
     error,
     handleToggleMiniTask,
@@ -110,10 +104,9 @@ export default function TaskDetailPage() {
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
-
+  
   // Client view product modal state
-  const [showViewProductModalClient, setShowViewProductModalClient] =
-    useState(false);
+  const [showViewProductModalClient, setShowViewProductModalClient] = useState(false);
 
   // Evidence submission modal state
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
@@ -126,26 +119,17 @@ export default function TaskDetailPage() {
   const safeTasks = safeArray(tasks);
   const task = safeTasks.find((t) => t.id === taskId);
 
-  const ucIndex = Number(task?.useCaseIndex);
-  const useCase = project?.useCases?.[ucIndex] || null;
-  const displayTitle = useCase ? (useCase.name || useCase.nameAndDeadline || task?.title) : task?.title;
-  const displayDescription = useCase ? (useCase.description || task?.description) : task?.description;
-
   // Derived miniTasks — declared early because handlers below reference it
   const miniTasks = safeArray(task?.miniTasks);
 
   // ---- Evidence submission handler ----
   const handleEvidenceSubmit = useCallback(async () => {
-    if (!evidenceExplanation.trim()) {
-      toast.error("Please provide at least a short explanation of the work completed.");
-      return;
-    }
     setEvidenceSubmitting(true);
     try {
       handleSubmitHandoverEvidence(taskId, {
-        gitSha: evidenceGitSha.trim(),
-        reportLink: evidenceReportLink.trim(),
-        explanation: evidenceExplanation.trim(),
+        gitSha: "",
+        reportLink: "",
+        explanation: "Handover evidence submitted by Expert.",
       });
       toast.success("Handover evidence submitted! Task is now Checklist Completed.");
       setShowEvidenceModal(false);
@@ -155,7 +139,7 @@ export default function TaskDetailPage() {
     } finally {
       setEvidenceSubmitting(false);
     }
-  }, [taskId, evidenceGitSha, evidenceReportLink, evidenceExplanation, handleSubmitHandoverEvidence]);
+  }, [taskId, handleSubmitHandoverEvidence]);
 
   // ---- Handlers ----
 
@@ -166,14 +150,10 @@ export default function TaskDetailPage() {
     }
     setProductSubmitLoading(true);
     try {
-      await handleSubmitProduct(
-        taskId,
-        productLinkInput.trim(),
-        productFileInput.trim(),
-      );
+      await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
       toast.success("Sản phẩm đã được nộp thành công!");
       setShowProductModal(false);
-
+      
       notifyTaskSubmittedForReview({
         clientUserId: project?.clientId,
         expertName: expert?.fullName || "Expert",
@@ -181,23 +161,14 @@ export default function TaskDetailPage() {
         projectId,
         taskId,
       }).catch(() => {});
-
+      
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể nộp sản phẩm.");
     } finally {
       setProductSubmitLoading(false);
     }
-  }, [
-    taskId,
-    productLinkInput,
-    productFileInput,
-    handleSubmitProduct,
-    project,
-    expert,
-    task,
-    projectId,
-  ]);
+  }, [taskId, productLinkInput, productFileInput, handleSubmitProduct, project, expert, task, projectId]);
 
   const handleDoneClick = useCallback(async () => {
     setSubmitLoading(true);
@@ -221,16 +192,7 @@ export default function TaskDetailPage() {
     } finally {
       setSubmitLoading(false);
     }
-  }, [
-    taskId,
-    role,
-    projectId,
-    navigate,
-    handleSubmitForReview,
-    project,
-    expert,
-    task,
-  ]);
+  }, [taskId, role, projectId, navigate, handleSubmitForReview, project, expert, task]);
 
   const handleApproveClick = useCallback(async () => {
     setApproveLoading(true);
@@ -261,11 +223,7 @@ export default function TaskDetailPage() {
     try {
       if (revisionType === "mini") {
         const miniTaskIdsArr = Array.from(selectedMiniTaskIds);
-        handleRequestMiniTaskRevision(
-          taskId,
-          miniTaskIdsArr,
-          revisionFeedback.trim(),
-        );
+        handleRequestMiniTaskRevision(taskId, miniTaskIdsArr, revisionFeedback.trim());
         // Get mini task titles for notification
         const selectedTitles = miniTasks
           .filter((mt) => selectedMiniTaskIds.has(mt.id))
@@ -279,9 +237,7 @@ export default function TaskDetailPage() {
           projectId,
           taskId,
         }).catch(() => {});
-        toast.success(
-          "Revision requested for selected mini tasks. Expert can now edit them.",
-        );
+        toast.success("Revision requested for selected mini tasks. Expert can now edit them.");
       } else {
         handleRequestRevision(taskId, revisionFeedback.trim());
         notifyTaskRevisionRequested({
@@ -305,19 +261,8 @@ export default function TaskDetailPage() {
     } finally {
       setRevisionLoading(false);
     }
-  }, [
-    taskId,
-    projectId,
-    revisionFeedback,
-    revisionType,
-    selectedMiniTaskIds,
-    miniTasks,
-    handleRequestRevision,
-    handleRequestMiniTaskRevision,
-    project,
-    client,
-    task,
-  ]);
+  }, [taskId, projectId, revisionFeedback, revisionType, selectedMiniTaskIds, miniTasks,
+      handleRequestRevision, handleRequestMiniTaskRevision, project, client, task]);
 
   const handleReopenClick = useCallback(async () => {
     setReopenLoading(true);
@@ -335,9 +280,7 @@ export default function TaskDetailPage() {
     setUrgentLoading(true);
     try {
       handleRequestUrgentSubmission(taskId);
-      toast.success(
-        "Urgent submission requested. The expert has been notified.",
-      );
+      toast.success("Urgent submission requested. The expert has been notified.");
       // Notify expert
       notifyUrgentSubmissionRequested({
         expertUserId: project?.assignedExpertId,
@@ -376,7 +319,7 @@ export default function TaskDetailPage() {
   const isWaitingForApproval = task?.status === "waiting_for_approval" || task?.status === "Waiting For Approval" || task?.status === "pending_review" || task?.status === "Pending Review" || task?.status === "pending review";
   const hasMainProduct = task ? !!(task.productLink || task.productFile) : false;
   const isReopenRequested = task?.status === "reopen_requested" || task?.status === "Reopen Requested" || task?.status === "reopen requested";
-  const isNeedsRevision = displayStatus === "Decline";
+  const isNeedsRevision = (displayStatus === "Decline" || displayStatus === "Waiting for Expert Product" || task?.status === "waiting_expert_product") && !!task?.declineReason;
   const isNotStarted = displayStatus === "Not Started";
   const isInProgress = displayStatus === "In Progress";
   const isDisputed = project?.status?.toLowerCase() === "disputed";
@@ -385,35 +328,24 @@ export default function TaskDetailPage() {
   const deadlineInfo = task?.deadline ? getDeadlineInfo(task.deadline) : null;
 
   // Expert can toggle mini task checkboxes when task is not Done and not waiting for approval
-  const canToggleMiniTasks =
-    isExpert && !isDone && !isWaitingForApproval && !isFullFreeze;
+  const canToggleMiniTasks = isExpert && !isDone && !isWaitingForApproval && !isDisputed;
 
   // Expert can submit for review: all mini tasks complete, not already submitted/approved
   const canSubmitForReview =
-    isExpert &&
-    allComplete &&
-    !isDone &&
-    !isWaitingForApproval &&
-    !isFullFreeze;
+    isExpert && allComplete && !isDone && !isWaitingForApproval && !isDisputed;
 
   // Client can approve: task is waiting for approval
-  const canApprove = isClient && isWaitingForApproval && !isFullFreeze;
+  const canApprove = isClient && isWaitingForApproval && !isDisputed;
 
   // Client can request revision: task is waiting for approval
-  const canRequestRevision = isClient && isWaitingForApproval && !isFullFreeze;
+  const canRequestRevision = isClient && isWaitingForApproval && !isDisputed;
 
   // Client can request reopen when task is Done — DEPRECATED: completed tasks are now permanently locked
   const canRequestReopen = false;
 
   // Client can request urgent submission: task is not Done, not waiting for approval, and overdue/close to deadline
-  const isOverdueOrClose =
-    deadlineInfo?.urgency === "overdue" || deadlineInfo?.urgency === "warning";
-  const canRequestUrgent =
-    isClient &&
-    !isDone &&
-    !isWaitingForApproval &&
-    isOverdueOrClose &&
-    !isFullFreeze;
+  const isOverdueOrClose = deadlineInfo?.urgency === "overdue" || deadlineInfo?.urgency === "warning";
+  const canRequestUrgent = isClient && !isDone && !isWaitingForApproval && isOverdueOrClose && !isDisputed;
   const urgentAlreadySent = task?.urgentRequest === true;
 
   // Task is locked (Done) — no modifications allowed
@@ -455,11 +387,7 @@ export default function TaskDetailPage() {
           title="Task not found"
           description="The requested task could not be found. It may have been removed or you may not have access."
           action={
-            <Button
-              variant="outline"
-              size="default"
-              onClick={() => navigate(-1)}
-            >
+            <Button variant="outline" size="default" onClick={() => navigate(-1)}>
               Go Back
             </Button>
           }
@@ -540,7 +468,7 @@ export default function TaskDetailPage() {
           </p>
         </div>
         <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Mini Tasks</p>
+          <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
           <p className="font-semibold text-foreground text-sm">
             {task.completedMiniTasks}/{task.totalMiniTasks} completed
           </p>
@@ -567,6 +495,42 @@ export default function TaskDetailPage() {
         hasMainProduct={hasMainProduct}
         task={task}
       />
+
+      {/* Deliverables Panel (Khung hoàn chỉnh nhỏ) */}
+      {hasMainProduct && (
+        <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <h3 className="text-xs font-bold text-foreground/85 font-sans uppercase tracking-wider">
+              Sản phẩm đã bàn giao (Submitted Deliverables)
+            </h3>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {task.productLink && (
+              <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Link sản phẩm</span>
+                <a
+                  href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-brand-primary hover:text-brand-primary-hover font-semibold mt-1 truncate hover:underline flex items-center gap-0.5"
+                >
+                  {task.productLink}
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+              </div>
+            )}
+            {task.productFile && (
+              <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">File đính kèm</span>
+                <span className="text-xs text-foreground/80 font-mono mt-1 truncate">
+                  {task.productFile}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Status info banner */}
       {isReopenRequested && (
@@ -704,8 +668,8 @@ export default function TaskDetailPage() {
                       className="w-4 h-4 text-primary"
                     />
                     <div>
-                      <p className="font-semibold text-foreground">Specific Mini Tasks</p>
-                      <p className="text-xs text-muted-foreground">Select which mini tasks need revision</p>
+                       <p className="font-semibold text-foreground">Specific Tasks</p>
+                      <p className="text-xs text-muted-foreground">Select which tasks need revision</p>
                     </div>
                   </label>
                 </div>
@@ -744,10 +708,10 @@ export default function TaskDetailPage() {
             {revisionStep === "select-tasks" && (
               <>
                 <h3 className="text-lg font-bold text-foreground mb-2">
-                  Select Mini Tasks to Revise
+                  Select Tasks to Revise
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Check the mini tasks you want the expert to revise.
+                  Check the tasks you want the expert to revise.
                 </p>
                 <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
                   {miniTasks.map((mt) => {
@@ -861,7 +825,7 @@ export default function TaskDetailPage() {
       <div className="bg-card rounded-lg border border-border p-6 mb-8 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Mini Tasks</h2>
+            <h2 className="text-xl font-semibold text-foreground">Task: {task?.title}</h2>
             <p className="text-sm text-muted-foreground">
               {isExpert
                 ? "Track and manage individual work items for this task."
@@ -875,6 +839,7 @@ export default function TaskDetailPage() {
           miniTasks={miniTasks}
           editable={canToggleMiniTasks}
           onToggle={(miniTaskId) => handleToggleMiniTask(taskId, miniTaskId)}
+          onUpdate={(miniTaskId, updates) => handleUpdateMiniTask(taskId, miniTaskId, updates)}
           compact={false}
         />
 
@@ -903,7 +868,7 @@ export default function TaskDetailPage() {
             {isExpert && !isDone && (
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {(task?.urgentRequest === true || task?.productRequested === true || isNeedsRevision) ? (
+                  {task?.urgentRequest === true || task?.productRequested === true || task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product" ? (
                     <Button
                       variant="default"
                       size="default"
@@ -932,7 +897,7 @@ export default function TaskDetailPage() {
                     </Button>
                   )}
                 </div>
-                {!allComplete && task?.urgentRequest !== true && task?.productRequested !== true && !isNeedsRevision && (
+                {!allComplete && task?.urgentRequest !== true && task?.productRequested !== true && task?.status !== "waiting_expert_product" && (
                   <p className="text-xs text-muted-foreground text-center">
                     Complete 100% of Mini Tasks to unlock evidence submission.
                   </p>
@@ -942,9 +907,9 @@ export default function TaskDetailPage() {
                     Client has requested product delivery! Submit Product is now unlocked.
                   </p>
                 )}
-                {isNeedsRevision && (
-                  <p className="text-xs text-orange-700 font-semibold text-center">
-                    Task đang ở trạng thái Rework. Hãy nộp lại sản phẩm mới cho Client kiểm tra.
+                {(task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product") && (
+                  <p className="text-xs text-amber-600 font-semibold text-center animate-pulse">
+                    Khách hàng yêu cầu điều chỉnh sản phẩm! Hãy nộp lại sản phẩm đã chỉnh sửa phía trên.
                   </p>
                 )}
               </div>
@@ -953,76 +918,68 @@ export default function TaskDetailPage() {
             {/* Client actions: Quick Accept, Request Product, View Product */}
             {isClient && (
               <div className="space-y-3">
-                {/* 1. Checklist Completed OR Waiting for Approval WITHOUT deliverables: Accept & Request Product if NOT requested yet */}
-                {(task.displayStatus === "Checklist Completed" ||
-                  (isWaitingForApproval && !hasMainProduct)) &&
-                  task.urgentRequest !== true &&
-                  task.productRequested !== true &&
-                  !isNeedsRevision && (
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button
-                        variant="success"
-                        size="default"
-                        fullWidth
-                        loading={approveLoading}
-                        onClick={() => {
-                          setApproveLoading(true);
-                          try {
-                            handleQuickAccept(taskId);
-                            toast.success("Task accepted! (Quick Accept)");
-                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-                          } catch (err) {
-                            toast.error("Failed to accept task.");
-                          } finally {
-                            setApproveLoading(false);
-                          }
-                        }}
-                        icon={!approveLoading ? ThumbsUp : undefined}
-                        className="flex-1 cursor-pointer font-bold bg-brand-green hover:bg-brand-green/90 text-white border-brand-green"
-                      >
-                        {approveLoading ? "Processing..." : "Quick Accept"}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="default"
-                        fullWidth
-                        loading={urgentLoading}
-                        onClick={() => {
-                          setUrgentLoading(true);
-                          try {
-                            handleRequestProduct(taskId);
-                            toast.success("Product requested from expert!");
-                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-                          } catch (err) {
-                            toast.error("Failed to request product.");
-                          } finally {
-                            setUrgentLoading(false);
-                          }
-                        }}
-                        icon={!urgentLoading ? AlertTriangle : undefined}
-                        className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer font-bold"
-                      >
-                        {urgentLoading ? "Sending..." : "Request Product"}
-                      </Button>
-                    </div>
-                  )}
+                {/* 1. Checklist Completed: Render Quick Accept & Request Product */}
+                {(task.displayStatus === "Checklist Completed") && !task.productRequested && (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button
+                      variant="success"
+                      size="default"
+                      fullWidth
+                      loading={approveLoading}
+                      onClick={() => {
+                        setApproveLoading(true);
+                        try {
+                          handleQuickAccept(taskId);
+                          toast.success("Task accepted! (Quick Accept)");
+                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                        } catch (err) {
+                          toast.error("Failed to accept task.");
+                        } finally {
+                          setApproveLoading(false);
+                        }
+                      }}
+                      icon={!approveLoading ? ThumbsUp : undefined}
+                      className="flex-1 cursor-pointer font-bold bg-brand-green hover:bg-brand-green/90 text-white border-brand-green"
+                    >
+                      {approveLoading ? "Processing..." : "Quick Accept"}
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="default"
+                      fullWidth
+                      loading={urgentLoading}
+                      onClick={() => {
+                        setUrgentLoading(true);
+                        try {
+                          handleRequestProduct(taskId);
+                          toast.success("Product requested from expert!");
+                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                        } catch (err) {
+                          toast.error("Failed to request product.");
+                        } finally {
+                          setUrgentLoading(false);
+                        }
+                      }}
+                      icon={!urgentLoading ? AlertTriangle : undefined}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer font-bold"
+                    >
+                      {urgentLoading ? "Sending..." : "Request Product"}
+                    </Button>
+                  </div>
+                )}
 
-                {/* 1b. Checklist Completed OR Waiting w/o product, urgent/product requested: wait message */}
-                {(task.displayStatus === "Checklist Completed" ||
-                  (isWaitingForApproval && !hasMainProduct)) &&
-                  (task.urgentRequest === true || task.productRequested === true) &&
-                  !isNeedsRevision && (
-                    <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
-                      <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
-                      Đang chờ Expert nộp sản phẩm (Waiting for Expert submission)...
-                    </div>
-                  )}
-
-                {/* 1c. isNeedsRevision: rework wait message */}
-                {isNeedsRevision && (
-                  <div className="flex items-center justify-center p-4 bg-orange-50 border border-orange-200 rounded-2xl text-orange-800 text-base font-semibold gap-2 shadow-sm font-sans">
-                    <RotateCcw className="w-5 h-5 text-orange-600" />
-                    Đang chờ Expert nộp sản phẩm mới...
+                {/* 1b. Waiting for Expert Product: Show static wait message */}
+                {task.displayStatus === "Waiting for Expert Product" && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                    <p className="text-yellow-700 font-medium text-sm">
+                      ⏳ Waiting for Expert to submit product...
+                    </p>
+                  </div>
+                )}
+                {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
+                  <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
+                    <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
+                    Đang chờ Expert nộp sản phẩm (Waiting for Expert submission)...
                   </div>
                 )}
 
@@ -1191,11 +1148,7 @@ export default function TaskDetailPage() {
                       <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
                         <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
                         <a
-                          href={
-                            task.productLink.startsWith("http")
-                              ? task.productLink
-                              : `https://${task.productLink}`
-                          }
+                          href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-brand-primary font-medium mt-1 truncate hover:underline flex items-center gap-1 font-sans"
@@ -1256,67 +1209,37 @@ export default function TaskDetailPage() {
       {/* Evidence Submission Modal (Expert) */}
       {showEvidenceModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Submit Handover Evidence</h3>
+                <h3 className="text-lg font-bold text-foreground">Xác nhận nộp bằng chứng bàn giao</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Required before Client can review: {task?.title}
+                  Milestone: {task?.title}
                 </p>
               </div>
               <button onClick={() => setShowEvidenceModal(false)} className="p-1.5 rounded-full hover:bg-muted cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold mb-1">Git Commit SHA (optional)</label>
-                <input
-                  type="text"
-                  value={evidenceGitSha}
-                  onChange={(e) => setEvidenceGitSha(e.target.value)}
-                  placeholder="e.g., a1b2c3d"
-                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">Report/Demo Link (optional)</label>
-                <input
-                  type="text"
-                  value={evidenceReportLink}
-                  onChange={(e) => setEvidenceReportLink(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-1">
-                  Explanation <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  value={evidenceExplanation}
-                  onChange={(e) => setEvidenceExplanation(e.target.value)}
-                  placeholder="Describe what was completed, any important notes for the client..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-input rounded-lg text-sm bg-card"
-                  required
-                />
-              </div>
+            <div className="p-6 space-y-4 text-center">
+              <p className="text-sm text-foreground/80 font-sans">
+                Bạn có chắc chắn muốn xác nhận hoàn thành milestone và gửi thông báo bàn giao cho Khách hàng?
+              </p>
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowEvidenceModal(false)}
                   className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
                 >
-                  Cancel
+                  Hủy
                 </button>
                 <button
                   type="button"
                   onClick={handleEvidenceSubmit}
-                  disabled={evidenceSubmitting || !evidenceExplanation.trim()}
+                  disabled={evidenceSubmitting}
                   className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {evidenceSubmitting ? "Submitting..." : "Submit Evidence"}
+                  {evidenceSubmitting ? "Đang gửi..." : "Xác nhận & Gửi"}
                 </button>
               </div>
             </div>
@@ -1334,7 +1257,11 @@ export default function TaskDetailPage() {
             </p>
           </div>
         </div>
-        <TaskActivityTimeline taskId={taskId} loading={false} compact={false} />
+        <TaskActivityTimeline
+          taskId={taskId}
+          loading={false}
+          compact={false}
+        />
       </div>
     </div>
   );

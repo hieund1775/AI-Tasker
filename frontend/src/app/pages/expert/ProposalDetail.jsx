@@ -25,80 +25,6 @@ import { toast } from "sonner";
 // Status helpers — delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
-function renderStructuredTasks(tasks) {
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
-  }
-
-  // Group tasks by useCaseIndex
-  const groups = {};
-  tasks.forEach((task) => {
-    const key = task.useCaseIndex ?? 0;
-    if (!groups[key]) {
-      groups[key] = {
-        useCaseIndex: key,
-        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
-        tasks: [],
-        totalDuration: 0,
-        totalAmount: 0,
-      };
-    }
-    groups[key].tasks.push(task);
-    groups[key].totalDuration += Number(task.durationDays || 0);
-    groups[key].totalAmount += Number(task.amount || 0);
-  });
-  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
-
-  return (
-    <div className="space-y-6 mt-3">
-      {sortedGroups.map((group, gIdx) => (
-        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
-          {/* Group Header: Use Case Title & Totals */}
-          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
-                Use Case #{Number(group.useCaseIndex) + 1}
-              </span>
-              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
-            </div>
-            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
-              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
-              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
-              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
-            </div>
-          </div>
-
-          {/* Tasks list under this Use Case */}
-          <div className="space-y-4">
-            {group.tasks.map((task, tIdx) => (
-              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2.5 shadow-sm">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
-                    <span className="text-gray-300">•</span>
-                    <span className="font-semibold text-gray-900">${task.amount}</span>
-                  </div>
-                </div>
-                {task.miniTasks && task.miniTasks.length > 0 && (
-                  <div className="pt-2 border-t border-gray-50 space-y-1.5">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">Nhiệm vụ con / Milestones</span>
-                    <ul className="list-disc list-inside text-xs text-gray-600 space-y-1 pl-1">
-                      {task.miniTasks.map((mt, mtIdx) => (
-                        <li key={mt.id || mtIdx}>{mt.title || "Không có tiêu đề"}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Section wrapper — keeps visual consistency
 // ---------------------------------------------------------------------------
@@ -156,7 +82,7 @@ export function ProposalDetail() {
             dependencies: parsedCoverLetter.dependencies || "",
             durationDays: parsedCoverLetter.durationDays || found.estimatedDays || 0,
             attachments: parsedCoverLetter.attachments || [],
-            tasks: Array.isArray(parsedCoverLetter.tasks) ? parsedCoverLetter.tasks : [],
+            tasks: parsedCoverLetter.tasks || [],
           };
           setProposal(enrichedProposal);
           if (found.isSubmitted === false) {
@@ -345,48 +271,149 @@ export function ProposalDetail() {
             <>
               {/* Professional Introduction */}
               <DetailSection title="Professional Introduction">
-                <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap text-sm">
                   {proposal.professionalIntro ||
                     proposal.coverLetter ||
                     "No introduction provided."}
                 </p>
               </DetailSection>
 
-              {/* Technical Approach & Methodology */}
-              {hasFullFields && (
-                <DetailSection title="Technical Approach & Methodology">
-                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                    {proposal.technicalApproach || "No technical approach specified."}
-                  </p>
-                </DetailSection>
-              )}
+              {/* Tasks & Milestones */}
+              {proposal.tasks && proposal.tasks.length > 0 ? (
+                <DetailSection title="Tasks & Milestones Breakdown">
+                  {project?.useCases && project.useCases.length > 0 ? (
+                    <div className="space-y-6">
+                      {project.useCases.map((uc) => {
+                        const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
+                        return (
+                          <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
+                            {/* ── Use Case Header ── */}
+                            <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                                  Client Use Case
+                                </span>
+                                <h4 className="font-semibold text-foreground text-sm">
+                                  {uc.title || uc.nameAndDeadline}
+                                </h4>
+                              </div>
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                {uc.originalDurationDays || 1} days
+                              </span>
+                            </div>
 
-              {/* Implementation Timeline & Milestones */}
-              {hasFullFields && (
-                <DetailSection title="Implementation Timeline & Milestones">
-                  {(proposal.tasks && proposal.tasks.length > 0) ? (
-                    renderStructuredTasks(proposal.tasks)
+                            {/* ── Tasks ── */}
+                            <div className="p-4 space-y-4">
+                              {ucTasks.length === 0 ? (
+                                <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this use case.</p>
+                              ) : (
+                                ucTasks.map((task, idx) => (
+                                  <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
+                                    {/* Task Title Row */}
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {task.completionDays && (
+                                          <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                            {task.completionDays} days
+                                          </span>
+                                        )}
+                                        {task.price != null && (
+                                          <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                            <MoneyDisplay amount={task.price} />
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Minitasks */}
+                                    {task.miniTasks && task.miniTasks.length > 0 && (
+                                      <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                        {task.miniTasks.map((mt, mtIdx) => (
+                                          <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   ) : (
-                    <pre className="text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans">
-                      {proposal.timelineMilestones || "No timeline specified."}
-                    </pre>
+                    /* Fallback to flat list */
+                    <div className="space-y-4">
+                      {proposal.tasks.map((task, idx) => (
+                        <div key={task.id || idx} className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
+                          {/* Task Title Row */}
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {task.completionDays && (
+                                <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                  {task.completionDays} days
+                                </span>
+                              )}
+                              {task.price != null && (
+                                <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                  <MoneyDisplay amount={task.price} />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Minitasks */}
+                          {task.miniTasks && task.miniTasks.length > 0 && (
+                            <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                              {task.miniTasks.map((mt, mtIdx) => (
+                                <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   )}
                 </DetailSection>
+              ) : (
+                /* Implementation Timeline & Milestones fallback */
+                proposal.timelineMilestones && (
+                  <DetailSection title="Timeline & Milestones (Legacy)">
+                    <pre className="text-foreground/80 leading-relaxed whitespace-pre-wrap font-sans text-sm">
+                      {proposal.timelineMilestones}
+                    </pre>
+                  </DetailSection>
+                )
               )}
 
-              {/* Dependencies & Client Requirements */}
-              {hasFullFields && (
-                <DetailSection title="Dependencies & Client Requirements">
-                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                    {proposal.dependencies || "No dependencies specified."}
-                  </p>
-                </DetailSection>
-              )}
+              {/* Proposal Financials Summary */}
+              <DetailSection title="Proposal Financials Summary">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-xl border border-border/80">
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Bid Amount</span>
+                    <span className="text-xl font-bold text-foreground"><MoneyDisplay amount={proposal.bidAmount} /></span>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Estimated Duration</span>
+                    <span className="text-xl font-bold text-foreground">{proposal.durationDays} days</span>
+                  </div>
+                </div>
+              </DetailSection>
 
-              {/* Portfolio & Attachments */}
+              {/* Attachments */}
               <DetailSection
-                title="Portfolio & Attachments"
-                className="last:border-b-0"
+                title={`Attached Assets ${attachments.length > 0 ? `(${attachments.length})` : ""}`}
+                className={attachments.length === 0 ? "last:border-b-0" : ""}
               >
                 {attachments.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No attachments included.</p>
@@ -404,7 +431,7 @@ export function ProposalDetail() {
                         ) : (
                           <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                         )}
-                        <div className="min-w-0 text-left">
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground/80 truncate">
                             {att.name || att.fileName || "Attachment"}
                           </p>
@@ -436,10 +463,10 @@ export function ProposalDetail() {
             </Link>
           ) : (
             <Link
-              to={`/messenger?expertId=${proposal.clientId}`}
+              to="/messenger"
               className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-4 h-4" />
               Contact Client
             </Link>
           )}

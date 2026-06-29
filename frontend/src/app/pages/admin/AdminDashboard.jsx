@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag, DollarSign, Ban } from "lucide-react";
+import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag, DollarSign } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { getReports } from "../../../services/reportService.js";
@@ -140,7 +140,6 @@ export function AdminDashboard() {
           { label: "Job Post Management", desc: "Manage violating service posts", to: "/admin/job-posts", icon: FileText, accent: "border-l-destructive bg-destructive-light/30" },
           { label: "Skills & Categories", desc: "Manage platform skills and category tags", to: "/admin/category-tags", icon: Tag, accent: "border-l-primary bg-primary-light/30" },
           { label: "Revenue Report", desc: "Track platform revenue and transactions", to: "/admin/revenue", icon: DollarSign, accent: "border-l-success bg-success-light/30" },
-          { label: "Contract Cancellations", desc: "Review and manage contract cancellation requests", to: "/admin/contract-cancellations", icon: Ban, accent: "border-l-destructive bg-destructive-light/30" },
         ].map((link, i) => {
           const Icon = link.icon;
           return (

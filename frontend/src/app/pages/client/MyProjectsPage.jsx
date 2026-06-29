@@ -11,9 +11,6 @@ import {
   X,
   MessageSquare,
   Clock,
-  File,
-  Image,
-  FolderOpen,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
@@ -25,77 +22,12 @@ import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBa
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 
-function renderStructuredTasks(tasks) {
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
-  }
-
-  // Group tasks by useCaseIndex
-  const groups = {};
-  tasks.forEach((task) => {
-    const key = task.useCaseIndex ?? 0;
-    if (!groups[key]) {
-      groups[key] = {
-        useCaseIndex: key,
-        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
-        tasks: [],
-        totalDuration: 0,
-        totalAmount: 0,
-      };
-    }
-    groups[key].tasks.push(task);
-    groups[key].totalDuration += Number(task.durationDays || 0);
-    groups[key].totalAmount += Number(task.amount || 0);
-  });
-  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
-
-  return (
-    <div className="space-y-6 mt-3">
-      {sortedGroups.map((group, gIdx) => (
-        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
-          {/* Group Header: Use Case Title & Totals */}
-          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
-                Use Case #{Number(group.useCaseIndex) + 1}
-              </span>
-              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
-            </div>
-            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
-              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
-              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
-              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
-            </div>
-          </div>
-
-          {/* Tasks list under this Use Case */}
-          <div className="space-y-4">
-            {group.tasks.map((task, tIdx) => (
-              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2 shadow-sm">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
-                    <span className="text-gray-300">•</span>
-                    <span className="font-semibold text-gray-900">${task.amount}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function MyProjectsList() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [projects, setProjects] = useState([]);
-  const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Sub-view page states: "list" | "details" | "proposals"
@@ -116,23 +48,9 @@ export function MyProjectsList() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const [userRes, expertsRes] = await Promise.all([
-        api.users.getById(user.id),
-        api.experts.list().catch(() => []),
-      ]);
-
-      // Merge job posts and projects (projects may exist without jobPostId)
-      const jobPosts = userRes?.jobPosts || [];
-      const userProjects = userRes?.projects || [];
-      const projectMap = new Map();
-      jobPosts.forEach((p) => { projectMap.set(p.id, { ...p, _source: "jobPost" }); });
-      userProjects.forEach((p) => {
-        if (!projectMap.has(p.id)) {
-          projectMap.set(p.id, { ...p, _source: "project" });
-        }
-      });
-      const rawProjects = Array.from(projectMap.values());
-
+      const userRes = await api.users.getById(user.id);
+      
+      const rawProjects = userRes?.jobPosts || [];
       const projectsWithCounts = await Promise.all(
         rawProjects.map(async (project) => {
           try {
@@ -146,9 +64,8 @@ export function MyProjectsList() {
           }
         })
       );
-
+      
       setProjects(projectsWithCounts);
-      setExperts(expertsRes || []);
     } catch (err) {
       console.error("Failed to load client projects:", err);
     } finally {
@@ -256,10 +173,10 @@ export function MyProjectsList() {
               timelineMilestones: parsed.timelineMilestones || "",
               dependencies: parsed.dependencies || "",
               durationDays: parsed.durationDays || targetProp.estimatedDays || 0,
+              tasks: parsed.tasks || [],
+              attachments: parsed.attachments || [],
               expertName: expUser?.fullName || "AI Expert",
               expertTitle: expUser?.expertProfile?.jobTitle || "AI Expert",
-              tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
-              attachments: Array.isArray(parsed.attachments) ? parsed.attachments : [],
             };
           })
         );
@@ -289,9 +206,9 @@ export function MyProjectsList() {
     try {
       await api.proposals.updateStatus(proposalId, status);
       toast.success(`Proposal has been successfully ${status.toLowerCase()}!`);
-
+      
       setProposal((prev) => prev ? { ...prev, status: status } : null);
-
+      
       // Reload projects to update counts and statuses
       await loadProjects();
     } catch (err) {
@@ -325,7 +242,7 @@ export function MyProjectsList() {
       await api.jobPosts.update(selectedProject.id, { status: "pending_pay" });
       // Update proposal status to "pending_pay"
       await api.proposals.updateStatus(p.id, "pending_pay");
-
+      
       toast.success("Proposal has been accepted successfully!");
       setViewedProposal(null);
       setShowEscrowConfirm(false);
@@ -412,21 +329,25 @@ export function MyProjectsList() {
 
           {safeArray(selectedProject.useCases).length > 0 && (
             <div className="border-t border-border/60 pt-6">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project Use Cases</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project Timeline Root (Use Cases)</h4>
               <div className="space-y-3">
                 {safeArray(selectedProject.useCases).map((uc, i) => (
-                  <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl space-y-1.5 text-sm text-left">
-                    <p className="font-bold text-foreground">
-                      Use Case #{i + 1}: <span className="font-semibold text-foreground/80">{uc.nameAndDeadline}</span>
-                    </p>
-                    {uc.durationValue && (
-                      <p className="text-xs text-brand-primary font-semibold pl-3">
-                        Timeline gốc: {uc.durationValue} {uc.durationUnit === "days" ? "ngày" : uc.durationUnit === "weeks" ? "tuần" : uc.durationUnit === "months" ? "tháng" : uc.durationUnit === "years" ? "năm" : uc.durationUnit}
+                  <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-left">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-foreground">
+                        Use Case #{i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `Use Case #${i + 1}`}</span>
                       </p>
+                      {uc.description && (
+                        <p className="text-muted-foreground leading-relaxed pl-3 border-l-2 border-border mt-1">
+                          {uc.description}
+                        </p>
+                      )}
+                    </div>
+                    {(uc.originalDurationDays || uc.durationDays) && (
+                      <span className="px-2.5 py-1.5 bg-accent/10 text-accent font-bold rounded-lg whitespace-nowrap self-start sm:self-center text-xs">
+                        Duration: {uc.originalDurationDays || uc.durationDays} days
+                      </span>
                     )}
-                    <p className="text-muted-foreground leading-relaxed pl-3 border-l-2 border-border">
-                      {uc.description}
-                    </p>
                   </div>
                 ))}
               </div>
@@ -461,15 +382,15 @@ export function MyProjectsList() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-4 border-t border-border/60 pt-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 border-t border-border/60 pt-6">
             <div>
               <h4 className="text-sm text-muted-foreground mb-0.5">Budget</h4>
               <p className="font-semibold text-foreground"><MoneyDisplay amount={selectedProject.budget} /></p>
             </div>
             <div>
-              <h4 className="text-sm text-muted-foreground mb-0.5">Timeline gốc</h4>
+              <h4 className="text-sm text-muted-foreground mb-0.5">Timeline Root</h4>
               <p className="font-semibold text-foreground">
-                {selectedProject.totalDurationDays ?? selectedProject.originalUseCaseDays ?? selectedProject.deadline ?? "—"} ngày
+                {safeArray(selectedProject.useCases).reduce((sum, uc) => sum + (Number(uc.originalDurationDays || uc.durationDays) || 0), 0)} days
               </p>
             </div>
             <div>
@@ -512,7 +433,7 @@ export function MyProjectsList() {
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8">
           <div className="border-b border-border/60 pb-4 mb-6">
             <h1 className="text-2xl font-bold text-foreground">
-              {isAcceptedView
+              {isAcceptedView 
                 ? `Proposal connected to: ${selectedProject.title}`
                 : `Proposals list for: ${selectedProject.title}`
               }
@@ -580,19 +501,102 @@ export function MyProjectsList() {
                   </div>
                 )}
 
-                {(proposal.tasks && proposal.tasks.length > 0) ? (
+                {proposal.tasks && proposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-1">Nhiệm vụ chi tiết (Tasks & Milestones)</h4>
-                    {renderStructuredTasks(proposal.tasks)}
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
+                      <div className="space-y-6 mt-3">
+                        {selectedProject.useCases.map((uc) => {
+                          const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
+                          return (
+                            <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
+                              {/* ── Use Case Header ── */}
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                                    Client Use Case
+                                  </span>
+                                  <h4 className="font-semibold text-foreground text-sm">
+                                    {uc.title || uc.nameAndDeadline}
+                                  </h4>
+                                </div>
+                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                  {uc.originalDurationDays || 1} days
+                                </span>
+                              </div>
+
+                              {/* ── Tasks ── */}
+                              <div className="p-4 space-y-4">
+                                {ucTasks.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
+                                ) : (
+                                  ucTasks.map((task, idx) => (
+                                    <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
+                                      {/* Task Title Row */}
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                          <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {task.completionDays && (
+                                            <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                              {task.completionDays} days
+                                            </span>
+                                          )}
+                                          {task.price != null && (
+                                            <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                              <MoneyDisplay amount={task.price} />
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* Fallback to flat list */
+                      <div className="space-y-3 mt-2">
+                        {proposal.tasks.map((task, idx) => (
+                          <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {task.completionDays && (
+                                  <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                    {task.completionDays} days
+                                  </span>
+                                )}
+                                {task.price != null && (
+                                  <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                    <MoneyDisplay amount={task.price} />
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ) : proposal.timelineMilestones ? (
-                  <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
-                    <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
-                      {proposal.timelineMilestones}
-                    </p>
-                  </div>
-                ) : null}
+                ) : (
+                  proposal.timelineMilestones && (
+                    <div>
+                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
+                        {proposal.timelineMilestones}
+                      </p>
+                    </div>
+                  )
+                )}
 
                 {proposal.dependencies && (
                   <div>
@@ -608,7 +612,7 @@ export function MyProjectsList() {
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-sm text-left">
                   <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Hình thức ký quỹ (Escrow Setup)</h3>
-
+                  
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
                       type="checkbox"
@@ -645,7 +649,7 @@ export function MyProjectsList() {
                   </button>
                 </div>
               )}
-
+              
               {proposal.status?.toLowerCase() === "accepted" && (
                 <div className="pt-6 border-t border-border/60 flex items-center justify-end">
                   <Link
@@ -669,28 +673,25 @@ export function MyProjectsList() {
               </h3>
               <div className="space-y-3">
                 {proposalsList.map((p) => {
-                  const diffTime = Math.abs(Date.now() - new Date(p.createdAt).getTime());
-                  const diffDays = diffTime / (1000 * 60 * 60 * 24);
-                  const isNearExpired = diffDays >= 6 && diffDays < 7 && ["pending", "under_review", "pending_pay", "pending_escrow"].includes(p.status?.toLowerCase());
-
                   return (
                     <div
                       key={p.id}
                       className="p-5 rounded-2xl border bg-card border-border hover:border-input transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="text-left">
-                        <h4 className="font-bold text-foreground text-base">{p.expertName} - {p.expertTitle}</h4>
-                        <p className="text-sm text-muted-foreground font-medium mt-0.5">Gửi lúc: {new Date(p.createdAt).toLocaleString("vi-VN")}</p>
+                        <h4 className="font-bold text-foreground text-base">{p.expertName}</h4>
+                        <p className="text-sm text-muted-foreground font-medium mt-0.5">{p.expertTitle}</p>
                         <p className="text-base font-bold text-brand-primary mt-2">
                           Bid: <MoneyDisplay amount={p.bidAmount} /> · {p.durationDays} days
                         </p>
-                        {isNearExpired && (
-                          <div className="mt-2.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 inline-flex items-center gap-1.5 animate-pulse">
-                            ⚠️ Đề xuất này sắp quá hạn 7 ngày phản hồi và sẽ bị tự động từ chối vào ngày mai!
-                          </div>
+                        {p.createdAt && (
+                          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                            Gửi lúc: {safeDateFormat(p.createdAt, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </p>
                         )}
                       </div>
-
+                      
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -769,20 +770,101 @@ export function MyProjectsList() {
                   </div>
                 )}
 
-                {(viewedProposal.tasks && viewedProposal.tasks.length > 0) && (
+                {viewedProposal.tasks && viewedProposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Nhiệm vụ chi tiết (Tasks & Milestones)</h4>
-                    {renderStructuredTasks(viewedProposal.tasks)}
-                  </div>
-                )}
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
+                      <div className="space-y-6 mt-3">
+                        {selectedProject.useCases.map((uc) => {
+                          const ucTasks = viewedProposal.tasks.filter(t => t.useCaseId === uc.id);
+                          return (
+                            <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
+                              {/* ── Use Case Header ── */}
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
+                                <div className="flex items-center gap-2">
+                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                                    Client Use Case
+                                  </span>
+                                  <h4 className="font-semibold text-foreground text-sm">
+                                    {uc.title || uc.nameAndDeadline}
+                                  </h4>
+                                </div>
+                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                  {uc.originalDurationDays || 1} days
+                                </span>
+                              </div>
 
-                {viewedProposal.timelineMilestones && (
-                  <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
-                    <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
-                      {viewedProposal.timelineMilestones}
-                    </p>
+                              {/* ── Tasks ── */}
+                              <div className="p-4 space-y-4">
+                                {ucTasks.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
+                                ) : (
+                                  ucTasks.map((task, idx) => (
+                                    <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
+                                      {/* Task Title Row */}
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                          <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {task.completionDays && (
+                                            <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                              {task.completionDays} days
+                                            </span>
+                                          )}
+                                          {task.price != null && (
+                                            <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                              <MoneyDisplay amount={task.price} />
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* Fallback to flat list */
+                      <div className="space-y-3 mt-2">
+                        {viewedProposal.tasks.map((task, idx) => (
+                          <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {task.completionDays && (
+                                  <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
+                                    {task.completionDays} days
+                                  </span>
+                                )}
+                                {task.price != null && (
+                                  <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
+                                    <MoneyDisplay amount={task.price} />
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  viewedProposal.timelineMilestones && (
+                    <div>
+                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
+                        {viewedProposal.timelineMilestones}
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {viewedProposal.dependencies && (
@@ -793,31 +875,6 @@ export function MyProjectsList() {
                     </p>
                   </div>
                 )}
-
-                <div>
-                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Portfolio & Attachments</h4>
-                  {(!viewedProposal.attachments || viewedProposal.attachments.length === 0) ? (
-                    <p className="text-sm text-muted-foreground mt-2">None</p>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                      {viewedProposal.attachments.map((att, idx) => (
-                        <div key={att.id || idx} className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3">
-                          {att.type === "image/png" || att.fileType === "image/png" ? (
-                            <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
-                          ) : att.type === "folder" ? (
-                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                          ) : (
-                            <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                          )}
-                          <div className="min-w-0 text-left">
-                            <p className="text-sm font-medium text-foreground truncate">{att.name || att.fileName || "Attachment"}</p>
-                            <p className="text-xs text-muted-foreground">{att.type || att.fileType || "file"}{att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
 
               {/* Actions Footer */}
@@ -847,7 +904,13 @@ export function MyProjectsList() {
   // =========================================================================
   // VIEW: LIST
   // =========================================================================
-  const filteredProjects = projects;
+  const filteredProjects = projects.filter((project) => {
+    const proposalCount = project.proposalCount || 0;
+    const statusKey = deriveProjectStatusKey(project, { proposalCount });
+    const s = project.status?.toLowerCase() || "";
+    const isActive = (statusKey === "in_progress" || s === "in_progress" || s === "in progress" || s === "active" || s === "hired" || s === "closed") && s !== "open";
+    return !isActive;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -890,18 +953,12 @@ export function MyProjectsList() {
         <div className="space-y-4">
           {filteredProjects.map((project) => {
             const proposalCount = project.proposalCount || 0;
-
-            // Resolve localStorage chosen expert
-            const chosenExpertsMapping = JSON.parse(localStorage.getItem("aitasker_chosen_experts") || "{}");
-            const chosenExpertId = chosenExpertsMapping[project.id];
-            const assignedExpert = chosenExpertId ? (experts.find(e => e.id === chosenExpertId) || { fullName: "Expert" }) : null;
             const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = assignedExpert ? "Pending For Expert" : getStatusLabel(statusKey);
-            const badgeClass = assignedExpert ? "bg-amber-100 text-amber-700" : getStatusBadgeClass(statusKey);
-
+            const displayStatus = getStatusLabel(statusKey);
+            const badgeClass = getStatusBadgeClass(statusKey);
             const progress = getProjectProgress(project.id);
             const category = project.aiCategoryDomain;
-
+            
             const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;

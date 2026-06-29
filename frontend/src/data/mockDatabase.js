@@ -1406,6 +1406,7 @@ const _baseProjects = [
     originalClientDeadline: "28",
     finalDeliveryStatus: "Final Product Submitted",
     finalWorkSubmitted: true,
+    finalWorkSubmittedAt: "2026-06-27T10:00:00.000Z",
     finalProjectLink: "https://risk-dash-demo.vercel.app",
     finalProjectFile: "risk-dashboard-source.zip",
     status: "active",
@@ -1426,21 +1427,6 @@ const _baseProjects = [
     title: "Contract Cancellation Demo — 30% Progress",
     description: "Seed project for testing contract cancellation at 30% project progress. Expected: Expert=400,000, Platform=50,000, Client refund=550,000.",
     budget: 1000000, deadline: "2026-09-01T00:00:00.000Z", escrowAmount: 1000000,
-    originalDurationDays: 45,
-    originalTimelineLocked: true,
-    cancellationRequest: {
-      status: "pending_review",
-      requestedBy: "user-013",
-      requestedAt: "2026-06-28T10:00:00.000Z",
-      reason: "Project scope mismatch — need to restructure deliverables.",
-      progressPercent: 30,
-      contractAmount: 1000000,
-      progressPayout: 300000,
-      compensationFee: 100000,
-      platformServiceFee: 50000,
-      expertPayout: 400000,
-      clientRefund: 550000,
-    },
     finalDeliveryStatus: null,
     status: "active",
     useCases: [{"id":"uc-017-1","title":"Patient Scheduling Optimization Engine","originalDurationDays":20,"tasks":[{"id":"task-017-1","title":"No-Show Prediction Model","description":"Train ML model to predict patient no-show probability","source":"client","locked":true,"approvalStatus":"accepted","price":4000,"completionDays":14,"status":"in_progress","miniTasks":[{"title":"Data exploration on 2 years of appointment history"},{"title":"Train XGBoost baseline"},{"title":"Calibrate probability scores"},{"title":"Deploy model with retraining pipeline"}]},{"id":"task-017-2","title":"Schedule Optimization Algorithm","description":"Implement constraint-based scheduling optimizer","source":"client","locked":true,"approvalStatus":"accepted","price":3000,"completionDays":10,"status":"not_started","miniTasks":[{"title":"Define optimization constraints"},{"title":"Implement OR-Tools solver"},{"title":"Build schedule simulation"}]}]},{"id":"uc-017-2","title":"EMR Integration & HL7/FHIR API","originalDurationDays":15,"tasks":[{"id":"task-017-3","title":"HL7/FHIR Data Pipeline","description":"Build ETL pipeline for HL7/FHIR data","source":"client","locked":true,"approvalStatus":"accepted","price":2000,"completionDays":8,"status":"not_started","miniTasks":[{"title":"Map HL7/FHIR message types"},{"title":"Build ETL pipeline with error handling"}]}]},{"id":"uc-017-3","title":"Patient Portal & Admin Dashboard","originalDurationDays":10,"tasks":[{"id":"task-017-4","title":"Patient Self-Scheduling Portal","description":"React-based web portal for patients","source":"client","locked":true,"approvalStatus":"accepted","price":1500,"completionDays":7,"status":"not_started","miniTasks":[{"title":"Build appointment booking flow"},{"title":"Add SMS/email confirmation"}]},{"id":"task-017-5","title":"Clinic Admin Analytics Dashboard","description":"Interactive dashboard with schedule analytics","source":"client","locked":true,"approvalStatus":"accepted","price":1000,"completionDays":5,"status":"not_started","miniTasks":[{"title":"Build no-show trend charts"}]}]}],
@@ -1460,8 +1446,6 @@ const _baseProjects = [
     title: "Contract Cancellation Demo — 80% Progress",
     description: "Seed project for testing contract cancellation at 80% project progress. Expected: Expert=900,000, Platform=50,000, Client refund=50,000.",
     budget: 1000000, deadline: "2026-09-15T00:00:00.000Z", escrowAmount: 1000000,
-    originalDurationDays: 22,
-    originalTimelineLocked: true,
     finalDeliveryStatus: null,
     status: "active",
     useCases: [{"id":"uc-018-1","title":"Risk Data Pipeline & Integration","originalDurationDays":12,"tasks":[{"id":"task-018-1","title":"Data Pipeline Setup","description":"Set up real-time data ingestion from fraud API","source":"client","locked":true,"approvalStatus":"accepted","price":2500,"completionDays":6,"status":"completed","miniTasks":[{"title":"Connect to fraud detection API"},{"title":"Build streaming data pipeline"},{"title":"Set up data validation layer"}]},{"id":"task-018-2","title":"Data Warehouse Schema","description":"Design and implement analytics data warehouse","source":"client","locked":true,"approvalStatus":"accepted","price":2000,"completionDays":6,"status":"completed","miniTasks":[{"title":"Design star schema"},{"title":"Implement ETL transformations"}]}]},{"id":"uc-018-2","title":"Risk Dashboard UI & Visualization","originalDurationDays":10,"tasks":[{"id":"task-018-3","title":"Dashboard Core UI","description":"Build main dashboard with drill-down capability","source":"client","locked":true,"approvalStatus":"accepted","price":2700,"completionDays":5,"status":"completed","miniTasks":[{"title":"Build risk score overview page"},{"title":"Implement drill-down navigation"},{"title":"Add transaction detail view"}]},{"id":"task-018-4","title":"Alert & Notification System","description":"Customizable alert thresholds and notifications","source":"client","locked":true,"approvalStatus":"accepted","price":2000,"completionDays":5,"status":"in_progress","miniTasks":[{"title":"Configure alert threshold UI"},{"title":"Build notification service"},{"title":"Add email/Slack integration"}]}]}],
@@ -1476,7 +1460,7 @@ const _baseProjects = [
     updatedAt: "2026-06-26T10:00:00.000Z",
   },
   // ── proj-019: Final Delivery Submitted (John, Alice) — ready for client accept/decline ──
-  { id: "proj-019", jobPostId: "job-002", clientId: "user-013", assignedExpertId: "user-005", title: "Medical Image Classification System (Delivery Ready)", description: "AI system classifying chest X-rays into 14 pathology categories. All tasks completed, final delivery submitted.", budget: 15000, deadline: "2026-08-01T00:00:00.000Z", escrowAmount: 15000, originalClientBudget: 15000, originalClientDeadline: "42", finalDeliveryStatus: "Final Product Submitted", finalWorkSubmitted: true, finalProjectLink: "https://medimg-demo.vercel.app", finalProjectFile: "medical-imaging-model.zip", status: "active", jobPostSkills: [{ skillsId: "skill-002", skill: { name: "PyTorch" } }], requiredSkills: ["Python", "PyTorch"], client: "John Smith", createdAt: "2026-06-15T08:00:00.000Z", updatedAt: "2026-06-27T16:00:00.000Z", useCases: [{ id: "uc-019-1", title: "X-Ray Classification Model", originalDurationDays: 30 }], tasks: [{ id: "task-019-1", projectId: "proj-019", useCaseId: "uc-019-1", title: "Data Preprocessing Pipeline", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 5000, completionDays: 12, miniTasks: [{ id: "mt-019-1", taskId: "task-019-1", title: "DICOM parser", status: "completed", isCompleted: true }, { id: "mt-019-2", taskId: "task-019-1", title: "Normalization pipeline", status: "completed", isCompleted: true }] }, { id: "task-019-2", projectId: "proj-019", useCaseId: "uc-019-1", title: "Model Training & Validation", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 7000, completionDays: 14, miniTasks: [{ id: "mt-019-3", taskId: "task-019-2", title: "DenseNet training", status: "completed", isCompleted: true }, { id: "mt-019-4", taskId: "task-019-2", title: "Cross-validation", status: "completed", isCompleted: true }] }, { id: "task-019-3", projectId: "proj-019", useCaseId: "uc-019-1", title: "Web Demo Interface", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 3000, completionDays: 6, miniTasks: [{ id: "mt-019-5", taskId: "task-019-3", title: "Upload + inference UI", status: "completed", isCompleted: true }] }] },
+  { id: "proj-019", jobPostId: "job-002", clientId: "user-013", assignedExpertId: "user-005", title: "Medical Image Classification System (Delivery Ready)", description: "AI system classifying chest X-rays into 14 pathology categories. All tasks completed, final delivery submitted.", budget: 15000, deadline: "2026-08-01T00:00:00.000Z", escrowAmount: 15000, originalClientBudget: 15000, originalClientDeadline: "42", finalDeliveryStatus: "Final Product Submitted", finalWorkSubmitted: true, finalWorkSubmittedAt: "2026-06-27T16:00:00.000Z", finalProjectLink: "https://medimg-demo.vercel.app", finalProjectFile: "medical-imaging-model.zip", status: "active", jobPostSkills: [{ skillsId: "skill-002", skill: { name: "PyTorch" } }], requiredSkills: ["Python", "PyTorch"], client: "John Smith", createdAt: "2026-06-15T08:00:00.000Z", updatedAt: "2026-06-27T16:00:00.000Z", useCases: [{ id: "uc-019-1", title: "X-Ray Classification Model", originalDurationDays: 30 }], tasks: [{ id: "task-019-1", projectId: "proj-019", useCaseId: "uc-019-1", title: "Data Preprocessing Pipeline", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 5000, completionDays: 12, miniTasks: [{ id: "mt-019-1", taskId: "task-019-1", title: "DICOM parser", status: "completed", isCompleted: true }, { id: "mt-019-2", taskId: "task-019-1", title: "Normalization pipeline", status: "completed", isCompleted: true }] }, { id: "task-019-2", projectId: "proj-019", useCaseId: "uc-019-1", title: "Model Training & Validation", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 7000, completionDays: 14, miniTasks: [{ id: "mt-019-3", taskId: "task-019-2", title: "DenseNet training", status: "completed", isCompleted: true }, { id: "mt-019-4", taskId: "task-019-2", title: "Cross-validation", status: "completed", isCompleted: true }] }, { id: "task-019-3", projectId: "proj-019", useCaseId: "uc-019-1", title: "Web Demo Interface", source: "client", approvalStatus: "accepted", locked: true, status: "completed", price: 3000, completionDays: 6, miniTasks: [{ id: "mt-019-5", taskId: "task-019-3", title: "Upload + inference UI", status: "completed", isCompleted: true }] }] },
   // ── proj-020: Checklist Completed (Liam, Frank) — all miniTasks done, waiting for expert product ──
   { id: "proj-020", jobPostId: "job-004", clientId: "user-015", assignedExpertId: "user-010", title: "E-Commerce Product Recommendation Engine", description: "AI recommendation system. All checklist items completed. Expert needs to submit product.", budget: 10000, deadline: "2026-08-10T00:00:00.000Z", escrowAmount: 10000, originalClientBudget: 10000, originalClientDeadline: "35", status: "active", jobPostSkills: [{ skillsId: "skill-001", skill: { name: "Python" } }], requiredSkills: ["Python"], client: "Liam O'Brien", createdAt: "2026-06-05T10:00:00.000Z", updatedAt: "2026-06-26T14:00:00.000Z", useCases: [{ id: "uc-020-1", title: "Recommendation Pipeline", originalDurationDays: 20 }], tasks: [{ id: "task-020-1", projectId: "proj-020", useCaseId: "uc-020-1", title: "Collaborative Filtering Model", source: "client", approvalStatus: "accepted", locked: true, status: "checklist_completed", price: 5000, completionDays: 12, miniTasks: [{ id: "mt-020-1", taskId: "task-020-1", title: "ALS matrix factorization", status: "completed", isCompleted: true }, { id: "mt-020-2", taskId: "task-020-1", title: "Neural CF model", status: "completed", isCompleted: true }] }, { id: "task-020-2", projectId: "proj-020", useCaseId: "uc-020-1", title: "Real-time Feature Serving", source: "client", approvalStatus: "accepted", locked: true, status: "checklist_completed", price: 5000, completionDays: 8, miniTasks: [{ id: "mt-020-3", taskId: "task-020-2", title: "Redis feature store", status: "completed", isCompleted: true }, { id: "mt-020-4", taskId: "task-020-2", title: "<50ms inference API", status: "completed", isCompleted: true }] }] },
   // ── proj-021: Waiting Expert Product (Mia, David) — client requested product ──
@@ -1944,9 +1928,9 @@ const _baseTasks = [
   { id: "task-012", projectId: "proj-004", title: "Spot instance strategy", description: "Implement Karpenter for intelligent spot management", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-20T00:00:00.000Z", createdAt: "2026-04-06T10:00:00.000Z", miniTasks: [{ id: "mt-036", title: "Karpenter deployment", description: "Install and configure Karpenter", status: "done", order: 1 }, { id: "mt-037", title: "Spot instance policies", description: "Define spot fallback policies", status: "done", order: 2 }, { id: "mt-038", title: "Testing and validation", description: "Validate spot instance handling", status: "done", order: 3 }] },
   { id: "task-013", projectId: "proj-004", title: "Feature store and model registry", description: "Set up Feast feature store and MLflow registry", status: "in_progress", assignedTo: "user-009", approval: null, deadline: "2026-05-10T00:00:00.000Z", createdAt: "2026-04-21T08:00:00.000Z", miniTasks: [{ id: "mt-039", title: "Feast deployment", description: "Deploy Feast on EKS", status: "done", order: 1 }, { id: "mt-040", title: "MLflow setup", description: "Set up MLflow tracking server", status: "in_progress", order: 2 }, { id: "mt-041", title: "Integration testing", description: "Test feature serving latency", status: "pending", order: 3 }, { id: "mt-042", title: "Documentation", description: "Write setup and usage docs", status: "pending", order: 4 }] },
   // ── proj-005: Support Chatbot (3 tasks) ──
-  { id: "task-014", projectId: "proj-005", title: "Knowledge base processing", useCaseIndex: 0, description: "Extract and structure support ticket knowledge base", status: "in_progress", assignedTo: "user-012", approval: null, deadline: "2026-06-20T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-043", title: "CRM API extraction", description: "Pull data from CRM API", status: "done", order: 1 }, { id: "mt-044", title: "HTML stripping", description: "Clean embedded HTML from tickets", status: "done", order: 2 }, { id: "mt-045", title: "Content chunking", description: "Chunk tickets for RAG retrieval", status: "in_progress", order: 3 }, { id: "mt-046", title: "Vector embedding", description: "Generate embeddings for search", status: "pending", order: 4 }] },
-  { id: "task-015", projectId: "proj-005", title: "Model fine-tuning", useCaseIndex: 1, description: "Fine-tune LLM on support domain data", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-047", title: "Base model selection", description: "Evaluate and select base LLM", status: "pending", order: 1 }, { id: "mt-048", title: "Fine-tuning run", description: "Fine-tune on domain data", status: "pending", order: 2 }, { id: "mt-049", title: "Evaluation", description: "Measure accuracy on test queries", status: "pending", order: 3 }] },
-  { id: "task-016", projectId: "proj-005", title: "Chat interface and deployment", useCaseIndex: 2, description: "Build chat widget and deploy to production", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-10T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-050", title: "Chat UI", description: "Build customer-facing chat widget", status: "pending", order: 1 }, { id: "mt-051", title: "Escalation logic", description: "Implement human escalation flow", status: "pending", order: 2 }, { id: "mt-052", title: "Deployment", description: "Deploy to production environment", status: "pending", order: 3 }] },
+  { id: "task-014", projectId: "proj-005", title: "Knowledge base processing", description: "Extract and structure support ticket knowledge base", status: "in_progress", assignedTo: "user-012", approval: null, deadline: "2026-06-20T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-043", title: "CRM API extraction", description: "Pull data from CRM API", status: "done", order: 1 }, { id: "mt-044", title: "HTML stripping", description: "Clean embedded HTML from tickets", status: "done", order: 2 }, { id: "mt-045", title: "Content chunking", description: "Chunk tickets for RAG retrieval", status: "in_progress", order: 3 }, { id: "mt-046", title: "Vector embedding", description: "Generate embeddings for search", status: "pending", order: 4 }] },
+  { id: "task-015", projectId: "proj-005", title: "Model fine-tuning", description: "Fine-tune LLM on support domain data", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-047", title: "Base model selection", description: "Evaluate and select base LLM", status: "pending", order: 1 }, { id: "mt-048", title: "Fine-tuning run", description: "Fine-tune on domain data", status: "pending", order: 2 }, { id: "mt-049", title: "Evaluation", description: "Measure accuracy on test queries", status: "pending", order: 3 }] },
+  { id: "task-016", projectId: "proj-005", title: "Chat interface and deployment", description: "Build chat widget and deploy to production", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-10T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-050", title: "Chat UI", description: "Build customer-facing chat widget", status: "pending", order: 1 }, { id: "mt-051", title: "Escalation logic", description: "Implement human escalation flow", status: "pending", order: 2 }, { id: "mt-052", title: "Deployment", description: "Deploy to production environment", status: "pending", order: 3 }] },
   // ── proj-006: Contract Analysis (3 tasks) ──
   { id: "task-017", projectId: "proj-006", title: "Document processing pipeline", description: "Build PDF parsing and text extraction pipeline", status: "in_progress", assignedTo: "user-007", approval: null, deadline: "2026-06-25T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-053", title: "PDF parser", description: "Build digital PDF text extraction", status: "done", order: 1 }, { id: "mt-054", title: "Document structure analysis", description: "Identify sections and clauses", status: "in_progress", order: 2 }, { id: "mt-055", title: "Entity extraction", description: "Extract parties, dates, amounts", status: "pending", order: 3 }] },
   { id: "task-018", projectId: "proj-006", title: "Clause classification model", description: "Train NLP model to classify contract clauses", status: "pending", assignedTo: "user-007", approval: null, deadline: "2026-07-15T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-056", title: "Annotation guidelines", description: "Create clause annotation schema", status: "pending", order: 1 }, { id: "mt-057", title: "Model training", description: "Fine-tune legal BERT model", status: "pending", order: 2 }, { id: "mt-058", title: "Evaluation", description: "Evaluate on test set (target 95%)", status: "pending", order: 3 }] },
@@ -2242,74 +2226,11 @@ export function normalizeJobPost(jp) {
 
 function _baseTable(name) { return _baseData[name] || []; }
 
-function _ensureUseCaseIds(item) {
-  if (item && Array.isArray(item.useCases)) {
-    let changed = false;
-    const updatedUseCases = item.useCases.map((uc, index) => {
-      if (!uc.id) {
-        changed = true;
-        return {
-          ...uc,
-          id: `uc-${index}-${item.id || 'gen'}-${String(item.createdAt || '').substring(0, 10) || '2026'}`
-        };
-      }
-      return uc;
-    });
-    if (changed) {
-      item.useCases = updatedUseCases;
-    }
-  }
-  return item;
-}
-
 function _getById(table, id) {
   const overlay = _runtimeOverlay[table];
-  let record = null;
-  if (overlay && overlay.has(id)) {
-    record = overlay.get(id);
-  } else if (!_runtimeOverlay._deleted.has(`${table}:${id}`)) {
-    record = _baseById[table]?.[id] || null;
-  }
-
-  if (record) {
-    if (table === "projects" || table === "jobPosts") {
-      record = _ensureUseCaseIds(record);
-    }
-    return record;
-  }
-
-  if (table === "tasks") {
-    const baseProjects = _baseData["projects"] || [];
-    const projectsOverlay = _runtimeOverlay["projects"];
-    const allProjects = [...baseProjects];
-    if (projectsOverlay) {
-      for (const [pId, pItem] of projectsOverlay) {
-        const idx = allProjects.findIndex((p) => p.id === pId);
-        if (idx >= 0) allProjects[idx] = pItem; else allProjects.push(pItem);
-      }
-    }
-
-    for (const proj of allProjects) {
-      if (Array.isArray(proj.tasks)) {
-        const found = proj.tasks.find((t) => t.id === id);
-        if (found) {
-          const tasksOverlay = _runtimeOverlay["tasks"];
-          if (tasksOverlay) {
-            const enrichedTask = {
-              ...found,
-              projectId: found.projectId || proj.id,
-              createdAt: found.createdAt || proj.createdAt || new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            tasksOverlay.set(id, enrichedTask);
-            return enrichedTask;
-          }
-        }
-      }
-    }
-  }
-
-  return null;
+  if (overlay && overlay.has(id)) return overlay.get(id);
+  if (_runtimeOverlay._deleted.has(`${table}:${id}`)) return null;
+  return _baseById[table]?.[id] || null;
 }
 
 function _list(table, filterFn) {
@@ -2322,10 +2243,7 @@ function _list(table, filterFn) {
       if (idx >= 0) all[idx] = item; else all.push(item);
     }
   }
-  let result = all.filter((i) => !_runtimeOverlay._deleted.has(`${table}:${i.id}`));
-  if (table === "projects" || table === "jobPosts") {
-    result = result.map(item => _ensureUseCaseIds(item));
-  }
+  const result = all.filter((i) => !_runtimeOverlay._deleted.has(`${table}:${i.id}`));
   return filterFn ? result.filter(filterFn) : result;
 }
 
@@ -2335,42 +2253,6 @@ function _create(table, item) {
   const id = item.id || generateId(table.replace(/s$/, ""));
   const record = { ...item, id, createdAt: item.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
   overlay.set(id, record);
-
-  // Sync tasks to project.tasks
-  if (table === "tasks" && record.projectId) {
-    const project = _getById("projects", record.projectId);
-    if (project && Array.isArray(project.tasks)) {
-      const exists = project.tasks.some((t) => t.id === id);
-      if (!exists) {
-        const updatedTasks = [...project.tasks, record];
-        const projectOverlay = _runtimeOverlay["projects"];
-        if (projectOverlay) {
-          projectOverlay.set(project.id, { ...project, tasks: updatedTasks, updatedAt: new Date().toISOString() });
-        }
-      }
-    }
-  }
-
-  // Sync project.tasks to tasks table
-  if (table === "projects" && record.tasks && Array.isArray(record.tasks)) {
-    const tasksOverlay = _runtimeOverlay["tasks"];
-    if (tasksOverlay) {
-      for (const t of record.tasks) {
-        const existingTask = _getById("tasks", t.id);
-        if (existingTask) {
-          tasksOverlay.set(t.id, { ...existingTask, ...t, projectId: id, updatedAt: new Date().toISOString() });
-        } else {
-          tasksOverlay.set(t.id, {
-            ...t,
-            projectId: id,
-            createdAt: t.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    }
-  }
-
   triggerDbUpdate();
   return record;
 }
@@ -2498,39 +2380,6 @@ function _update(table, id, updates) {
   const overlay = _runtimeOverlay[table];
   const updated = { ...existing, ...updates, id, updatedAt: new Date().toISOString() };
   overlay.set(id, updated);
-
-  // Sync tasks update to project.tasks
-  if (table === "tasks" && updated.projectId) {
-    const project = _getById("projects", updated.projectId);
-    if (project && Array.isArray(project.tasks)) {
-      const updatedTasks = project.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t));
-      const projectOverlay = _runtimeOverlay["projects"];
-      if (projectOverlay) {
-        projectOverlay.set(project.id, { ...project, tasks: updatedTasks, updatedAt: new Date().toISOString() });
-      }
-    }
-  }
-
-  // Sync project.tasks update to tasks table
-  if (table === "projects" && updates.tasks && Array.isArray(updates.tasks)) {
-    const tasksOverlay = _runtimeOverlay["tasks"];
-    if (tasksOverlay) {
-      for (const t of updates.tasks) {
-        const existingTask = _getById("tasks", t.id);
-        if (existingTask) {
-          tasksOverlay.set(t.id, { ...existingTask, ...t, projectId: id, updatedAt: new Date().toISOString() });
-        } else {
-          tasksOverlay.set(t.id, {
-            ...t,
-            projectId: id,
-            createdAt: t.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      }
-    }
-  }
-
   triggerDbUpdate();
   return updated;
 }
@@ -2584,78 +2433,65 @@ function formatViDate(dateStr) {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
-export function checkProposalDeadlines() {
-  try {
-    const proposals = _list("proposals");
-    const now = new Date();
-
-    proposals.forEach((prop) => {
-      const status = (prop.status || "pending").toLowerCase();
-      if (status !== "pending" && status !== "submitted") return;
-      if (prop.expiryChecked) return; // ponytail: skip already-processed proposals
-
-      const submittedAt = prop.submittedAt || prop.createdAt;
-      if (!submittedAt) return;
-      const diffDays = (now.getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
-
-      const jobPost = _getById("jobPosts", prop.jobPostId);
-      const expert = _getById("users", prop.expertId);
-      const expertName = expert?.fullName || "Expert";
-      const jobTitle = jobPost?.title || "Công việc";
-
-      if (diffDays >= 7) {
-        _update("proposals", prop.id, { status: "expired", expiryChecked: true });
-
-        _create("notifications", {
-          userId: prop.expertId,
-          title: `Đề xuất cho công việc ${jobTitle} đã quá hạn`,
-          message: `Đề xuất của bạn cho dự án "${jobTitle}" đã tự động bị hủy do quá 7 ngày Client không phản hồi.`,
-          type: "proposal",
-          isRead: false,
-          linkTo: `/expert/proposals/${prop.id}`,
-          createdAt: new Date().toISOString()
-        });
-
+export function listProposals(filterFn) {
+  // ponytail: check for expired proposals (7-day auto-expire)
+  const now = new Date();
+  const allProps = _list("proposals");
+  for (const p of allProps) {
+    const submittedAt = p.submittedAt || p.createdAt;
+    if (!submittedAt) continue;
+    if ((p.status === "pending" || p.status === "submitted" || p.status === "under_review") && !p.expiryChecked) {
+      const daysSinceSubmit = (now.getTime() - new Date(submittedAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceSubmit >= 7) {
+        _update("proposals", p.id, { status: "expired", expiryChecked: true });
+        // Notify expert and client
+        const jobPost = _getById("jobPosts", p.jobPostId);
+        const expert = _getById("users", p.expertId);
+        if (expert) {
+          _create("notifications", {
+            userId: p.expertId,
+            title: `Proposal Expired | ${jobPost?.title || "Project"}`,
+            message: `Your proposal has expired after 7 days without client response. You may apply to other jobs.`,
+            type: "proposal",
+            isRead: false,
+            linkTo: `/expert/proposals/${p.id}`,
+            createdAt: new Date().toISOString()
+          });
+        }
         if (jobPost) {
           _create("notifications", {
             userId: jobPost.clientId,
-            title: `Đề xuất từ ${expertName} đã bị tự động hủy`,
-            message: `Đề xuất từ chuyên gia ${expertName} cho công việc "${jobTitle}" đã bị tự động hủy do quá hạn 7 ngày.`,
+            title: `Proposal Auto-Expired | ${jobPost.title}`,
+            message: `A proposal from ${expert?.fullName || "Expert"} has expired after 7 days without your response.`,
             type: "proposal",
             isRead: false,
             linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
             createdAt: new Date().toISOString()
           });
         }
-      } else if (diffDays >= 6 && !prop.sentDay6Reminder) {
-        _update("proposals", prop.id, { sentDay6Reminder: true });
-
-        if (jobPost) {
+      } else if (daysSinceSubmit >= 6 && !p.day6ReminderSent) {
+        // Day 6: send urgent reminder to client
+        _update("proposals", p.id, { day6ReminderSent: true });
+        const jp = _getById("jobPosts", p.jobPostId);
+        const exp = _getById("users", p.expertId);
+        if (jp) {
           _create("notifications", {
-            userId: jobPost.clientId,
-            title: `Cảnh báo quá hạn đề xuất từ ${expertName}`,
-            message: `Bạn có đề xuất từ ${expertName} sắp quá hạn vào ngày mai. Vui lòng xử lý ngay trước khi hệ thống tự động hủy đơn.`,
+            userId: jp.clientId,
+            title: `⏰ Proposal Expiring Tomorrow | ${jp.title}`,
+            message: `You have a proposal from ${exp?.fullName || "Expert"} expiring tomorrow. Please process it before the system auto-cancels it.`,
             type: "proposal",
             isRead: false,
-            linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
+            linkTo: `/client/my-projects?projectId=${jp.id}&view=proposals`,
             createdAt: new Date().toISOString()
           });
         }
       }
-    });
-  } catch (err) {
-    console.error("Error in checkProposalDeadlines:", err);
+    }
   }
-}
-
-export function listProposals(filterFn) {
-  checkProposalDeadlines();
+  // Re-fetch after potential status changes
   return _list("proposals", filterFn);
 }
-export function getProposalById(id) {
-  checkProposalDeadlines();
-  return _getById("proposals", id);
-}
+export function getProposalById(id) { return _getById("proposals", id); }
 export function deleteProposal(id) {
   const prop = _getById("proposals", id);
   if (prop) {
@@ -2853,6 +2689,7 @@ export function submitProjectFinalWork(projectId, expertName, projectLink, proje
     finalProjectLink: projectLink,
     finalProjectFile: projectFile,
     finalWorkDeclineReason: null,
+    finalWorkSubmittedAt: new Date().toISOString(),
   });
 
   try {
@@ -2887,7 +2724,6 @@ export function acceptProjectFinalDelivery(projectId, clientName) {
   if (!project) return null;
   const updated = _update("projects", projectId, {
     finalDeliveryStatus: "Accepted",
-    status: "completed",
   });
 
   addAuditEntry({
@@ -3519,7 +3355,7 @@ export function clientDeclineTaskProduct(taskId, actorName, feedback) {
   const task = _getById("tasks", taskId);
   if (!task || task.status !== "waiting_for_approval") return null;
   return _update("tasks", taskId, {
-    status: "rework",
+    status: "waiting_expert_product",
     approval: null,
     clientFeedback: feedback || null,
     declineReason: feedback || null,
@@ -3604,13 +3440,10 @@ export function requestTaskRevision(taskId, actorName, feedback) {
   }));
   const result = _update("tasks", taskId, {
     status: "waiting_expert_product",
-    reworkStatus: "rework",
     approval: null,
     miniTasks,
     declineReason: feedback || null,
-    clientFeedback: feedback || null,
-    productLink: null,
-    productFile: null,
+    clientFeedback: feedback || null
   });
 
   addAuditEntry({
@@ -3640,7 +3473,6 @@ export function submitTaskProduct(taskId, actorName, productLink, productFile) {
 
   const result = _update("tasks", taskId, {
     status: "pending_review",
-    reworkStatus: null,
     approval: null,
     productLink: productLink || task.productLink || null,
     productFile: productFile || task.productFile || null,
@@ -3676,7 +3508,6 @@ export function requestUrgentSubmission(taskId, actorName, actorId) {
   if (task.status === "completed" || task.status === "done" || task.approval === "Approved") return null;
 
   const result = _update("tasks", taskId, {
-    status: "waiting_expert_product",
     urgentRequest: true,
     urgentRequestedAt: new Date().toISOString(),
     urgentRequestedBy: actorId || null,
@@ -3706,7 +3537,7 @@ export function requestTaskReopen(taskId, actorName) {
     confirmed: false,
   }));
   const result = _update("tasks", taskId, {
-    status: "needs_revision",
+    status: "waiting_expert_product",
     approval: null,
     miniTasks,
     urgentRequest: false,
@@ -3757,7 +3588,7 @@ export function requestMiniTaskRevision(taskId, miniTaskIds, actorName, feedback
   });
 
   const result = _update("tasks", taskId, {
-    status: "needs_revision",
+    status: "waiting_expert_product",
     approval: null,
     miniTasks: updatedMiniTasks,
   });

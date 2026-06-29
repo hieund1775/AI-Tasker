@@ -21,17 +21,17 @@ import { Loader2, Upload, X, FileText } from "lucide-react";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
-import api from "../../../services/api.js";
 
 const DISPUTE_TYPES = [
-  { value: "financial", label: "Financial (Tài chính)" },
-  { value: "quality", label: "Quality (Chất lượng)" },
-  { value: "deadline", label: "Deadline (Tiến độ)" },
+  { value: "financial", label: "Financial / Payment Dispute" },
+  { value: "quality", label: "Work Quality Dispute" },
+  { value: "deadline", label: "Deadline Dispute" },
+  { value: "scope", label: "Scope of Work Dispute" },
+  { value: "other", label: "Other" },
 ];
 
 export function ReportForm({
   project,
-  reporterRole = "expert",
   onSubmit,
   onCancel,
   loading: externalLoading = false,
@@ -44,36 +44,8 @@ export function ReportForm({
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitTime, setSubmitTime] = useState(new Date());
-  const [clientName, setClientName] = useState("");
-  const [expertName, setExpertName] = useState("");
 
   const isLoading = externalLoading || submitting;
-
-  // Load client and expert full names
-  useEffect(() => {
-    async function loadNames() {
-      if (!project) return;
-      const cId = project.clientId;
-      const eId = project.assignedExpertId || project.expertId;
-      if (cId) {
-        try {
-          const u = await api.users.getById(cId);
-          setClientName(u?.fullName || u?.name || project.client || cId);
-        } catch {
-          setClientName(project.client || cId);
-        }
-      }
-      if (eId) {
-        try {
-          const u = await api.users.getById(eId);
-          setExpertName(u?.fullName || u?.name || project.expert || eId);
-        } catch {
-          setExpertName(project.expert || eId);
-        }
-      }
-    }
-    loadNames();
-  }, [project]);
 
   // Real-time submission time
   useEffect(() => {
@@ -150,25 +122,25 @@ export function ReportForm({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="Project Name" value={project.title || "—"} />
+          <InfoRow label="Project ID" value={project.id || "—"} />
           <InfoRow
             label="Client"
-            value={clientName || project.clientName || project.client || "—"}
+            value={project.clientName || project.clientId || "—"}
           />
           <InfoRow
             label="Expert"
-            value={expertName || project.expertName || project.expert || "—"}
+            value={project.expertName || project.expertId || "—"}
           />
           <InfoRow
             label="Funds in Escrow"
-            value={<MoneyDisplay amount={project.escrowBalance || project.escrowAmount || project.budget || 0} />}
+            value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
           />
+          <InfoRow label="Status" value={project.status || "—"} />
           <InfoRow
             label="Start Date"
             value={
               project.startDate
                 ? formatDateTime(project.startDate)
-                : project.createdAt
-                ? formatDateTime(project.createdAt)
                 : "—"
             }
           />
@@ -348,7 +320,7 @@ export function ReportForm({
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> {reporterRole === "client" ? "Client" : "Expert"} •{" "}
+          <strong>Submitted by:</strong> Expert •{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">

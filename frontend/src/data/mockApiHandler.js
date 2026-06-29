@@ -354,6 +354,69 @@ async function handleLogout() {
   return { success: true, message: "Logged out successfully." };
 }
 
+function checkAndExpireProposals() {
+  try {
+    const proposals = listProposals();
+    const jobPosts = listJobPosts();
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    for (const prop of proposals) {
+      if (prop.status?.toLowerCase() === "pending") {
+        const createdTime = new Date(prop.createdAt || prop.updatedAt).getTime();
+        const elapsedMs = now - createdTime;
+
+        const job = jobPosts.find((j) => j.id === prop.jobPostId);
+        const clientId = job?.clientId;
+
+        // 7 days auto-decline (elapsedMs >= 7 days)
+        if (elapsedMs >= 7 * ONE_DAY_MS) {
+          updateProposal(prop.id, { 
+            status: "declined",
+            updatedAt: new Date().toISOString()
+          });
+          
+          if (prop.expertId) {
+            createNotification({
+              userId: prop.expertId,
+              title: "Proposal Auto-Declined",
+              message: `Proposal của bạn cho dự án "${job?.title || 'dự án'}" đã tự động bị từ chối do quá 7 ngày mà client không xử lý.`,
+              type: "system",
+              linkTo: `/expert/proposals/${prop.id}`
+            });
+          }
+
+          if (clientId) {
+            createNotification({
+              userId: clientId,
+              title: "Proposal Expired & Declined",
+              message: `Proposal từ expert ${prop.expertName || 'Expert'} cho dự án "${job?.title || 'dự án'}" đã quá hạn 7 ngày và tự động bị từ chối.`,
+              type: "system",
+              linkTo: `/client/my-projects`
+            });
+          }
+        }
+        // 6th day warning (elapsedMs >= 5 days and warningSent is not set)
+        else if (elapsedMs >= 5 * ONE_DAY_MS && !prop.warningSent) {
+          updateProposal(prop.id, { warningSent: true });
+
+          if (clientId) {
+            createNotification({
+              userId: clientId,
+              title: "Action Required: Proposal Expiring Soon",
+              message: `Proposal từ expert ${prop.expertName || 'Expert'} cho dự án "${job?.title || 'dự án'}" sắp hết hạn (còn 1 ngày). Hãy xử lý trước khi hệ thống tự động từ chối!`,
+              type: "system",
+              linkTo: `/client/my-projects`
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error in checkAndExpireProposals:", e);
+  }
+}
+
 // =============================================================================
 // MAIN ROUTER — exported handler called from api.js
 // =============================================================================
@@ -363,6 +426,9 @@ export function setupMockMode() {
 }
 
 export async function handleMockRequest(endpoint, method, body, authenticated, token) {
+  // Run auto-expiry check on proposals
+  checkAndExpireProposals();
+
   await delay();
 
   const [path, queryString] = endpoint.split("?");
@@ -761,13 +827,8 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               }
             }
 
-            // 4. Cập nhật trạng thái JobPost thành "Accepted" và đồng bộ ngân sách/timeline từ proposal
-            const estDays = Number(proposal.estimatedDays) || 14;
-            updateJobPost(jobPost.id, {
-              status: "Accepted",
-              budget: bidAmount,
-              deadline: estDays
-            });
+            // 4. Cập nhật trạng thái JobPost thành "hired"
+            updateJobPost(jobPost.id, { status: "hired" });
 
             // Trích xuất danh sách Task & Milestones cấu trúc từ proposal (nếu có)
             let proposalTasks = [];
@@ -779,46 +840,31 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 const existingProj = projects.find((p) => p.jobPostId === jobPost.id);
                 const newProjectId = existingProj ? existingProj.id : generateId("proj");
 
-                // Filter: exclude pending/rejected proposed tasks, keep only client + accepted
-                const acceptedTasks = coverLetterParsed.tasks.filter((t) => {
-                  const src = t.source || "expert";
-                  const approval = t.approvalStatus || "accepted"; // client tasks default accepted
-                  // Client tasks always included
-                  if (src === "client" || src === "client_use_case_fallback") return true;
-                  // Expert tasks only if explicitly accepted
-                  return approval === "accepted";
-                });
+                // In the new flow, when a proposal is accepted, all tasks in the proposal are accepted
+                const acceptedTasks = coverLetterParsed.tasks;
 
-                proposalTasks = acceptedTasks.map((t, idx) => {
-                  const generatedTaskId = t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
-                  const ucIndex = t.useCaseIndex != null ? Number(t.useCaseIndex) : (idx % (jobPost.useCases?.length || 1));
-                  const ucTitle = t.useCaseTitle || (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
-                  const ucId = t.useCaseId || (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
-                  return {
-                    id: generatedTaskId,
+                proposalTasks = acceptedTasks.map((t, idx) => ({
+                  id: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
+                  projectId: newProjectId,
+                  useCaseId: t.useCaseId || null,
+                  title: t.title || `Task ${idx + 1}`,
+                  description: t.description || "",
+                  source: t.source || "expert",
+                  status: "not_started",
+                  progress: 0,
+                  assignedTo: proposal.expertId,
+                  deadline: String(jobPost.deadline || ""),
+                  miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
+                    id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
                     projectId: newProjectId,
-                    useCaseId: ucId,
-                    useCaseIndex: ucIndex,
-                    useCaseTitle: ucTitle,
-                    title: t.title || `Task ${idx + 1}`,
-                    description: t.description || "",
-                    source: t.source || "expert",
-                    status: "not_started",
-                    progress: 0,
-                    assignedTo: proposal.expertId,
-                    deadline: String(jobPost.deadline || ""),
-                    miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
-                      id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
-                      projectId: newProjectId,
-                      taskId: generatedTaskId,
-                      title: mt.title || `Mini task ${mtIdx + 1}`,
-                      status: "pending",
-                      isCompleted: false,
-                      description: "",
-                      order: mtIdx,
-                    })),
-                  };
-                });
+                    taskId: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
+                    title: mt.title || `Mini task ${mtIdx + 1}`,
+                    status: "pending",
+                    isCompleted: false,
+                    description: "",
+                    order: mtIdx,
+                  })),
+                }));
 
                 console.log("[mockApiHandler] Accepted proposal:", proposal.id);
                 console.log("[mockApiHandler] Parsed proposalTasks from JSON:", proposalTasks);
@@ -871,35 +917,26 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 },
               ];
 
-              proposalTasks = defaultTasks.map((t, idx) => {
-                const generatedTaskId = `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
-                const ucIndex = idx % (jobPost.useCases?.length || 1);
-                const ucTitle = (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
-                const ucId = (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
-                return {
-                  id: generatedTaskId,
+              proposalTasks = defaultTasks.map((t, idx) => ({
+                id: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+                projectId: newProjectId,
+                title: t.title,
+                description: "",
+                status: "not_started",
+                progress: 0,
+                assignedTo: proposal.expertId,
+                deadline: deadlineStr,
+                miniTasks: t.miniTasks.map((mt, mtIdx) => ({
+                  id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
                   projectId: newProjectId,
-                  title: t.title,
+                  taskId: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+                  title: mt.title,
+                  status: "pending",
+                  isCompleted: false,
                   description: "",
-                  status: "not_started",
-                  progress: 0,
-                  assignedTo: proposal.expertId,
-                  deadline: deadlineStr,
-                  useCaseIndex: ucIndex,
-                  useCaseId: ucId,
-                  useCaseTitle: ucTitle,
-                  miniTasks: t.miniTasks.map((mt, mtIdx) => ({
-                    id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
-                    projectId: newProjectId,
-                    taskId: generatedTaskId,
-                    title: mt.title,
-                    status: "pending",
-                    isCompleted: false,
-                    description: "",
-                    order: mtIdx,
-                  })),
-                };
-              });
+                  order: mtIdx,
+                })),
+              }));
 
               console.log("[mockApiHandler] Generated", proposalTasks.length, "default tasks for proposal:", proposal.id);
             }
@@ -912,13 +949,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               newProject = updateProject(existingProj.id, {
                 status: "active",
                 budget: bidAmount,
-                deadline: String(estDays),
-                originalUseCaseDays: jobPost.originalUseCaseDays,
-                useCases: jobPost.useCases,
                 escrowAmount: bidAmount,
                 escrowPaid: true,
                 escrowStatus: "paid",
                 updatedAt: new Date().toISOString(),
+                useCases: jobPost.useCases || [],
                 ...(proposalTasks.length > 0 ? { tasks: proposalTasks } : {}),
               });
             } else {
@@ -930,14 +965,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 assignedExpertId: proposal.expertId,
                 title: jobPost.title,
                 description: jobPost.description,
-                useCases: jobPost.useCases,
                 budget: bidAmount,
-                deadline: String(estDays),
-                originalUseCaseDays: jobPost.originalUseCaseDays,
+                deadline: String(jobPost.deadline || ""),
                 escrowAmount: bidAmount,
                 status: "active",
                 escrowPaid: true,
                 escrowStatus: "paid",
+                useCases: jobPost.useCases || [],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 tasks: proposalTasks.length > 0 ? proposalTasks : [],
@@ -945,20 +979,18 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             }
 
             // Sync tasks to the global tasks table so listTasks() finds them
-            if (proposalTasks.length > 0 && newProject) {
+            if (proposalTasks.length > 0) {
               for (const task of proposalTasks) {
                 createTask({
                   id: task.id,
-                  projectId: task.projectId || newProject.id,
+                  projectId: task.projectId,
+                  useCaseId: task.useCaseId || null,
                   title: task.title,
                   description: task.description || "",
                   status: task.status || "not_started",
                   assignedTo: task.assignedTo || proposal.expertId,
                   approval: null,
                   deadline: task.deadline || String(jobPost.deadline || ""),
-                  useCaseIndex: task.useCaseIndex,
-                  useCaseId: task.useCaseId || "",
-                  useCaseTitle: task.useCaseTitle,
                   miniTasks: (task.miniTasks || []).map((mt) => ({
                     id: mt.id,
                     title: mt.title,
@@ -969,7 +1001,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                   createdAt: new Date().toISOString(),
                 });
               }
-              console.log("[mockApiHandler] Synced", proposalTasks.length, "tasks to global tasks table");
+              console.log("[mockApiHandler] Synced", proposalTasks.length, "tasks to global tasks table with useCaseId");
             }
 
             console.log("[mockApiHandler] Generated project:", newProject);
@@ -1065,7 +1097,28 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             const projObj = projectsList.find((p) => p.jobPostId === body.projectId);
             if (projObj) targetProjId = projObj.id;
           }
-          updateProject(targetProjId, { escrowPaid: true, escrowStatus: "paid", status: "active" });
+          const updatedProj = updateProject(targetProjId, { escrowPaid: true, escrowStatus: "paid", status: "active" });
+          
+          // Sync tasks to global tasks table so listTasks() finds them
+          if (updatedProj && Array.isArray(updatedProj.tasks) && updatedProj.tasks.length > 0) {
+            const existingTasks = listTasks((t) => t.projectId === targetProjId);
+            if (existingTasks.length === 0) {
+              for (const task of updatedProj.tasks) {
+                createTask({
+                  id: task.id,
+                  projectId: task.projectId || targetProjId,
+                  title: task.title,
+                  description: task.description || "",
+                  status: task.status || "not_started",
+                  assignedTo: task.assignedTo || updatedProj.assignedExpertId || "",
+                  deadline: task.deadline || "",
+                  useCaseId: task.useCaseId || null,
+                  useCaseTitle: task.useCaseTitle || null,
+                  miniTasks: task.miniTasks || [],
+                });
+              }
+            }
+          }
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1362,13 +1415,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
 
       // 5. Request More Evidence
       if (action === "requestMoreEvidence" || body.requestMoreEvidence) {
+        const awaitingStatus = isClientReporter ? "Awaiting Expert" : "Awaiting Client";
         const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        
         updateReport(report.id, {
-          status: "Awaiting Evidence",
+          status: awaitingStatus,
           replyDeadline: deadline,
           adminNote: body.adminNote || report.adminNote || "",
-          clientEvidenceSubmitted: false,
-          expertEvidenceSubmitted: false,
         });
         // Notify accused party
         const evidenceProj = getProjectById(report.projectId);
@@ -1384,51 +1437,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
-        return { success: true, reportId: report.id, status: "Awaiting Evidence" };
-      }
-
-      // 5b. Client Submits Evidence
-      if (body.clientEvidence) {
-        const prevEvidence = report.clientEvidenceList || [];
-        const newEvidenceList = [...prevEvidence, {
-          fileName: body.clientEvidence,
-          note: body.clientEvidenceNote || "",
-          submittedAt: new Date().toISOString()
-        }];
-        const isExpertDone = report.expertEvidenceSubmitted === true;
-        const newStatus = isExpertDone ? "Pending Admin" : "Awaiting Evidence";
-        updateReport(report.id, {
-          clientEvidenceList: newEvidenceList,
-          clientEvidenceSubmitted: true,
-          status: newStatus,
-          replyDeadline: newStatus === "Pending Admin" ? null : report.replyDeadline
-        });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        }
-        return { success: true, reportId: report.id, status: newStatus };
-      }
-
-      // 5c. Expert Submits Evidence
-      if (body.expertEvidence) {
-        const prevEvidence = report.expertEvidenceList || [];
-        const newEvidenceList = [...prevEvidence, {
-          fileName: body.expertEvidence,
-          note: body.expertEvidenceNote || "",
-          submittedAt: new Date().toISOString()
-        }];
-        const isClientDone = report.clientEvidenceSubmitted === true;
-        const newStatus = isClientDone ? "Pending Admin" : "Awaiting Evidence";
-        updateReport(report.id, {
-          expertEvidenceList: newEvidenceList,
-          expertEvidenceSubmitted: true,
-          status: newStatus,
-          replyDeadline: newStatus === "Pending Admin" ? null : report.replyDeadline
-        });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        }
-        return { success: true, reportId: report.id, status: newStatus };
+        return { success: true, reportId: report.id, status: awaitingStatus };
       }
 
       // 6. Continue Project (Unlocks dispute, resumes project)

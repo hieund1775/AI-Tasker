@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -11,7 +11,6 @@ import {
   GitBranch,
   Lightbulb,
   AlertTriangle,
-  Lock,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -23,49 +22,6 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
-
-function getUseCaseTitle(useCase, index) {
-  return (
-    useCase?.title ||
-    useCase?.name ||
-    useCase?.nameAndDeadline ||
-    `Use Case ${index + 1}`
-  );
-}
-
-function getUseCaseDays(useCase) {
-  const explicit = Number(
-    useCase?.durationDays ??
-      useCase?.timelineDays ??
-      useCase?.days ??
-      useCase?.deadlineDays,
-  );
-  if (Number.isFinite(explicit) && explicit > 0) return explicit;
-
-  const source = `${useCase?.nameAndDeadline || ""} ${useCase?.description || ""}`;
-  const match = source.match(/(\d+)\s*(ngày|day|days)/i);
-  return match ? Number(match[1]) : 0;
-}
-
-function createTaskForUseCase(useCase, useCaseIndex, taskIndex = 1) {
-  const duration = getUseCaseDays(useCase) || 1;
-  const title = "";
-  return {
-    id: `task-${useCaseIndex + 1}-${taskIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-    useCaseIndex,
-    useCaseId: useCase?.id || "",
-    useCaseTitle: getUseCaseTitle(useCase, useCaseIndex),
-    title: title,
-    durationDays: duration,
-    amount: 0,
-    miniTasks: [
-      {
-        id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-        title: "",
-      },
-    ],
-  };
-}
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
@@ -110,7 +66,7 @@ export function SendProposal() {
           id: t.id || `task-${uc.id}-${idx + 1}`,
           useCaseId: t.useCaseId || uc.id,
           useCaseTitle: uc.title || uc.nameAndDeadline,
-          title: t.title || "",
+          title: t.title || uc.title || `Task ${idx + 1}`,
           description: t.description || "",
           source: "client",
           approvalStatus: "accepted",
@@ -126,11 +82,11 @@ export function SendProposal() {
         id: `task-fb-${uc.id}`,
         useCaseId: uc.id,
         useCaseTitle: uc.title || uc.nameAndDeadline,
-        title: "",
+        title: uc.title || uc.nameAndDeadline || "Use Case Task",
         description: uc.description || "",
         source: "client_use_case_fallback",
         approvalStatus: "accepted",
-        locked: false,
+        locked: true,
         price: 0,
         completionDays: Number(uc.originalDurationDays) || 1,
         miniTasks: [{ id: `mt-${now}-fb-${uc.id}`, title: "" }],
@@ -154,20 +110,14 @@ export function SendProposal() {
   const [tasks, setTasks] = useState([
     {
       id: "task-1",
-      useCaseIndex: 0,
-      useCaseTitle: "Use Case 1",
       title: "",
       useCaseId: null,
       source: "expert",
       approvalStatus: "accepted",
       locked: false,
-      price: 0,
-      completionDays: 1,
-      miniTasks: [{ id: "mt-1", title: "" }],
-    },
+      miniTasks: [{ id: "mt-1", title: "" }]
+    }
   ]);
-  const [extensionConfirmed, setExtensionConfirmed] = useState(false);
-  const [submitError, setSubmitError] = useState("");
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -185,7 +135,7 @@ export function SendProposal() {
 
     Promise.all([
       api.jobPosts.getById(projectId),
-      api.proposals.getByExpert(user.id).catch(() => []),
+      api.proposals.getByExpert(user.id).catch(() => [])
     ])
       .then(async ([job, proposalsList]) => {
         setProject(job);
@@ -194,9 +144,7 @@ export function SendProposal() {
         setTasks(buildTasksFromUseCases(job));
 
         // Find existing proposal for this jobPostId
-        const foundProp = proposalsList.find(
-          (p) => String(p.jobPostId) === String(projectId),
-        );
+        const foundProp = proposalsList.find(p => String(p.jobPostId) === String(projectId));
         if (foundProp) {
           setExistingProposal(foundProp);
           let parsedCoverLetter = {};
@@ -210,14 +158,10 @@ export function SendProposal() {
           }
 
           setForm({
-            professionalIntro:
-              parsedCoverLetter.professionalIntro ||
-              parsedCoverLetter.coverLetter ||
-              "",
+            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
             timelineMilestones: parsedCoverLetter.timelineMilestones || "",
             bidAmount: foundProp.bidAmount || 0,
-            durationDays:
-              parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
+            durationDays: parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
           });
 
           if (Array.isArray(parsedCoverLetter.tasks) && parsedCoverLetter.tasks.length > 0) {
@@ -253,16 +197,6 @@ export function SendProposal() {
           } catch (err) {
             console.error("Failed to load client details:", err);
           }
-        }
-
-        if (
-          !foundProp &&
-          Array.isArray(job?.useCases) &&
-          job.useCases.length > 0
-        ) {
-          setTasks(
-            job.useCases.map((uc, index) => createTaskForUseCase(uc, index)),
-          );
         }
       })
       .catch((err) => {
@@ -307,11 +241,12 @@ export function SendProposal() {
             id: `task-fb-${uc.id}`,
             useCaseId: uc.id,
             useCaseTitle: uc.title || uc.nameAndDeadline,
-            title: "",
+            title: uc.title || uc.nameAndDeadline || "Client Use Case Task",
             description: uc.description || "",
             source: "client_use_case_fallback",
             approvalStatus: "accepted",
-            locked: false,
+            locked: true,
+            price: 0,
             completionDays: Number(uc.originalDurationDays || 1),
             miniTasks: [],
           });
@@ -333,63 +268,6 @@ export function SendProposal() {
   // ---- AI Planner state ----
   const [showAIPlanner, setShowAIPlanner] = useState(false);
 
-  const useCases = useMemo(() => {
-    const source =
-      Array.isArray(project?.useCases) && project.useCases.length > 0
-        ? project.useCases
-        : [
-            {
-              nameAndDeadline: "Use Case 1",
-              description: project?.description || "",
-            },
-          ];
-    return source.map((uc, index) => ({
-      ...uc,
-      index,
-      title: getUseCaseTitle(uc, index),
-      originalDays: getUseCaseDays(uc),
-    }));
-  }, [project]);
-
-  const useCaseTotals = useMemo(() => {
-    return useCases.map((uc) => {
-      const scopedTasks = tasks.filter(
-        (task) => Number(task.useCaseIndex || 0) === uc.index,
-      );
-      const proposedDays = scopedTasks.reduce(
-        (sum, task) => sum + (Number(task.completionDays) || 0),
-        0,
-      );
-      const amount = scopedTasks.reduce(
-        (sum, task) => sum + (Number(task.price) || 0),
-        0,
-      );
-      return {
-        ...uc,
-        taskCount: scopedTasks.length,
-        proposedDays,
-        amount,
-        variance: (uc.originalDays || 0) - proposedDays,
-        isOverrun: uc.originalDays > 0 && proposedDays > uc.originalDays,
-      };
-    });
-  }, [tasks, useCases]);
-
-  const totalBidAmount = useMemo(
-    () => Number(form.bidAmount) || 0,
-    [form.bidAmount],
-  );
-
-  const totalDurationDays = useMemo(
-    () => useCaseTotals.reduce((sum, uc) => sum + uc.proposedDays, 0),
-    [useCaseTotals],
-  );
-
-  const hasTimeOverrun = useMemo(
-    () => useCaseTotals.some((uc) => uc.isOverrun),
-    [useCaseTotals],
-  );
-
   // ---- AI Planner handlers ----
   const handleActivateAI = () => {
     setShowAIPlanner(true);
@@ -403,53 +281,85 @@ export function SendProposal() {
     // aiPlan = { useCases: [{ useCaseId, tasks: [{ taskId, taskTitle, miniTasks: [...] }] }] }
     if (!aiPlan?.useCases) return { updatedCount: 0 };
 
-    // ponytail: pre-compute count — setTasks runs async
+    const normalize = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    // ponytail: pre-compute updatedCount from current tasks snapshot —
+    // the setTasks updater runs async in React 18 so closure-updatedCount is always 0 at return
     let updatedCount = 0;
     for (const ucBlock of aiPlan.useCases) {
-      updatedCount += (ucBlock.tasks || []).filter(t => t.miniTasks?.length).length;
+      for (const taskBlock of ucBlock.tasks || []) {
+        if (!taskBlock.miniTasks?.length) continue;
+        let idx = tasks.findIndex(t => t.id === taskBlock.taskId);
+        if (idx === -1) {
+          idx = tasks.findIndex(t =>
+            t.useCaseId === ucBlock.useCaseId &&
+            normalize(t.title) === normalize(taskBlock.taskTitle)
+          );
+        }
+        if (idx !== -1) updatedCount++;
+        else {
+          const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
+          if (uc) updatedCount++; // fallback task will be created
+        }
+      }
     }
 
     setTasks(prev => {
-      // Build AI-generated proposed task cards (yellow, editable)
-      const aiTasks = [];
+      let nextTasks = [...prev];
+
       for (const ucBlock of aiPlan.useCases) {
         for (const taskBlock of ucBlock.tasks || []) {
           if (!taskBlock.miniTasks?.length) continue;
 
           const generatedMiniTasks = taskBlock.miniTasks.map(mt => ({
             id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            taskId: taskBlock.taskId || `task-ai-${ucBlock.useCaseId}`,
+            taskId: taskBlock.taskId || `task-fb-${ucBlock.useCaseId}`,
             title: mt.title,
             description: mt.description || "",
             status: "pending",
             isCompleted: false,
           }));
 
-          aiTasks.push({
-            id: taskBlock.taskId || `task-ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-            useCaseId: ucBlock.useCaseId,
-            useCaseTitle: project?.useCases?.find(u => String(u.id) === String(ucBlock.useCaseId))?.title || "",
-            title: taskBlock.taskTitle || "",
-            description: taskBlock.taskDescription || "",
-            source: "expert",
-            approvalStatus: "pending_client_approval",
-            locked: false,
-            price: 0,
-            completionDays: taskBlock.days || 1,
-            miniTasks: generatedMiniTasks,
-          });
+          // Try match by taskId first, then by useCaseId + normalized title
+          let idx = nextTasks.findIndex(t => t.id === taskBlock.taskId);
+          if (idx === -1) {
+            idx = nextTasks.findIndex(t =>
+              t.useCaseId === ucBlock.useCaseId &&
+              normalize(t.title) === normalize(taskBlock.taskTitle)
+            );
+          }
+
+          if (idx !== -1) {
+            const hasRealContent = nextTasks[idx].miniTasks.some(mt => mt.title?.trim());
+            nextTasks[idx] = {
+              ...nextTasks[idx],
+              miniTasks: hasRealContent
+                ? [...nextTasks[idx].miniTasks, ...generatedMiniTasks]
+                : generatedMiniTasks,
+            };
+          } else {
+            // ponytail: no matching task exists — create fallback under the use case
+            const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
+            if (!uc) continue;
+
+            nextTasks.push({
+              id: taskBlock.taskId || `task-fb-${uc.id}`,
+              useCaseId: uc.id,
+              useCaseTitle: uc.title || uc.nameAndDeadline,
+              title: taskBlock.taskTitle || uc.title || "Client Use Case Task",
+              description: uc.description || "",
+              source: "client_use_case_fallback",
+              approvalStatus: "accepted",
+              locked: true,
+              price: 0,
+              completionDays: Number(uc.originalDurationDays || 1),
+              miniTasks: generatedMiniTasks,
+            });
+          }
         }
       }
 
-      // Remove empty placeholder forms — keep only tasks with real content
-      const isEmpty = (task) =>
-        !(task.title || "").trim() &&
-        !(task.description || "").trim() &&
-        (!task.miniTasks || task.miniTasks.every(mt => !(mt.title || "").trim()));
-
-      const kept = prev.filter(t => !isEmpty(t));
-
-      return dedupeTasks([...kept, ...aiTasks]);
+      return dedupeTasks(nextTasks);
     });
 
     return { updatedCount };
@@ -461,25 +371,16 @@ export function SendProposal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.id) return;
-    setSubmitError("");
-
-    const hasBudgetOverrun = project?.budget !== undefined && totalBidAmount > project.budget;
-    if ((hasTimeOverrun || hasBudgetOverrun) && !extensionConfirmed) {
-      setSubmitError(
-        "Sự lệch ngân sách/timeline vượt quá chỉ tiêu của khách hàng. Vui lòng tích chọn xác nhận ở dưới cùng trước khi nộp.",
-      );
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      // Compute totals from form + tasks
-      const totalBid = Number(form.bidAmount) || 0;
+      // Compute totals from tasks
+      const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
       const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+      const finalBid = Number(form.bidAmount) || totalBid;
       const clientBudget = project?.originalBudget || project?.budget || 0;
       const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
-      const exceedsTargets = (clientBudget - totalBid < 0) || (clientDuration - totalDays < 0);
+      const exceedsTargets = (clientBudget - finalBid < 0) || (clientDuration - totalDays < 0);
 
       // Check acknowledgement if exceeding targets
       if (exceedsTargets && !form.acknowledged) {
@@ -535,7 +436,7 @@ export function SendProposal() {
           isCompleted: false,
         }))),
         durationDays: totalDays,
-        totalBidAmount: totalBid,
+        totalBidAmount: finalBid,
         totalEstimatedDays: totalDays,
         useCaseBreakdown: (project?.useCases || []).map(uc => ({
           useCaseId: uc.id,
@@ -560,7 +461,7 @@ export function SendProposal() {
               })),
             })),
         })),
-        budgetDeviation: clientBudget - totalBid,
+        budgetDeviation: clientBudget - finalBid,
         timeDeviation: clientDuration - totalDays,
         acknowledged: form.acknowledged,
         attachments: [
@@ -578,7 +479,7 @@ export function SendProposal() {
 
       if (existingProposal) {
         await api.proposals.update(existingProposal.id, {
-          bidAmount: totalBid,
+          bidAmount: finalBid,
           estimatedDays: totalDays,
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: true,
@@ -589,7 +490,7 @@ export function SendProposal() {
         const created = await api.proposals.create({
           jobPostId: projectId,
           expertId: user.id,
-          bidAmount: totalBid,
+          bidAmount: finalBid,
           estimatedDays: totalDays,
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: true,
@@ -716,7 +617,6 @@ export function SendProposal() {
                           <div className="p-4 bg-accent-light/30 border-b border-border">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
-                                <Lock className="w-3.5 h-3.5 text-blue-500" />
                                 <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
                                   Client Use Case
                                 </span>
@@ -743,128 +643,61 @@ export function SendProposal() {
 
                             {ucTasks.map((task) => {
                               const tIdx = tasks.findIndex(t => t.id === task.id);
-                              const isClientTask = task.source === "client";
                               const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
 
                               return (
-                                <div
-                                  key={task.id}
-                                  className={`p-4 border rounded-xl space-y-3 ${
-                                    isProposed
-                                      ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800"
-                                      : isClientTask
-                                        ? "bg-blue-50/20 border-blue-100 dark:bg-blue-950/10 dark:border-blue-900 pointer-events-none opacity-90"
-                                        : "bg-secondary/40 border-border"
-                                  }`}
-                                >
-                                  {/* ── Badges ── */}
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {isClientTask && (
-                                      <>
-                                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                          Client-defined Task
-                                        </span>
-                                        <span className="px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-[10px] font-medium">
-                                          Read-only
-                                        </span>
-                                      </>
-                                    )}
-                                    {isProposed && (
-                                      <>
-                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold dark:bg-amber-900/40 dark:text-amber-300">
-                                          Proposed by Expert
-                                        </span>
-                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold dark:bg-amber-900/40 dark:text-amber-300">
-                                          Pending Client Approval
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  {/* ── Task Title ── */}
-                                  <div>
-                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                                      Task Title
-                                    </label>
-                                    {isClientTask ? (
-                                      <div className="px-3 py-2 border border-blue-100 rounded-lg text-sm font-semibold text-foreground bg-blue-50/50 dark:bg-blue-950/30 dark:border-blue-900">
-                                        {task.title}
-                                      </div>
-                                    ) : (
-                                      <input
-                                        type="text"
-                                        value={task.title}
-                                        onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
-                                        placeholder="Task name (e.g., Database Design)"
-                                        className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
-                                        required
-                                      />
-                                    )}
-                                  </div>
-
-                                  {/* ── Task Description ── */}
-                                  {isClientTask && task.description ? (
-                                    <div>
-                                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                                        Description
-                                      </label>
-                                      <p className="px-3 py-2 border border-blue-100 rounded-lg text-xs text-muted-foreground bg-blue-50/30 dark:bg-blue-950/20 dark:border-blue-900">
-                                        {task.description}
-                                      </p>
-                                    </div>
-                                  ) : isProposed ? (
-                                    <div>
-                                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                                        Description
-                                      </label>
-                                      <textarea
-                                        value={task.description || ""}
-                                        onChange={(e) => { const nt = [...tasks]; nt[tIdx].description = e.target.value; setTasks(nt); }}
-                                        rows={2}
-                                        placeholder="Describe this proposed task..."
-                                        className="w-full px-3 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card resize-y"
-                                      />
-                                    </div>
-                                  ) : null}
-
-                                  {/* ── Days & Price ── */}
-                                  <div className="flex items-end gap-3 flex-wrap">
-                                    <div className="w-24">
-                                      <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                                        Days
-                                      </label>
-                                      <input
-                                        type="number" min="1"
-                                        value={task.completionDays || 1}
-                                        onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }}
-                                        placeholder="1"
-                                        className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card"
-                                      />
-                                    </div>
-                                    {isProposed && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setTasks(tasks.filter(t => t.id !== task.id))}
-                                        className="h-9 px-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center"
+                                <div key={task.id} className="p-4 border rounded-xl space-y-3 bg-secondary/40 border-border">
+                                  
+                                  {/* Task Title Row with Remove Button */}
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
+                                    <input
+                                      type="text"
+                                      value={task.title}
+                                      onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
+                                      placeholder="Task name (e.g., Database Design)"
+                                      className="flex-1 min-w-[140px] px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
+                                      required
+                                    />
+                                    {ucTasks.length > 1 && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
+                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-750 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center flex-shrink-0"
                                       >
                                         Remove
                                       </button>
                                     )}
                                   </div>
 
-                                  {/* ── MiniTasks ── */}
+                                  {/* Days Input */}
+                                  <div className="w-24">
+                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                                      Days
+                                    </label>
+                                    <input 
+                                      type="number" 
+                                      min="1" 
+                                      value={task.completionDays || 1} 
+                                      onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} 
+                                      placeholder="Days" 
+                                      className="w-full px-3 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" 
+                                    />
+                                  </div>
+
+                                  {/* Mini Tasks (Child Tasks) Checklist */}
                                   <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
                                     <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                                      Mini Tasks
+                                      Minitask
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
-                                      <div key={mini.id} className="flex items-center gap-2">
+                                      <div key={mini.id || mIdx} className="flex items-center gap-2">
                                         <span className="text-muted-foreground font-mono text-xs">•</span>
                                         <input
                                           type="text"
                                           value={mini.title}
                                           onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
-                                          placeholder={`Mini task #${mIdx + 1}`}
+                                          placeholder={`Minitask #${mIdx + 1}`}
                                           className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
                                           required
                                         />
@@ -872,7 +705,7 @@ export function SendProposal() {
                                           <button
                                             type="button"
                                             onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
-                                            className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                            className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                           >
                                             <X className="w-3.5 h-3.5" />
                                           </button>
@@ -884,7 +717,7 @@ export function SendProposal() {
                                       onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks.push({ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }); setTasks(nt); }}
                                       className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
                                     >
-                                      + Add Mini Task
+                                      + Add Minitask
                                     </button>
                                   </div>
                                 </div>
@@ -924,75 +757,108 @@ export function SendProposal() {
                 ) : (
                   /* ── No use cases fallback ── */
                   <div className="space-y-4">
-                    <div className="py-6 text-center">
-                      <FileText className="w-8 h-8 text-muted-foreground/25 mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">No use cases defined by the client yet.</p>
-                    </div>
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
                       return (
-                        <div key={task.id} className={`p-4 border rounded-xl space-y-3 ${isProposed ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-secondary/40 border-border"}`}>
-                          {/* ── Badges ── */}
-                          {isProposed && (
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold dark:bg-amber-900/40 dark:text-amber-300">Proposed by Expert</span>
-                              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[10px] font-bold dark:bg-amber-900/40 dark:text-amber-300">Pending Client Approval</span>
-                            </div>
-                          )}
-
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-bold text-muted-foreground uppercase">Task #{tIdx + 1}</span>
+                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-secondary/40 border-border"}`}>
+                          
+                          {/* Task Title Row with Remove Button */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
                             <input
                               type="text"
                               value={task.title}
                               onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
                               placeholder="Task name (e.g., Database Design)"
-                              className="flex-1 min-w-[140px] px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
+                              className="flex-1 min-w-[140px] px-3 py-2.5 border border-input rounded-xl text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
                               required
                             />
-                            <input type="number" min="1" value={task.completionDays || 1} onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} placeholder="Days" className="w-20 px-2 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" />
                             {tasks.length > 1 && (
-                              <button type="button" onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} className="h-8 px-3 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center">
+                              <button 
+                                type="button" 
+                                onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
+                                className="h-10 px-4 text-sm font-semibold text-red-655 hover:text-red-755 hover:bg-red-55 rounded-xl transition-colors inline-flex items-center flex-shrink-0"
+                              >
                                 Remove
                               </button>
                             )}
                           </div>
 
+                          {/* Days Input */}
+                          <div className="w-24">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                              Days
+                            </label>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              value={task.completionDays || 1} 
+                              onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} 
+                              placeholder="Days" 
+                              className="w-full px-3 py-2 border border-input rounded-xl text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" 
+                            />
+                          </div>
+
+                          {/* Mini Tasks (Child Tasks) Checklist */}
                           <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
-                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">Mini Tasks</span>
+                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                              Minitask
+                            </span>
                             {task.miniTasks.map((mini, mIdx) => (
-                              <div key={mini.id} className="flex items-center gap-2">
+                              <div key={mini.id || mIdx} className="flex items-center gap-2">
                                 <span className="text-muted-foreground font-mono text-xs">•</span>
-                                <input type="text" value={mini.title} onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }} placeholder={`Mini task #${mIdx + 1}`} className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80" required />
+                                <input
+                                  type="text"
+                                  value={mini.title}
+                                  onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
+                                  placeholder={`Minitask #${mIdx + 1}`}
+                                  className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
+                                  required
+                                />
                                 {task.miniTasks.length > 1 && (
-                                  <button type="button" onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }} className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
+                                    className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                  >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
                                 )}
                               </div>
                             ))}
-                            <button type="button" onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks.push({ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }); setTasks(nt); }} className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1">
-                              + Add Mini Task
+                            <button
+                              type="button"
+                              onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks.push({ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }); setTasks(nt); }}
+                              className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
+                            >
+                              + Add Minitask
                             </button>
                           </div>
                         </div>
                       );
                     })}
+
+                    {/* Add Proposed Task Button */}
                     <button
                       type="button"
-                      onClick={() => setTasks([...tasks, {
-                        id: `task-proposed-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-                        title: "",
-                        description: "",
-                        useCaseId: null,
-                        source: "expert",
-                        approvalStatus: "pending_client_approval",
-                        locked: false,
-                        price: 0,
-                        completionDays: 1,
-                        miniTasks: [{ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }],
-                      }])}
-                      className="h-10 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5"
+                      onClick={() =>
+                        setTasks([
+                          ...tasks,
+                          {
+                            id: `task-proposed-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                            title: "",
+                            description: "",
+                            useCaseId: null,
+                            source: "expert",
+                            approvalStatus: "pending_client_approval",
+                            locked: false,
+                            price: 0,
+                            completionDays: 1,
+                            miniTasks: [{ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }],
+                          },
+                        ])
+                      }
+                      className="h-12 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
                     >
                       + Add Proposed Task
                     </button>
@@ -1001,7 +867,7 @@ export function SendProposal() {
               </SectionCard>
             </AnimatedReveal>
 
-            <AnimatedReveal delay={3}>
+            <AnimatedReveal delay={4}>
               <FileUploadDropzone
                 files={attachments}
                 onFilesChange={setAttachments}
@@ -1026,156 +892,81 @@ export function SendProposal() {
               </SectionCard>
             )}
 
-            <AnimatedReveal delay={3}>
-              <SectionCard title="Total Estimated Bid" icon={BarChart3} padding="lg">
-                <div className="relative max-w-xs">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-sm">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={form.bidAmount || ""}
-                    onChange={(e) => updateField("bidAmount", e.target.value === "" ? 0 : Number(e.target.value))}
-                    placeholder="Enter total bid amount"
-                    className="w-full pl-8 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm font-semibold bg-card text-foreground"
-                  />
-                </div>
-                {project?.budget !== undefined && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Client budget: <span className="font-semibold text-foreground">${Number(project.budget).toLocaleString()}</span>
-                  </p>
-                )}
-              </SectionCard>
-            </AnimatedReveal>
-
-            <AnimatedReveal delay={4}>
-              <SectionCard title="Timeline Summary" icon={Calendar} padding="lg">
-                <div>
-                  <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration</label>
-                  <div className="text-xs text-muted-foreground mb-1">
-                    Auto-computed from tasks: {totalDurationDays} days
-                  </div>
-                  <div className="relative max-w-xs">
-                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <div className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-sm font-semibold text-foreground">
-                      {totalDurationDays} days
+            <AnimatedReveal delay={5}>
+              <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount <span className="text-red-500">*</span></label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0).toLocaleString()}
                     </div>
-                  </div>
-                </div>
-
-                {/* Timeline and Budget Comparison Warnings */}
-                <div className="space-y-3 mt-6">
-                  {/* Timeline banner */}
-                  {project?.deadline !== undefined && (
-                    totalDurationDays > project.deadline ? (
-                      <div className="p-4 bg-warning/10 border border-warning/20 rounded-xl text-sm flex items-center justify-between">
-                        <div>
-                          <span className="text-warning font-semibold">Cảnh báo: Timeline vượt quá yêu cầu của Client.</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">
-                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày (+{totalDurationDays - project.deadline} ngày)
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-warning/20 text-warning text-xs font-semibold rounded-md">Vượt hạn chót</span>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-success/10 border border-success/20 rounded-xl text-sm flex items-center justify-between">
-                        <div>
-                          <span className="text-success font-semibold">Đúng hạn.</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">
-                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-success/20 text-success text-xs font-semibold rounded-md">Đúng hạn</span>
-                      </div>
-                    )
-                  )}
-
-                  {/* Budget banner */}
-                  {project?.budget !== undefined && (
-                    totalBidAmount > project.budget ? (
-                      <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm flex items-center justify-between">
-                        <div>
-                          <span className="font-bold flex items-center gap-1.5 text-destructive">
-                            <AlertTriangle className="w-4 h-4" />
-                            Cảnh báo: Đề xuất vượt quá ngân sách gốc của Client!
-                          </span>
-                          <span className="block text-xs text-muted-foreground mt-1 font-semibold">
-                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
-                          </span>
-                          <span className="block text-xs text-destructive/70 mt-0.5">
-                            Sự lệch ngân sách (Budget Deviation): -${(totalBidAmount - project.budget).toFixed(2)}
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-destructive/20 text-destructive text-xs font-semibold rounded-md flex-shrink-0">Vượt ngân sách</span>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-success/10 border border-success/20 rounded-xl text-sm flex items-center justify-between">
-                        <div>
-                          <span className="text-success font-semibold">Trong ngân sách.</span>
-                          <span className="block text-xs text-muted-foreground mt-0.5">
-                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-success/20 text-success text-xs font-semibold rounded-md">Trong ngân sách</span>
-                      </div>
-                    )
-                  )}
-                </div>
-
-                {(hasTimeOverrun || (project?.budget !== undefined && totalBidAmount > project.budget)) && (
-                  <div className="flex items-start gap-2.5 p-4 bg-warning/5 border border-warning/20 rounded-xl mt-4">
                     <input
-                      type="checkbox"
-                      id="extensionConfirmed"
-                      checked={extensionConfirmed}
-                      onChange={(e) => setExtensionConfirmed(e.target.checked)}
-                      className="mt-1 rounded border-border text-brand-primary focus:ring-brand-primary h-4 w-4 cursor-pointer"
+                      type="number" min="0" step="100"
+                      value={form.bidAmount || ""}
+                      onChange={(e) => updateField("bidAmount", e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
+                      placeholder="5000"
+                      required
                     />
-                    <label htmlFor="extensionConfirmed" className="text-xs text-foreground/80 font-semibold cursor-pointer">
-                      Tôi xác nhận và đồng ý gửi đề xuất với mức chi phí/timeline vượt quá chỉ tiêu của khách hàng.
-                    </label>
                   </div>
-                )}
-
-                {submitError && (
-                  <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-sm font-semibold text-destructive mt-4">
-                    {submitError}
+                  <div>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration <span className="text-red-500">*</span></label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Auto-computed from tasks:
+                    </div>
+                    <div className="relative">
+                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input
+                        type="number"
+                        value={tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0)}
+                        readOnly
+                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-muted-foreground text-sm cursor-not-allowed"
+                        placeholder="14"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium text-accent">Automatically calculated as the sum of completion days for all tasks.</p>
                   </div>
-                )}
+                </div>
               </SectionCard>
             </AnimatedReveal>
 
             {/* Deviation Warnings */}
             {(() => {
-              const totalBid = Number(form.bidAmount) || 0;
+              const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
               const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+              const finalBid = Number(form.bidAmount) || totalBid;
               const clientBudget = project?.originalBudget || project?.budget || 0;
               const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
-              const budgetDeviation = clientBudget - totalBid;
+              const budgetDeviation = clientBudget - finalBid;
               const timeDeviation = clientDuration - totalDays;
               const exceedsBudget = budgetDeviation < 0;
               const exceedsTime = timeDeviation < 0;
 
               if (exceedsBudget || exceedsTime) {
                 return (
-                  <div className="p-5 bg-destructive/5 border-2 border-destructive/20 rounded-xl space-y-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-destructive" />
-                      <p className="text-sm font-bold text-destructive">
-                        Proposal exceeds Client's original targets
-                      </p>
-                    </div>
-                    {exceedsBudget && (
-                      <p className="text-sm text-destructive/80 pl-7">
-                        Budget exceeded by <span className="font-bold">{Math.abs(budgetDeviation).toLocaleString()}</span>
-                        (Client budget: {clientBudget.toLocaleString()}, Your bid: {totalBid.toLocaleString()})
-                      </p>
-                    )}
+                  <div className="space-y-3">
                     {exceedsTime && (
-                      <p className="text-sm text-destructive/80 pl-7">
-                        Timeline exceeded by <span className="font-bold">{Math.abs(timeDeviation)} days</span>
-                        (Client timeline: {clientDuration} days, Your estimate: {totalDays} days)
-                      </p>
+                      <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-bold">Thời gian đề xuất vượt quá yêu cầu</p>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Thời gian của bạn ({totalDays} ngày) vượt quá mốc gốc của khách hàng ({clientDuration} ngày) là {Math.abs(timeDeviation)} ngày.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {exceedsBudget && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-sm font-bold">Ngân sách đề xuất vượt quá ngân sách gốc</p>
+                          <p className="text-xs text-rose-700 mt-0.5">
+                            Giá bid của bạn ({finalBid.toLocaleString()} USD) vượt quá ngân sách của khách hàng ({clientBudget.toLocaleString()} USD) là {Math.abs(budgetDeviation).toLocaleString()} USD.
+                          </p>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
@@ -1186,11 +977,12 @@ export function SendProposal() {
             {/* Submit */}
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
               {(() => {
-                const totalBid = Number(form.bidAmount) || 0;
+                const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
                 const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+                const finalBid = Number(form.bidAmount) || totalBid;
                 const clientBudget = project?.originalBudget || project?.budget || 0;
                 const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
-                const exceedsTargets = (clientBudget - totalBid < 0) || (clientDuration - totalDays < 0);
+                const exceedsTargets = (clientBudget - finalBid < 0) || (clientDuration - totalDays < 0);
 
                 if (exceedsTargets) {
                   return (
