@@ -39,6 +39,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 
 // =============================================================================
 // TaskDetailPage — dedicated task detail page for both client and expert.
@@ -104,7 +105,7 @@ export default function TaskDetailPage() {
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
-  
+
   // Client view product modal state
   const [showViewProductModalClient, setShowViewProductModalClient] = useState(false);
 
@@ -153,15 +154,15 @@ export default function TaskDetailPage() {
       await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
       toast.success("Sản phẩm đã được nộp thành công!");
       setShowProductModal(false);
-      
+
       notifyTaskSubmittedForReview({
         clientUserId: project?.clientId,
         expertName: expert?.fullName || "Expert",
         taskTitle: task?.title,
         projectId,
         taskId,
-      }).catch(() => {});
-      
+      }).catch(() => { });
+
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể nộp sản phẩm.");
@@ -182,7 +183,7 @@ export default function TaskDetailPage() {
         taskTitle: task?.title,
         projectId,
         taskId,
-      }).catch(() => {});
+      }).catch(() => { });
       // Redirect back to project progress
       navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
         replace: true,
@@ -206,7 +207,7 @@ export default function TaskDetailPage() {
         taskTitle: task?.title,
         projectId,
         taskId,
-      }).catch(() => {});
+      }).catch(() => { });
     } catch (err) {
       toast.error("Failed to approve task.");
     } finally {
@@ -236,7 +237,7 @@ export default function TaskDetailPage() {
           feedback: revisionFeedback.trim(),
           projectId,
           taskId,
-        }).catch(() => {});
+        }).catch(() => { });
         toast.success("Revision requested for selected mini tasks. Expert can now edit them.");
       } else {
         handleRequestRevision(taskId, revisionFeedback.trim());
@@ -247,7 +248,7 @@ export default function TaskDetailPage() {
           feedback: revisionFeedback.trim(),
           projectId,
           taskId,
-        }).catch(() => {});
+        }).catch(() => { });
         toast.success("Revision requested. Expert can now edit.");
       }
       // Reset modal state
@@ -262,7 +263,7 @@ export default function TaskDetailPage() {
       setRevisionLoading(false);
     }
   }, [taskId, projectId, revisionFeedback, revisionType, selectedMiniTaskIds, miniTasks,
-      handleRequestRevision, handleRequestMiniTaskRevision, project, client, task]);
+    handleRequestRevision, handleRequestMiniTaskRevision, project, client, task]);
 
   const handleReopenClick = useCallback(async () => {
     setReopenLoading(true);
@@ -288,7 +289,7 @@ export default function TaskDetailPage() {
         taskTitle: task?.title,
         projectId,
         taskId,
-      }).catch(() => {});
+      }).catch(() => { });
       setShowUrgentModal(false);
     } catch (err) {
       toast.error("Failed to send urgent request.");
@@ -405,23 +406,9 @@ export default function TaskDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <button
-          onClick={() => navigate(`/${role}/projects/${projectId}`)}
-          className="hover:text-accent transition-colors font-medium"
-        >
-          Projects
-        </button>
-        <span>/</span>
-        <span className="text-muted-foreground truncate max-w-[200px]">
-          {project?.title || "Project"}
-        </span>
-        <span>/</span>
-        <span className="text-foreground font-semibold truncate max-w-[200px]">
-          {task.title}
-        </span>
-      </div>
+      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
+        Quay lại dự án
+      </BackButton>
 
       <PageHeader
         title={task.title}
@@ -668,7 +655,7 @@ export default function TaskDetailPage() {
                       className="w-4 h-4 text-primary"
                     />
                     <div>
-                       <p className="font-semibold text-foreground">Specific Tasks</p>
+                      <p className="font-semibold text-foreground">Specific Tasks</p>
                       <p className="text-xs text-muted-foreground">Select which tasks need revision</p>
                     </div>
                   </label>
@@ -1287,9 +1274,8 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                  step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
-                }`}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                  }`}
               >
                 {step.done ? "✓" : i + 1}
               </div>

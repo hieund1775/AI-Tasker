@@ -29,6 +29,7 @@ export function MyProjectsList() {
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Sub-view page states: "list" | "details" | "proposals"
   const [view, setView] = useState("list");
@@ -904,28 +905,59 @@ export function MyProjectsList() {
   // =========================================================================
   // VIEW: LIST
   // =========================================================================
+  const STATUS_OPTIONS = [
+    { value: "", label: "Tất cả trạng thái" },
+    { value: "reviewing_proposals", label: "Đang duyệt đề xuất" },
+    { value: "pending_escrow", label: "Chờ ký quỹ" },
+    { value: "in_progress", label: "Đang thực hiện" },
+    { value: "completed", label: "Đã hoàn thành" },
+    { value: "cancelled", label: "Đã hủy" },
+    { value: "contract_cancelled", label: "Đã hủy hợp đồng" },
+    { value: "disputed", label: "Đang tranh chấp" },
+    { value: "awaiting_cancellation", label: "Đang yêu cầu hủy" },
+    { value: "cancel_done", label: "Đã hủy thành công" },
+    { value: "settled_dispute", label: "Settled dispute" },
+  ];
+
   const filteredProjects = projects.filter((project) => {
     const proposalCount = project.proposalCount || 0;
     const statusKey = deriveProjectStatusKey(project, { proposalCount });
-    const s = project.status?.toLowerCase() || "";
-    const isActive = (statusKey === "in_progress" || s === "in_progress" || s === "in progress" || s === "active" || s === "hired" || s === "closed") && s !== "open";
-    return !isActive;
+    if (statusFilter) {
+      return statusKey === statusFilter;
+    }
+    return true;
   });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-foreground">All Projects</h1>
           <p className="text-muted-foreground mt-1">Manage your posted projects</p>
         </div>
-        <Link
-          to="/client/post-project"
-          className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
-        >
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Link
+            to="/client/post-project"
+            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
+          >
           <PlusCircle className="w-4 h-4" /> Post New Project
         </Link>
       </div>
+    </div>
 
       {loading ? (
         <div className="py-8">

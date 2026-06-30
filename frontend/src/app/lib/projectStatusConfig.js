@@ -28,6 +28,9 @@ export const STATUS_LABELS = {
   pending_escrow: "Pending Payment",
   disputed: "Disputed",
   contract_cancelled: "Contract Cancelled",
+  awaiting_cancellation: "Awaiting Cancellation",
+  cancel_done: "Cancelled Successfully",
+  settled_dispute: "Settled dispute",
 };
 
 // ---------------------------------------------------------------------------
@@ -45,6 +48,9 @@ export const STATUS_BADGE_CLASSES = {
   pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
   disputed: "bg-red-100 text-red-700 border border-red-200 font-semibold",
   "disputed-card": "border-crimson-700 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30",
+  awaiting_cancellation: "bg-amber-100 text-amber-800 border border-amber-200 font-semibold",
+  cancel_done: "bg-rose-100 text-rose-800 border border-rose-200",
+  settled_dispute: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
@@ -119,6 +125,21 @@ const CLIENT_BUTTON_MAP = {
     className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
+  awaiting_cancellation: {
+    label: "Xem đơn hủy",
+    className: "bg-amber-600 text-white hover:bg-amber-700",
+    linkTo: (p) => `/client/projects/${p.id}`,
+  },
+  cancel_done: {
+    label: "Chi tiết đơn hủy",
+    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    linkTo: (p) => `/client/projects/${p.id}`,
+  },
+  settled_dispute: {
+    label: "View Summary",
+    className: "bg-secondary text-secondary-foreground hover:bg-muted-foreground/30",
+    linkTo: (p) => `/client/projects/${p.id}`,
+  },
 };
 
 /** Get the button config for a client-side project card. */
@@ -147,6 +168,21 @@ const EXPERT_BUTTON_MAP = {
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   completed: {
+    label: "View Completed Project",
+    className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
+    linkTo: (p) => `/expert/projects/${p.id}`,
+  },
+  awaiting_cancellation: {
+    label: "Xem đơn hủy",
+    className: "bg-amber-600 text-white hover:bg-amber-700",
+    linkTo: (p) => `/expert/projects/${p.id}`,
+  },
+  cancel_done: {
+    label: "Chi tiết đơn hủy",
+    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    linkTo: (p) => `/expert/projects/${p.id}`,
+  },
+  settled_dispute: {
     label: "View Completed Project",
     className: "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover",
     linkTo: (p) => `/expert/projects/${p.id}`,
@@ -191,11 +227,14 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   const raw = project.status;
 
   // Completed / cancelled pass through directly
+  if (raw === "settled_dispute" || raw === "Settled dispute" || raw === "settled dispute") return "settled_dispute";
   if (raw === "completed") return "completed";
   if (raw === "cancelled") return "cancelled";
   if (raw === "contract_cancelled") return "contract_cancelled";
   if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
   if (raw === "disputed" || raw === "Disputed" || raw === "under_review" || raw === "under review" || raw === "Under Review") return "disputed";
+  if (raw === "Awaiting_Cancellation" || raw === "awaiting_cancellation") return "awaiting_cancellation";
+  if (raw === "cancel_done") return "cancel_done";
 
   // in_progress or active → check task states for waiting_review / needs_revision
   if (raw === "in_progress" || raw === "active") return "in_progress";

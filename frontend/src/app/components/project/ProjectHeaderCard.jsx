@@ -204,14 +204,14 @@ export function ProjectHeaderCard({
         <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
           {/* Message button */}
           {onMessage && (
-            <Button
-              variant="outline"
-              size="default"
+            <button
+              type="button"
               onClick={onMessage}
+              className="h-11 px-5 border border-border bg-card text-foreground hover:bg-secondary rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 text-muted-foreground" />
               Message
-            </Button>
+            </button>
           )}
 
           {/* Slot for role-specific buttons (escrow, submit, etc.) */}

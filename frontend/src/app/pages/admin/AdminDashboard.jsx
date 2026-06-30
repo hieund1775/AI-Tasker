@@ -90,9 +90,9 @@ export function AdminDashboard() {
       link: "/admin/projects",
     },
     {
-      label: "Open Disputes",
+      label: "Report Progress",
       value: loadingStats ? <SkeletonValue /> : stats.openDisputes,
-      icon: AlertTriangle,
+      icon: FileText,
       color: "text-warning bg-warning-light",
       link: "/admin/disputes",
     },
@@ -134,7 +134,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {[
           { label: "User Management", desc: "View, lock, or manage user accounts", to: "/admin/users", icon: Users, accent: "border-l-primary bg-primary-light/30" },
-          { label: "Dispute Resolution", desc: "Review and resolve dispute reports", to: "/admin/disputes", icon: AlertTriangle, accent: "border-l-warning bg-warning-light/30" },
+          { label: "Report Progress", desc: "Review and manage progress reports", to: "/admin/disputes", icon: FileText, accent: "border-l-warning bg-warning-light/30" },
           { label: "Project Management", desc: "View and manage all platform projects", to: "/admin/projects", icon: Briefcase, accent: "border-l-success bg-success-light/30" },
           { label: "Review Management", desc: "Hide or delete violating reviews", to: "/admin/reviews", icon: Star, accent: "border-l-accent bg-accent-light/30" },
           { label: "Job Post Management", desc: "Manage violating service posts", to: "/admin/job-posts", icon: FileText, accent: "border-l-destructive bg-destructive-light/30" },

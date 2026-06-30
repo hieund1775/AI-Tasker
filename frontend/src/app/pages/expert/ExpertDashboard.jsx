@@ -6,8 +6,10 @@ import {
   CheckCircle,
   Search,
   Calendar,
-  ReceiptText,
+  DollarSign,
+  Wallet,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
@@ -15,7 +17,6 @@ import { ReportForm } from "../../components/report/ReportForm.jsx";
 import { createReport } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
-import { cn } from "../../lib/utils.js";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 
 import {
@@ -29,11 +30,25 @@ import { timeAgo } from "../../lib/dateUtils.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { getRecommendedProjects } from "../../lib/recommendationHelper.js";
-import { safeDateFormat } from "../../lib/safety.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Check if a project should appear in active contracts (contract accepted/signed) */
+function isContractActive(project) {
+  const contractStatus = (project.contractStatus || "").toLowerCase();
+  const projectStatus = (project.status || "").toLowerCase();
+  return (
+    contractStatus === "accepted" ||
+    contractStatus === "signed" ||
+    projectStatus === "in_progress" ||
+    projectStatus === "in progress" ||
+    projectStatus === "active" ||
+    projectStatus === "disputed" ||
+    projectStatus === "awaiting_cancellation"
+  );
+}
 
 /** Derive a display-only match percentage from the index. */
 /** Derive a display-only match percentage from the index. */
@@ -115,6 +130,11 @@ export function ExpertDashboard() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
+  const [activeReports, setActiveReports] = useState([]);
+  const [explainingReport, setExplainingReport] = useState(null);
+  const [showExplanationForm, setShowExplanationForm] = useState(false);
+  const [explanationSubmitting, setExplanationSubmitting] = useState(false);
+
   const handleSubmitReport = async (reportData) => {
     setReportSubmitting(true);
     try {
@@ -134,6 +154,28 @@ export function ExpertDashboard() {
     }
   };
 
+  const handleExpertSubmitExplanation = async (formData) => {
+    setExplanationSubmitting(true);
+    try {
+      await api.put(`/reports/${explainingReport.id}`, {
+        expertExplanation: formData.description,
+        expertExplanationReason: formData.reason,
+        expertExplanationDescription: formData.description,
+        expertExplanationDisputeType: formData.disputeType,
+        expertExplanationDesiredResolution: formData.desiredResolution,
+        expertExplanationEvidence: formData.evidence
+      });
+      setShowExplanationForm(false);
+      setExplainingReport(null);
+      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+    } finally {
+      setExplanationSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
@@ -142,19 +184,23 @@ export function ExpertDashboard() {
       let expertProfile = null;
       // Load user details (projects, proposals)
       try {
-        const userRes = await api.users.getById(user.id);
+        const [userRes, reportsRes] = await Promise.all([
+          api.users.getById(user.id),
+          api.get("/reports").catch(() => ({ data: [] })),
+        ]);
         setExpertDetails(userRes);
         expertProfile = userRes?.expertProfile;
+        setActiveReports(reportsRes?.data || []);
         
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress" || p.status?.toLowerCase() === "active" || p.status?.toLowerCase() === "disputed" || p.status?.toLowerCase() === "under_review" || p.status?.toLowerCase() === "under review"
+            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review", "awaiting_cancellation"].includes(p.status?.toLowerCase())
           )
         );
         setCompletedProjects(
           allUserProjects.filter(
-            (p) => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "complete"
+            (p) => ["completed", "complete", "cancel_done"].includes(p.status?.toLowerCase())
           )
         );
         
@@ -221,19 +267,19 @@ export function ExpertDashboard() {
       label: "Total Earned",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: TrendingUp,
-      color: "text-success bg-success-light",
+      color: "text-green-600 bg-green-100",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       icon: CheckCircle,
-      color: "text-accent bg-accent-light",
+      color: "text-emerald-600 bg-emerald-100",
     },
     {
-      label: "Completed",
-      value: completedProjects.length,
-      icon: Calendar,
-      color: "text-brand-primary bg-brand-primary-light",
+      label: "My Wallet",
+      value: <MoneyDisplay amount={earningsDisplay} />,
+      icon: Wallet,
+      color: "text-amber-600 bg-amber-100",
     },
   ];
 
@@ -247,39 +293,20 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="page-title">Expert Dashboard</h1>
-          <p className="page-subtitle">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Expert Dashboard
+          </h1>
+          <p className="text-gray-500 mt-0.5">
             Manage your contracts and discover new opportunities
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-            className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover font-semibold text-sm inline-flex items-center gap-2 transition-colors"
+            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
-        </div>
-      </div>
-
-      {/* Welcome Banner */}
-      <div className="relative bg-gradient-to-br from-accent/[0.07] via-accent/[0.03] to-primary/[0.04] rounded-2xl border border-border/60 shadow-sm p-5 mb-6 overflow-hidden group">
-        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
-        {/* Subtle animated shimmer on hover */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.02] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none" />
-        <div className="relative flex items-center gap-4">
-          <div className="relative">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent/20 to-primary/10 flex items-center justify-center flex-shrink-0">
-              <TrendingUp className="w-5 h-5 text-accent" />
-            </div>
-            <div className="absolute inset-0 rounded-xl bg-accent/10 blur-md -z-[1]" />
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Manage your contracts and discover new opportunities
-            </p>
-          </div>
         </div>
       </div>
 
@@ -296,15 +323,15 @@ export function ExpertDashboard() {
         {/* LEFT PANEL — MY ACTIVE CONTRACTS                                 */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center">
-            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center">
+            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
               My Active Contracts
             </h2>
           </div>
@@ -313,18 +340,16 @@ export function ExpertDashboard() {
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {activeContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Briefcase className="w-8 h-8 text-muted-foreground/30" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground/60 mb-2">
+                <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-500 mb-2">
                   No active contracts
                 </h3>
-                <p className="text-sm text-muted-foreground mb-5">
+                <p className="text-sm text-gray-400 mb-4">
                   Browse available jobs and submit proposals.
                 </p>
                 <Link
                   to="/expert/find-jobs"
-                  className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center"
+                  className="h-10 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 font-semibold text-sm transition-colors inline-flex items-center"
                 >
                   Find Jobs
                 </Link>
@@ -338,23 +363,15 @@ export function ExpertDashboard() {
                 const badgeClass = getStatusBadgeClass(statusKey);
                 const btnCfg = getExpertButtonConfig(statusKey);
                 const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
-                const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
 
                 return (
                   <div
                     key={p.id}
-                    className={cn(
-                      "bg-card border rounded-xl p-5 transition-colors",
-                      "card-reveal",
-                      `card-reveal-${((activeContracts.indexOf(p) % 12) + 1)}`,
-                      isDisputed
-                        ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30"
-                        : "border-border hover:border-border/80"
-                    )}
+                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
                   >
                     {/* ── Top row: title + status badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <h3 className={cn("font-semibold text-base leading-snug", isDisputed ? "text-red-100" : "text-foreground")}>
+                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
                         {p.title}
                       </h3>
                       <span
@@ -365,9 +382,9 @@ export function ExpertDashboard() {
                     </div>
 
                     {/* ── Client name ── */}
-                    <p className={cn("text-sm mb-3", isDisputed ? "text-red-200/70" : "text-muted-foreground")}>
+                    <p className="text-base text-gray-500 mb-3">
                       with{" "}
-                      <span className={cn("font-medium", isDisputed ? "text-red-100" : "text-foreground")}>
+                      <span className="font-medium text-gray-700">
                         {clientName}
                       </span>
                     </p>
@@ -383,16 +400,16 @@ export function ExpertDashboard() {
                     {/* ── Progress bar ── */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className={cn("text-sm font-medium", isDisputed ? "text-red-300/70" : "text-muted-foreground")}>
+                        <span className="text-sm font-medium text-gray-500">
                           Milestone Progress
                         </span>
-                        <span className={cn("text-sm font-bold", isDisputed ? "text-red-100" : "text-foreground")}>
+                        <span className="text-sm font-bold text-gray-900">
                           {progress}%
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                         <div
-                          className={cn("h-full rounded-full transition-all duration-500", isDisputed ? "bg-red-500" : "bg-primary")}
+                          className="h-full bg-brand-primary rounded-full transition-all"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -400,47 +417,64 @@ export function ExpertDashboard() {
 
                     {/* ── Bottom row: due date, value, action ── */}
                     <div className="flex items-center justify-between pt-1">
-                      <div className={cn("flex items-center gap-4 text-sm", isDisputed ? "text-red-200/70" : "text-muted-foreground")}>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           Due{" "}
-                          {safeDateFormat(p.deadline, {
-                            month: "short",
-                            day: "numeric",
-                          })}
+                          {p.deadline
+                            ? new Date(p.deadline).toLocaleDateString(
+                                "en-US",
+                                { month: "short", day: "numeric" },
+                              )
+                            : "N/A"}
                         </span>
-                        <span className={cn("inline-flex items-center gap-1 font-semibold", isDisputed ? "text-red-100" : "text-foreground")}>
-                          <ReceiptText className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
+                          <DollarSign className="w-3.5 h-3.5 text-gray-400" />
                           <MoneyDisplay amount={p.budget} />
                         </span>
                       </div>
                       <div className="flex items-center">
-                        {!isDisputed && (
-                          <button
-                            onClick={() => {
-                              setReportingProject(p);
-                              setShowReportForm(true);
-                            }}
-                            className="mr-3 h-11 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-xl text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                          </button>
-                        )}
-                        {isDisputed && (
-                          <span className="mr-3 h-11 px-4 border border-red-500/30 text-red-300 bg-red-900/40 rounded-xl text-sm font-semibold inline-flex items-center gap-1.5">
-                            <AlertTriangle className="w-4 h-4" /> Under Admin Review
-                          </span>
-                        )}
+                        {(() => {
+                          const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
+                          if (!isDisputed) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setReportingProject(p);
+                                  setShowReportForm(true);
+                                }}
+                                className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                              </button>
+                            );
+                          }
+                          const reportForProject = activeReports.find(r => r.projectId === p.id && r.status === "Awaiting Expert");
+                          if (reportForProject) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setExplainingReport(reportForProject);
+                                  setShowExplanationForm(true);
+                                }}
+                                className="mr-3 h-11 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-4 h-4" /> Gửi phản hồi
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         {btnCfg.disabled ? (
                           <span
-                            className={`h-11 px-5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </span>
                         ) : (
                           <Link
                             to={btnCfg.linkTo?.(p) || `/expert/projects/${p.id}`}
-                            className={`h-11 px-5 rounded-xl text-sm font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </Link>
@@ -458,32 +492,30 @@ export function ExpertDashboard() {
         {/* RIGHT PANEL — RECOMMENDED PROJECTS                               */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-border flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
               Recommended Projects
             </h2>
-            <TrendingUp className="w-4 h-4 text-success" />
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {recommendedProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-8 h-8 text-muted-foreground/30" />
-                </div>
-                <h3 className="text-lg font-semibold text-foreground/60 mb-2">
+                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-500 mb-2">
                   No recommendations yet
                 </h3>
-                <p className="text-sm text-muted-foreground max-w-xs">
-                  Complete your profile to get personalized project recommendations.
+                <p className="text-sm text-gray-400">
+                  Complete your profile to get personalized recommendations.
                 </p>
               </div>
             ) : (
@@ -495,22 +527,22 @@ export function ExpertDashboard() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors"
+                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
                   >
                     {/* ── Top: title + match badge ── */}
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-semibold text-foreground text-base leading-snug">
+                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
                         {p.title}
                       </h3>
-                      <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold">
+                      <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
                         {matchPct}% match
                       </span>
                     </div>
 
                     {/* ── Posted by + time ── */}
-                    <p className="text-[13px] text-muted-foreground mb-2.5">
+                    <p className="text-[13px] text-gray-500 mb-2.5">
                       Posted by{" "}
-                      <span className="font-medium text-foreground/70">
+                      <span className="font-medium text-gray-600">
                         {clientName}
                       </span>
                       {" · "}
@@ -518,7 +550,7 @@ export function ExpertDashboard() {
                     </p>
 
                     {/* ── Description ── */}
-                    <p className="text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
+                    <p className="text-base text-gray-500 mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
@@ -532,11 +564,11 @@ export function ExpertDashboard() {
 
                     {/* ── Budget + Duration ── */}
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="font-semibold text-foreground text-base">
+                      <span className="font-semibold text-gray-900 text-base">
                         <MoneyDisplay amount={p.budget} />
                       </span>
-                      <span className="text-muted-foreground/60">·</span>
-                      <span className="text-muted-foreground text-[13px]">
+                      <span className="text-gray-300">·</span>
+                      <span className="text-gray-500 text-[13px]">
                         {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
@@ -545,13 +577,13 @@ export function ExpertDashboard() {
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-                        className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold text-center transition-colors inline-flex items-center justify-center"
+                        className="px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-xs font-semibold inline-flex items-center gap-1.5 transition-colors w-full justify-center"
                       >
                         Apply Now
                       </Link>
                       <Link
                         to={`/expert/jobs/${p.id}`}
-                        className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold text-center transition-colors inline-flex items-center justify-center"
+                        className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
                       >
                         View Job
                       </Link>
@@ -568,7 +600,7 @@ export function ExpertDashboard() {
       <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-foreground">
+            <DialogTitle className="text-xl font-bold text-gray-900">
               Báo cáo vi phạm Khách hàng (Expert Report Client)
             </DialogTitle>
           </DialogHeader>
@@ -582,6 +614,40 @@ export function ExpertDashboard() {
               }}
               loading={reportSubmitting}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* EXPLANATION FORM DIALOG */}
+      <Dialog open={showExplanationForm} onOpenChange={setShowExplanationForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground">
+              Gửi phản hồi báo cáo vi phạm
+            </DialogTitle>
+          </DialogHeader>
+          {explainingReport && (
+            <div className="space-y-6">
+              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
+                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
+                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+              </div>
+
+              <ReportForm
+                project={activeContracts.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                onSubmit={handleExpertSubmitExplanation}
+                onCancel={() => {
+                  setShowExplanationForm(false);
+                  setExplainingReport(null);
+                }}
+                loading={explanationSubmitting}
+                submitLabel="Gửi phản hồi"
+                role="expert"
+                isResponse={true}
+                initialDisputeType={explainingReport?.disputeType}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

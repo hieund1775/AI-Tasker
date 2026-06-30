@@ -13,6 +13,7 @@ import {
   FileText,
   Wallet,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
@@ -92,6 +93,13 @@ export function ClientDashboard() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
+  const [activeReports, setActiveReports] = useState([]);
+  const [explainingReport, setExplainingReport] = useState(null);
+  const [showExplanationForm, setShowExplanationForm] = useState(false);
+  const [explanationText, setExplanationText] = useState("");
+  const [explanationEvidence, setExplanationEvidence] = useState("");
+  const [explanationSubmitting, setExplanationSubmitting] = useState(false);
+
   const handleSubmitReport = async (reportData) => {
     setReportSubmitting(true);
     try {
@@ -111,16 +119,40 @@ export function ClientDashboard() {
     }
   };
 
+  const handleSubmitExplanation = async (formData) => {
+    setExplanationSubmitting(true);
+    try {
+      await api.put(`/reports/${explainingReport.id}`, {
+        clientExplanation: formData.description,
+        clientExplanationReason: formData.reason,
+        clientExplanationDescription: formData.description,
+        clientExplanationDisputeType: formData.disputeType,
+        clientExplanationDesiredResolution: formData.desiredResolution,
+        clientExplanationEvidence: formData.evidence
+      });
+      setShowExplanationForm(false);
+      setExplainingReport(null);
+      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+    } finally {
+      setExplanationSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
       setLoading(true);
 
       try {
-        const [userRes, walletRes] = await Promise.all([
+        const [userRes, walletRes, reportsRes] = await Promise.all([
           api.users.getById(user.id),
           api.payments.getWallet(user.id).catch(() => ({ balance: 0 })),
+          api.get("/reports").catch(() => ({ data: [] })),
         ]);
+        setActiveReports(reportsRes?.data || []);
         setClientProjects(userRes?.projects || []);
         if (walletRes) {
           setWalletBalance(walletRes.balance || 0);
@@ -153,7 +185,7 @@ export function ClientDashboard() {
   const dashboardStats = [
     {
       label: "Active Projects",
-      value: getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review"]),
+      value: getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review", "awaiting_cancellation"]),
       icon: Briefcase,
       color: "text-primary bg-primary-light",
     },
@@ -171,7 +203,7 @@ export function ClientDashboard() {
     },
     {
       label: "Cancelled",
-      value: getProjectsByStatus(["cancelled", "cancel"]),
+      value: getProjectsByStatus(["cancelled", "cancel", "cancel_done"]),
       icon: Clock,
       color: "text-destructive bg-destructive-light",
     },
@@ -231,7 +263,7 @@ export function ClientDashboard() {
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <h2 className="section-header">My Projects</h2>
           <span className="text-xs text-muted-foreground">
-            {getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review"])} active
+            {getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review", "awaiting_cancellation"])} active
           </span>
         </div>
 
@@ -239,7 +271,7 @@ export function ClientDashboard() {
           {(() => {
             const activeProjects = clientProjects.filter((p) => {
               const s = p.status?.toLowerCase() || "";
-              return s === "active" || s === "in_progress" || s === "in progress" || s === "disputed" || s === "under_review" || s === "under review";
+              return s === "active" || s === "in_progress" || s === "in progress" || s === "disputed" || s === "under_review" || s === "under review" || s === "awaiting_cancellation";
             });
 
             if (loading) {
@@ -395,17 +427,37 @@ export function ClientDashboard() {
 
                       {/* Bottom row: actions */}
                       <div className="flex items-center justify-end pt-1 gap-3">
-                        {!["disputed", "under_review", "under review"].includes(p.status?.toLowerCase()) && (
-                          <button
-                            onClick={() => {
-                              setReportingProject(p);
-                              setShowReportForm(true);
-                            }}
-                            className="h-9 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5" /> Report
-                          </button>
-                        )}
+                        {(() => {
+                          const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
+                          if (!isDisputed) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setReportingProject(p);
+                                  setShowReportForm(true);
+                                }}
+                                className="h-9 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" /> Report
+                              </button>
+                            );
+                          }
+                          const reportForProject = activeReports.find(r => r.projectId === p.id && r.status === "Awaiting Client");
+                          if (reportForProject) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setExplainingReport(reportForProject);
+                                  setShowExplanationForm(true);
+                                }}
+                                className="h-9 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" /> Gửi phản hồi
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <Link
                           to={btnCfg.linkTo?.(p) || `/client/projects/${p.id}`}
                           state={{ from: location.pathname }}
@@ -441,6 +493,40 @@ export function ClientDashboard() {
               }}
               loading={reportSubmitting}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* EXPLANATION FORM DIALOG */}
+      <Dialog open={showExplanationForm} onOpenChange={setShowExplanationForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">
+              Gửi phản hồi báo cáo vi phạm
+            </DialogTitle>
+          </DialogHeader>
+          {explainingReport && (
+            <div className="space-y-6">
+              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
+                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
+                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+              </div>
+
+              <ReportForm
+                project={clientProjects.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                onSubmit={handleSubmitExplanation}
+                onCancel={() => {
+                  setShowExplanationForm(false);
+                  setExplainingReport(null);
+                }}
+                loading={explanationSubmitting}
+                submitLabel="Gửi phản hồi"
+                role="client"
+                isResponse={true}
+                initialDisputeType={explainingReport?.disputeType}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

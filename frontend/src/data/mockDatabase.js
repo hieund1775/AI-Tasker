@@ -2397,9 +2397,27 @@ function _delete(table, id) {
 export function getUserById(userId) {
   const user = _getById("users", userId);
   if (!user) return null;
+  const projects = _list("projects")
+    .filter((p) => p.clientId === userId || p.assignedExpertId === userId)
+    .map((p) => {
+      const enriched = { ...enrichJobPost(p) };
+      if (!enriched.client && enriched.clientId) {
+        const clientUser = _getById("users", enriched.clientId);
+        if (clientUser) {
+          enriched.client = clientUser.fullName || clientUser.name;
+        }
+      }
+      if (!enriched.expert && enriched.assignedExpertId) {
+        const expertUser = _getById("users", enriched.assignedExpertId);
+        if (expertUser) {
+          enriched.expert = expertUser.fullName || expertUser.name;
+        }
+      }
+      return enriched;
+    });
   return { 
     ...user, 
-    projects: _list("projects").filter((p) => p.clientId === userId || p.assignedExpertId === userId).map(enrichJobPost), 
+    projects, 
     jobPosts: _list("jobPosts").filter((j) => j.clientId === userId).map(enrichJobPost), 
     proposals: _list("proposals").filter((p) => p.expertId === userId) 
   };
@@ -2810,7 +2828,7 @@ export function listReports(filterFn) { return _list("reports", filterFn); }
 export function getReportById(id) { return _getById("reports", id); }
 export function createReport(data) {
   const reporter = _getById("users", data.reporterId);
-  const reporterRole = reporter?.role || "expert";
+  const reporterRole = data.reporterRole || reporter?.role || "expert";
   const reportType = reporterRole === "client" ? "type1" : "type2";
 
   const reportData = {
@@ -3722,13 +3740,15 @@ export function getRevenueData() {
  * @param {string} [reason]
  * @returns {{ project: object, breakdown: object } | null}
  */
-export function cancelProjectContract(projectId, clientId, reason) {
+export function cancelProjectContract(projectId, callerId, reason) {
   const project = _getById("projects", projectId);
   if (!project) throw new Error("Project not found.");
 
-  // Validate caller is the client
-  if (project.clientId !== clientId) {
-    throw new Error("Only the project client can cancel the contract.");
+  // Validate caller is either client or expert
+  const isClient = project.clientId === callerId;
+  const isExpert = project.assignedExpertId === callerId;
+  if (!isClient && !isExpert) {
+    throw new Error("Only the project client or expert can cancel the contract.");
   }
 
   // Validate cancellable status
@@ -3761,6 +3781,10 @@ export function cancelProjectContract(projectId, clientId, reason) {
     overallProgress = Math.round(totalPercent / tasks.length);
   }
 
+  if (isExpert && overallProgress < 30) {
+    throw new Error("Chuyên gia phải hoàn thành ít nhất 30% dự án mới có thể yêu cầu hủy hợp đồng.");
+  }
+
   // Determine contract amount
   const contractAmount =
     project.escrowAmount ||
@@ -3772,20 +3796,34 @@ export function cancelProjectContract(projectId, clientId, reason) {
     throw new Error("No escrow amount found. Cancellation cannot proceed.");
   }
 
-  // Formula
   const progressRate = overallProgress / 100;
   const progressPayout = Math.round(contractAmount * progressRate * 100) / 100;
   const compensationFee = Math.round(contractAmount * 0.10 * 100) / 100;
   const platformServiceFee = Math.round(contractAmount * 0.05 * 100) / 100;
 
-  // Cap: expert payout ≤ contractAmount - platformFee
-  const rawExpertPayout = progressPayout + compensationFee;
-  const expertPayout = Math.round(
-    Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100
-  ) / 100;
-  const clientRefund = Math.round(
-    Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100
-  ) / 100;
+  let expertPayout = 0;
+  let clientRefund = 0;
+
+  if (isClient) {
+    // Client cancels: expert gets progress + compensation
+    const rawExpertPayout = progressPayout + compensationFee;
+    expertPayout = Math.round(
+      Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100
+    ) / 100;
+    clientRefund = Math.round(
+      Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100
+    ) / 100;
+  } else {
+    // Expert cancels: client gets refund of unused progress + compensation from expert (funded from escrow)
+    // Expert gets progress - compensation - platform fee
+    const rawClientRefund = (contractAmount - progressPayout) + compensationFee;
+    clientRefund = Math.round(
+      Math.min(contractAmount - platformServiceFee, rawClientRefund) * 100
+    ) / 100;
+    expertPayout = Math.round(
+      (contractAmount - clientRefund - platformServiceFee) * 100
+    ) / 100;
+  }
 
   // Update Expert wallet
   const expertUser = _getById("users", project.assignedExpertId);
@@ -3801,7 +3839,6 @@ export function cancelProjectContract(projectId, clientId, reason) {
   if (clientUser) {
     const cw = clientUser.wallet || { balance: 0, pendingBalance: 0, totalEarned: 0 };
     cw.balance = Math.round((cw.balance + clientRefund) * 100) / 100;
-    // Release escrow hold
     cw.pendingBalance = Math.round(Math.max(0, (cw.pendingBalance || 0) - contractAmount) * 100) / 100;
     if (cw.escrowBalance != null) {
       cw.escrowBalance = Math.round(Math.max(0, cw.escrowBalance - contractAmount) * 100) / 100;
@@ -3811,7 +3848,8 @@ export function cancelProjectContract(projectId, clientId, reason) {
 
   // Update project
   const cancellationMeta = {
-    cancelledBy: clientId,
+    cancelledBy: callerId,
+    cancelledRole: isClient ? "client" : "expert",
     cancelledAt: new Date().toISOString(),
     reason: reason || null,
     progressPercent: overallProgress,
@@ -3835,10 +3873,12 @@ export function cancelProjectContract(projectId, clientId, reason) {
     projectId,
     fromUserId: "system",
     toUserId: project.assignedExpertId,
-    amount: expertPayout,
-    type: "contract_cancel_expert_payout",
+    amount: Math.abs(expertPayout),
+    type: expertPayout >= 0 ? "contract_cancel_expert_payout" : "contract_cancel_expert_penalty",
     status: "completed",
-    description: `Contract cancellation — expert payout (${overallProgress}% progress + 10% compensation)`,
+    description: expertPayout >= 0 
+      ? `Contract cancellation — expert payout (${overallProgress}% progress - fees)` 
+      : `Contract cancellation — expert penalty (${overallProgress}% progress - fees)`,
     createdAt: new Date().toISOString(),
   });
 
@@ -3874,7 +3914,9 @@ export function cancelProjectContract(projectId, clientId, reason) {
   _create("notifications", {
     userId: project.assignedExpertId,
     title: `Contract Cancelled: ${projectTitle}`,
-    message: `The client cancelled the contract for "${projectTitle}". You received $${expertPayout.toLocaleString()} (progress payout + 10% compensation). The project is now closed.`,
+    message: isClient 
+      ? `The client cancelled the contract for "${projectTitle}". You received $${expertPayout.toLocaleString()} (progress payout + 10% compensation). The project is now closed.`
+      : `You cancelled the contract for "${projectTitle}". Payout breakdown processed based on progress.`,
     type: "system",
     isRead: false,
     linkTo: `/expert/projects/${projectId}`,
@@ -3884,7 +3926,9 @@ export function cancelProjectContract(projectId, clientId, reason) {
   _create("notifications", {
     userId: project.clientId,
     title: `Contract Cancelled: ${projectTitle}`,
-    message: `Your contract cancellation for "${projectTitle}" has been processed. Refund amount: $${clientRefund.toLocaleString()}.`,
+    message: isClient
+      ? `Your contract cancellation for "${projectTitle}" has been processed. Refund amount: $${clientRefund.toLocaleString()}.`
+      : `The expert cancelled the contract for "${projectTitle}". You received $${clientRefund.toLocaleString()} (unused progress payout + 10% compensation refund).`,
     type: "system",
     isRead: false,
     linkTo: `/client/projects/${projectId}`,
@@ -3896,21 +3940,36 @@ export function cancelProjectContract(projectId, clientId, reason) {
   admins.forEach((admin) => {
     _create("notifications", {
       userId: admin.id,
-      title: `Contract Cancelled by Client: ${projectTitle}`,
-      message: `Client ${clientName} cancelled contract for "${projectTitle}". Platform fee collected: $${platformServiceFee.toLocaleString()}.`,
+      title: `Contract Cancelled by ${isClient ? "Client" : "Expert"}: ${projectTitle}`,
+      message: `${isClient ? "Client" : "Expert"} cancelled contract for "${projectTitle}". Platform fee collected: $${platformServiceFee.toLocaleString()}.`,
       type: "system",
       isRead: false,
-      linkTo: `/admin/projects/${projectId}`,
+      linkTo: `/admin/disputes`,
       createdAt: new Date().toISOString(),
     });
+  });
+
+  // Create report record for progress report view in Admin
+  _create("reports", {
+    projectId,
+    reporterId: callerId,
+    reporterRole: isClient ? "client" : "expert",
+    reportName: `Contract Cancelled by ${isClient ? "Client" : "Expert"}`,
+    reason: `Contract cancelled by ${isClient ? "Client" : "Expert"} during execution.`,
+    description: reason || `Contract cancelled. Progress: ${overallProgress}%. Budget: ${contractAmount}. Payout: ${expertPayout}. Refund: ${clientRefund}.`,
+    disputeType: "cancellation",
+    desiredResolution: "Contract cancelled and escrow distributed",
+    status: "Resolved",
+    adminNote: `Processed contract cancellation. Progress: ${overallProgress}%. Payout to Expert: ${expertPayout}. Refund to Client: ${clientRefund}.`,
+    createdAt: new Date().toISOString()
   });
 
   addAuditEntry({
     projectId,
     action: "contract_cancelled",
-    actor: "Client",
-    actorName: clientName,
-    details: `Client cancelled contract. Progress: ${overallProgress}%. Expert payout: $${expertPayout.toLocaleString()}, Client refund: $${clientRefund.toLocaleString()}, Platform fee: $${platformServiceFee.toLocaleString()}. Reason: ${reason || "None provided"}`,
+    actor: isClient ? "Client" : "Expert",
+    actorName: isClient ? clientName : expertName,
+    details: `${isClient ? "Client" : "Expert"} cancelled contract. Progress: ${overallProgress}%. Expert payout: $${expertPayout.toLocaleString()}, Client refund: $${clientRefund.toLocaleString()}, Platform fee: $${platformServiceFee.toLocaleString()}. Reason: ${reason || "None provided"}`,
   });
 
   triggerDbUpdate();
@@ -3920,6 +3979,377 @@ export function cancelProjectContract(projectId, clientId, reason) {
     breakdown: cancellationMeta,
   };
 }
+
+// =============================================================================
+// NEW MULTI-STAGE CONTRACT CANCELLATION NEGOTIATION FLOW FUNCTIONS
+// =============================================================================
+
+export function submitCancellationRequest(projectId, initiatorId, reason, evidenceFileName) {
+  const project = _getById("projects", projectId);
+  if (!project) throw new Error("Project not found.");
+
+  const isClient = project.clientId === initiatorId;
+  const isExpert = project.assignedExpertId === initiatorId;
+  if (!isClient && !isExpert) {
+    throw new Error("Only client or expert can cancel.");
+  }
+
+  // Calculate progress and breakdown
+  const tasks = _list("tasks", (t) => t.projectId === projectId);
+  let overallProgress = 0;
+  if (tasks.length > 0) {
+    let totalPercent = 0;
+    tasks.forEach((task) => {
+      const miniTasks = task.miniTasks || [];
+      if (miniTasks.length === 0) return;
+      const done = miniTasks.filter((mt) =>
+        mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
+      ).length;
+      totalPercent += Math.round((done / miniTasks.length) * 100);
+    });
+    overallProgress = Math.round(totalPercent / tasks.length);
+  }
+
+  if (isExpert && overallProgress < 30) {
+    throw new Error("Chuyên gia phải hoàn thành ít nhất 30% dự án mới có thể yêu cầu hủy hợp đồng.");
+  }
+
+  const contractAmount = project.escrowAmount || project.escrowBalance || project.budget || 0;
+  const progressRate = overallProgress / 100;
+  const progressPayout = Math.round(contractAmount * progressRate * 100) / 100;
+  const compensationFee = Math.round(contractAmount * 0.10 * 100) / 100;
+  const platformServiceFee = Math.round(contractAmount * 0.05 * 100) / 100;
+
+  let expertPayout = 0;
+  let clientRefund = 0;
+
+  if (isClient) {
+    const rawExpertPayout = progressPayout + compensationFee;
+    expertPayout = Math.round(Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100) / 100;
+    clientRefund = Math.round(Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100) / 100;
+  } else {
+    const rawClientRefund = (contractAmount - progressPayout) + compensationFee;
+    clientRefund = Math.round(Math.min(contractAmount - platformServiceFee, rawClientRefund) * 100) / 100;
+    expertPayout = Math.round(Math.max(0, contractAmount - clientRefund - platformServiceFee) * 100) / 100;
+  }
+
+  const reportId = generateId("report");
+  const report = _create("reports", {
+    id: reportId,
+    projectId,
+    reporterId: initiatorId,
+    reporterRole: isClient ? "client" : "expert",
+    reportName: `Yêu cầu hủy hợp đồng bởi ${isClient ? "Client" : "Expert"}`,
+    reason: reason || "Yêu cầu hủy hợp đồng",
+    description: reason || "Yêu cầu hủy hợp đồng",
+    disputeType: "cancellation",
+    desiredResolution: "Hủy hợp đồng và phân chia escrow",
+    status: "Pending Admin",
+    createdAt: new Date().toISOString(),
+    evidence: evidenceFileName ? [{ fileName: evidenceFileName, fileUrl: "#", name: evidenceFileName }] : [],
+    payoutBreakdown: {
+      contractAmount,
+      progressPercent: overallProgress,
+      progressPayout,
+      compensationFee,
+      platformServiceFee,
+      expertPayout,
+      clientRefund,
+    }
+  });
+
+  _update("projects", projectId, {
+    status: "Awaiting_Cancellation",
+    cancelRequestId: reportId,
+  });
+
+  addAuditEntry({
+    projectId,
+    action: "cancellation_requested",
+    actor: isClient ? "Client" : "Expert",
+    actorName: isClient ? "Client" : "Expert",
+    details: `${isClient ? "Client" : "Expert"} gửi yêu cầu hủy hợp đồng. Lý do: ${reason}. Bằng chứng: ${evidenceFileName || "Không có"}.`,
+  });
+
+  triggerDbUpdate();
+  return { project: _getById("projects", projectId), report };
+}
+
+export function adminApproveCancellationRequest(reportId) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  _update("reports", reportId, {
+    status: "Awaiting Partner",
+    acceptedAt: new Date().toISOString(),
+  });
+
+  const project = _getById("projects", report.projectId);
+  if (project) {
+    const accusedId = report.reporterRole === "client" ? project.assignedExpertId : project.clientId;
+    if (accusedId) {
+      _create("notifications", {
+        userId: accusedId,
+        title: "Yêu cầu hủy hợp đồng cần bạn duyệt",
+        message: `Admin đã duyệt yêu cầu hủy của đối tác cho dự án "${project.title}". Vui lòng phản hồi (Chấp nhận hoặc Từ chối).`,
+        type: "system",
+        isRead: false,
+        linkTo: report.reporterRole === "client" ? `/expert/projects/${project.id}` : `/client/projects/${project.id}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+  triggerDbUpdate();
+  return _getById("reports", reportId);
+}
+
+export function adminRejectCancellationRequest(reportId, adminNote) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  _update("reports", reportId, {
+    status: "Rejected",
+    adminNote: adminNote || "Admin từ chối yêu cầu hủy",
+    resolvedAt: new Date().toISOString(),
+  });
+
+  const project = _getById("projects", report.projectId);
+  if (project) {
+    _update("projects", project.id, {
+      status: "in_progress",
+    });
+
+    _create("notifications", {
+      userId: report.reporterId,
+      title: "Yêu cầu hủy hợp đồng bị Admin từ chối",
+      message: `Admin đã từ chối yêu cầu hủy hợp đồng của bạn cho dự án "${project.title}". Lý do: ${adminNote || "Không có"}. Dự án hoạt động trở lại.`,
+      type: "system",
+      isRead: false,
+      linkTo: report.reporterRole === "client" ? `/client/projects/${project.id}` : `/expert/projects/${project.id}`,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  triggerDbUpdate();
+  return _getById("reports", reportId);
+}
+
+export function partnerAcceptCancellation(reportId) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  const bd = report.payoutBreakdown;
+  const project = _getById("projects", report.projectId);
+  if (!project) throw new Error("Project not found.");
+
+  const expertUser = _getById("users", project.assignedExpertId);
+  if (expertUser) {
+    const ew = expertUser.wallet || { balance: 0, pendingBalance: 0, totalEarned: 0 };
+    ew.balance = Math.round((ew.balance + bd.expertPayout) * 100) / 100;
+    ew.totalEarned = Math.round(((ew.totalEarned || 0) + bd.expertPayout) * 100) / 100;
+    updateUser(expertUser.id, { wallet: { ...ew } });
+  }
+
+  const clientUser = _getById("users", project.clientId);
+  if (clientUser) {
+    const cw = clientUser.wallet || { balance: 0, pendingBalance: 0, totalEarned: 0 };
+    cw.balance = Math.round((cw.balance + bd.clientRefund) * 100) / 100;
+    cw.pendingBalance = Math.round(Math.max(0, (cw.pendingBalance || 0) - bd.contractAmount) * 100) / 100;
+    if (cw.escrowBalance != null) {
+      cw.escrowBalance = Math.round(Math.max(0, cw.escrowBalance - bd.contractAmount) * 100) / 100;
+    }
+    updateUser(clientUser.id, { wallet: { ...cw } });
+  }
+
+  _update("projects", project.id, {
+    status: "cancel_done",
+    contractCancellation: {
+      cancelledBy: report.reporterId,
+      cancelledRole: report.reporterRole,
+      cancelledAt: new Date().toISOString(),
+      reason: report.reason,
+      progressPercent: bd.progressPercent,
+      contractAmount: bd.contractAmount,
+      progressPayout: bd.progressPayout,
+      compensationFee: bd.compensationFee,
+      platformServiceFee: bd.platformServiceFee,
+      expertPayout: bd.expertPayout,
+      clientRefund: bd.clientRefund,
+    },
+  });
+
+  _update("reports", reportId, {
+    status: "Resolved",
+    resolvedAt: new Date().toISOString(),
+    adminNote: "Hợp đồng đã được hủy dựa trên sự đồng thuận của hai bên.",
+  });
+
+  _create("transactions", {
+    id: generateId("txn"),
+    projectId: project.id,
+    fromUserId: "system",
+    toUserId: project.assignedExpertId,
+    amount: Math.abs(bd.expertPayout),
+    type: bd.expertPayout >= 0 ? "contract_cancel_expert_payout" : "contract_cancel_expert_penalty",
+    status: "completed",
+    description: `Hủy hợp đồng đồng thuận — Expert nhận: $${bd.expertPayout}`,
+    createdAt: new Date().toISOString(),
+  });
+
+  _create("transactions", {
+    id: generateId("txn"),
+    projectId: project.id,
+    fromUserId: "system",
+    toUserId: project.clientId,
+    amount: bd.clientRefund,
+    type: "contract_cancel_client_refund",
+    status: "completed",
+    description: `Hủy hợp đồng đồng thuận — Client hoàn trả: $${bd.clientRefund}`,
+    createdAt: new Date().toISOString(),
+  });
+
+  _create("transactions", {
+    id: generateId("txn"),
+    projectId: project.id,
+    fromUserId: "system",
+    toUserId: "platform",
+    amount: bd.platformServiceFee,
+    type: "contract_cancel_platform_fee",
+    status: "completed",
+    description: `Phí dịch vụ hủy hợp đồng (5%)`,
+    createdAt: new Date().toISOString(),
+  });
+
+  _create("notifications", {
+    userId: project.clientId,
+    title: `Dự án hủy thành công: ${project.title}`,
+    message: `Đối tác đã đồng ý yêu cầu hủy dự án. Số tiền hoàn trả $${bd.clientRefund.toLocaleString()} đã chuyển vào ví của bạn.`,
+    type: "system",
+    isRead: false,
+    linkTo: `/client/projects/${project.id}`,
+    createdAt: new Date().toISOString(),
+  });
+
+  _create("notifications", {
+    userId: project.assignedExpertId,
+    title: `Dự án hủy thành công: ${project.title}`,
+    message: `Đối tác đã đồng ý yêu cầu hủy dự án. Số tiền thanh toán $${bd.expertPayout.toLocaleString()} đã chuyển vào ví của bạn.`,
+    type: "system",
+    isRead: false,
+    linkTo: `/expert/projects/${project.id}`,
+    createdAt: new Date().toISOString(),
+  });
+
+  triggerDbUpdate();
+  return { project: _getById("projects", project.id), report: _getById("reports", reportId) };
+}
+
+export function partnerRejectCancellation(reportId, partnerRejectionReason) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  _update("reports", reportId, {
+    status: "Returned",
+    partnerRejectionReason: partnerRejectionReason || "Không đồng ý hủy hợp đồng.",
+  });
+
+  const project = _getById("projects", report.projectId);
+  if (project) {
+    _create("notifications", {
+      userId: report.reporterId,
+      title: "Yêu cầu hủy hợp đồng bị đối tác từ chối",
+      message: `Đối tác đã từ chối yêu cầu hủy dự án "${project.title}". Lý do từ chối: ${partnerRejectionReason}.`,
+      type: "system",
+      isRead: false,
+      linkTo: report.reporterRole === "client" ? `/client/projects/${project.id}` : `/expert/projects/${project.id}`,
+      createdAt: new Date().toISOString(),
+    });
+
+    const admins = _list("users", (u) => u.role === "admin");
+    admins.forEach((admin) => {
+      _create("notifications", {
+        userId: admin.id,
+        title: `Từ chối yêu cầu hủy | Dự án: ${project.title}`,
+        message: `Bên bị hủy đã từ chối đơn hủy. Lý do từ chối: ${partnerRejectionReason}`,
+        type: "system",
+        isRead: false,
+        linkTo: `/admin/disputes/${reportId}`,
+        createdAt: new Date().toISOString(),
+      });
+    });
+  }
+
+  triggerDbUpdate();
+  return _getById("reports", reportId);
+}
+
+export function initiatorAcceptRejection(reportId) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  _update("reports", reportId, {
+    status: "Rejected",
+    resolvedAt: new Date().toISOString(),
+  });
+
+  const project = _getById("projects", report.projectId);
+  if (project) {
+    _update("projects", project.id, {
+      status: "in_progress",
+    });
+
+    addAuditEntry({
+      projectId: project.id,
+      action: "cancellation_withdrawn",
+      actor: report.reporterRole === "client" ? "Client" : "Expert",
+      actorName: report.reporterRole === "client" ? "Client" : "Expert",
+      details: `Người yêu cầu rút đơn hủy hợp đồng. Dự án hoạt động lại.`,
+    });
+  }
+
+  triggerDbUpdate();
+  return _getById("reports", reportId);
+}
+
+export function initiatorRespondRejection(reportId, reason, evidenceFileName) {
+  const report = _getById("reports", reportId);
+  if (!report) throw new Error("Report not found.");
+
+  const history = report.history || [];
+  history.push({
+    reason: report.reason,
+    partnerRejectionReason: report.partnerRejectionReason,
+    submittedAt: report.createdAt || new Date().toISOString(),
+  });
+
+  _update("reports", reportId, {
+    status: "Pending Admin",
+    reason: reason || "Yêu cầu hủy hợp đồng (Cập nhật)",
+    description: reason || "Yêu cầu hủy hợp đồng (Cập nhật)",
+    partnerRejectionReason: null,
+    createdAt: new Date().toISOString(),
+    evidence: evidenceFileName ? [{ fileName: evidenceFileName, fileUrl: "#", name: evidenceFileName }] : report.evidence,
+    history,
+  });
+
+  const admins = _list("users", (u) => u.role === "admin");
+  admins.forEach((admin) => {
+    _create("notifications", {
+      userId: admin.id,
+      title: `Yêu cầu hủy hợp đồng phản hồi lại | Đơn #${reportId}`,
+      message: `Người yêu cầu hủy đã phản hồi lại lý do từ chối và nộp lại đơn mới.`,
+      type: "system",
+      isRead: false,
+      linkTo: `/admin/disputes/${reportId}`,
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  triggerDbUpdate();
+  return _getById("reports", reportId);
+}
+
 
 export function resetMockDatabase() {
   for (const key of Object.keys(_runtimeOverlay)) {

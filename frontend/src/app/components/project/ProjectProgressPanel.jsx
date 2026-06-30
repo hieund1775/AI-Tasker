@@ -99,11 +99,10 @@ export function ProjectProgressPanel({
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-muted-foreground">Overall</span>
-          <span className={`text-4xl font-bold font-mono tracking-tight ${
-            overallProgress >= 100 ? "text-success" :
-            overallProgress >= 50 ? "text-accent" :
-            "text-foreground"
-          }`}>
+          <span className={`text-4xl font-bold font-mono tracking-tight ${overallProgress >= 100 ? "text-success" :
+              overallProgress >= 50 ? "text-accent" :
+                "text-foreground"
+            }`}>
             {overallProgress}<span className="text-lg">%</span>
           </span>
         </div>

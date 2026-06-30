@@ -55,14 +55,14 @@ export function TaskProgressCard({
     try {
       const clientName = "Client";
       approveTaskSubmission(task.id, clientName);
-      
+
       notifyTaskApproved({
         expertUserId: task.assignedTo,
         clientName: clientName,
         taskTitle: task.title,
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Milestone đã được phê duyệt thành công!");
       setShowViewProductModal(false);
@@ -71,19 +71,19 @@ export function TaskProgressCard({
       toast.error("Không thể phê duyệt milestone.");
     }
   };
-  
+
   const handleRequestProduct = async () => {
     try {
       const clientName = "Client";
       requestUrgentSubmission(task.id, clientName);
-      
+
       notifyUrgentSubmissionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
         taskTitle: task.title,
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -104,7 +104,7 @@ export function TaskProgressCard({
     try {
       const clientName = "Client";
       requestTaskRevision(task.id, clientName, declineReason.trim());
-      
+
       notifyTaskRevisionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
@@ -112,13 +112,13 @@ export function TaskProgressCard({
         feedback: declineReason.trim(),
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
-      
+
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể gửi phản hồi từ chối.");
@@ -143,16 +143,16 @@ export function TaskProgressCard({
 
   const deadlineText = task.deadline
     ? (() => {
-        try {
-          return new Date(task.deadline).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-        } catch {
-          return String(task.deadline);
-        }
-      })()
+      try {
+        return new Date(task.deadline).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return String(task.deadline);
+      }
+    })()
     : null;
 
   const deadlineInfo = task.deadline ? getDeadlineInfo(task.deadline) : null;
@@ -182,9 +182,8 @@ export function TaskProgressCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-left">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-            <h3 className={`font-semibold text-base ${
-              task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
-            }`}>
+            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
+              }`}>
               {task.title}
             </h3>
             <StatusBadge
@@ -241,8 +240,8 @@ export function TaskProgressCard({
           className={cn(
             "h-full rounded-full transition-all duration-700",
             task.progress >= 100 ? "bg-gradient-to-r from-success to-success" :
-            task.progress > 0 ? "bg-gradient-to-r from-accent to-accent-hover" :
-            "bg-muted"
+              task.progress > 0 ? "bg-gradient-to-r from-accent to-accent-hover" :
+                "bg-muted"
           )}
           style={{ width: `${task.progress}%` }}
         />

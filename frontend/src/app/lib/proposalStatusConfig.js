@@ -73,6 +73,12 @@ export const PROPOSAL_STATUS = {
     icon: Clock,
     meaning: "This proposal has expired after 7 days without client response.",
   },
+  settled_dispute: {
+    label: "Settled dispute",
+    className: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
+    icon: CheckCircle,
+    meaning: "Dispute settled by force action.",
+  },
 };
 
 /** Get the full config object for a proposal status key, with fallback. */

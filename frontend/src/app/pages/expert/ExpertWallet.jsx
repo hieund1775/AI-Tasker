@@ -237,31 +237,49 @@ export function ExpertWallet() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {data.transactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-secondary/50">
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-foreground">{tx.description}</p>
-                      {tx.projectTitle && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {tx.projectTitle}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                      <MoneyDisplay amount={tx.amount} />
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-secondary text-foreground/80"}`}
-                      >
-                        {tx.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm text-muted-foreground">
-                      {new Date(tx.createdAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
+                {data.transactions.map((tx) => {
+                  const dateObj = new Date(tx.createdAt);
+                  const dateStr = dateObj.toLocaleDateString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                  });
+                  const hours = dateObj.getHours();
+                  const mins = String(dateObj.getMinutes()).padStart(2, "0");
+                  const secs = String(dateObj.getSeconds()).padStart(2, "0");
+                  const ampm = hours >= 12 ? "PM" : "AM";
+                  const displayHours = hours % 12 || 12;
+                  const timeStr = `${String(displayHours).padStart(2, "0")}:${mins}:${secs} ${ampm}`;
+
+                  return (
+                    <tr key={tx.id} className="hover:bg-secondary/50">
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-foreground">{tx.description}</p>
+                        {tx.projectTitle && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {tx.projectTitle}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
+                        <MoneyDisplay amount={tx.amount} />
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-secondary text-foreground/80"}`}
+                        >
+                          {tx.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right font-mono">
+                        <div className="flex flex-col items-end">
+                          <span className="font-semibold text-foreground text-sm">{dateStr}</span>
+                          <span className="text-xs text-muted-foreground mt-0.5 font-normal">{timeStr}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

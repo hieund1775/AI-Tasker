@@ -21,6 +21,7 @@ import { Loader2, Upload, X, FileText } from "lucide-react";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
+import api from "../../../services/api.js";
 
 const DISPUTE_TYPES = [
   { value: "financial", label: "Financial / Payment Dispute" },
@@ -35,15 +36,28 @@ export function ReportForm({
   onSubmit,
   onCancel,
   loading: externalLoading = false,
+  submitLabel = "Submit Report",
+  role = "expert",
+  isResponse = false,
+  initialDisputeType = "",
 }) {
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
-  const [disputeType, setDisputeType] = useState("financial");
+  const [disputeType, setDisputeType] = useState(initialDisputeType || "financial");
   const [desiredResolution, setDesiredResolution] = useState("");
   const [evidence, setEvidence] = useState([]); // { id, name, note, file? }
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitTime, setSubmitTime] = useState(new Date());
+
+  useEffect(() => {
+    if (initialDisputeType) {
+      setDisputeType(initialDisputeType);
+    }
+  }, [initialDisputeType]);
+
+  const [clientUser, setClientUser] = useState(null);
+  const [expertUser, setExpertUser] = useState(null);
 
   const isLoading = externalLoading || submitting;
 
@@ -53,17 +67,38 @@ export function ReportForm({
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch client & expert details
+  useEffect(() => {
+    if (!project) return;
+    async function fetchUsers() {
+      try {
+        if (project.clientId) {
+          const client = await api.users.getById(project.clientId);
+          setClientUser(client);
+        }
+        if (project.assignedExpertId || project.expertId) {
+          const expId = project.assignedExpertId || project.expertId;
+          const expert = await api.users.getById(expId);
+          setExpertUser(expert);
+        }
+      } catch (err) {
+        console.error("Failed to fetch users in ReportForm:", err);
+      }
+    }
+    fetchUsers();
+  }, [project]);
+
   const validate = useCallback(() => {
     const errs = {};
-    if (!reason.trim()) errs.reason = "Please enter a report reason.";
-    if (!description.trim()) errs.description = "Please enter a detailed description.";
+    if (!reason.trim()) errs.reason = isResponse ? "Vui lòng nhập lý do phản hồi." : "Please enter a report reason.";
+    if (!description.trim()) errs.description = isResponse ? "Vui lòng nhập nội dung phản hồi chi tiết." : "Please enter a detailed description.";
     if (!desiredResolution.trim())
-      errs.desiredResolution = "Please enter your desired resolution.";
+      errs.desiredResolution = isResponse ? "Vui lòng nhập phương án giải quyết mong muốn." : "Please enter your desired resolution.";
     if (evidence.length === 0)
-      errs.evidence = "Please upload at least 1 piece of evidence.";
+      errs.evidence = isResponse ? "Vui lòng tải lên ít nhất 1 tài liệu/bằng chứng." : "Please upload at least 1 piece of evidence.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
-  }, [reason, description, desiredResolution, evidence]);
+  }, [reason, description, desiredResolution, evidence, isResponse]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -113,6 +148,36 @@ export function ReportForm({
     );
   }
 
+  // Pre-calculate display deadline and start date
+  const displayStartDate = project.createdAt
+    ? formatDateTime(project.createdAt)
+    : "—";
+
+  const displayDeadline = (() => {
+    if (!project.deadline) return "—";
+    const num = Number(project.deadline);
+    if (!Number.isNaN(num) && num < 1000) {
+      const d = new Date(project.createdAt || new Date());
+      d.setDate(d.getDate() + num);
+      return formatDateTime(d.toISOString());
+    }
+    return formatDateTime(project.deadline);
+  })();
+
+  const clientName =
+    clientUser?.fullName ||
+    clientUser?.name ||
+    project.clientName ||
+    (typeof project.client === "string" ? project.client : project.client?.fullName || project.client?.name) ||
+    "—";
+
+  const expertName =
+    expertUser?.fullName ||
+    expertUser?.name ||
+    project.expertName ||
+    (typeof project.expert === "string" ? project.expert : project.expert?.fullName || project.expert?.name) ||
+    "—";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* ---- Auto-filled project info ---- */}
@@ -122,49 +187,28 @@ export function ReportForm({
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="Project Name" value={project.title || "—"} />
-          <InfoRow label="Project ID" value={project.id || "—"} />
-          <InfoRow
-            label="Client"
-            value={project.clientName || project.clientId || "—"}
-          />
-          <InfoRow
-            label="Expert"
-            value={project.expertName || project.expertId || "—"}
-          />
+          <InfoRow label="Client" value={clientName} />
+          <InfoRow label="Expert" value={expertName} />
           <InfoRow
             label="Funds in Escrow"
             value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
           />
           <InfoRow label="Status" value={project.status || "—"} />
-          <InfoRow
-            label="Start Date"
-            value={
-              project.startDate
-                ? formatDateTime(project.startDate)
-                : "—"
-            }
-          />
-          <InfoRow
-            label="Deadline"
-            value={
-              project.deadline
-                ? formatDateTime(project.deadline)
-                : "—"
-            }
-          />
+          <InfoRow label="Start Date" value={displayStartDate} />
+          <InfoRow label="Deadline" value={displayDeadline} />
         </div>
       </div>
 
-      {/* ---- Expert-entered fields ---- */}
+      {/* ---- Entered fields ---- */}
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          Report Reason <span className="text-red-500">*</span>
+          {isResponse ? "Lý do phản hồi" : "Report Reason"} <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Client has not paid after project completion"
+          placeholder={isResponse ? "Ví dụ: Sản phẩm đã hoàn thành nhưng khách hàng không giải ngân" : "e.g. Client has not paid after project completion"}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
             errors.reason ? "border-red-300" : "border-input"
           }`}
@@ -182,8 +226,8 @@ export function ReportForm({
         <select
           value={disputeType}
           onChange={(e) => setDisputeType(e.target.value)}
-          className="w-full px-4 py-2.5 border border-input rounded-lg text-sm focus:outline-none focus:border-brand-primary"
-          disabled={isLoading}
+          className="w-full px-4 py-2.5 border border-input rounded-lg text-sm focus:outline-none focus:border-brand-primary bg-secondary/30 disabled:opacity-80 disabled:cursor-not-allowed"
+          disabled={isLoading || isResponse}
         >
           {DISPUTE_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -195,12 +239,12 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          Detailed Description <span className="text-red-500">*</span>
+          {isResponse ? "Mô tả phản hồi chi tiết" : "Detailed Description"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the issue in detail, timeline of events..."
+          placeholder={isResponse ? "Mô tả chi tiết nội dung giải trình..." : "Describe the issue in detail, timeline of events..."}
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.description ? "border-red-300" : "border-input"
@@ -214,12 +258,12 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          Desired Resolution <span className="text-red-500">*</span>
+          {isResponse ? "Phương án giải quyết mong muốn" : "Desired Resolution"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={desiredResolution}
           onChange={(e) => setDesiredResolution(e.target.value)}
-          placeholder="How would you like this to be resolved?"
+          placeholder={isResponse ? "Ví dụ: Yêu cầu giải ngân toàn bộ số tiền escrow" : "How would you like this to be resolved?"}
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.desiredResolution ? "border-red-300" : "border-input"
@@ -237,7 +281,7 @@ export function ReportForm({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-foreground/80">
-            Evidence <span className="text-red-500">*</span>
+            {isResponse ? "Tài liệu / Bằng chứng" : "Evidence"} <span className="text-red-500">*</span>
           </label>
           <button
             type="button"
@@ -320,11 +364,11 @@ export function ReportForm({
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> Expert •{" "}
+          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} •{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">
-          This report will be sent to Admin for dispute resolution review.
+          {isResponse ? "Phản hồi này sẽ được gửi tới Admin để xem xét giải quyết tranh chấp." : "This report will be sent to Admin for dispute resolution review."}
         </p>
       </div>
 
@@ -336,7 +380,7 @@ export function ReportForm({
           disabled={isLoading}
           className="px-5 py-2.5 border border-input rounded-lg text-sm font-medium text-foreground/80 hover:bg-secondary/60 disabled:opacity-50 transition"
         >
-          Cancel
+          {isResponse ? "Hủy" : "Cancel"}
         </button>
         <button
           type="submit"
@@ -346,10 +390,10 @@ export function ReportForm({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Submitting Report...
+              {isResponse ? "Đang gửi phản hồi..." : "Submitting Report..."}
             </>
           ) : (
-            "Submit Report"
+            submitLabel
           )}
         </button>
       </div>

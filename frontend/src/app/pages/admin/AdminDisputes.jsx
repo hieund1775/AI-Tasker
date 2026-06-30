@@ -60,7 +60,13 @@ export function AdminDisputes() {
       if (statusFilter) params.status = statusFilter;
       if (searchTerm) params.search = searchTerm;
       const result = await getReports(params);
-      setReports(result?.data || []);
+      const data = result?.data || [];
+      const sorted = [...data].sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.submittedAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.submittedAt || 0).getTime();
+        return timeB - timeA;
+      });
+      setReports(sorted);
     } catch (err) {
       setError(err.message || "Unable to load reports.");
       setReports([]);
@@ -83,22 +89,32 @@ export function AdminDisputes() {
     },
     {
       key: "status",
-      label: "Status",
-      render: (val) => (
-        <StatusBadge
-          status={val || "Pending Admin"}
-          config={REPORT_STATUS_CONFIG}
-        />
-      ),
-    },
-    {
-      key: "amount",
-      label: "Amount",
-      render: (val) => (
-        <span className="text-sm font-medium text-foreground">
-          {val != null ? <MoneyDisplay amount={val} /> : "—"}
-        </span>
-      ),
+      label: "Loại báo cáo",
+      render: (val, row) => {
+        const reportTypes = {
+          financial: "Báo cáo tài chính",
+          communication: "Báo cáo trao đổi",
+          quality: "Báo cáo chất lượng",
+          deadline: "Báo cáo tiến độ",
+          other: "Báo cáo khác",
+          cancellation: "Báo cáo hủy dự án",
+        };
+        const label = reportTypes[row.disputeType] || "Báo cáo tiến độ";
+        const colors = {
+          financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
+          communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
+          quality: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800",
+          deadline: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
+          other: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
+          cancellation: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
+        };
+        const badgeClass = colors[row.disputeType] || colors.other;
+        return (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
+            {label}
+          </span>
+        );
+      },
     },
     {
       key: "reporter",
@@ -106,27 +122,40 @@ export function AdminDisputes() {
       render: (val, row) => {
         const isClientReporter = row.reporterRole === "client";
         return (
-          <div>
-            <p className="font-semibold text-foreground text-sm">
-              {isClientReporter ? row.clientName : row.expertName}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-              {isClientReporter ? "Khách hàng (Client)" : "Chuyên gia (Expert)"}
-            </p>
-            <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-1" title={row.reason || row.description}>
-              Lý do: {row.reason || row.description || "—"}
-            </p>
-          </div>
+          <span className="font-semibold text-foreground text-sm">
+            {isClientReporter ? row.clientName : row.expertName}
+          </span>
         );
       },
+    },
+    {
+      key: "accused",
+      label: "Accused",
+      render: (val, row) => {
+        const isClientReporter = row.reporterRole === "client";
+        return (
+          <span className="font-semibold text-foreground text-sm">
+            {isClientReporter ? row.expertName : row.clientName}
+          </span>
+        );
+      },
+    },
+    {
+      key: "createdAt",
+      label: "Thời gian gửi báo cáo",
+      render: (val) => (
+        <span className="text-xs font-medium text-muted-foreground">
+          {val ? formatDateTime(val) : "—"}
+        </span>
+      ),
     },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
-        title="Dispute Management"
-        subtitle="Review and resolve dispute reports between Clients and Experts."
+        title="Report Progress"
+        subtitle="Review and track progress reports between Clients and Experts."
       />
 
       {/* Error state */}
@@ -197,7 +226,7 @@ export function AdminDisputes() {
         columns={columns}
         data={reports}
         loading={loading}
-        emptyMessage="No dispute reports found."
+        emptyMessage="No progress reports found."
         actions={(row) => (
           <Link
             to={`/admin/disputes/${row.id}`}
