@@ -84,6 +84,7 @@ Lưu trữ và ràng buộc pháp lý bằng chữ ký số giữa Client và Ex
 Nghiệp vụ cốt lõi hỗ trợ đăng tin tuyển dụng và gửi hồ sơ đề xuất giải pháp kỹ thuật.
 
 ### 6.1 JobPosts Endpoints (`JobPostsController`)
+* **Hỗ trợ WBS (Work Breakdown Structure)**: Hỗ trợ cấu trúc phân rã công việc đa cấp bao gồm Tasks và MiniTasks dưới dạng trường `Implementation` dạng JSON, tự động phân giải và lưu trữ vào các bảng con `JobPostTasks` và `JobPostMiniTasks` trong CSDL khi tạo hoặc cập nhật bài đăng.
 * **`POST /api/jobposts/upload-file`**
   * **Chức năng**: Tải lên tập tin đính kèm cho bài đăng công việc (Giới hạn cứng 10MB).
 * **`POST /api/jobposts/generate-milestone-md/{proposalId}`**

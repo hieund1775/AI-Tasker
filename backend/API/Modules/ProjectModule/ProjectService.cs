@@ -16,7 +16,7 @@ public class ProjectService : IProjectService
         _context = context;
     }
 
-    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, DateTime? deadline, int duration)
+    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? deadlineDays)
     {
         var miniTask = await _context.MiniTasks.FirstOrDefaultAsync(x => x.Id == miniTaskId);
         if (miniTask == null) return null;
@@ -27,9 +27,11 @@ public class ProjectService : IProjectService
             miniTask.FeedbackContent = feedbackContent;
         }
         
-        // Cập nhật deadline nếu được truyền
-        miniTask.Deadline = deadline;
-        miniTask.Duration = duration;
+        // Cập nhật deadline nếu số ngày được truyền vào
+        if (deadlineDays.HasValue)
+        {
+            miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
+        }
 
         await _context.SaveChangesAsync();
         return miniTask;
@@ -105,7 +107,7 @@ public class ProjectService : IProjectService
         return null;
     }
 
-    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, DateTime? deadline, int duration)
+    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? deadlineDays)
     {
         var miniTask = new MiniTask
         {
@@ -114,8 +116,7 @@ public class ProjectService : IProjectService
             Title = title,
             IsCompleted = false,
             CreatedAt = DateTime.UtcNow,
-            Deadline = deadline,
-            Duration = duration
+            Deadline = deadlineDays.HasValue ? DateTime.UtcNow.AddDays(deadlineDays.Value) : null
         };
 
         _context.MiniTasks.Add(miniTask);
@@ -211,8 +212,7 @@ public class ProjectService : IProjectService
                             Title = propMini.Title,
                             IsCompleted = false,
                             CreatedAt = DateTime.UtcNow,
-                            Deadline = propMini.Deadline,
-                            Duration = propMini.Duration
+                            Deadline = DateTime.UtcNow.AddDays(propMini.Duration)
                         };
                         _context.MiniTasks.Add(miniTask);
                     }

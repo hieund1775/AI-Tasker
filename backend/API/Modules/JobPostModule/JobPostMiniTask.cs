@@ -5,21 +5,21 @@ using System.Text.Json.Serialization;
 
 namespace AITasker_Modular.Modules.JobModule
 {
-    [Table("ProposalMiniTasks")]
-    public class ProposalMiniTask
+    [Table("JobPostMiniTasks")]
+    public class JobPostMiniTask
     {
         [Key]
         public Guid Id { get; set; }
-        
-        public Guid ProposalTaskId { get; set; }
-        
+
+        public Guid JobPostTaskId { get; set; }
+
         [Required]
         public string Title { get; set; } = string.Empty;
-        
+
         public int Duration { get; set; }
 
-        [ForeignKey("ProposalTaskId")]
+        [ForeignKey("JobPostTaskId")]
         [JsonIgnore]
-        public ProposalTask? ProposalTask { get; set; }
+        public JobPostTask? JobPostTask { get; set; }
     }
 }

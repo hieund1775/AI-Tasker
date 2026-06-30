@@ -7,7 +7,6 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
     {
         [Required]
         public string Title { get; set; } = string.Empty;
-        public DateTime? Deadline { get; set; }
-        public int Duration { get; set; }
+        public int? DeadlineDays { get; set; }
     }
 }

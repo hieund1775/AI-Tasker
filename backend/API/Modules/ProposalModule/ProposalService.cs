@@ -31,7 +31,6 @@ namespace AITasker_Modular.Modules.ProposalModule
         private class ProposalMiniTaskJsonDto
         {
             public string Title { get; set; } = string.Empty;
-            public DateTime? Deadline { get; set; }
             public int Duration { get; set; }
         }
 
@@ -60,7 +59,6 @@ namespace AITasker_Modular.Modules.ProposalModule
                                 Id = Guid.NewGuid(),
                                 ProposalTaskId = task.Id,
                                 Title = mDto.Title,
-                                Deadline = mDto.Deadline,
                                 Duration = mDto.Duration
                             }).ToList();
                             tasks.Add(task);
@@ -102,12 +100,11 @@ namespace AITasker_Modular.Modules.ProposalModule
             var list = proposal.ProposalTasks.Select(t => new
             {
                 Title = t.Title,
-                TotalDuration = t.TotalDuration,
+                Duration = t.Duration,
                 MiniTasks = t.ProposalMiniTasks != null
                     ? t.ProposalMiniTasks.Select(m => new
                     {
                         Title = m.Title,
-                        Deadline = m.Deadline,
                         Duration = m.Duration
                     }).ToList()
                     : new()
@@ -338,22 +335,22 @@ namespace AITasker_Modular.Modules.ProposalModule
         public async Task<object?> AnalyzeAndSplitUseCasesAsync(Guid jobPostId)
         {
             var job = await _context.JobPosts
-                .Include(j => j.JobRequirements)
+                .Include(j => j.JobPostTasks)
                 .FirstOrDefaultAsync(x => x.Id == jobPostId);
 
             if (job == null) return null;
 
             var useCases = new List<object>();
 
-            if (job.JobRequirements != null && job.JobRequirements.Any())
+            if (job.JobPostTasks != null && job.JobPostTasks.Any())
             {
-                foreach (var req in job.JobRequirements)
+                foreach (var req in job.JobPostTasks)
                 {
                     useCases.Add(new {
-                        UseCase = req.UseCaseName,
-                        Description = req.Description,
+                        UseCase = req.Title,
+                        Description = string.Empty,
                         Complexity = "Medium",
-                        EstimatedHours = 12
+                        EstimatedHours = req.Duration
                     });
                 }
             }

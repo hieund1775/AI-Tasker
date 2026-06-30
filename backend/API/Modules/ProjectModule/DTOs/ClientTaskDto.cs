@@ -11,6 +11,6 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
         public DateTime UpdatedAt { get; set; }
         public string? FeedbackContent { get; set; }
         public Guid? FeedbackSenderId { get; set; }
-        public int TotalDuration { get; set; }
+        public DateTime? Deadline { get; set; }
     }
 }

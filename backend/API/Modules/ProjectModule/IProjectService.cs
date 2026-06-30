@@ -11,11 +11,11 @@ namespace AITasker_Modular.Modules.ProjectModule
         Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status);
         Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink);
         Task<Project?> GetProjectByIdAsync(Guid projectId);
-        Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, DateTime? deadline, int duration);
+        Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? deadlineDays);
         Task<Task?> GetTaskWithTimelineAsync(Guid taskId);
         Task<Task?> UpdateTaskStatusAsync(Guid taskId, string status);
         Task<Task?> CreateTaskAsync(Guid projectId, string title);
-        Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, DateTime? deadline, int duration);
+        Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? deadlineDays);
         Task<bool> DeleteTaskAsync(Guid taskId);
         Task<bool> DeleteMiniTaskAsync(Guid miniTaskId);
         Task<Task?> SubmitTaskForReviewAsync(Guid taskId);

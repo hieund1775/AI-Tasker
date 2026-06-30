@@ -38,6 +38,8 @@ public class JobPost
     // THAO TÁC CƠ HỌC: ĐỤC THÊM TRƯỜNG LƯU ĐƯỜNG DẪN TỆP TIN ĐÍNH KÈM CỦA BÀI POST
     public string? AttachmentUrl { get; set; }
 
+    public string? Implementation { get; set; }
+
     [ForeignKey("ClientId")]
     [JsonIgnore]
     public ApplicationUser? ClientUser { get; set; }
@@ -51,5 +53,5 @@ public class JobPost
     public Specialization? Specialization { get; set; }
 
     public ICollection<JobPostSkill> JobPostSkills { get; set; } = new List<JobPostSkill>();
-    public ICollection<JobRequirement> JobRequirements { get; set; } = new List<JobRequirement>();
+    public ICollection<JobPostTask> JobPostTasks { get; set; } = new List<JobPostTask>();
 }

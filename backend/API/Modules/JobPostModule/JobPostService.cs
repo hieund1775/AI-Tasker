@@ -19,6 +19,96 @@ public class JobPostService : IJobPostService
         _context = context;
     }
 
+    private class JobPostTaskJsonDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public List<JobPostMiniTaskJsonDto> MiniTasks { get; set; } = new();
+    }
+
+    private class JobPostMiniTaskJsonDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public int Duration { get; set; }
+    }
+
+    private void SaveJobPostWbs(Guid jobPostId, string implementationInput)
+    {
+        var tasks = new List<JobPostTask>();
+        string trimmed = implementationInput?.Trim() ?? string.Empty;
+
+        if (trimmed.StartsWith("["))
+        {
+            try
+            {
+                var parsed = System.Text.Json.JsonSerializer.Deserialize<List<JobPostTaskJsonDto>>(trimmed);
+                if (parsed != null)
+                {
+                    foreach (var tDto in parsed)
+                    {
+                        var task = new JobPostTask
+                        {
+                            Id = Guid.NewGuid(),
+                            JobPostId = jobPostId,
+                            Title = tDto.Title
+                        };
+                        task.JobPostMiniTasks = tDto.MiniTasks.Select(mDto => new JobPostMiniTask
+                        {
+                            Id = Guid.NewGuid(),
+                            JobPostTaskId = task.Id,
+                            Title = mDto.Title,
+                            Duration = mDto.Duration
+                        }).ToList();
+                        tasks.Add(task);
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback to single text task on error
+                var task = new JobPostTask
+                {
+                    Id = Guid.NewGuid(),
+                    JobPostId = jobPostId,
+                    Title = trimmed
+                };
+                tasks.Add(task);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(trimmed))
+        {
+            var task = new JobPostTask
+            {
+                Id = Guid.NewGuid(),
+                JobPostId = jobPostId,
+                Title = trimmed
+            };
+            tasks.Add(task);
+        }
+
+        if (tasks.Any())
+        {
+            _context.JobPostTasks.AddRange(tasks);
+        }
+    }
+
+    private string GetJobPostWbsJson(JobPost jobPost)
+    {
+        if (jobPost.JobPostTasks == null || !jobPost.JobPostTasks.Any()) return string.Empty;
+        var list = jobPost.JobPostTasks.Select(t => new
+        {
+            Title = t.Title,
+            Duration = t.Duration,
+            MiniTasks = t.JobPostMiniTasks != null
+                ? t.JobPostMiniTasks.Select(m => new
+                {
+                    Title = m.Title,
+                    Duration = m.Duration
+                }).ToList()
+                : new()
+        }).ToList();
+        return System.Text.Json.JsonSerializer.Serialize(list);
+    }
+
     public async Task<JobPost> CreateJobAsync(CreateJobPostDto jobPostDto)
     {
         int deadlineDays = jobPostDto.Deadline;
@@ -45,7 +135,8 @@ public class JobPostService : IJobPostService
             Status = "Open", 
             CreatedAt = DateTime.UtcNow,
             DomainId = jobPostDto.DomainId,
-            SpecializationId = jobPostDto.SpecializationId
+            SpecializationId = jobPostDto.SpecializationId,
+            Implementation = jobPostDto.Implementation
         };
 
         if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
@@ -59,56 +150,55 @@ public class JobPostService : IJobPostService
             }
         }
 
-        if (jobPostDto.Requirements != null && jobPostDto.Requirements.Any())
-        {
-            foreach (var req in jobPostDto.Requirements)
-            {
-                jobPost.JobRequirements.Add(new JobRequirement
-                {
-                    Id = Guid.NewGuid(),
-                    JobPostId = jobPost.Id,
-                    UseCaseName = req.UseCaseName.Trim(),
-                    Description = req.Description?.Trim()
-                });
-            }
-        }
-
         _context.JobPosts.Add(jobPost);
+        if (!string.IsNullOrWhiteSpace(jobPostDto.Implementation))
+        {
+            SaveJobPostWbs(jobPost.Id, jobPostDto.Implementation);
+        }
         await _context.SaveChangesAsync();
         return (await GetJobPostByIdAsync(jobPost.Id))!;
     }
 
     public async Task<IReadOnlyList<JobPost>> GetJobsAsync()
     {
-        return await _context.JobPosts
+        var list = await _context.JobPosts
                              .Include(jp => jp.ClientUser)
                              .Include(jp => jp.Domain) 
                              .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
-                             .Include(jp => jp.JobRequirements)
-                             .AsNoTracking() 
+                             .Include(jp => jp.JobPostTasks)
+                                 .ThenInclude(t => t.JobPostMiniTasks)
                              .ToListAsync();
+        foreach (var jp in list)
+        {
+            jp.Implementation = GetJobPostWbsJson(jp);
+        }
+        return list;
     }
 
     public async Task<JobPost?> GetJobPostByIdAsync(Guid id)
     {
-        return await _context.JobPosts
+        var jobPost = await _context.JobPosts
                              .Include(jp => jp.ClientUser)
                              .Include(jp => jp.Domain)
                              .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
-                             .Include(jp => jp.JobRequirements)
-                             .AsNoTracking()
+                             .Include(jp => jp.JobPostTasks)
+                                 .ThenInclude(t => t.JobPostMiniTasks)
                              .FirstOrDefaultAsync(jp => jp.Id == id);
+        if (jobPost != null)
+        {
+            jobPost.Implementation = GetJobPostWbsJson(jobPost);
+        }
+        return jobPost;
     }
 
     public async Task<JobPost?> UpdateJobPostAsync(Guid id, UpdateJobPostDto jobPostDto)
     {
         var jobPost = await _context.JobPosts
                                      .Include(jp => jp.JobPostSkills)
-                                     .Include(jp => jp.JobRequirements)
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
 
@@ -146,24 +236,17 @@ public class JobPostService : IJobPostService
             }
         }
 
-        if (jobPost.JobRequirements?.Any() == true)
-        {
-            _context.Set<JobRequirement>().RemoveRange(jobPost.JobRequirements);
-            jobPost.JobRequirements.Clear();
-        }
 
-        if (jobPostDto.Requirements != null && jobPostDto.Requirements.Any())
+        jobPost.Implementation = jobPostDto.Implementation;
+
+        if (jobPostDto.Implementation != null)
         {
-            jobPost.JobRequirements ??= new List<JobRequirement>();
-            foreach (var req in jobPostDto.Requirements)
+            var oldTasks = await _context.JobPostTasks.Where(t => t.JobPostId == id).ToListAsync();
+            _context.JobPostTasks.RemoveRange(oldTasks);
+
+            if (!string.IsNullOrWhiteSpace(jobPostDto.Implementation))
             {
-                jobPost.JobRequirements.Add(new JobRequirement
-                {
-                    Id = Guid.NewGuid(),
-                    JobPostId = jobPost.Id,
-                    UseCaseName = req.UseCaseName.Trim(),
-                    Description = req.Description?.Trim()
-                });
+                SaveJobPostWbs(id, jobPostDto.Implementation);
             }
         }
 
@@ -179,7 +262,8 @@ public class JobPostService : IJobPostService
                             .Include(jp => jp.Specialization)
                             .Include(jp => jp.JobPostSkills)
                                 .ThenInclude(jps => jps.Skill)
-                            .Include(jp => jp.JobRequirements)
+                            .Include(jp => jp.JobPostTasks)
+                                .ThenInclude(t => t.JobPostMiniTasks)
                             .AsQueryable();
 
         if (!string.IsNullOrEmpty(search))
@@ -202,21 +286,32 @@ public class JobPostService : IJobPostService
             query = query.Where(x => x.DomainId == categoryDomainId.Value);
         }
 
-        return await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        foreach (var jp in list)
+        {
+            jp.Implementation = GetJobPostWbsJson(jp);
+        }
+        return list;
     }
 
     public async Task<IEnumerable<JobPost>> GetJobPostsByClientIdAsync(Guid clientId)
     {
-        return await _context.JobPosts
+        var list = await _context.JobPosts
                              .Include(jp => jp.ClientUser)
                              .Include(jp => jp.Domain)
                              .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
-                             .Include(jp => jp.JobRequirements)
+                             .Include(jp => jp.JobPostTasks)
+                                 .ThenInclude(t => t.JobPostMiniTasks)
                              .Where(x => x.ClientId == clientId)
                              .OrderByDescending(x => x.CreatedAt)
                              .ToListAsync();
+        foreach (var jp in list)
+        {
+            jp.Implementation = GetJobPostWbsJson(jp);
+        }
+        return list;
     }
 
     // ── THAO TÁC CƠ HỌC ĐỤC THÊM 1: LƯU TRỮ TỆP TIN VẬT LÝ AN TOÀN TUYỆT ĐỐI ──

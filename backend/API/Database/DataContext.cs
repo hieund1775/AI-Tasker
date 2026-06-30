@@ -43,7 +43,6 @@ public class DataContext : DbContext
     public DbSet<Wallet> Wallets { get; set; }
     public DbSet<Skill> Skills { get; set; }
     public DbSet<JobPost> JobPosts { get; set; }
-    public DbSet<JobRequirement> JobRequirements { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<ProjectTask> ProjectTasks { get; set; } 
@@ -57,6 +56,8 @@ public class DataContext : DbContext
     public DbSet<JobPostSkill> JobPostSkills { get; set; }
     public DbSet<ProjectSkill> ProjectSkills { get; set; }
     public DbSet<ProposalAiChat> ProposalAiChats { get; set; }
+    public DbSet<JobPostTask> JobPostTasks { get; set; }
+    public DbSet<JobPostMiniTask> JobPostMiniTasks { get; set; }
     
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<Report> Reports { get; set; }
@@ -81,7 +82,6 @@ public class DataContext : DbContext
         modelBuilder.Entity<Specialization>().HasKey(x => x.Id);
         modelBuilder.Entity<Skill>().HasKey(x => x.Id);
         modelBuilder.Entity<JobPost>().HasKey(x => x.Id);
-        modelBuilder.Entity<JobRequirement>().HasKey(x => x.Id);
         modelBuilder.Entity<Proposal>().HasKey(x => x.Id);
         modelBuilder.Entity<Project>().HasKey(x => x.Id);
         modelBuilder.Entity<ProjectTask>().HasKey(x => x.Id);
@@ -208,6 +208,21 @@ public class DataContext : DbContext
             .HasOne(x => x.ProposalTask)
             .WithMany(x => x.ProposalMiniTasks)
             .HasForeignKey(x => x.ProposalTaskId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Mối quan hệ WBS của JobPost
+        modelBuilder.Entity<JobPostTask>().HasKey(x => x.Id);
+        modelBuilder.Entity<JobPostTask>()
+            .HasOne(x => x.JobPost)
+            .WithMany(x => x.JobPostTasks)
+            .HasForeignKey(x => x.JobPostId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<JobPostMiniTask>().HasKey(x => x.Id);
+        modelBuilder.Entity<JobPostMiniTask>()
+            .HasOne(x => x.JobPostTask)
+            .WithMany(x => x.JobPostMiniTasks)
+            .HasForeignKey(x => x.JobPostTaskId)
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Specialization>().HasOne(x => x.Domain).WithMany(x => x.Specializations).HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.Cascade);

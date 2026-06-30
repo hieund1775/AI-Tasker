@@ -40,7 +40,7 @@ public class AiRecommendationService
         {
             var jobPost = await _context.JobPosts
                 .Include(j => j.JobPostSkills).ThenInclude(js => js.Skill)
-                .Include(j => j.JobRequirements)
+                .Include(j => j.JobPostTasks)
                 .Include(j => j.Domain)
                 .Include(j => j.Specialization)
                 .FirstOrDefaultAsync(j => j.Id == dto.JobPostId.Value);
@@ -62,8 +62,8 @@ public class AiRecommendationService
                 .Select(js => js.Skill?.Name ?? string.Empty)
                 .Where(name => !string.IsNullOrEmpty(name))
                 .ToList();
-            detailedRequirements = jobPost.JobRequirements
-                .Select(r => $"{r.UseCaseName}: {r.Description}")
+            detailedRequirements = jobPost.JobPostTasks
+                .Select(r => r.Title)
                 .Where(desc => !string.IsNullOrEmpty(desc))
                 .ToList();
         }

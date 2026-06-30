@@ -25,6 +25,6 @@ namespace AITasker_Modular.Modules.JobModule
         public ICollection<ProposalMiniTask> ProposalMiniTasks { get; set; } = new List<ProposalMiniTask>();
 
         [NotMapped]
-        public int TotalDuration => ProposalMiniTasks?.Sum(m => m.Duration) ?? 0;
+        public int Duration => ProposalMiniTasks?.Sum(m => m.Duration) ?? 0;
     }
 }

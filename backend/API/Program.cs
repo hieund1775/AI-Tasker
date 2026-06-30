@@ -249,17 +249,22 @@ using (var scope = app.Services.CreateScope())
                 DomainId = nlpDomain?.Id,
                 SpecializationId = chatbotSpec?.Id,
                 DurationValue = 15,
-                DurationUnit = "Days"
+                DurationUnit = "Days",
+                Implementation = "[{\"Title\":\"Thiết lập cơ sở dữ liệu Vector (ChromaDB)\",\"MiniTasks\":[{\"Title\":\"Cấu hình DB vector để indexing tài liệu.\",\"Duration\":5}]},{\"Title\":\"Tích hợp mô hình ngôn ngữ lớn (GPT-4o)\",\"MiniTasks\":[{\"Title\":\"Xử lý prompt template và kết nối LLM API.\",\"Duration\":7}]},{\"Title\":\"Xây dựng API Endpoint hỏi đáp\",\"MiniTasks\":[{\"Title\":\"Tạo RESTful endpoint kết nối frontend.\",\"Duration\":3}]}]"
             };
             db.JobPosts.Add(testJob);
 
-            // Seed JobRequirements (usecases)
-            db.JobRequirements.AddRange(new List<JobRequirement>
-            {
-                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444441"), JobPostId = jobId, UseCaseName = "Thiết lập cơ sở dữ liệu Vector (ChromaDB)", Description = "Cấu hình DB vector để indexing tài liệu." },
-                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444442"), JobPostId = jobId, UseCaseName = "Tích hợp mô hình ngôn ngữ lớn (GPT-4o)", Description = "Xử lý prompt template và kết nối LLM API." },
-                new JobRequirement { Id = Guid.Parse("44444444-4444-4444-4444-444444444443"), JobPostId = jobId, UseCaseName = "Xây dựng API Endpoint hỏi đáp", Description = "Tạo RESTful endpoint kết nối frontend." }
-            });
+            var task1 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Thiết lập cơ sở dữ liệu Vector (ChromaDB)" };
+            task1.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task1.Id, Title = "Cấu hình DB vector để indexing tài liệu.", Duration = 5 });
+            db.JobPostTasks.Add(task1);
+
+            var task2 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Tích hợp mô hình ngôn ngữ lớn (GPT-4o)" };
+            task2.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task2.Id, Title = "Xử lý prompt template và kết nối LLM API.", Duration = 7 });
+            db.JobPostTasks.Add(task2);
+
+            var task3 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Xây dựng API Endpoint hỏi đáp" };
+            task3.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task3.Id, Title = "Tạo RESTful endpoint kết nối frontend.", Duration = 3 });
+            db.JobPostTasks.Add(task3);
         }
 
         // Seed a Test Proposal
@@ -406,8 +411,7 @@ using (var scope = app.Services.CreateScope())
                 Title = "Viết script python cào log click",
                 IsCompleted = false,
                 CreatedAt = DateTime.UtcNow,
-                Deadline = DateTime.UtcNow.AddDays(7),
-                Duration = 5
+                Deadline = DateTime.UtcNow.AddDays(7)
             });
         }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using AITasker_Modular.Modules.JobModule; // For JobRequirementDto
 
 namespace AITasker_Modular.Modules.JobPostModule
 {
@@ -29,7 +28,7 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public List<string>? SkillIds { get; set; }
 
-        public List<JobRequirementDto>? Requirements { get; set; }
+        public string? Implementation { get; set; }
     }
 
     public class UpdateJobPostDto
@@ -53,6 +52,6 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public List<string>? SkillIds { get; set; }
 
-        public List<JobRequirementDto>? Requirements { get; set; }
+        public string? Implementation { get; set; }
     }
 }

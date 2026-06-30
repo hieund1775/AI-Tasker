@@ -159,7 +159,7 @@ namespace AITasker_Modular.Modules.ProjectModule
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest("Tiêu đề mini-task không được để trống.");
 
-            var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.Deadline, dto.Duration);
+            var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.DeadlineDays);
             if (result == null)
                 return NotFound("Không tìm thấy task tương ứng.");
 
@@ -169,7 +169,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         [HttpPut("minitasks/{miniTaskId:guid}")]
         public async Task<IActionResult> UpdateMiniTask(Guid miniTaskId, [FromBody] DTOs.UpdateMiniTaskDto dto)
         {
-            var result = await _projectService.UpdateMiniTaskAsync(miniTaskId, dto.IsCompleted, dto.FeedbackContent, dto.FeedbackSenderId, dto.Deadline, dto.Duration);
+            var result = await _projectService.UpdateMiniTaskAsync(miniTaskId, dto.IsCompleted, dto.FeedbackContent, dto.FeedbackSenderId, dto.DeadlineDays);
             if (result == null) return NotFound("Không tìm thấy mini-task tương ứng.");
             return Ok(result);
         }
@@ -218,7 +218,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                     UpdatedAt = t.UpdatedAt,
                     FeedbackContent = t.FeedbackContent,
                     FeedbackSenderId = t.FeedbackSenderId,
-                    TotalDuration = t.TotalDuration
+                    Deadline = t.Deadline
                 }).ToList()
             };
         }
@@ -253,7 +253,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                     UpdatedAt = t.UpdatedAt,
                     FeedbackContent = t.FeedbackContent,
                     FeedbackSenderId = t.FeedbackSenderId,
-                    TotalDuration = t.TotalDuration,
+                    Deadline = t.Deadline,
                     MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
                     {
                         Id = mt.Id,
@@ -263,8 +263,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                         FeedbackContent = mt.FeedbackContent,
                         FeedbackSenderId = mt.FeedbackSenderId,
                         CreatedAt = mt.CreatedAt,
-                        Deadline = mt.Deadline,
-                        Duration = mt.Duration
+                        Deadline = mt.Deadline
                     }).ToList()
                 }).ToList()
             };

@@ -259,12 +259,11 @@ public class UserService : IUserService
                 var list = p.ProposalTasks.Select(t => new
                 {
                     Title = t.Title,
-                    TotalDuration = t.TotalDuration,
+                    Duration = t.Duration,
                     MiniTasks = t.ProposalMiniTasks != null
                         ? t.ProposalMiniTasks.Select(m => new
                         {
                             Title = m.Title,
-                            Deadline = m.Deadline,
                             Duration = m.Duration
                         }).ToList()
                         : new()

@@ -4,6 +4,7 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker_Modular.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260630165209_AddJobPostWBS")]
+    partial class AddJobPostWBS
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -102,7 +105,7 @@ namespace AITasker_Modular.Migrations
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             TotalBalance = 0m,
-                            UpdatedAt = new DateTime(2026, 6, 30, 17, 15, 23, 583, DateTimeKind.Utc).AddTicks(9570)
+                            UpdatedAt = new DateTime(2026, 6, 30, 16, 52, 8, 716, DateTimeKind.Utc).AddTicks(6476)
                         });
                 });
 
@@ -601,6 +604,30 @@ namespace AITasker_Modular.Migrations
                     b.ToTable("JobPostTasks");
                 });
 
+            modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("JobPostId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("UseCaseName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobPostId");
+
+                    b.ToTable("JobRequirements");
+                });
+
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.Proposal", b =>
                 {
                     b.Property<Guid>("Id")
@@ -700,6 +727,9 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<DateTime?>("Deadline")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("int");
 
                     b.Property<string>("FeedbackContent")
                         .HasColumnType("longtext");
@@ -1201,6 +1231,17 @@ namespace AITasker_Modular.Migrations
                     b.Navigation("JobPost");
                 });
 
+            modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobRequirement", b =>
+                {
+                    b.HasOne("AITasker_Modular.Modules.JobModule.JobPost", "JobPost")
+                        .WithMany("JobRequirements")
+                        .HasForeignKey("JobPostId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("JobPost");
+                });
+
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.Proposal", b =>
                 {
                     b.HasOne("AITasker_Modular.Modules.UserModule.ApplicationUser", "Expert")
@@ -1367,6 +1408,8 @@ namespace AITasker_Modular.Migrations
                     b.Navigation("JobPostSkills");
 
                     b.Navigation("JobPostTasks");
+
+                    b.Navigation("JobRequirements");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.JobModule.JobPostTask", b =>
