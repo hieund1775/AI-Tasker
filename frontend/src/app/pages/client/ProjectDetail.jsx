@@ -1,6 +1,11 @@
 // =============================================================================
 // ClientProjectDetail — Project detail page for Client role.
 //
+// ⚠️  DEPRECATED — NOT in active routing.
+//     routes.jsx imports ProjectDetail from ClientProjectManagement.jsx,
+//     not this file. This file is dead code, kept for reference only.
+//     Active page: src/app/pages/client/ClientProjectManagement.jsx
+//
 // Features:
 //   - View project details
 //   - "Pay Project" button — pay full amount into escrow
@@ -11,7 +16,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router";
-import { Clock, DollarSign, User, ShieldCheck, CheckCircle, AlertTriangle } from "lucide-react";
+import { Clock, ReceiptText, User, ShieldCheck, CheckCircle, AlertTriangle } from "lucide-react";
 import { ProjectTimelineManager } from "../../components/project/ProjectTimelineManager.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -149,14 +154,14 @@ export function ProjectDetail() {
         <BackButton fallback="/client/dashboard" className="mb-6">
           Back
         </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-12 shadow-sm">
           <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded w-64" />
-            <div className="h-4 bg-gray-200 rounded w-full" />
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
+            <div className="h-8 bg-muted rounded w-64" />
+            <div className="h-4 bg-muted rounded w-full" />
+            <div className="h-4 bg-muted rounded w-3/4" />
             <div className="flex gap-4">
-              <div className="h-6 bg-gray-200 rounded w-32" />
-              <div className="h-6 bg-gray-200 rounded w-32" />
+              <div className="h-6 bg-muted rounded w-32" />
+              <div className="h-6 bg-muted rounded w-32" />
             </div>
           </div>
         </div>
@@ -173,11 +178,11 @@ export function ProjectDetail() {
         <BackButton fallback="/client/dashboard" className="mb-6">
           Back
         </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-500">
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-muted-foreground">
             Unable to Load Project
           </h3>
-          <p className="text-base text-gray-400 mt-1">
+          <p className="text-base text-muted-foreground mt-1">
             An error occurred while loading project details. Please try again later.
           </p>
         </div>
@@ -194,11 +199,11 @@ export function ProjectDetail() {
         <BackButton fallback="/client/dashboard" className="mb-6">
           Back
         </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-500">
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-muted-foreground">
             Project Not Found
           </h3>
-          <p className="text-base text-gray-400 mt-1">
+          <p className="text-base text-muted-foreground mt-1">
             The project you are looking for may have been removed.
           </p>
         </div>
@@ -226,23 +231,15 @@ export function ProjectDetail() {
       {isDisputed && <DisputeBanner className="mb-6" />}
 
       {/* ---- Project header ---- */}
-      <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+      <div className="bg-card rounded-xl border border-border p-8 shadow-sm mb-8">
+        <h1 className="text-2xl font-bold text-foreground mb-4">
           {project.title}
         </h1>
-        <p className="text-gray-600 mb-4">{project.description}</p>
-        <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-6">
+        <p className="text-muted-foreground mb-4">{project.description}</p>
+        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-6">
           <span className="flex items-center gap-1">
-            <DollarSign className="w-4 h-4" />
+            <ReceiptText className="w-4 h-4" />
             Budget: <MoneyDisplay amount={project.budget} />
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            Timeline gốc: {project.originalUseCaseDays || project.deadline || "—"} ngày
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            Deadline: {project.deadline || "—"} ngày
           </span>
           <span className="flex items-center gap-1">
             <Clock className="w-4 h-4" />
@@ -292,7 +289,7 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowPayModal(true)}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <ShieldCheck className="w-4 h-4" />
               Pay Project
@@ -304,7 +301,7 @@ export function ProjectDetail() {
             <button
               type="button"
               disabled
-              className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-11 px-5 bg-muted/80 text-muted-foreground rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4" />
               Funds Held / Project Active
@@ -316,7 +313,7 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowAcceptModal(true)}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <CheckCircle className="w-4 h-4" />
               Complete & Accept
@@ -328,7 +325,7 @@ export function ProjectDetail() {
             <button
               type="button"
               disabled
-              className="h-11 px-5 bg-gray-300 text-gray-500 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-11 px-5 bg-muted/80 text-muted-foreground rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <CheckCircle className="w-4 h-4" />
               Completed
@@ -339,9 +336,9 @@ export function ProjectDetail() {
 
       {/* ---- Timeline (hidden when disputed) ---- */}
       {isDisputed ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm text-center">
+        <div className="bg-card rounded-xl border border-border p-8 shadow-sm text-center">
           <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
-          <p className="text-gray-500 text-base">
+          <p className="text-muted-foreground text-base">
             Project actions are temporarily locked during dispute resolution.
           </p>
         </div>

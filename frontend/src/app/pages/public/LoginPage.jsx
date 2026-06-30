@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle, X } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle, X, Sun, Moon, Monitor } from "lucide-react";
+import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth.js";
+import { useTheme } from "next-themes";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,7 +34,6 @@ export function LoginPage() {
     try {
       const user = await login(email.trim(), password);
 
-      // Redirect expert with incomplete profile to profile edit page
       if (user.role === "expert" && user.hasProfile === false) {
         navigate("/expert/profile/edit", { replace: true });
       } else {
@@ -67,198 +69,240 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 relative">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      {/* Ambient background decorations */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-accent/[0.04] blur-[120px]" />
+        <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] rounded-full bg-primary/[0.03] blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-accent/[0.015] blur-[150px]" />
+      </div>
 
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-brand-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">AI</span>
-            </div>
-            <span className="text-2xl font-bold text-gray-900">Tasker</span>
+      {/* Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+        className="relative max-w-md w-full bg-card rounded-xl border border-border p-8"
+      >
+        {/* Subtle border glow */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/[0.04] via-transparent to-primary/[0.03] pointer-events-none" />
+
+        <div className="relative">
+          <div className="absolute -top-1 -right-1 flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                const modes = ["light", "dark", "system"];
+                const idx = modes.indexOf(theme ?? "system");
+                setTheme(modes[(idx + 1) % modes.length]);
+              }}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+              title={`Theme: ${theme === "system" ? "System" : resolvedTheme === "dark" ? "Dark" : "Light"}`}
+            >
+              {theme === "system" ? (
+                <Monitor className="w-4 h-4" />
+              ) : resolvedTheme === "dark" ? (
+                <Moon className="w-4 h-4" />
+              ) : (
+                <Sun className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </div>
 
-        {view === "forgotPassword" ? (
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Forgot Password
-            </h2>
-            <p className="mt-2 text-gray-600 text-center">
-              {resetSubmitted
-                ? "Check your email for reset instructions."
-                : "Enter your email to receive a password reset link."}
-            </p>
-            {resetSubmitted ? (
-              <div className="text-center mt-8">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-600" />
-                </div>
-                <p className="text-sm text-gray-600 mb-6">
-                  If an account with{" "}
-                  <span className="font-medium text-gray-900">
-                    {resetEmail}
-                  </span>{" "}
-                  exists, password reset instructions will be sent.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setView("login");
-                    setResetSubmitted(false);
-                    setResetEmail("");
-                    setResetError("");
-                  }}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-brand-primary hover:text-brand-primary-hover transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Back to Login
-                </button>
+          <div className="text-center mb-8">
+            <Link to="/" className="inline-flex items-center justify-center gap-2 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-hover rounded-lg flex items-center justify-center relative overflow-hidden">
+                <div
+                  className="absolute inset-0 opacity-30 rounded-lg"
+                  style={{ background: 'radial-gradient(circle at 40% 30%, white 0%, transparent 60%)' }}
+                />
+                <span className="text-primary-foreground font-bold text-base relative z-[1]">AI</span>
               </div>
-            ) : (
-              <form onSubmit={handleResetSubmit} className="space-y-6 mt-8">
-                {resetError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    {resetError}
+              <span className="text-xl font-bold text-foreground tracking-tight">Tasker</span>
+            </Link>
+          </div>
+
+          {view === "forgotPassword" ? (
+            <div>
+              <h2 className="text-xl font-bold text-foreground text-center tracking-tight">
+                Forgot Password
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground text-center">
+                {resetSubmitted
+                  ? "Check your email for reset instructions."
+                  : "Enter your email to receive a password reset link."}
+              </p>
+              {resetSubmitted ? (
+                <div className="text-center mt-8">
+                  <div className="w-14 h-14 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle className="w-7 h-7 text-success" />
                   </div>
-                )}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="email"
-                      value={resetEmail}
-                      onChange={(e) => setResetEmail(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
-                >
-                  Send Reset Link
-                </button>
-                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-6">
+                    If an account with{" "}
+                    <span className="font-medium text-foreground">
+                      {resetEmail}
+                    </span>{" "}
+                    exists, password reset instructions will be sent.
+                  </p>
                   <button
                     type="button"
                     onClick={() => {
                       setView("login");
+                      setResetSubmitted(false);
+                      setResetEmail("");
                       setResetError("");
                     }}
-                    className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-hover transition-colors"
                   >
-                    <ArrowLeft className="w-4 h-4" /> Back to Login
+                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
                   </button>
                 </div>
-              </form>
-            )}
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-3xl font-bold text-gray-900 text-center">
-              Welcome Back
-            </h2>
-            <p className="mt-2 text-gray-600 text-center">
-              Sign in to your account
-            </p>
-            {error && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                {error}
-              </div>
-            )}
-            <form className="space-y-6 mt-6" onSubmit={handleSubmit}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setError("");
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
+              ) : (
+                <form onSubmit={handleResetSubmit} className="space-y-5 mt-8">
+                  {resetError && (
+                    <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-sm text-destructive">
+                      {resetError}
+                    </div>
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1.5">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+                      <input
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
+                        placeholder="your@email.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors"
+                  >
+                    Send Reset Link
+                  </button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setView("login");
+                        setResetError("");
+                      }}
+                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          ) : (
+            <div>
+              <h2 className="text-xl font-bold text-foreground text-center tracking-tight">
+                Welcome Back
+              </h2>
+              <p className="mt-1.5 text-sm text-muted-foreground text-center">
+                Sign in to your account
+              </p>
+              {error && (
+                <div className="mt-4 p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-sm text-destructive">
+                  {error}
+                </div>
+              )}
+              <form className="space-y-4 mt-6" onSubmit={handleSubmit}>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Email Address
+                  </label>
                   <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
+                    type="email"
+                    value={email}
                     onChange={(e) => {
-                      setPassword(e.target.value);
+                      setEmail(e.target.value);
                       setError("");
                     }}
-                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
-                    placeholder="••••••••"
+                    className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
+                    placeholder="your@email.com"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setError("");
+                      }}
+                      className="w-full h-10 px-3.5 pr-10 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" className="rounded border-border accent-accent" />
+                    <span className="text-sm text-muted-foreground">Remember me</span>
+                  </label>
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => setView("forgotPassword")}
+                    className="text-sm text-accent hover:text-accent-hover bg-transparent border-none p-0 cursor-pointer font-medium"
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
+                    Forgot password?
                   </button>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input type="checkbox" className="mr-2" />
-                  <span className="text-sm text-gray-600">Remember me</span>
-                </label>
                 <button
-                  type="button"
-                  onClick={() => setView("forgotPassword")}
-                  className="text-sm text-brand-primary hover:text-brand-primary-hover bg-transparent border-none p-0 cursor-pointer"
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Forgot password?
+                  {submitting ? "Signing in..." : "Sign In"}
                 </button>
+              </form>
+              <div className="mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Don&apos;t have an account?{" "}
+                  <Link
+                    to="/signup"
+                    className="text-accent hover:text-accent-hover font-medium"
+                  >
+                    Sign up
+                  </Link>
+                </p>
               </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-3 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {submitting ? "Signing in..." : "Sign In"}
-              </button>
-            </form>
-            <div className="mt-6 text-center">
-              <p className="text-sm text-gray-600">
-                Don&apos;t have an account?{" "}
-                <Link
-                  to="/signup"
-                  className="text-brand-primary hover:text-brand-primary-hover font-medium"
-                >
-                  Sign up
-                </Link>
-              </p>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

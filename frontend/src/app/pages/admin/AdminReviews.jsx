@@ -131,8 +131,8 @@ export function AdminReviews() {
       label: "Content",
       render: (val, row) => (
         <div className="max-w-xs">
-          <p className="text-sm text-gray-800 line-clamp-2">{val || "—"}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-sm text-foreground line-clamp-2">{val || "—"}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {row.reviewerName || "—"} → {row.targetName || "—"}
           </p>
         </div>
@@ -161,7 +161,7 @@ export function AdminReviews() {
       key: "createdAt",
       label: "Created",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -174,8 +174,8 @@ export function AdminReviews() {
         Back to Dashboard
       </BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Review Management</h1>
-      <p className="text-gray-600 mb-6">
+      <h1 className="text-2xl font-bold text-foreground mb-2">Review Management</h1>
+      <p className="text-muted-foreground mb-6">
         View and manage violating reviews on the platform.
       </p>
 
@@ -194,21 +194,21 @@ export function AdminReviews() {
       {/* Filter row */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by content or user..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-card"
           >
             {REVIEW_STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

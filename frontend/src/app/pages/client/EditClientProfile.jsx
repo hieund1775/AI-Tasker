@@ -106,10 +106,10 @@ export function EditClientProfile() {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-4">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="bg-card rounded-2xl border border-border p-8 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
+              <div key={i} className="h-12 bg-muted rounded-lg" />
             ))}
           </div>
         </div>
@@ -121,15 +121,15 @@ export function EditClientProfile() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/client/profile" className="text-gray-600 hover:text-gray-900">
+        <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Profile</h1>
+        <h1 className="text-2xl font-bold text-foreground">Edit Profile</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
+        className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {[
           { key: "companyName", label: "Company Name", type: "text", required: true },
@@ -141,7 +141,7 @@ export function EditClientProfile() {
           { key: "industry", label: "Industry", type: "text" },
         ].map(({ key, label, type, required }) => (
           <div key={key}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               {label} {required && <span className="text-red-500">*</span>}
             </label>
             <input
@@ -149,33 +149,33 @@ export function EditClientProfile() {
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
               required={required}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Bio / About
           </label>
           <textarea
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center"
+            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
           <Link
             to="/client/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-gray-300 hover:bg-gray-50 font-medium inline-flex items-center justify-center"
+            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

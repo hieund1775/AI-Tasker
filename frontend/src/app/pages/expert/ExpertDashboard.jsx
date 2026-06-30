@@ -9,6 +9,7 @@ import {
   DollarSign,
   Wallet,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
@@ -43,7 +44,9 @@ function isContractActive(project) {
     contractStatus === "signed" ||
     projectStatus === "in_progress" ||
     projectStatus === "in progress" ||
-    projectStatus === "active"
+    projectStatus === "active" ||
+    projectStatus === "disputed" ||
+    projectStatus === "awaiting_cancellation"
   );
 }
 
@@ -127,6 +130,11 @@ export function ExpertDashboard() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
+  const [activeReports, setActiveReports] = useState([]);
+  const [explainingReport, setExplainingReport] = useState(null);
+  const [showExplanationForm, setShowExplanationForm] = useState(false);
+  const [explanationSubmitting, setExplanationSubmitting] = useState(false);
+
   const handleSubmitReport = async (reportData) => {
     setReportSubmitting(true);
     try {
@@ -146,6 +154,28 @@ export function ExpertDashboard() {
     }
   };
 
+  const handleExpertSubmitExplanation = async (formData) => {
+    setExplanationSubmitting(true);
+    try {
+      await api.put(`/reports/${explainingReport.id}`, {
+        expertExplanation: formData.description,
+        expertExplanationReason: formData.reason,
+        expertExplanationDescription: formData.description,
+        expertExplanationDisputeType: formData.disputeType,
+        expertExplanationDesiredResolution: formData.desiredResolution,
+        expertExplanationEvidence: formData.evidence
+      });
+      setShowExplanationForm(false);
+      setExplainingReport(null);
+      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+    } finally {
+      setExplanationSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
@@ -154,19 +184,23 @@ export function ExpertDashboard() {
       let expertProfile = null;
       // Load user details (projects, proposals)
       try {
-        const userRes = await api.users.getById(user.id);
+        const [userRes, reportsRes] = await Promise.all([
+          api.users.getById(user.id),
+          api.get("/reports").catch(() => ({ data: [] })),
+        ]);
         setExpertDetails(userRes);
         expertProfile = userRes?.expertProfile;
+        setActiveReports(reportsRes?.data || []);
         
         const allUserProjects = userRes.projects || [];
         setActiveContracts(
           allUserProjects.filter(
-            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review"].includes(p.status?.toLowerCase())
+            (p) => ["in_progress", "in progress", "active", "disputed", "under_review", "under review", "awaiting_cancellation"].includes(p.status?.toLowerCase())
           )
         );
         setCompletedProjects(
           allUserProjects.filter(
-            (p) => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "complete"
+            (p) => ["completed", "complete", "cancel_done"].includes(p.status?.toLowerCase())
           )
         );
         
@@ -400,17 +434,37 @@ export function ExpertDashboard() {
                         </span>
                       </div>
                       <div className="flex items-center">
-                        {!["disputed", "under_review", "under review"].includes(p.status?.toLowerCase()) && (
-                          <button
-                            onClick={() => {
-                              setReportingProject(p);
-                              setShowReportForm(true);
-                            }}
-                            className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                          </button>
-                        )}
+                        {(() => {
+                          const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
+                          if (!isDisputed) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setReportingProject(p);
+                                  setShowReportForm(true);
+                                }}
+                                className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                              </button>
+                            );
+                          }
+                          const reportForProject = activeReports.find(r => r.projectId === p.id && r.status === "Awaiting Expert");
+                          if (reportForProject) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setExplainingReport(reportForProject);
+                                  setShowExplanationForm(true);
+                                }}
+                                className="mr-3 h-11 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-4 h-4" /> Gửi phản hồi
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         {btnCfg.disabled ? (
                           <span
                             className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
@@ -560,6 +614,40 @@ export function ExpertDashboard() {
               }}
               loading={reportSubmitting}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* EXPLANATION FORM DIALOG */}
+      <Dialog open={showExplanationForm} onOpenChange={setShowExplanationForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-foreground">
+              Gửi phản hồi báo cáo vi phạm
+            </DialogTitle>
+          </DialogHeader>
+          {explainingReport && (
+            <div className="space-y-6">
+              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
+                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
+                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+              </div>
+
+              <ReportForm
+                project={activeContracts.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                onSubmit={handleExpertSubmitExplanation}
+                onCancel={() => {
+                  setShowExplanationForm(false);
+                  setExplainingReport(null);
+                }}
+                loading={explanationSubmitting}
+                submitLabel="Gửi phản hồi"
+                role="expert"
+                isResponse={true}
+                initialDisputeType={explainingReport?.disputeType}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

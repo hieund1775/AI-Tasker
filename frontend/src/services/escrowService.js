@@ -30,6 +30,7 @@ const ESCROW_ENDPOINTS = {
   payProjectToEscrow: "/interactions/transaction",
   releaseProjectMoneyToExpert: "/interactions/transaction",
   refundProjectMoneyToClient: "/interactions/transaction",
+  cancelContract: "/interactions/transaction",
 };
 
 // ---------------------------------------------------------------------------
@@ -142,6 +143,36 @@ export async function refundProjectMoneyToClient(payload) {
 }
 
 // ---------------------------------------------------------------------------
+// cancelProjectContract(projectId, payload)
+// ---------------------------------------------------------------------------
+
+/**
+ * Client cancels an active project contract.
+ * Escrow is split based on current project progress:
+ *   Expert: progress% payout + 10% compensation (capped at 95%)
+ *   Platform: 5% service fee
+ *   Client: remaining refund
+ *
+ * @param {string} projectId
+ * @param {object} payload — { reason, confirmationAccepted }
+ * @returns {Promise<object>} { project, breakdown }
+ */
+export async function cancelProjectContract(projectId, payload) {
+  const endpoint = ESCROW_ENDPOINTS.cancelContract;
+  if (!endpoint) {
+    console.warn("[EscrowService] cancelProjectContract — endpoint not configured");
+    return { success: true, projectId };
+  }
+  return api.post(endpoint, {
+    projectId,
+    ...payload,
+    type: "cancel_contract",
+    transactionType: "cancel_contract",
+    description: `Client cancels contract for project ${projectId}. Reason: ${payload?.reason || "None"}`,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Named export group
 // ---------------------------------------------------------------------------
 
@@ -149,6 +180,7 @@ export const escrowService = {
   payProjectToEscrow,
   releaseProjectMoneyToExpert,
   refundProjectMoneyToClient,
+  cancelProjectContract,
 };
 
 export default escrowService;

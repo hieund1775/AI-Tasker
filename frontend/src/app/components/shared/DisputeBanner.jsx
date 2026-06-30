@@ -32,25 +32,25 @@ export function DisputeBanner({ report, className = "" }) {
 
   return (
     <div
-      className={`bg-red-50 border border-red-200 rounded-xl p-5 flex items-start gap-3 shadow-sm ${className}`}
+      className={`bg-destructive-light border border-destructive/20 rounded-xl p-5 flex items-start gap-3 shadow-sm ${className}`}
     >
-      <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5 animate-pulse" />
+      <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5 animate-pulse" />
       <div className="flex-1 font-sans">
-        <h4 className="text-[15px] font-bold text-red-950 uppercase tracking-wide">
+        <h4 className="text-[15px] font-bold text-destructive uppercase tracking-wide">
           Dự án đang tranh chấp (Project Under Dispute)
         </h4>
-        <p className="text-sm text-red-700 mt-1">
+        <p className="text-sm text-destructive/80 mt-1">
           {report?.reason || report?.reportName || "Dự án đang trong quá trình kiểm tra và giải quyết tranh chấp bởi Quản trị viên."}
         </p>
-        
+
         {showDeadline && (
-          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-red-800 bg-red-100/60 px-3 py-2 rounded-lg border border-red-200 max-w-fit">
-            <Clock className="w-4 h-4 text-red-600" />
-            <span>Hạn phản hồi ({awaitingWho === "Awaiting Expert" ? "Chuyên gia" : "Khách hàng"}): <strong className="text-red-950 font-bold ml-1">{timeLeft || "48 giờ"}</strong></span>
+          <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-destructive bg-destructive-light/60 px-3 py-2 rounded-lg border border-destructive/20 max-w-fit">
+            <Clock className="w-4 h-4 text-destructive" />
+            <span>Hạn phản hồi ({awaitingWho === "Awaiting Expert" ? "Chuyên gia" : "Khách hàng"}): <strong className="text-destructive font-bold ml-1">{timeLeft || "48 giờ"}</strong></span>
           </div>
         )}
-        
-        <p className="text-xs text-red-500 mt-2 font-medium">
+
+        <p className="text-xs text-destructive/70 mt-2 font-medium">
           Tất cả các hành động thông thường (bàn giao, cập nhật tiến độ, giải ngân) đã bị khóa tạm thời.
         </p>
       </div>

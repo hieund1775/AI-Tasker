@@ -112,7 +112,7 @@ export async function getOwnerDashboardStats(params = {}) {
   if (!OWNER_ENDPOINTS.getOwnerDashboardStats) {
     // TODO: add API endpoint here
     console.warn("[OwnerService] getOwnerDashboardStats — endpoint not configured");
-    return null;
+    return { totalUsers: 0, totalProjects: 0, totalRevenue: 0, totalDisputes: 0 };
   }
   return api.get(OWNER_ENDPOINTS.getOwnerDashboardStats, { params });
 }

@@ -54,12 +54,28 @@ import {
   listMessages,
   createMessage,
   listTasks,
-  getTaskById,
   createTask,
-  updateTask,
   getDashboardStats,
+  getRevenueData,
   generateId,
+  cancelProjectContract,
+  submitCancellationRequest,
+  adminApproveCancellationRequest,
+  adminRejectCancellationRequest,
+  partnerAcceptCancellation,
+  partnerRejectCancellation,
+  initiatorAcceptRejection,
+  initiatorRespondRejection,
 } from "./mockDatabase.js";
+import {
+  notifyFinalWorkSubmitted,
+  notifyFinalDeliveryAccepted,
+  notifyFinalDeliveryDeclined,
+  notifyPaymentReleased,
+  notifyDisputeFiled,
+  notifyDisputeResolved,
+  notifyMoreEvidenceRequested,
+} from "../services/notificationHelper.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -345,6 +361,69 @@ async function handleLogout() {
   return { success: true, message: "Logged out successfully." };
 }
 
+function checkAndExpireProposals() {
+  try {
+    const proposals = listProposals();
+    const jobPosts = listJobPosts();
+    const now = Date.now();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+    for (const prop of proposals) {
+      if (prop.status?.toLowerCase() === "pending") {
+        const createdTime = new Date(prop.createdAt || prop.updatedAt).getTime();
+        const elapsedMs = now - createdTime;
+
+        const job = jobPosts.find((j) => j.id === prop.jobPostId);
+        const clientId = job?.clientId;
+
+        // 7 days auto-decline (elapsedMs >= 7 days)
+        if (elapsedMs >= 7 * ONE_DAY_MS) {
+          updateProposal(prop.id, { 
+            status: "declined",
+            updatedAt: new Date().toISOString()
+          });
+          
+          if (prop.expertId) {
+            createNotification({
+              userId: prop.expertId,
+              title: "Proposal Auto-Declined",
+              message: `Proposal của bạn cho dự án "${job?.title || 'dự án'}" đã tự động bị từ chối do quá 7 ngày mà client không xử lý.`,
+              type: "system",
+              linkTo: `/expert/proposals/${prop.id}`
+            });
+          }
+
+          if (clientId) {
+            createNotification({
+              userId: clientId,
+              title: "Proposal Expired & Declined",
+              message: `Proposal từ expert ${prop.expertName || 'Expert'} cho dự án "${job?.title || 'dự án'}" đã quá hạn 7 ngày và tự động bị từ chối.`,
+              type: "system",
+              linkTo: `/client/my-projects`
+            });
+          }
+        }
+        // 6th day warning (elapsedMs >= 5 days and warningSent is not set)
+        else if (elapsedMs >= 5 * ONE_DAY_MS && !prop.warningSent) {
+          updateProposal(prop.id, { warningSent: true });
+
+          if (clientId) {
+            createNotification({
+              userId: clientId,
+              title: "Action Required: Proposal Expiring Soon",
+              message: `Proposal từ expert ${prop.expertName || 'Expert'} cho dự án "${job?.title || 'dự án'}" sắp hết hạn (còn 1 ngày). Hãy xử lý trước khi hệ thống tự động từ chối!`,
+              type: "system",
+              linkTo: `/client/my-projects`
+            });
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Error in checkAndExpireProposals:", e);
+  }
+}
+
 // =============================================================================
 // MAIN ROUTER — exported handler called from api.js
 // =============================================================================
@@ -354,6 +433,9 @@ export function setupMockMode() {
 }
 
 export async function handleMockRequest(endpoint, method, body, authenticated, token) {
+  // Run auto-expiry check on proposals
+  checkAndExpireProposals();
+
   await delay();
 
   const [path, queryString] = endpoint.split("?");
@@ -505,6 +587,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             const props = listProposals();
             const acceptedProp = props.find((p) => p.jobPostId === jobId && (p.status === "accepted" || p.status === "pending_escrow" || p.status === "pending_pay" || p.status === "Pending" || p.status === "Pending Escrow"));
             if (acceptedProp) {
+              // ponytail: check expiry — 7 days from submitted
+              const createdAt = new Date(acceptedProp.createdAt).getTime();
+              const now = Date.now();
+              const isExpired = !isNaN(createdAt) && (now - createdAt > 7 * 24 * 60 * 60 * 1000);
+              if (isExpired) throw new ApiError("Proposal has expired (7-day limit). Cannot accept.", 400);
+
+              // Use expert bid amount & estimated days, preserve client original as reference
               createProject({
                 id: generateId("proj"),
                 jobPostId: jobId,
@@ -512,10 +601,23 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 assignedExpertId: acceptedProp.expertId,
                 title: updated.title,
                 description: updated.description,
-                budget: updated.budget,
-                deadline: String(updated.deadline),
+                budget: acceptedProp.bidAmount || updated.budget,
+                deadline: String(acceptedProp.estimatedDays || updated.deadline),
+                originalClientBudget: updated.budget,
+                originalClientDeadline: String(updated.deadline),
                 status: body.status === "in_progress" ? "active" : body.status,
+                acceptedProposalId: acceptedProp.id,
               });
+
+              // Reject all other proposals for the same job post
+              props.forEach((p) => {
+                if (p.jobPostId === jobId && p.id !== acceptedProp.id && p.status !== "rejected" && p.status !== "declined") {
+                  updateProposalStatus(p.id, "rejected");
+                }
+              });
+
+              // Close the job post
+              updateJobPost(jobId, { status: "closed" });
             }
           } else {
             updateProject(existingProj.id, { status: body.status === "in_progress" ? "active" : body.status });
@@ -556,12 +658,31 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       const acceptFinalId = matchProjectAcceptFinal(path);
       if (acceptFinalId) {
         const updated = acceptProjectFinalDelivery(acceptFinalId, currentUser?.fullName || "Client");
+        // Notify expert
+        if (updated?.assignedExpertId) {
+          notifyFinalDeliveryAccepted({
+            expertUserId: updated.assignedExpertId,
+            clientName: currentUser?.fullName || "Client",
+            projectTitle: updated.title || "",
+            projectId: acceptFinalId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: acceptFinalId, project: updated };
       }
 
       const declineFinalId = matchProjectDeclineFinal(path);
       if (declineFinalId) {
         const updated = declineProjectFinalDelivery(declineFinalId, currentUser?.fullName || "Client", body?.feedback || body?.reason);
+        // Notify expert
+        if (updated?.assignedExpertId) {
+          notifyFinalDeliveryDeclined({
+            expertUserId: updated.assignedExpertId,
+            clientName: currentUser?.fullName || "Client",
+            projectTitle: updated.title || "",
+            feedback: body?.feedback || body?.reason || "",
+            projectId: declineFinalId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: declineFinalId, project: updated };
       }
     }
@@ -607,6 +728,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           body?.projectLink || query.projectLink,
           body?.projectFile || query.projectFile
         );
+        // Notify client
+        if (updated?.clientId) {
+          notifyFinalWorkSubmitted({
+            clientUserId: updated.clientId,
+            expertName: currentUser?.fullName || "Expert",
+            projectTitle: updated.title || "",
+            projectId: submitId,
+          }).catch(() => {});
+        }
         return { success: true, projectId: submitId, status: "submitted", project: updated };
       }
     }
@@ -658,7 +788,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         const status = newStatus || body?.status;
         if (status) {
           if (status.toLowerCase() === "accepted" || status.toLowerCase() === "accepted") {
-            // --- XỬ LÝ HIRE EXPERT & ESCROW (ATOMIC UPDATE ĐỒNG BỘ) ---
+            // --- HIRE EXPERT & AUTO-FUND ESCROW (ATOMIC TRANSACTION) ---
+            // In mock mode, accepting a proposal immediately:
+            //  1. Deducts bidAmount from client's wallet balance → moves to pendingBalance/escrowBalance
+            //  2. Sets proposal → "accepted", rejects all other proposals for same job
+            //  3. Sets JobPost → "hired", blocks new applications
+            //  4. Creates Project with status "active", escrowPaid=true, escrowStatus="paid"
+            //  5. Logs escrow_deposit transaction
+            // There is NO intermediate "pending_escrow" step in mock mode — escrow is auto-funded.
+            // The Client's wallet.balance must have sufficient funds (checked before proceeding).
             const proposal = getProposalById(statusId);
             if (!proposal) throw new ApiError("Không tìm thấy đề xuất (Proposal).", 404);
 
@@ -674,7 +812,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             // Kiểm tra số dư ví khả dụng của Client
             if (wallet.balance < bidAmount) {
               throw new ApiError(
-                `Số dư ví khả dụng không đủ để thực hiện thuê Expert. Yêu cầu: $${bidAmount.toLocaleString()}, hiện có: $${wallet.balance.toLocaleString()}. Vui lòng nạp thêm tiền.`,
+                `Số dư ví khả dụng không đủ để thực hiện thuê Expert. Yêu cầu: ${bidAmount.toLocaleString()}, hiện có: ${wallet.balance.toLocaleString()}. Vui lòng nạp thêm tiền.`,
                 400
               );
             }
@@ -696,13 +834,8 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               }
             }
 
-            // 4. Cập nhật trạng thái JobPost thành "Accepted" và đồng bộ ngân sách/timeline từ proposal
-            const estDays = Number(proposal.estimatedDays) || 14;
-            updateJobPost(jobPost.id, {
-              status: "Accepted",
-              budget: bidAmount,
-              deadline: estDays
-            });
+            // 4. Cập nhật trạng thái JobPost thành "hired"
+            updateJobPost(jobPost.id, { status: "hired" });
 
             // Trích xuất danh sách Task & Milestones cấu trúc từ proposal (nếu có)
             let proposalTasks = [];
@@ -714,35 +847,31 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 const existingProj = projects.find((p) => p.jobPostId === jobPost.id);
                 const newProjectId = existingProj ? existingProj.id : generateId("proj");
 
-                proposalTasks = coverLetterParsed.tasks.map((t, idx) => {
-                  const generatedTaskId = t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
-                  const ucIndex = t.useCaseIndex != null ? Number(t.useCaseIndex) : (idx % (jobPost.useCases?.length || 1));
-                  const ucTitle = t.useCaseTitle || (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
-                  const ucId = t.useCaseId || (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
-                  return {
-                    id: generatedTaskId,
+                // In the new flow, when a proposal is accepted, all tasks in the proposal are accepted
+                const acceptedTasks = coverLetterParsed.tasks;
+
+                proposalTasks = acceptedTasks.map((t, idx) => ({
+                  id: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
+                  projectId: newProjectId,
+                  useCaseId: t.useCaseId || null,
+                  title: t.title || `Task ${idx + 1}`,
+                  description: t.description || "",
+                  source: t.source || "expert",
+                  status: "not_started",
+                  progress: 0,
+                  assignedTo: proposal.expertId,
+                  deadline: String(jobPost.deadline || ""),
+                  miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
+                    id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
                     projectId: newProjectId,
-                    title: t.title || `Task ${idx + 1}`,
+                    taskId: t.id || `task-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
+                    title: mt.title || `Mini task ${mtIdx + 1}`,
+                    status: "pending",
+                    isCompleted: false,
                     description: "",
-                    status: "not_started",
-                    progress: 0,
-                    assignedTo: proposal.expertId,
-                    deadline: String(jobPost.deadline || ""),
-                    useCaseIndex: ucIndex,
-                    useCaseId: ucId,
-                    useCaseTitle: ucTitle,
-                    miniTasks: (t.miniTasks || []).map((mt, mtIdx) => ({
-                      id: mt.id || `mt-${Date.now()}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 5)}`,
-                      projectId: newProjectId,
-                      taskId: generatedTaskId,
-                      title: mt.title || `Mini task ${mtIdx + 1}`,
-                      status: "pending",
-                      isCompleted: false,
-                      description: "",
-                      order: mtIdx,
-                    })),
-                  };
-                });
+                    order: mtIdx,
+                  })),
+                }));
 
                 console.log("[mockApiHandler] Accepted proposal:", proposal.id);
                 console.log("[mockApiHandler] Parsed proposalTasks from JSON:", proposalTasks);
@@ -795,35 +924,26 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 },
               ];
 
-              proposalTasks = defaultTasks.map((t, idx) => {
-                const generatedTaskId = `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`;
-                const ucIndex = idx % (jobPost.useCases?.length || 1);
-                const ucTitle = (jobPost.useCases && jobPost.useCases[ucIndex]?.title) || "Use Case";
-                const ucId = (jobPost.useCases && jobPost.useCases[ucIndex]?.id) || "";
-                return {
-                  id: generatedTaskId,
+              proposalTasks = defaultTasks.map((t, idx) => ({
+                id: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+                projectId: newProjectId,
+                title: t.title,
+                description: "",
+                status: "not_started",
+                progress: 0,
+                assignedTo: proposal.expertId,
+                deadline: deadlineStr,
+                miniTasks: t.miniTasks.map((mt, mtIdx) => ({
+                  id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
                   projectId: newProjectId,
-                  title: t.title,
+                  taskId: `task-${now}-${idx}-${Math.random().toString(36).slice(2, 7)}`,
+                  title: mt.title,
+                  status: "pending",
+                  isCompleted: false,
                   description: "",
-                  status: "not_started",
-                  progress: 0,
-                  assignedTo: proposal.expertId,
-                  deadline: deadlineStr,
-                  useCaseIndex: ucIndex,
-                  useCaseId: ucId,
-                  useCaseTitle: ucTitle,
-                  miniTasks: t.miniTasks.map((mt, mtIdx) => ({
-                    id: `mt-${now}-${idx}-${mtIdx}-${Math.random().toString(36).slice(2, 7)}`,
-                    projectId: newProjectId,
-                    taskId: generatedTaskId,
-                    title: mt.title,
-                    status: "pending",
-                    isCompleted: false,
-                    description: "",
-                    order: mtIdx,
-                  })),
-                };
-              });
+                  order: mtIdx,
+                })),
+              }));
 
               console.log("[mockApiHandler] Generated", proposalTasks.length, "default tasks for proposal:", proposal.id);
             }
@@ -836,13 +956,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               newProject = updateProject(existingProj.id, {
                 status: "active",
                 budget: bidAmount,
-                deadline: String(estDays),
-                originalUseCaseDays: jobPost.originalUseCaseDays,
-                useCases: jobPost.useCases,
                 escrowAmount: bidAmount,
                 escrowPaid: true,
                 escrowStatus: "paid",
                 updatedAt: new Date().toISOString(),
+                useCases: jobPost.useCases || [],
                 ...(proposalTasks.length > 0 ? { tasks: proposalTasks } : {}),
               });
             } else {
@@ -854,14 +972,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 assignedExpertId: proposal.expertId,
                 title: jobPost.title,
                 description: jobPost.description,
-                useCases: jobPost.useCases,
                 budget: bidAmount,
-                deadline: String(estDays),
-                originalUseCaseDays: jobPost.originalUseCaseDays,
+                deadline: String(jobPost.deadline || ""),
                 escrowAmount: bidAmount,
                 status: "active",
                 escrowPaid: true,
                 escrowStatus: "paid",
+                useCases: jobPost.useCases || [],
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
                 tasks: proposalTasks.length > 0 ? proposalTasks : [],
@@ -869,20 +986,18 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             }
 
             // Sync tasks to the global tasks table so listTasks() finds them
-            if (proposalTasks.length > 0 && newProject) {
+            if (proposalTasks.length > 0) {
               for (const task of proposalTasks) {
                 createTask({
                   id: task.id,
-                  projectId: task.projectId || newProject.id,
+                  projectId: task.projectId,
+                  useCaseId: task.useCaseId || null,
                   title: task.title,
                   description: task.description || "",
                   status: task.status || "not_started",
                   assignedTo: task.assignedTo || proposal.expertId,
                   approval: null,
                   deadline: task.deadline || String(jobPost.deadline || ""),
-                  useCaseIndex: task.useCaseIndex,
-                  useCaseId: task.useCaseId || "",
-                  useCaseTitle: task.useCaseTitle,
                   miniTasks: (task.miniTasks || []).map((mt) => ({
                     id: mt.id,
                     title: mt.title,
@@ -893,7 +1008,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                   createdAt: new Date().toISOString(),
                 });
               }
-              console.log("[mockApiHandler] Synced", proposalTasks.length, "tasks to global tasks table");
+              console.log("[mockApiHandler] Synced", proposalTasks.length, "tasks to global tasks table with useCaseId");
             }
 
             console.log("[mockApiHandler] Generated project:", newProject);
@@ -968,6 +1083,21 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         status: "completed",
         fromUserId: body.fromUserId || currentUser?.id,
       });
+      if (body.type === "deposit" && currentUser) {
+        const userObj = getUserById(currentUser.id);
+        if (userObj && userObj.wallet) {
+          const currentBalance = userObj.wallet.balance || 0;
+          const amt = Number(body.amount) || 0;
+          const newWallet = {
+            ...userObj.wallet,
+            balance: Number((currentBalance + amt).toFixed(2)),
+          };
+          updateUser(currentUser.id, { wallet: newWallet });
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        }
+      }
       if ((body.type === "escrow_deposit" || body.type === "escrow_payment" || body.transactionType === "escrow_payment") && currentUser) {
         const userObj = getUserById(currentUser.id);
         if (userObj && userObj.wallet) {
@@ -989,7 +1119,28 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
             const projObj = projectsList.find((p) => p.jobPostId === body.projectId);
             if (projObj) targetProjId = projObj.id;
           }
-          updateProject(targetProjId, { escrowPaid: true, escrowStatus: "paid", status: "active" });
+          const updatedProj = updateProject(targetProjId, { escrowPaid: true, escrowStatus: "paid", status: "active" });
+          
+          // Sync tasks to global tasks table so listTasks() finds them
+          if (updatedProj && Array.isArray(updatedProj.tasks) && updatedProj.tasks.length > 0) {
+            const existingTasks = listTasks((t) => t.projectId === targetProjId);
+            if (existingTasks.length === 0) {
+              for (const task of updatedProj.tasks) {
+                createTask({
+                  id: task.id,
+                  projectId: task.projectId || targetProjId,
+                  title: task.title,
+                  description: task.description || "",
+                  status: task.status || "not_started",
+                  assignedTo: task.assignedTo || updatedProj.assignedExpertId || "",
+                  deadline: task.deadline || "",
+                  useCaseId: task.useCaseId || null,
+                  useCaseTitle: task.useCaseTitle || null,
+                  miniTasks: task.miniTasks || [],
+                });
+              }
+            }
+          }
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1030,10 +1181,33 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                   pendingBalance: Math.max(0, currentPending - amt),
                 }
               });
+              // Notify expert of normal payment release (skip if dispute already handled it)
+              const existingReports = listReports().filter(r => r.projectId === proj.id);
+              const disputeHandledRelease = existingReports.some(r =>
+                r.status === "Resolved" && (r.resolution === "stopped" || r.resolution === "force_payout")
+              );
+              if (!disputeHandledRelease) {
+                const clientUserForNotify = getUserById(proj.clientId);
+                notifyPaymentReleased({
+                  expertUserId: expertId,
+                  clientName: clientUserForNotify?.fullName || "Client",
+                  projectTitle: proj.title || "",
+                  amount: String(amt || 0),
+                  projectId: proj.id,
+                }).catch(() => {});
+              }
             }
           }
         }
       }
+      if ((body.type === "cancel_contract" || body.transactionType === "cancel_contract") && body.projectId) {
+        const result = submitCancellationRequest(body.projectId, currentUser?.id, body.reason, body.evidenceFileName);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        }
+        return { success: true, ...result };
+      }
+
       if ((body.type === "dispute_refund" || body.transactionType === "dispute_refund") && body.projectId) {
         const proj = getProjectById(body.projectId);
         if (proj) {
@@ -1155,12 +1329,57 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       let reports = listReports();
       if (query.status) reports = reports.filter((r) => r.status === query.status);
       if (query.projectId) reports = reports.filter((r) => r.projectId === query.projectId);
-      return { data: reports, total: reports.length, page: 1 };
+      
+      const enriched = reports.map((r) => {
+        const project = getProjectById(r.projectId);
+        let clientName = "Client";
+        let expertName = "Expert";
+        let projectTitle = r.reportName || "Untitled Project";
+        if (project) {
+          projectTitle = project.title || projectTitle;
+          const client = getUserById(project.clientId);
+          if (client) clientName = client.fullName || client.name || "Client";
+          const expert = getUserById(project.assignedExpertId);
+          if (expert) expertName = expert.fullName || expert.name || "Expert";
+        }
+        return {
+          ...r,
+          clientName,
+          expertName,
+          projectTitle,
+        };
+      });
+
+      // Sort by creation/submission time: newest first
+      const sortedEnriched = enriched.sort((a, b) => {
+        const timeA = new Date(a.createdAt || a.submittedAt || 0).getTime();
+        const timeB = new Date(b.createdAt || b.submittedAt || 0).getTime();
+        return timeB - timeA;
+      });
+      
+      return { data: sortedEnriched, total: sortedEnriched.length, page: 1 };
     }
 
     if (path === "/reports" && method === "POST") {
+      const isClient = body.reporterRole === "client";
+      const extraFields = {};
+      if (isClient) {
+        extraFields.clientExplanation = body.description || "";
+        extraFields.clientExplanationReason = body.reason || "";
+        extraFields.clientExplanationDescription = body.description || "";
+        extraFields.clientExplanationDesiredResolution = body.desiredResolution || "";
+        extraFields.clientExplanationEvidence = body.evidence || [];
+      } else {
+        extraFields.expertExplanation = body.description || "";
+        extraFields.expertExplanationReason = body.reason || "";
+        extraFields.expertExplanationDescription = body.description || "";
+        extraFields.expertExplanationDesiredResolution = body.desiredResolution || "";
+        extraFields.expertExplanationEvidence = body.evidence || [];
+      }
+
       const report = createReport({
         ...body,
+        ...extraFields,
         id: generateId("report"),
         reporterId: body.reporterId || currentUser?.id,
         status: "Pending",
@@ -1168,18 +1387,82 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return report;
     }
 
+    // Custom cancellation report actions
+    const reportActionMatch = path.match(/^\/reports\/([^/]+)\/([^/]+)$/);
+    if (reportActionMatch && method === "PUT") {
+      const reportId = reportActionMatch[1];
+      const action = reportActionMatch[2];
+      
+      if (action === "admin-approve-cancel") {
+        const result = adminApproveCancellationRequest(reportId);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, report: result };
+      }
+      if (action === "admin-reject-cancel") {
+        const result = adminRejectCancellationRequest(reportId, body.adminNote);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, report: result };
+      }
+      if (action === "partner-accept-cancel") {
+        const result = partnerAcceptCancellation(reportId);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, ...result };
+      }
+      if (action === "partner-reject-cancel") {
+        const result = partnerRejectCancellation(reportId, body.partnerRejectionReason);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, report: result };
+      }
+      if (action === "initiator-accept-rejection") {
+        const result = initiatorAcceptRejection(reportId);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, report: result };
+      }
+      if (action === "initiator-respond-rejection") {
+        const result = initiatorRespondRejection(reportId, body.reason, body.evidenceFileName);
+        if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        return { success: true, report: result };
+      }
+    }
+
     // Single report detail, accept, reject — match /reports/{id}
     const reportIdMatch = path.match(/^\/reports\/(.+)$/);
     if (reportIdMatch && method === "GET") {
       const report = getReportById(reportIdMatch[1]);
       if (!report) throw new ApiError("Report not found.", 404);
-      return report;
+      
+      const project = getProjectById(report.projectId);
+      let clientName = "Client";
+      let expertName = "Expert";
+      let projectTitle = report.reportName || "Untitled Project";
+      let projectStartDate = null;
+      let projectDeadline = null;
+      let escrowAmount = 0;
+      if (project) {
+        projectTitle = project.title || projectTitle;
+        const client = getUserById(project.clientId);
+        if (client) clientName = client.fullName || client.name || "Client";
+        const expert = getUserById(project.assignedExpertId);
+        if (expert) expertName = expert.fullName || expert.name || "Expert";
+        projectStartDate = project.createdAt;
+        projectDeadline = project.deadline;
+        escrowAmount = project.escrowAmount || project.budget || 0;
+      }
+      return {
+        ...report,
+        clientName,
+        expertName,
+        projectTitle,
+        projectStartDate,
+        projectDeadline,
+        escrowAmount,
+      };
     }
     if (reportIdMatch && method === "PUT") {
       const report = getReportById(reportIdMatch[1]);
       if (!report) throw new ApiError("Report not found.", 404);
       
-      const action = body.action || body.status;
+      const action = body.action || body.status || (body.reason ? "reject" : ((!body.expertExplanation && !body.clientExplanation && !body.currentRoundClientSubmitted && !body.currentRoundExpertSubmitted) ? "accept" : undefined));
       const isClientReporter = report.reporterRole === "client";
       
       // 1. Initial Appraisal: Accept Report
@@ -1196,7 +1479,20 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         
         const project = getProjectById(report.projectId);
         if (project) {
-          updateProjectStatus(project.id, "Disputed");
+          updateProject(project.id, { status: "Disputed" });
+          // Notify accused party
+          const accusedId = isClientReporter ? project.assignedExpertId : project.clientId;
+          const reporterName = currentUser?.fullName || "Admin";
+          if (accusedId) {
+            notifyDisputeFiled({
+              accusedUserId: accusedId,
+              reporterName,
+              projectTitle: project.title || "",
+              deadline,
+              projectId: project.id,
+              reportId: report.id,
+            }).catch(() => {});
+          }
         }
         
         // Dispatch event
@@ -1214,6 +1510,37 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           rejectionReason: body.reason || body.note || "",
           resolvedAt: new Date().toISOString()
         });
+        
+        const project = getProjectById(report.projectId);
+        if (project) {
+          if (project.status?.toLowerCase() === "disputed") {
+            updateProjectStatus(project.id, "in_progress");
+          }
+          
+          // Notify reporter
+          const repId = report.reporterId || (report.reporterRole === "client" ? project.clientId : project.assignedExpertId);
+          if (repId) {
+            createNotification({
+              userId: repId,
+              title: "Đơn tố cáo bị từ chối",
+              message: `Admin đã từ chối đơn tố cáo của bạn cho dự án "${project.title}". Lý do: ${body.reason || body.note || "Không có lý do cụ thể"}.`,
+              type: "dispute",
+              linkTo: report.reporterRole === "client" ? `/client/projects/${project.id}` : `/expert/projects/${project.id}`,
+            });
+          }
+          // Notify accused if they were notified or if project was disputed
+          const accusedId = report.reporterRole === "client" ? project.assignedExpertId : project.clientId;
+          if (accusedId && (project.status?.toLowerCase() === "disputed" || report.responderNotified)) {
+            createNotification({
+              userId: accusedId,
+              title: "Tranh chấp dự án được bác bỏ",
+              message: `Admin đã bác bỏ đơn tố cáo đối với dự án "${project.title}". Lý do: ${body.reason || body.note || "Không có lý do cụ thể"}. Dự án hoạt động trở lại.`,
+              type: "dispute",
+              linkTo: report.reporterRole === "client" ? `/expert/projects/${project.id}` : `/client/projects/${project.id}`,
+            });
+          }
+        }
+
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
@@ -1222,90 +1549,451 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
 
       // 3. Expert Submits Explanation (Type 1)
       if (body.expertExplanation) {
-        updateReport(report.id, {
-          expertExplanation: body.expertExplanation,
-          expertExplanationEvidence: body.expertExplanationEvidence || [],
-          status: "Pending Admin",
-          replyDeadline: null // clear deadline
-        });
+        let nextStatus = "Pending Admin";
+        const project = getProjectById(report.projectId);
+        const admins = listUsers((u) => u.role === "admin" || u.role === "owner");
+
+        if (report.status === "Awaiting Both") {
+          const rounds = report.additionalRounds || [];
+          const lastRound = rounds[rounds.length - 1] || {
+            roundNumber: 1,
+            clientExplanation: null,
+            clientExplanationReason: null,
+            clientExplanationDesiredResolution: null,
+            clientExplanationEvidence: [],
+            expertExplanation: null,
+            expertExplanationReason: null,
+            expertExplanationDesiredResolution: null,
+            expertExplanationEvidence: [],
+            createdAt: new Date().toISOString()
+          };
+          if (rounds.length === 0) {
+            rounds.push(lastRound);
+          }
+          lastRound.expertExplanation = body.expertExplanation;
+          lastRound.expertExplanationReason = body.expertExplanationReason || "";
+          lastRound.expertExplanationDescription = body.expertExplanationDescription || body.expertExplanation;
+          lastRound.expertExplanationDesiredResolution = body.expertExplanationDesiredResolution || "";
+          lastRound.expertExplanationEvidence = body.expertExplanationEvidence || [];
+          lastRound.expertSubmittedAt = new Date().toISOString();
+
+          const bothSubmitted = report.currentRoundClientSubmitted === true;
+          nextStatus = bothSubmitted ? "Pending Admin" : "Awaiting Both";
+
+          if (bothSubmitted) {
+            for (const admin of admins) {
+              createNotification({
+                userId: admin.id,
+                title: `Đủ 2 bản đối chứng | Dự án: ${project?.title || "Project"}`,
+                message: `Cả hai bên đã hoàn thành nộp bằng chứng bổ sung cho đơn tranh chấp #${report.id}.`,
+                type: "dispute",
+                linkTo: `/admin/disputes/${report.id}`,
+              });
+            }
+          } else {
+            for (const admin of admins) {
+              createNotification({
+                userId: admin.id,
+                title: `Chuyên gia đã gửi đối chứng | Dự án: ${project?.title || "Project"}`,
+                message: `Chuyên gia đã nộp bằng chứng bổ sung. Đang chờ Khách hàng nộp phần còn lại.`,
+                type: "dispute",
+                linkTo: `/admin/disputes/${report.id}`,
+              });
+            }
+          }
+
+          updateReport(report.id, {
+            additionalRounds: rounds,
+            currentRoundExpertSubmitted: true,
+            status: nextStatus,
+            replyDeadline: bothSubmitted ? null : report.replyDeadline
+          });
+        } else {
+          for (const admin of admins) {
+            createNotification({
+              userId: admin.id,
+              title: `Báo cáo giải trình từ Chuyên gia | Dự án: ${project?.title || "Project"}`,
+              message: `Chuyên gia đã nộp báo cáo giải trình phản hồi cho đơn tranh chấp #${report.id}.`,
+              type: "dispute",
+              linkTo: `/admin/disputes/${report.id}`,
+            });
+          }
+
+          updateReport(report.id, {
+            expertExplanation: body.expertExplanation,
+            expertExplanationReason: body.expertExplanationReason || "",
+            expertExplanationDescription: body.expertExplanationDescription || body.expertExplanation,
+            expertExplanationDisputeType: body.expertExplanationDisputeType || "financial",
+            expertExplanationDesiredResolution: body.expertExplanationDesiredResolution || "",
+            expertExplanationEvidence: body.expertExplanationEvidence || [],
+            status: "Pending Admin",
+            replyDeadline: null // clear deadline
+          });
+        }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
-        return { success: true, reportId: report.id, status: "Pending Admin" };
+        return { success: true, reportId: report.id, status: nextStatus };
       }
 
       // 4. Client Submits Explanation (Type 2)
       if (body.clientExplanation) {
-        updateReport(report.id, {
-          clientExplanation: body.clientExplanation,
-          clientExplanationEvidence: body.clientExplanationEvidence || [],
-          status: "Pending Admin",
-          replyDeadline: null // clear deadline
-        });
+        let nextStatus = "Pending Admin";
+        const project = getProjectById(report.projectId);
+        const admins = listUsers((u) => u.role === "admin" || u.role === "owner");
+
+        if (report.status === "Awaiting Both") {
+          const rounds = report.additionalRounds || [];
+          const lastRound = rounds[rounds.length - 1] || {
+            roundNumber: 1,
+            clientExplanation: null,
+            clientExplanationReason: null,
+            clientExplanationDesiredResolution: null,
+            clientExplanationEvidence: [],
+            expertExplanation: null,
+            expertExplanationReason: null,
+            expertExplanationDesiredResolution: null,
+            expertExplanationEvidence: [],
+            createdAt: new Date().toISOString()
+          };
+          if (rounds.length === 0) {
+            rounds.push(lastRound);
+          }
+          lastRound.clientExplanation = body.clientExplanation;
+          lastRound.clientExplanationReason = body.clientExplanationReason || "";
+          lastRound.clientExplanationDescription = body.clientExplanationDescription || body.clientExplanation;
+          lastRound.clientExplanationDesiredResolution = body.clientExplanationDesiredResolution || "";
+          lastRound.clientExplanationEvidence = body.clientExplanationEvidence || [];
+          lastRound.clientSubmittedAt = new Date().toISOString();
+
+          const bothSubmitted = report.currentRoundExpertSubmitted === true;
+          nextStatus = bothSubmitted ? "Pending Admin" : "Awaiting Both";
+
+          if (bothSubmitted) {
+            for (const admin of admins) {
+              createNotification({
+                userId: admin.id,
+                title: `Đủ 2 bản đối chứng | Dự án: ${project?.title || "Project"}`,
+                message: `Cả hai bên đã hoàn thành nộp bằng chứng bổ sung cho đơn tranh chấp #${report.id}.`,
+                type: "dispute",
+                linkTo: `/admin/disputes/${report.id}`,
+              });
+            }
+          } else {
+            for (const admin of admins) {
+              createNotification({
+                userId: admin.id,
+                title: `Khách hàng đã gửi đối chứng | Dự án: ${project?.title || "Project"}`,
+                message: `Khách hàng đã nộp bằng chứng bổ sung. Đang chờ Chuyên gia nộp phần còn lại.`,
+                type: "dispute",
+                linkTo: `/admin/disputes/${report.id}`,
+              });
+            }
+          }
+
+          updateReport(report.id, {
+            additionalRounds: rounds,
+            currentRoundClientSubmitted: true,
+            status: nextStatus,
+            replyDeadline: bothSubmitted ? null : report.replyDeadline
+          });
+        } else {
+          for (const admin of admins) {
+            createNotification({
+              userId: admin.id,
+              title: `Báo cáo giải trình từ Khách hàng | Dự án: ${project?.title || "Project"}`,
+              message: `Khách hàng đã nộp báo cáo giải trình phản hồi cho đơn tranh chấp #${report.id}.`,
+              type: "dispute",
+              linkTo: `/admin/disputes/${report.id}`,
+            });
+          }
+
+          updateReport(report.id, {
+            clientExplanation: body.clientExplanation,
+            clientExplanationReason: body.clientExplanationReason || "",
+            clientExplanationDescription: body.clientExplanationDescription || body.clientExplanation,
+            clientExplanationDisputeType: body.clientExplanationDisputeType || "financial",
+            clientExplanationDesiredResolution: body.clientExplanationDesiredResolution || "",
+            clientExplanationEvidence: body.clientExplanationEvidence || [],
+            status: "Pending Admin",
+            replyDeadline: null // clear deadline
+          });
+        }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
-        return { success: true, reportId: report.id, status: "Pending Admin" };
+        return { success: true, reportId: report.id, status: nextStatus };
+      }
+
+      // 5a. Explicit Request Evidence (Client / Expert / Both)
+      if (action === "requestEvidenceClient" || action === "requestEvidenceExpert" || action === "requestEvidenceBoth") {
+        const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        const proj = getProjectById(report.projectId);
+        
+        if (action === "requestEvidenceClient") {
+          updateReport(report.id, {
+            status: "Awaiting Client",
+            replyDeadline: deadline,
+            adminNote: body.adminNote || "",
+          });
+          if (proj?.clientId) {
+            notifyMoreEvidenceRequested({
+              userId: proj.clientId,
+              projectTitle: proj.title || "",
+              adminNote: body.adminNote || "",
+              projectId: proj.id,
+            }).catch(() => {});
+          }
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+          return { success: true, reportId: report.id, status: "Awaiting Client" };
+        }
+        
+        if (action === "requestEvidenceExpert") {
+          updateReport(report.id, {
+            status: "Awaiting Expert",
+            replyDeadline: deadline,
+            adminNote: body.adminNote || "",
+          });
+          if (proj?.assignedExpertId) {
+            notifyMoreEvidenceRequested({
+              userId: proj.assignedExpertId,
+              projectTitle: proj.title || "",
+              adminNote: body.adminNote || "",
+              projectId: proj.id,
+            }).catch(() => {});
+          }
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+          return { success: true, reportId: report.id, status: "Awaiting Expert" };
+        }
+        
+        if (action === "requestEvidenceBoth") {
+          const rounds = report.additionalRounds || [];
+          const newRound = {
+            roundNumber: rounds.length + 1,
+            clientExplanation: null,
+            clientExplanationReason: null,
+            clientExplanationDesiredResolution: null,
+            clientExplanationEvidence: [],
+            expertExplanation: null,
+            expertExplanationReason: null,
+            expertExplanationDesiredResolution: null,
+            expertExplanationEvidence: [],
+            createdAt: new Date().toISOString()
+          };
+          rounds.push(newRound);
+          updateReport(report.id, {
+            status: "Awaiting Both",
+            additionalRounds: rounds,
+            currentRoundClientSubmitted: false,
+            currentRoundExpertSubmitted: false,
+            replyDeadline: deadline,
+            adminNote: body.adminNote || "",
+          });
+          
+          if (proj) {
+            [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+              createNotification({
+                userId: uid,
+                title: "Yêu cầu bổ sung thông tin giải trình",
+                message: `Trọng tài yêu cầu cả hai bên cung cấp thêm thông tin giải trình và bằng chứng cho dự án "${proj.title}".`,
+                type: "system",
+                linkTo: uid === proj.clientId ? `/client/projects/${proj.id}` : `/expert/projects/${proj.id}`
+              });
+            });
+          }
+          if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+          return { success: true, reportId: report.id, status: "Awaiting Both" };
+        }
       }
 
       // 5. Request More Evidence
       if (action === "requestMoreEvidence" || body.requestMoreEvidence) {
+        const awaitingStatus = isClientReporter ? "Awaiting Expert" : "Awaiting Client";
         const deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        
         updateReport(report.id, {
-          status: "Awaiting Evidence",
+          status: awaitingStatus,
           replyDeadline: deadline,
           adminNote: body.adminNote || report.adminNote || "",
-          clientEvidenceSubmitted: false,
-          expertEvidenceSubmitted: false,
         });
+        // Notify accused party
+        const evidenceProj = getProjectById(report.projectId);
+        const evidenceAccusedId = isClientReporter ? evidenceProj?.assignedExpertId : evidenceProj?.clientId;
+        if (evidenceAccusedId) {
+          notifyMoreEvidenceRequested({
+            userId: evidenceAccusedId,
+            projectTitle: evidenceProj?.title || "",
+            adminNote: body.adminNote || "",
+            projectId: evidenceProj?.id || report.projectId,
+          }).catch(() => {});
+        }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
-        return { success: true, reportId: report.id, status: "Awaiting Evidence" };
+        return { success: true, reportId: report.id, status: awaitingStatus };
       }
 
-      // 5b. Client Submits Evidence
-      if (body.clientEvidence) {
-        const prevEvidence = report.clientEvidenceList || [];
-        const newEvidenceList = [...prevEvidence, {
-          fileName: body.clientEvidence,
-          note: body.clientEvidenceNote || "",
-          submittedAt: new Date().toISOString()
-        }];
-        const isExpertDone = report.expertEvidenceSubmitted === true;
-        const newStatus = isExpertDone ? "Pending Admin" : "Awaiting Evidence";
+      // 5b. Request Additional from Both Sides (New action)
+      if (action === "requestAdditionalBoth" || body.requestAdditionalBoth) {
+        const rounds = report.additionalRounds || [];
+        const newRound = {
+          roundNumber: rounds.length + 1,
+          clientExplanation: null,
+          clientExplanationReason: null,
+          clientExplanationDesiredResolution: null,
+          clientExplanationEvidence: [],
+          expertExplanation: null,
+          expertExplanationReason: null,
+          expertExplanationDesiredResolution: null,
+          expertExplanationEvidence: [],
+          createdAt: new Date().toISOString()
+        };
+        rounds.push(newRound);
         updateReport(report.id, {
-          clientEvidenceList: newEvidenceList,
-          clientEvidenceSubmitted: true,
-          status: newStatus,
-          replyDeadline: newStatus === "Pending Admin" ? null : report.replyDeadline
+          status: "Awaiting Both",
+          additionalRounds: rounds,
+          currentRoundClientSubmitted: false,
+          currentRoundExpertSubmitted: false,
+          replyDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
         });
+        
+        // Notify both parties
+        const proj = getProjectById(report.projectId);
+        if (proj) {
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            createNotification({
+              userId: uid,
+              title: "Yêu cầu bổ sung thông tin giải trình",
+              message: `Trọng tài yêu cầu cả hai bên cung cấp thêm thông tin giải trình và bằng chứng cho dự án "${proj.title}".`,
+              type: "system",
+              linkTo: uid === proj.clientId ? `/client/projects/${proj.id}` : `/expert/projects/${proj.id}`
+            });
+          });
+        }
+        
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         }
-        return { success: true, reportId: report.id, status: newStatus };
+        return { success: true, reportId: report.id, status: "Awaiting Both" };
       }
 
-      // 5c. Expert Submits Evidence
-      if (body.expertEvidence) {
-        const prevEvidence = report.expertEvidenceList || [];
-        const newEvidenceList = [...prevEvidence, {
-          fileName: body.expertEvidence,
-          note: body.expertEvidenceNote || "",
-          submittedAt: new Date().toISOString()
-        }];
-        const isClientDone = report.clientEvidenceSubmitted === true;
-        const newStatus = isClientDone ? "Pending Admin" : "Awaiting Evidence";
-        updateReport(report.id, {
-          expertEvidenceList: newEvidenceList,
-          expertEvidenceSubmitted: true,
-          status: newStatus,
-          replyDeadline: newStatus === "Pending Admin" ? null : report.replyDeadline
-        });
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      function executeDisputeSettlement(proj, report, winnerRole) {
+        const tasks = listTasks((t) => t.projectId === proj.id);
+        let overallProgress = 0;
+        if (tasks.length > 0) {
+          let totalPercent = 0;
+          tasks.forEach((task) => {
+            const miniTasks = task.miniTasks || [];
+            if (miniTasks.length === 0) return;
+            const done = miniTasks.filter((mt) =>
+              mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
+            ).length;
+            totalPercent += Math.round((done / miniTasks.length) * 100);
+          });
+          overallProgress = Math.round(totalPercent / tasks.length);
         }
-        return { success: true, reportId: report.id, status: newStatus };
+
+        const contractAmount = proj.escrowAmount || proj.escrowBalance || proj.budget || 0;
+        const progressRate = overallProgress / 100;
+        const progressPayout = Math.round(contractAmount * progressRate * 100) / 100;
+        const compensationFee = Math.round(contractAmount * 0.10 * 100) / 100;
+        const platformServiceFee = Math.round(contractAmount * 0.05 * 100) / 100;
+
+        let expertPayout = 0;
+        let clientRefund = 0;
+
+        if (winnerRole === "expert") {
+          const rawExpertPayout = progressPayout + compensationFee;
+          expertPayout = Math.round(Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100) / 100;
+          clientRefund = Math.round(Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100) / 100;
+        } else {
+          const rawClientRefund = (contractAmount - progressPayout) + compensationFee;
+          clientRefund = Math.round(Math.min(contractAmount - platformServiceFee, rawClientRefund) * 100) / 100;
+          expertPayout = Math.round(Math.max(0, contractAmount - clientRefund - platformServiceFee) * 100) / 100;
+        }
+
+        const expertId = proj.assignedExpertId || proj.expertId || report.expertId;
+        if (expertId) {
+          const expertUser = getUserById(expertId);
+          if (expertUser && expertUser.wallet) {
+            const currentBalance = expertUser.wallet.balance || 0;
+            const currentEarned = expertUser.wallet.totalEarned || 0;
+            const currentPending = expertUser.wallet.pendingBalance || 0;
+            updateUser(expertId, {
+              wallet: {
+                ...expertUser.wallet,
+                balance: Math.round((currentBalance + expertPayout) * 100) / 100,
+                totalEarned: Math.round((currentEarned + expertPayout) * 100) / 100,
+                pendingBalance: Math.max(0, Math.round((currentPending - contractAmount) * 100) / 100),
+              }
+            });
+          }
+        }
+
+        const clientUser = getUserById(proj.clientId);
+        if (clientUser && clientUser.wallet) {
+          const currentBalance = clientUser.wallet.balance || 0;
+          const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
+          updateUser(proj.clientId, {
+            wallet: {
+              ...clientUser.wallet,
+              balance: Math.round((currentBalance + clientRefund) * 100) / 100,
+              escrowBalance: Math.max(0, Math.round((currentEscrow - contractAmount) * 100) / 100),
+              pendingBalance: Math.max(0, Math.round((currentEscrow - contractAmount) * 100) / 100),
+            }
+          });
+        }
+
+        if (expertPayout > 0) {
+          createTransaction({
+            id: generateId("txn"),
+            projectId: proj.id,
+            fromUserId: "system",
+            toUserId: expertId,
+            amount: expertPayout,
+            type: "contract_cancel_expert_payout",
+            status: "completed",
+            description: `Cưỡng chế tranh chấp — Expert nhận (Tiến độ: ${overallProgress}%, Đền bù/Phí đã tính): $${expertPayout}`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        if (clientRefund > 0) {
+          createTransaction({
+            id: generateId("txn"),
+            projectId: proj.id,
+            fromUserId: "system",
+            toUserId: proj.clientId,
+            amount: clientRefund,
+            type: "contract_cancel_client_refund",
+            status: "completed",
+            description: `Cưỡng chế tranh chấp — Client nhận (Tiến độ: ${overallProgress}%, Đền bù/Phí đã tính): $${clientRefund}`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        if (platformServiceFee > 0) {
+          createTransaction({
+            id: generateId("txn"),
+            projectId: proj.id,
+            fromUserId: "system",
+            toUserId: "platform",
+            amount: platformServiceFee,
+            type: "contract_cancel_platform_fee",
+            status: "completed",
+            description: `Phí dịch vụ xử lý tranh chấp (5%): $${platformServiceFee}`,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        updateProjectStatus(proj.id, "settled_dispute");
+        if (proj.jobPostId) {
+          updateJobPost(proj.jobPostId, { status: "settled_dispute" });
+        }
+
+        if (proj.acceptedProposalId) {
+          updateProposalStatus(proj.acceptedProposalId, "settled_dispute");
+        }
       }
 
       // 6. Continue Project (Unlocks dispute, resumes project)
@@ -1315,9 +2003,12 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           resolution: "continued",
           resolvedAt: new Date().toISOString()
         });
-        const project = getProjectById(report.projectId);
-        if (project) {
-          updateProjectStatus(project.id, "in_progress");
+        const projectC = getProjectById(report.projectId);
+        if (projectC) {
+          updateProjectStatus(projectC.id, "in_progress");
+          [projectC.clientId, projectC.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: projectC.title || "", resolution: "continued", projectId: projectC.id }).catch(() => {});
+          });
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1337,59 +2028,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         
         const proj = getProjectById(report.projectId);
         if (proj) {
-          if (moneyAction === "refund") {
-            // Refund to Client
-            updateProjectStatus(proj.id, "cancelled");
-            if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "cancelled" });
-            const clientUser = getUserById(proj.clientId);
-            if (clientUser && clientUser.wallet) {
-              const currentBalance = clientUser.wallet.balance || 0;
-              const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
-              const amt = proj.budget || 0;
-              updateUser(proj.clientId, {
-                wallet: {
-                  ...clientUser.wallet,
-                  balance: Number((currentBalance + amt).toFixed(2)),
-                  escrowBalance: Math.max(0, Number((currentEscrow - amt).toFixed(2))),
-                  pendingBalance: Math.max(0, Number((currentEscrow - amt).toFixed(2))),
-                }
-              });
-            }
-          } else {
-            // Release to Expert
-            updateProjectStatus(proj.id, "completed");
-            if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "completed" });
-            const clientUser = getUserById(proj.clientId);
-            if (clientUser && clientUser.wallet) {
-              const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
-              const amt = proj.budget || 0;
-              updateUser(proj.clientId, {
-                wallet: {
-                  ...clientUser.wallet,
-                  escrowBalance: Math.max(0, currentEscrow - amt),
-                  pendingBalance: Math.max(0, currentEscrow - amt),
-                }
-              });
-            }
-            const expertId = proj.assignedExpertId || proj.expertId || report.expertId;
-            if (expertId) {
-              const expertUser = getUserById(expertId);
-              if (expertUser && expertUser.wallet) {
-                const currentBalance = expertUser.wallet.balance || 0;
-                const currentEarned = expertUser.wallet.totalEarned || 0;
-                const currentPending = expertUser.wallet.pendingBalance || 0;
-                const amt = proj.budget || 0;
-                updateUser(expertId, {
-                  wallet: {
-                    ...expertUser.wallet,
-                    balance: currentBalance + amt,
-                    totalEarned: currentEarned + amt,
-                    pendingBalance: Math.max(0, currentPending - amt),
-                  }
-                });
-              }
-            }
-          }
+          const winnerRole = moneyAction === "refund" ? "client" : "expert";
+          executeDisputeSettlement(proj, report, winnerRole);
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: `stopped — ${winnerRole === "client" ? "refunded to Client" : "released to Expert"}`, projectId: proj.id }).catch(() => {});
+          });
         }
         
         if (typeof window !== "undefined") {
@@ -1408,38 +2051,10 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         
         const proj = getProjectById(report.projectId);
         if (proj) {
-          updateProjectStatus(proj.id, "completed");
-          if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "completed" });
-          const clientUser = getUserById(proj.clientId);
-          if (clientUser && clientUser.wallet) {
-            const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
-            const amt = proj.budget || 0;
-            updateUser(proj.clientId, {
-              wallet: {
-                ...clientUser.wallet,
-                escrowBalance: Math.max(0, currentEscrow - amt),
-                pendingBalance: Math.max(0, currentEscrow - amt),
-              }
-            });
-          }
-          const expertId = proj.assignedExpertId || proj.expertId || report.expertId || report.reporterId;
-          if (expertId) {
-            const expertUser = getUserById(expertId);
-            if (expertUser && expertUser.wallet) {
-              const currentBalance = expertUser.wallet.balance || 0;
-              const currentEarned = expertUser.wallet.totalEarned || 0;
-              const currentPending = expertUser.wallet.pendingBalance || 0;
-              const amt = proj.budget || 0;
-              updateUser(expertId, {
-                wallet: {
-                  ...expertUser.wallet,
-                  balance: currentBalance + amt,
-                  totalEarned: currentEarned + amt,
-                  pendingBalance: Math.max(0, currentPending - amt),
-                }
-              });
-            }
-          }
+          executeDisputeSettlement(proj, report, "expert");
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "force_payout — released to Expert", projectId: proj.id }).catch(() => {});
+          });
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1454,25 +2069,13 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
           resolution: "force_refund",
           resolvedAt: new Date().toISOString()
         });
-        
+
         const proj = getProjectById(report.projectId);
         if (proj) {
-          updateProjectStatus(proj.id, "cancelled");
-          if (proj.jobPostId) updateJobPost(proj.jobPostId, { status: "cancelled" });
-          const clientUser = getUserById(proj.clientId);
-          if (clientUser && clientUser.wallet) {
-            const currentBalance = clientUser.wallet.balance || 0;
-            const currentEscrow = clientUser.wallet.escrowBalance || clientUser.wallet.pendingBalance || 0;
-            const amt = proj.budget || 0;
-            updateUser(proj.clientId, {
-              wallet: {
-                ...clientUser.wallet,
-                balance: Number((currentBalance + amt).toFixed(2)),
-                escrowBalance: Math.max(0, Number((currentEscrow - amt).toFixed(2))),
-                pendingBalance: Math.max(0, Number((currentEscrow - amt).toFixed(2))),
-              }
-            });
-          }
+          executeDisputeSettlement(proj, report, "client");
+          [proj.clientId, proj.assignedExpertId].filter(Boolean).forEach((uid) => {
+            notifyDisputeResolved({ userId: uid, projectTitle: proj.title || "", resolution: "force_refund — refunded to Client", projectId: proj.id }).catch(() => {});
+          });
         }
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -1505,6 +2108,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
     // ── DASHBOARD STATS ──────────────────────────────────────────────────────
     if (path === "/dashboard/stats" && method === "GET") {
       return getDashboardStats();
+    }
+
+    // ── REVENUE ───────────────────────────────────────────────────────────────
+    if (path === "/revenue" && method === "GET") {
+      return getRevenueData();
     }
 
     // ── WALLET ───────────────────────────────────────────────────────────────

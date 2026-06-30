@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Users, Briefcase, AlertTriangle, TrendingUp } from "lucide-react";
+import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag, DollarSign } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { getReports } from "../../../services/reportService.js";
@@ -71,7 +71,7 @@ export function AdminDashboard() {
   // indicator when API data is still being fetched.
 
   const SkeletonValue = () => (
-    <span className="inline-block h-6 w-12 bg-gray-200 rounded animate-pulse align-middle" />
+    <span className="inline-block h-6 w-12 bg-secondary rounded animate-pulse align-middle" />
   );
 
   const dashboardStats = [
@@ -86,33 +86,39 @@ export function AdminDashboard() {
       label: "Active Projects",
       value: loadingStats ? <SkeletonValue /> : stats.activeProjects,
       icon: Briefcase,
-      color: "text-green-600 bg-green-100",
+      color: "text-success bg-success-light",
       link: "/admin/projects",
     },
     {
-      label: "Open Disputes",
+      label: "Report Progress",
       value: loadingStats ? <SkeletonValue /> : stats.openDisputes,
-      icon: AlertTriangle,
-      color: "text-orange-600 bg-orange-100",
+      icon: FileText,
+      color: "text-warning bg-warning-light",
       link: "/admin/disputes",
     },
     {
       label: "Total Revenue",
       value: loadingStats ? <SkeletonValue /> : <MoneyDisplay amount={stats.totalRevenue} />,
       icon: TrendingUp,
-      color: "text-purple-600 bg-purple-100",
+      color: "text-accent bg-accent-light",
       link: "/admin/revenue",
     },
   ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-      <p className="text-gray-600 mb-8">Platform overview and key metrics.</p>
+      {/* Branded Header */}
+      <div className="relative bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3 rounded-xl border border-border p-6 mb-8 overflow-hidden">
+        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
+        <div className="relative">
+          <h1 className="page-title mb-1">Admin Dashboard</h1>
+          <p className="page-subtitle">Platform overview and key metrics.</p>
+        </div>
+      </div>
 
       {/* Error banner (non-blocking — page still renders) */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -127,27 +133,37 @@ export function AdminDashboard() {
       {/* Quick links — always visible */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {[
-          { label: "User Management", desc: "View, lock, or manage users", to: "/admin/users" },
-          { label: "Dispute Resolution", desc: "Review and resolve dispute reports", to: "/admin/disputes" },
-          { label: "Project Management", desc: "View all platform projects", to: "/admin/projects" },
-          { label: "Review Management", desc: "Hide or delete violating reviews", to: "/admin/reviews" },
-          { label: "Job Post Management", desc: "Manage violating service posts", to: "/admin/job-posts" },
-          { label: "Skills & Categories", desc: "Manage platform skills and category tags", to: "/admin/category-tags" },
-          { label: "Revenue Report", desc: "Track platform revenue and transactions", to: "/admin/revenue" },
-        ].map((link, i) => (
-          <Link
-            key={i}
-            to={link.to}
-            className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition block"
-          >
-            <h3 className="font-semibold text-gray-900">{link.label}</h3>
-            <p className="text-sm text-gray-500 mt-1">{link.desc}</p>
-          </Link>
-        ))}
+          { label: "User Management", desc: "View, lock, or manage user accounts", to: "/admin/users", icon: Users, accent: "border-l-primary bg-primary-light/30" },
+          { label: "Report Progress", desc: "Review and manage progress reports", to: "/admin/disputes", icon: FileText, accent: "border-l-warning bg-warning-light/30" },
+          { label: "Project Management", desc: "View and manage all platform projects", to: "/admin/projects", icon: Briefcase, accent: "border-l-success bg-success-light/30" },
+          { label: "Review Management", desc: "Hide or delete violating reviews", to: "/admin/reviews", icon: Star, accent: "border-l-accent bg-accent-light/30" },
+          { label: "Job Post Management", desc: "Manage violating service posts", to: "/admin/job-posts", icon: FileText, accent: "border-l-destructive bg-destructive-light/30" },
+          { label: "Skills & Categories", desc: "Manage platform skills and category tags", to: "/admin/category-tags", icon: Tag, accent: "border-l-primary bg-primary-light/30" },
+          { label: "Revenue Report", desc: "Track platform revenue and transactions", to: "/admin/revenue", icon: DollarSign, accent: "border-l-success bg-success-light/30" },
+        ].map((link, i) => {
+          const Icon = link.icon;
+          return (
+            <Link
+              key={i}
+              to={link.to}
+              className={`group bg-card rounded-xl border border-border border-l-[3px] ${link.accent} p-5 shadow-sm hover:shadow-md transition-all duration-200 block hover:-translate-y-0.5 card-reveal card-reveal-${i + 1}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Icon className="w-4.5 h-4.5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground text-sm">{link.label}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{link.desc}</p>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
       </div>
 
       {/* API note */}
-      <div className="p-4 bg-brand-primary-light border border-brand-primary/20 rounded-xl text-sm text-brand-primary">
+      <div className="p-4 bg-primary-light border border-primary/20 rounded-xl text-sm text-primary">
         <strong>Note:</strong> Statistics will update when backend APIs are complete.
         Currently displaying data from available APIs.
       </div>

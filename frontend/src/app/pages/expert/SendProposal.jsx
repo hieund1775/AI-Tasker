@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -6,8 +6,11 @@ import {
   Image,
   File,
   X,
-  DollarSign,
+  BarChart3,
   Calendar,
+  GitBranch,
+  Lightbulb,
+  AlertTriangle,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -15,50 +18,10 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { AIPlannerCard } from "../../components/ai/AIPlannerCard.jsx";
 import { AIPlannerPanel } from "../../components/ai/AIPlannerDrawer.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { SectionCard } from "../../components/shared/SectionCard.jsx";
+import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
-
-function getUseCaseTitle(useCase, index) {
-  return (
-    useCase?.title ||
-    useCase?.name ||
-    useCase?.nameAndDeadline ||
-    `Use Case ${index + 1}`
-  );
-}
-
-function getUseCaseDays(useCase) {
-  const explicit = Number(
-    useCase?.durationDays ??
-      useCase?.timelineDays ??
-      useCase?.days ??
-      useCase?.deadlineDays,
-  );
-  if (Number.isFinite(explicit) && explicit > 0) return explicit;
-
-  const source = `${useCase?.nameAndDeadline || ""} ${useCase?.description || ""}`;
-  const match = source.match(/(\d+)\s*(ngày|day|days)/i);
-  return match ? Number(match[1]) : 0;
-}
-
-function createTaskForUseCase(useCase, useCaseIndex, taskIndex = 1) {
-  const duration = getUseCaseDays(useCase) || 1;
-  const title = useCase?.description || useCase?.title || getUseCaseTitle(useCase, useCaseIndex);
-  return {
-    id: `task-${useCaseIndex + 1}-${taskIndex}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-    useCaseIndex,
-    useCaseId: useCase?.id || "",
-    useCaseTitle: getUseCaseTitle(useCase, useCaseIndex),
-    title: title,
-    durationDays: duration,
-    amount: 0,
-    miniTasks: [
-      {
-        id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-        title: "",
-      },
-    ],
-  };
-}
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
@@ -74,21 +37,87 @@ export function SendProposal() {
     timelineMilestones: "",
     bidAmount: 0,
     durationDays: 14,
+    acknowledged: false,
   });
+
+  // ---- Use case aware task initialization ----
+  // ponytail: flatMap ensures each use case only emits its own tasks — no cross-contamination
+  const buildTasksFromUseCases = (job) => {
+    const ucs = job?.useCases || [];
+    if (ucs.length === 0) {
+      return [{
+        id: `task-${Date.now()}-0`,
+        title: "",
+        useCaseId: null,
+        source: "expert",
+        approvalStatus: "accepted",
+        locked: false,
+        price: 0,
+        completionDays: 1,
+        miniTasks: [{ id: `mt-${Date.now()}-0`, title: "" }],
+      }];
+    }
+
+    const now = Date.now();
+    const tasks = ucs.flatMap((uc) => {
+      const ucTasks = uc.tasks || [];
+      if (ucTasks.length > 0) {
+        return ucTasks.map((t, idx) => ({
+          id: t.id || `task-${uc.id}-${idx + 1}`,
+          useCaseId: t.useCaseId || uc.id,
+          useCaseTitle: uc.title || uc.nameAndDeadline,
+          title: t.title || uc.title || `Task ${idx + 1}`,
+          description: t.description || "",
+          source: "client",
+          approvalStatus: "accepted",
+          locked: true,
+          price: Number(t.price) || 0,
+          completionDays: Number(t.completionDays || t.durationDays) || 1,
+          miniTasks: (t.miniTasks || []).length > 0
+            ? t.miniTasks.map(m => ({ ...m, taskId: t.id }))
+            : [{ id: `mt-${now}-${uc.id}-${idx}-0`, title: "" }],
+        }));
+      }
+      return [{
+        id: `task-fb-${uc.id}`,
+        useCaseId: uc.id,
+        useCaseTitle: uc.title || uc.nameAndDeadline,
+        title: uc.title || uc.nameAndDeadline || "Use Case Task",
+        description: uc.description || "",
+        source: "client_use_case_fallback",
+        approvalStatus: "accepted",
+        locked: true,
+        price: 0,
+        completionDays: Number(uc.originalDurationDays) || 1,
+        miniTasks: [{ id: `mt-${now}-fb-${uc.id}`, title: "" }],
+      }];
+    });
+
+    return dedupeTasks(tasks);
+  };
+
+  // ponytail: belt and suspenders — strip any identical-ID tasks before they hit state
+  const dedupeTasks = (arr) => {
+    const seen = new Set();
+    return arr.filter(t => {
+      const key = `${t.useCaseId || "root"}:${t.id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
 
   const [tasks, setTasks] = useState([
     {
       id: "task-1",
-      useCaseIndex: 0,
-      useCaseTitle: "Use Case 1",
       title: "",
-      durationDays: 1,
-      amount: 0,
-      miniTasks: [{ id: "mt-1", title: "" }],
-    },
+      useCaseId: null,
+      source: "expert",
+      approvalStatus: "accepted",
+      locked: false,
+      miniTasks: [{ id: "mt-1", title: "" }]
+    }
   ]);
-  const [extensionConfirmed, setExtensionConfirmed] = useState(false);
-  const [submitError, setSubmitError] = useState("");
 
   const updateField = (field, value) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -106,15 +135,16 @@ export function SendProposal() {
 
     Promise.all([
       api.jobPosts.getById(projectId),
-      api.proposals.getByExpert(user.id).catch(() => []),
+      api.proposals.getByExpert(user.id).catch(() => [])
     ])
       .then(async ([job, proposalsList]) => {
         setProject(job);
 
+        // Initialize tasks from client use cases
+        setTasks(buildTasksFromUseCases(job));
+
         // Find existing proposal for this jobPostId
-        const foundProp = proposalsList.find(
-          (p) => String(p.jobPostId) === String(projectId),
-        );
+        const foundProp = proposalsList.find(p => String(p.jobPostId) === String(projectId));
         if (foundProp) {
           setExistingProposal(foundProp);
           let parsedCoverLetter = {};
@@ -128,53 +158,31 @@ export function SendProposal() {
           }
 
           setForm({
-            professionalIntro:
-              parsedCoverLetter.professionalIntro ||
-              parsedCoverLetter.coverLetter ||
-              "",
+            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
             timelineMilestones: parsedCoverLetter.timelineMilestones || "",
             bidAmount: foundProp.bidAmount || 0,
-            durationDays:
-              parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
+            durationDays: parsedCoverLetter.durationDays || foundProp.estimatedDays || 14,
           });
 
-          if (Array.isArray(parsedCoverLetter.tasks)) {
-            setTasks(
-              parsedCoverLetter.tasks.map((task, idx) => ({
-                ...task,
-                useCaseIndex: Number.isFinite(Number(task.useCaseIndex))
-                  ? Number(task.useCaseIndex)
-                  : 0,
-                useCaseTitle:
-                  task.useCaseTitle ||
-                  getUseCaseTitle(
-                    job?.useCases?.[task.useCaseIndex || 0],
-                    task.useCaseIndex || 0,
-                  ),
-                durationDays: Number(task.durationDays) || 1,
-                amount: Number(task.amount) || 0,
-                miniTasks:
-                  Array.isArray(task.miniTasks) && task.miniTasks.length > 0
-                    ? task.miniTasks
-                    : [{ id: `mt-${Date.now()}`, title: "" }],
-              })),
+          if (Array.isArray(parsedCoverLetter.tasks) && parsedCoverLetter.tasks.length > 0) {
+            // Merge saved values into fresh use-case-derived tasks to keep useCaseId correct
+            const freshTasks = buildTasksFromUseCases(job);
+            const freshIds = new Set(freshTasks.map(t => t.id));
+            const merged = freshTasks.map(ft => {
+              const existing = parsedCoverLetter.tasks.find(et => et.id === ft.id);
+              if (!existing) return ft;
+              return {
+                ...ft,
+                price: Number(existing.price) || ft.price || 0,
+                completionDays: Number(existing.completionDays) || ft.completionDays || 1,
+                miniTasks: existing.miniTasks?.length > 0 ? existing.miniTasks : ft.miniTasks,
+              };
+            });
+            // Preserve expert-proposed tasks from the existing proposal not in fresh build
+            const expertTasks = parsedCoverLetter.tasks.filter(
+              et => et.source === "expert" && !freshIds.has(et.id)
             );
-          } else if (Array.isArray(job?.useCases) && job.useCases.length > 0) {
-            setTasks(
-              job.useCases.map((uc, index) => createTaskForUseCase(uc, index)),
-            );
-          } else {
-            setTasks([
-              {
-                id: "task-1",
-                useCaseIndex: 0,
-                useCaseTitle: "Use Case 1",
-                title: "",
-                durationDays: 1,
-                amount: 0,
-                miniTasks: [{ id: "mt-1", title: "" }],
-              },
-            ]);
+            setTasks(dedupeTasks([...merged, ...expertTasks]));
           }
 
           if (parsedCoverLetter.attachments) {
@@ -190,24 +198,68 @@ export function SendProposal() {
             console.error("Failed to load client details:", err);
           }
         }
-
-        if (
-          !foundProp &&
-          Array.isArray(job?.useCases) &&
-          job.useCases.length > 0
-        ) {
-          setTasks(
-            job.useCases.map((uc, index) => createTaskForUseCase(uc, index)),
-          );
-        }
       })
       .catch((err) => {
-        console.error("Failed to load details:", err);
+        // Job not found (404) is handled gracefully by the UI — don't alarm with console.error
+        if (err?.status === 404) {
+          console.warn("[SendProposal] Job post not found:", projectId);
+        } else {
+          console.error("Failed to load details:", err);
+        }
       })
       .finally(() => {
         setLoading(false);
       });
   }, [projectId, user?.id]);
+
+  // ---- Self-healing: ensure every use case has at least one visible task ----
+  useEffect(() => {
+    const ucs = project?.useCases;
+    if (!Array.isArray(ucs) || ucs.length === 0) return;
+
+    if (import.meta.env.DEV) {
+      console.debug("[SendProposal] self-heal check:", {
+        jobId: project?.id,
+        useCasesCount: ucs.length,
+        tasksCount: tasks.length,
+        grouped: ucs.map(uc => ({
+          ucId: uc.id,
+          title: uc.title?.slice(0, 40),
+          taskCount: tasks.filter(t => t.useCaseId === uc.id).length,
+        })),
+      });
+    }
+
+    setTasks(prev => {
+      let changed = false;
+      const next = [...prev];
+
+      ucs.forEach(uc => {
+        const hasTask = next.some(t => t.useCaseId === uc.id);
+        if (!hasTask) {
+          next.push({
+            id: `task-fb-${uc.id}`,
+            useCaseId: uc.id,
+            useCaseTitle: uc.title || uc.nameAndDeadline,
+            title: uc.title || uc.nameAndDeadline || "Client Use Case Task",
+            description: uc.description || "",
+            source: "client_use_case_fallback",
+            approvalStatus: "accepted",
+            locked: true,
+            price: 0,
+            completionDays: Number(uc.originalDurationDays || 1),
+            miniTasks: [],
+          });
+          changed = true;
+        }
+      });
+
+      return changed ? dedupeTasks(next) : prev;
+    });
+    // ponytail: intentionally depends on [project?.useCases, tasks.length] —
+    // only re-heals when use cases or task count changes, not on every tasks mutation
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project?.useCases, tasks.length]);
 
   // ---- Attachments ----
   const [attachments, setAttachments] = useState([]);
@@ -215,63 +267,6 @@ export function SendProposal() {
 
   // ---- AI Planner state ----
   const [showAIPlanner, setShowAIPlanner] = useState(false);
-
-  const useCases = useMemo(() => {
-    const source =
-      Array.isArray(project?.useCases) && project.useCases.length > 0
-        ? project.useCases
-        : [
-            {
-              nameAndDeadline: "Use Case 1",
-              description: project?.description || "",
-            },
-          ];
-    return source.map((uc, index) => ({
-      ...uc,
-      index,
-      title: getUseCaseTitle(uc, index),
-      originalDays: getUseCaseDays(uc),
-    }));
-  }, [project]);
-
-  const useCaseTotals = useMemo(() => {
-    return useCases.map((uc) => {
-      const scopedTasks = tasks.filter(
-        (task) => Number(task.useCaseIndex || 0) === uc.index,
-      );
-      const proposedDays = scopedTasks.reduce(
-        (sum, task) => sum + (Number(task.durationDays) || 0),
-        0,
-      );
-      const amount = scopedTasks.reduce(
-        (sum, task) => sum + (Number(task.amount) || 0),
-        0,
-      );
-      return {
-        ...uc,
-        taskCount: scopedTasks.length,
-        proposedDays,
-        amount,
-        variance: (uc.originalDays || 0) - proposedDays,
-        isOverrun: uc.originalDays > 0 && proposedDays > uc.originalDays,
-      };
-    });
-  }, [tasks, useCases]);
-
-  const totalBidAmount = useMemo(
-    () => useCaseTotals.reduce((sum, uc) => sum + uc.amount, 0),
-    [useCaseTotals],
-  );
-
-  const totalDurationDays = useMemo(
-    () => useCaseTotals.reduce((sum, uc) => sum + uc.proposedDays, 0),
-    [useCaseTotals],
-  );
-
-  const hasTimeOverrun = useMemo(
-    () => useCaseTotals.some((uc) => uc.isOverrun),
-    [useCaseTotals],
-  );
 
   // ---- AI Planner handlers ----
   const handleActivateAI = () => {
@@ -282,26 +277,92 @@ export function SendProposal() {
     setShowAIPlanner(false);
   };
 
-  const handleApplyAITasks = (aiTasks) => {
-    setTasks(
-      aiTasks.map((task, index) => {
-        const ucIndex = Number.isFinite(Number(task.useCaseIndex))
-          ? Number(task.useCaseIndex)
-          : (useCases.length > 0 ? index % useCases.length : 0);
-        return {
-          ...task,
-          useCaseIndex: ucIndex,
-          useCaseId: useCases[ucIndex]?.id || "",
-          useCaseTitle: useCases[ucIndex]?.title || `Use Case ${ucIndex + 1}`,
-          durationDays: Number(task.durationDays) || 1,
-          amount: Number(task.amount) || 0,
-          miniTasks:
-            Array.isArray(task.miniTasks) && task.miniTasks.length > 0
-              ? task.miniTasks
-              : [{ id: `mt-ai-${index}`, title: "" }],
-        };
-      }),
-    );
+  const handleApplyAITasks = (aiPlan) => {
+    // aiPlan = { useCases: [{ useCaseId, tasks: [{ taskId, taskTitle, miniTasks: [...] }] }] }
+    if (!aiPlan?.useCases) return { updatedCount: 0 };
+
+    const normalize = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    // ponytail: pre-compute updatedCount from current tasks snapshot —
+    // the setTasks updater runs async in React 18 so closure-updatedCount is always 0 at return
+    let updatedCount = 0;
+    for (const ucBlock of aiPlan.useCases) {
+      for (const taskBlock of ucBlock.tasks || []) {
+        if (!taskBlock.miniTasks?.length) continue;
+        let idx = tasks.findIndex(t => t.id === taskBlock.taskId);
+        if (idx === -1) {
+          idx = tasks.findIndex(t =>
+            t.useCaseId === ucBlock.useCaseId &&
+            normalize(t.title) === normalize(taskBlock.taskTitle)
+          );
+        }
+        if (idx !== -1) updatedCount++;
+        else {
+          const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
+          if (uc) updatedCount++; // fallback task will be created
+        }
+      }
+    }
+
+    setTasks(prev => {
+      let nextTasks = [...prev];
+
+      for (const ucBlock of aiPlan.useCases) {
+        for (const taskBlock of ucBlock.tasks || []) {
+          if (!taskBlock.miniTasks?.length) continue;
+
+          const generatedMiniTasks = taskBlock.miniTasks.map(mt => ({
+            id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            taskId: taskBlock.taskId || `task-fb-${ucBlock.useCaseId}`,
+            title: mt.title,
+            description: mt.description || "",
+            status: "pending",
+            isCompleted: false,
+          }));
+
+          // Try match by taskId first, then by useCaseId + normalized title
+          let idx = nextTasks.findIndex(t => t.id === taskBlock.taskId);
+          if (idx === -1) {
+            idx = nextTasks.findIndex(t =>
+              t.useCaseId === ucBlock.useCaseId &&
+              normalize(t.title) === normalize(taskBlock.taskTitle)
+            );
+          }
+
+          if (idx !== -1) {
+            const hasRealContent = nextTasks[idx].miniTasks.some(mt => mt.title?.trim());
+            nextTasks[idx] = {
+              ...nextTasks[idx],
+              miniTasks: hasRealContent
+                ? [...nextTasks[idx].miniTasks, ...generatedMiniTasks]
+                : generatedMiniTasks,
+            };
+          } else {
+            // ponytail: no matching task exists — create fallback under the use case
+            const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
+            if (!uc) continue;
+
+            nextTasks.push({
+              id: taskBlock.taskId || `task-fb-${uc.id}`,
+              useCaseId: uc.id,
+              useCaseTitle: uc.title || uc.nameAndDeadline,
+              title: taskBlock.taskTitle || uc.title || "Client Use Case Task",
+              description: uc.description || "",
+              source: "client_use_case_fallback",
+              approvalStatus: "accepted",
+              locked: true,
+              price: 0,
+              completionDays: Number(uc.originalDurationDays || 1),
+              miniTasks: generatedMiniTasks,
+            });
+          }
+        }
+      }
+
+      return dedupeTasks(nextTasks);
+    });
+
+    return { updatedCount };
   };
 
   // ---- Submit ----
@@ -310,44 +371,99 @@ export function SendProposal() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.id) return;
-    setSubmitError("");
-
-    const hasBudgetOverrun = project?.budget !== undefined && totalBidAmount > project.budget;
-    if ((hasTimeOverrun || hasBudgetOverrun) && !extensionConfirmed) {
-      setSubmitError(
-        "Sự lệch ngân sách/timeline vượt quá chỉ tiêu của khách hàng. Vui lòng tích chọn xác nhận ở dưới cùng trước khi nộp.",
-      );
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const normalizedTasks = tasks.map((task) => ({
-        ...task,
-        useCaseIndex: Number(task.useCaseIndex) || 0,
-        useCaseId: task.useCaseId || useCases[Number(task.useCaseIndex) || 0]?.id || "",
-        useCaseTitle:
-          task.useCaseTitle ||
-          useCases[Number(task.useCaseIndex) || 0]?.title ||
-          "Use Case",
-        durationDays: Number(task.durationDays) || 1,
-        amount: Number(task.amount) || 0,
-      }));
+      // Compute totals from tasks
+      const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+      const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+      const finalBid = Number(form.bidAmount) || totalBid;
+      const clientBudget = project?.originalBudget || project?.budget || 0;
+      const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
+      const exceedsTargets = (clientBudget - finalBid < 0) || (clientDuration - totalDays < 0);
+
+      // Check acknowledgement if exceeding targets
+      if (exceedsTargets && !form.acknowledged) {
+        alert("Please check the acknowledgement checkbox to confirm you understand your proposal exceeds the Client's targets.");
+        setSubmitting(false);
+        return;
+      }
 
       const coverLetterObj = {
         professionalIntro: form.professionalIntro.trim(),
-        timelineMilestones: normalizedTasks
-          .map(
-            (t) =>
-              `${t.useCaseTitle} / ${t.title} (${t.durationDays} days, $${t.amount}):\n${t.miniTasks.map((m) => `- ${m.title}`).join("\n")}`,
-          )
-          .join("\n\n"),
-        useCases: useCaseTotals,
-        tasks: normalizedTasks,
-        durationDays: totalDurationDays || 1,
-        bidAmount: totalBidAmount,
-        extensionRequested: hasTimeOverrun,
+        timelineMilestones: tasks.map(t => `${t.title}: ${(t.miniTasks || []).map(m => `- ${m.title}`).join(', ')}`).join('\n\n'),
+        tasks: tasks.map(t => ({
+          id: t.id,
+          useCaseId: t.useCaseId || null,
+          useCaseTitle: t.useCaseTitle || null,
+          title: t.title,
+          description: t.description || "",
+          source: t.source || "expert",
+          approvalStatus: t.approvalStatus || "accepted",
+          locked: t.locked !== false,
+          price: Number(t.price) || 0,
+          completionDays: Number(t.completionDays) || 1,
+          miniTasks: (t.miniTasks || []).map(m => ({
+            id: m.id,
+            taskId: t.id,
+            title: m.title,
+            description: m.description || "",
+            status: m.status || "pending",
+            isCompleted: m.isCompleted || false,
+          })),
+        })),
+        proposedTasks: tasks
+          .filter(t => t.source === "expert" && t.approvalStatus === "pending_client_approval")
+          .map(t => ({
+            id: t.id,
+            title: t.title,
+            description: t.description || "",
+            source: "expert",
+            approvalStatus: "pending_client_approval",
+            miniTasks: (t.miniTasks || []).map(m => ({
+              id: m.id,
+              taskId: t.id,
+              title: m.title,
+              description: m.description || "",
+            })),
+          })),
+        miniTasks: tasks.flatMap(t => (t.miniTasks || []).map(m => ({
+          id: m.id,
+          taskId: t.id,
+          title: m.title,
+          description: m.description || "",
+          status: m.status || "pending",
+          isCompleted: false,
+        }))),
+        durationDays: totalDays,
+        totalBidAmount: finalBid,
+        totalEstimatedDays: totalDays,
+        useCaseBreakdown: (project?.useCases || []).map(uc => ({
+          useCaseId: uc.id,
+          useCaseTitle: uc.title || uc.nameAndDeadline,
+          originalDuration: uc.originalDurationDays,
+          tasks: tasks
+            .filter(t => t.useCaseId === uc.id)
+            .map(t => ({
+              id: t.id,
+              title: t.title,
+              description: t.description || "",
+              source: t.source || "expert",
+              approvalStatus: t.approvalStatus || "accepted",
+              locked: t.locked !== false,
+              price: Number(t.price) || 0,
+              completionDays: Number(t.completionDays) || 1,
+              miniTasks: (t.miniTasks || []).map(m => ({
+                id: m.id,
+                taskId: t.id,
+                title: m.title,
+                description: m.description || "",
+              })),
+            })),
+        })),
+        budgetDeviation: clientBudget - finalBid,
+        timeDeviation: clientDuration - totalDays,
+        acknowledged: form.acknowledged,
         attachments: [
           ...existingAttachments,
           ...attachments.map((f, i) => ({
@@ -363,19 +479,22 @@ export function SendProposal() {
 
       if (existingProposal) {
         await api.proposals.update(existingProposal.id, {
-          bidAmount: totalBidAmount,
-          estimatedDays: totalDurationDays || 1,
+          bidAmount: finalBid,
+          estimatedDays: totalDays,
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: true,
+          status: "pending",
         });
         finalPropId = existingProposal.id;
       } else {
         const created = await api.proposals.create({
           jobPostId: projectId,
           expertId: user.id,
-          bidAmount: totalBidAmount,
+          bidAmount: finalBid,
+          estimatedDays: totalDays,
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: true,
+          status: "pending",
         });
         finalPropId = created?.id;
       }
@@ -397,13 +516,12 @@ export function SendProposal() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/jobs" className="mb-6">
-          Back
-        </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-500 animate-pulse">
-            Loading job post details...
-          </h3>
+        <BackButton fallback="/expert/jobs" className="mb-6">Back</BackButton>
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-muted rounded w-1/3 mx-auto" />
+            <div className="h-4 bg-muted rounded w-1/2 mx-auto" />
+          </div>
         </div>
       </div>
     );
@@ -413,13 +531,11 @@ export function SendProposal() {
   if (!project && projectId) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/jobs" className="mb-6">
-          Back
-        </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-500">
-            Project not found
-          </h3>
+        <BackButton fallback="/expert/jobs" className="mb-6">Back</BackButton>
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-muted-foreground">Project not found</h3>
+          <p className="text-sm text-muted-foreground mt-1">This project may have been removed or is no longer available.</p>
         </div>
       </div>
     );
@@ -427,509 +543,477 @@ export function SendProposal() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Back link */}
-      <BackButton fallback="/expert/jobs" className="mb-6">
-        Back
-      </BackButton>
+      <PageHeader
+        title="Build Your Proposal"
+        subtitle="Break down the client's use cases into tasks, mini tasks, timeline, and pricing."
+        badge={project ? (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-xs font-medium">
+            <FileText className="w-3.5 h-3.5" />
+            {project.title}
+          </span>
+        ) : null}
+        illustration={
+          <svg width="200" height="140" viewBox="0 0 200 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="10" width="50" height="22" rx="6" stroke="currentColor" strokeWidth="0.5" opacity="0.4" />
+            <text x="45" y="25" textAnchor="middle" fontSize="8" fill="currentColor" opacity="0.5">Use Case</text>
+            <line x1="70" y1="21" x2="95" y2="21" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="95" y1="21" x2="95" y2="50" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="95" y1="50" x2="120" y2="50" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <rect x="80" y="40" width="45" height="20" rx="5" stroke="currentColor" strokeWidth="0.5" opacity="0.35" />
+            <text x="102" y="53" textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.45">Task A</text>
+            <rect x="135" y="35" width="45" height="16" rx="4" stroke="currentColor" strokeWidth="0.4" strokeDasharray="2 2" opacity="0.3" />
+            <text x="157" y="46" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.35">Mini Task</text>
+            <rect x="135" y="55" width="45" height="16" rx="4" stroke="currentColor" strokeWidth="0.4" strokeDasharray="2 2" opacity="0.3" />
+            <text x="157" y="66" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.35">Mini Task</text>
+            <line x1="95" y1="60" x2="95" y2="85" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="95" y1="85" x2="120" y2="85" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <rect x="80" y="75" width="45" height="20" rx="5" stroke="currentColor" strokeWidth="0.5" opacity="0.35" />
+            <text x="102" y="88" textAnchor="middle" fontSize="7" fill="currentColor" opacity="0.45">Task B</text>
+            <circle cx="45" cy="70" r="3" fill="currentColor" opacity="0.2" />
+            <circle cx="157" cy="90" r="2" fill="currentColor" opacity="0.15" />
+          </svg>
+        }
+      />
 
-      <div
-        className={`grid grid-cols-1 ${showAIPlanner ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-4xl mx-auto"}`}
-      >
-        <div
-          className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}
-        >
-          <form onSubmit={handleSubmit}>
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              {/* ================================================================ */}
-              {/* Header — Project Summary                                         */}
-              {/* ================================================================ */}
-              <div className="p-8 border-b border-gray-100 bg-gray-50/50">
-                <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-sm font-medium mb-4">
-                  <FileText className="w-4 h-4" />
-                  Send Proposal
-                </div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  {project?.title || "Project"}
-                </h1>
-                {project && (
-                  <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
-                    {client && (
-                      <span>
-                        Client:{" "}
-                        <span className="font-medium text-gray-700">
-                          {client.fullName}
-                        </span>
-                        {client.profile?.company
-                          ? ` · ${client.profile.company}`
-                          : ""}
-                      </span>
-                    )}
-                    {project.budget != null && (
-                      <span className="inline-flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5" />
-                        Budget:{" "}
-                        <span className="font-medium text-gray-700">
-                          <MoneyDisplay amount={project.budget} />
-                        </span>
-                      </span>
-                    )}
-                    {project.category && (
-                      <span className="inline-flex items-center gap-1">
-                        <FileText className="w-3.5 h-3.5" />
-                        Category:{" "}
-                        <span className="font-medium text-gray-700 capitalize">
-                          {project.category}
-                        </span>
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ================================================================ */}
-              {/* Form Body                                                         */}
-              {/* ================================================================ */}
-              <div className="p-8 space-y-8">
-                {/* 1. Professional Introduction */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Professional Introduction{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={form.professionalIntro}
-                    onChange={(e) =>
-                      updateField("professionalIntro", e.target.value)
-                    }
-                    rows={5}
-                    placeholder="Introduce yourself — your experience, background, relevant skills, and why you are the best fit for this project."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-y"
-                    required
-                  />
-                </div>
-
-                {/* ── AI Project Planner ── */}
-                <AIPlannerCard
-                  onGenerateAI={handleActivateAI}
-                  onCloseAI={handleCloseAI}
-                  aiMode={showAIPlanner}
-                  disabled={submitting}
+      <div className={`grid grid-cols-1 ${showAIPlanner ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-4xl mx-auto"}`}>
+        <div className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <AnimatedReveal>
+              <SectionCard title="Professional Introduction" icon={Lightbulb} padding="lg">
+                <textarea
+                  value={form.professionalIntro}
+                  onChange={(e) => updateField("professionalIntro", e.target.value)}
+                  rows={5}
+                  placeholder="Introduce yourself — your experience, background, relevant skills, and why you are the best fit for this project."
+                  className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-y"
+                  required
                 />
+              </SectionCard>
+            </AnimatedReveal>
 
-                {/* 2. Implementation Timeline & Milestones */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2">
-                    Implementation Timeline & Milestones{" "}
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <p className="text-xs text-gray-400 mb-4 font-normal">
-                    Xây dựng kế hoạch thực hiện dự án chia theo các Task lớn và
-                    các Milestone/Nhiệm vụ con tương ứng.
-                  </p>
+            <AnimatedReveal delay={1}>
+              <AIPlannerCard
+                onGenerateAI={handleActivateAI}
+                onCloseAI={handleCloseAI}
+                aiMode={showAIPlanner}
+                disabled={submitting}
+              />
+            </AnimatedReveal>
 
-                  <div className="space-y-5">
-                    {useCases.map((uc) => {
-                      const scopedTasks = tasks.filter(
-                        (task) => Number(task.useCaseIndex || 0) === uc.index,
-                      );
-                      const total = useCaseTotals[uc.index];
+            <AnimatedReveal delay={2}>
+              <SectionCard
+                title="Use Case & Task Breakdown"
+                icon={GitBranch}
+                subtitle="Client Use Cases and Tasks are read-only. Add pricing, duration, and MiniTasks. Proposed Tasks require Client approval."
+                padding="lg"
+              >
+                {Array.isArray(project?.useCases) && project.useCases.length > 0 ? (
+                  <div className="space-y-6">
+                    {project.useCases.map((uc) => {
+                      const ucTasks = tasks.filter(t => t.useCaseId && t.useCaseId === uc.id);
                       return (
-                        <div
-                          key={uc.index}
-                          className={`rounded-2xl border p-4 space-y-4 ${total?.isOverrun ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200"}`}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                Use Case #{uc.index + 1}
-                              </p>
-                              <h3 className="text-sm font-bold text-gray-900 mt-1">
-                                {uc.title}
-                              </h3>
-                              {uc.description && (
-                                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                                  {uc.description}
-                                </p>
-                              )}
+                        <div key={uc.id} className="border border-border rounded-xl overflow-hidden">
+                          {/* ── Use Case Header (read-only) ── */}
+                          <div className="p-4 bg-accent-light/30 border-b border-border">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                                  Client Use Case
+                                </span>
+                                <h4 className="font-semibold text-foreground text-sm">
+                                  {uc.title || uc.nameAndDeadline}
+                                </h4>
+                              </div>
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                                {uc.originalDurationDays || 1} days
+                              </span>
                             </div>
-                            <div className="grid grid-cols-3 gap-2 text-center text-xs shrink-0">
-                              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                                <p className="text-gray-400">Client</p>
-                                <p className="font-bold text-gray-800">
-                                  {uc.originalDays || "—"} days
-                                </p>
-                              </div>
-                              <div className="bg-white rounded-xl border border-gray-200 px-3 py-2">
-                                <p className="text-gray-400">Expert</p>
-                                <p className="font-bold text-gray-800">
-                                  {total?.proposedDays || 0} days
-                                </p>
-                              </div>
-                              <div
-                                className={`rounded-xl border px-3 py-2 ${total?.isOverrun ? "bg-red-100 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-100 text-emerald-700"}`}
-                              >
-                                <p className="text-current/70">Delta</p>
-                                <p className="font-bold">
-                                  {uc.originalDays ? total.variance : "N/A"}
-                                </p>
-                              </div>
-                            </div>
+                            {uc.description && (
+                              <p className="text-xs text-muted-foreground mt-2">{uc.description}</p>
+                            )}
                           </div>
 
-                          {total?.isOverrun && (
-                            <div className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm text-red-700 font-semibold">
-                              Vượt timeline gốc của Client. Proposal này sẽ được
-                              gửi kèm yêu cầu gia hạn thời gian.
-                            </div>
-                          )}
+                          {/* ── Tasks ── */}
+                          <div className="p-4 space-y-4">
+                            {ucTasks.length === 0 && (
+                              <p className="text-xs text-muted-foreground text-center py-3">
+                                No tasks yet. Add a proposed task below.
+                              </p>
+                            )}
 
-                          <div className="space-y-4">
-                            {scopedTasks.map((task) => {
-                              const tIdx = tasks.findIndex(
-                                (item) => item.id === task.id,
-                              );
+                            {ucTasks.map((task) => {
+                              const tIdx = tasks.findIndex(t => t.id === task.id);
+                              const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
+
                               return (
-                                <div
-                                  key={task.id}
-                                  className="p-4 bg-white rounded-xl border border-gray-200 space-y-3"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-gray-500 uppercase">
-                                      Task #
-                                      {scopedTasks.findIndex(
-                                        (item) => item.id === task.id,
-                                      ) + 1}
-                                    </span>
+                                <div key={task.id} className="p-4 border rounded-xl space-y-3 bg-secondary/40 border-border">
+                                  
+                                  {/* Task Title Row with Remove Button */}
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
                                     <input
                                       type="text"
                                       value={task.title}
-                                      onChange={(e) => {
-                                        const newTasks = [...tasks];
-                                        newTasks[tIdx].title = e.target.value;
-                                        setTasks(newTasks);
-                                      }}
-                                      placeholder="Tên Task lớn (ví dụ: Thiết kế cơ sở dữ liệu)"
-                                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-white font-semibold text-gray-800"
+                                      onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
+                                      placeholder="Task name (e.g., Database Design)"
+                                      className="flex-1 min-w-[140px] px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
                                       required
                                     />
-                                    {tasks.length > 1 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setTasks(
-                                            tasks.filter(
-                                              (t) => t.id !== task.id,
-                                            ),
-                                          );
-                                        }}
-                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-700 hover:bg-red-50 rounded-[10px] transition-colors inline-flex items-center"
+                                    {ucTasks.length > 1 && (
+                                      <button 
+                                        type="button" 
+                                        onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
+                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-750 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center flex-shrink-0"
                                       >
-                                        Xóa Task
+                                        Remove
                                       </button>
                                     )}
                                   </div>
 
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                                        Thời gian Task (ngày)
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        step="1"
-                                        value={task.durationDays || ""}
-                                        onChange={(e) => {
-                                          const newTasks = [...tasks];
-                                          newTasks[tIdx].durationDays =
-                                            e.target.value === ""
-                                              ? 1
-                                              : Number(e.target.value);
-                                          setTasks(newTasks);
-                                        }}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-white"
-                                        required
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                                        Chi phí Task
-                                      </label>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        step="100"
-                                        value={task.amount || ""}
-                                        onChange={(e) => {
-                                          const newTasks = [...tasks];
-                                          newTasks[tIdx].amount =
-                                            e.target.value === ""
-                                              ? 0
-                                              : Number(e.target.value);
-                                          setTasks(newTasks);
-                                        }}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-white"
-                                        placeholder="1000"
-                                        required
-                                      />
-                                    </div>
+                                  {/* Days Input */}
+                                  <div className="w-24">
+                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                                      Days
+                                    </label>
+                                    <input 
+                                      type="number" 
+                                      min="1" 
+                                      value={task.completionDays || 1} 
+                                      onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} 
+                                      placeholder="Days" 
+                                      className="w-full px-3 py-2 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" 
+                                    />
                                   </div>
 
-                                  {/* Milestones / MiniTasks */}
-                                  <div className="space-y-2 pl-4 border-l-2 border-gray-300">
-                                    <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                                      Milestones & Nhiệm vụ
+                                  {/* Mini Tasks (Child Tasks) Checklist */}
+                                  <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
+                                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                                      Minitask
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
-                                      <div
-                                        key={mini.id}
-                                        className="flex items-center gap-2"
-                                      >
-                                        <span className="text-gray-400 font-mono text-xs">
-                                          •
-                                        </span>
+                                      <div key={mini.id || mIdx} className="flex items-center gap-2">
+                                        <span className="text-muted-foreground font-mono text-xs">•</span>
                                         <input
                                           type="text"
                                           value={mini.title}
-                                          onChange={(e) => {
-                                            const newTasks = [...tasks];
-                                            newTasks[tIdx].miniTasks[
-                                              mIdx
-                                            ].title = e.target.value;
-                                            setTasks(newTasks);
-                                          }}
-                                          placeholder={`Nhiệm vụ #${mIdx + 1} (ví dụ: Viết Schema cho các bảng)`}
-                                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-white text-gray-750 font-normal"
+                                          onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
+                                          placeholder={`Minitask #${mIdx + 1}`}
+                                          className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
                                           required
                                         />
                                         {task.miniTasks.length > 1 && (
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              const newTasks = [...tasks];
-                                              newTasks[tIdx].miniTasks =
-                                                task.miniTasks.filter(
-                                                  (m) => m.id !== mini.id,
-                                                );
-                                              setTasks(newTasks);
-                                            }}
-                                            className="h-7 w-7 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                            onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
+                                            className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                           >
                                             <X className="w-3.5 h-3.5" />
                                           </button>
                                         )}
                                       </div>
                                     ))}
-
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        const newTasks = [...tasks];
-                                        newTasks[tIdx].miniTasks.push({
-                                          id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-                                          title: "",
-                                        });
-                                        setTasks(newTasks);
-                                      }}
-                                      className="h-8 px-3 text-sm font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-[10px] transition-colors inline-flex items-center gap-1 mt-1"
+                                      onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks.push({ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }); setTasks(nt); }}
+                                      className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
                                     >
-                                      + Thêm Task con / Milestone
+                                      + Add Minitask
                                     </button>
                                   </div>
                                 </div>
                               );
                             })}
-                          </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTasks([
-                                ...tasks,
-                                createTaskForUseCase(
-                                  uc,
-                                  uc.index,
-                                  scopedTasks.length + 1,
-                                ),
-                              ]);
-                            }}
-                            className="h-10 px-4 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 rounded-[14px] text-sm font-semibold transition-colors inline-flex items-center gap-1.5"
-                          >
-                            + Thêm Task cho Use Case này
-                          </button>
+                            {/* ── Add Proposed Task (per use case) ── */}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setTasks([
+                                  ...tasks,
+                                  {
+                                    id: `task-proposed-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                                    title: "",
+                                    description: "",
+                                    useCaseId: uc.id,
+                                    useCaseTitle: uc.title || uc.nameAndDeadline,
+                                    source: "expert",
+                                    approvalStatus: "pending_client_approval",
+                                    locked: false,
+                                    price: 0,
+                                    completionDays: 1,
+                                    miniTasks: [{ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }],
+                                  },
+                                ])
+                              }
+                              className="h-10 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                            >
+                              + Add Proposed Task
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
+                ) : (
+                  /* ── No use cases fallback ── */
+                  <div className="space-y-4">
+                    {tasks.map((task, tIdx) => {
+                      const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
+                      return (
+                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-secondary/40 border-border"}`}>
+                          
+                          {/* Task Title Row with Remove Button */}
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
+                            <input
+                              type="text"
+                              value={task.title}
+                              onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
+                              placeholder="Task name (e.g., Database Design)"
+                              className="flex-1 min-w-[140px] px-3 py-2.5 border border-input rounded-xl text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
+                              required
+                            />
+                            {tasks.length > 1 && (
+                              <button 
+                                type="button" 
+                                onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
+                                className="h-10 px-4 text-sm font-semibold text-red-655 hover:text-red-755 hover:bg-red-55 rounded-xl transition-colors inline-flex items-center flex-shrink-0"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
 
-                {/* 3. Portfolio / Attachments */}
-                <FileUploadDropzone
-                  files={attachments}
-                  onFilesChange={setAttachments}
-                  label="Portfolio & Attachments"
-                  helperText="Attach your CV, portfolio, demo files, PDFs, or supporting documents."
-                />
+                          {/* Days Input */}
+                          <div className="w-24">
+                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                              Days
+                            </label>
+                            <input 
+                              type="number" 
+                              min="1" 
+                              value={task.completionDays || 1} 
+                              onChange={(e) => { const nt = [...tasks]; nt[tIdx].completionDays = Math.max(1, Number(e.target.value) || 1); setTasks(nt); }} 
+                              placeholder="Days" 
+                              className="w-full px-3 py-2 border border-input rounded-xl text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card" 
+                            />
+                          </div>
 
-                {/* Existing attachments from saved proposal (read-only) */}
-                {existingAttachments.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                      Previously Attached ({existingAttachments.length})
-                    </p>
-                    {existingAttachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5"
-                      >
-                        {att.type === "image/png" ? (
-                          <Image className="w-5 h-5 text-brand-primary" />
-                        ) : (
-                          <File className="w-5 h-5 text-gray-500" />
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-700">
-                            {att.name}
-                          </p>
-                          <p className="text-xs text-gray-400">{att.size}</p>
+                          {/* Mini Tasks (Child Tasks) Checklist */}
+                          <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
+                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                              Minitask
+                            </span>
+                            {task.miniTasks.map((mini, mIdx) => (
+                              <div key={mini.id || mIdx} className="flex items-center gap-2">
+                                <span className="text-muted-foreground font-mono text-xs">•</span>
+                                <input
+                                  type="text"
+                                  value={mini.title}
+                                  onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
+                                  placeholder={`Minitask #${mIdx + 1}`}
+                                  className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
+                                  required
+                                />
+                                {task.miniTasks.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
+                                    className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks.push({ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }); setTasks(nt); }}
+                              className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
+                            >
+                              + Add Minitask
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
+
+                    {/* Add Proposed Task Button */}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTasks([
+                          ...tasks,
+                          {
+                            id: `task-proposed-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+                            title: "",
+                            description: "",
+                            useCaseId: null,
+                            source: "expert",
+                            approvalStatus: "pending_client_approval",
+                            locked: false,
+                            price: 0,
+                            completionDays: 1,
+                            miniTasks: [{ id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`, title: "" }],
+                          },
+                        ])
+                      }
+                      className="h-12 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                    >
+                      + Add Proposed Task
+                    </button>
                   </div>
                 )}
+              </SectionCard>
+            </AnimatedReveal>
 
-                {/* 4. Roll-up Summary */}
+            <AnimatedReveal delay={4}>
+              <FileUploadDropzone
+                files={attachments}
+                onFilesChange={setAttachments}
+                label="Portfolio & Attachments"
+                helperText="Attach your CV, portfolio, demo files, PDFs, or supporting documents."
+              />
+            </AnimatedReveal>
+
+            {existingAttachments.length > 0 && (
+              <SectionCard title={`Previously Attached (${existingAttachments.length})`} padding="sm">
+                <div className="space-y-2">
+                  {existingAttachments.map((att) => (
+                    <div key={att.id} className="flex items-center gap-3 bg-secondary/60 border border-border rounded-lg px-4 py-2.5">
+                      {att.type === "image/png" ? <Image className="w-5 h-5 text-brand-primary" /> : <File className="w-5 h-5 text-muted-foreground" />}
+                      <div>
+                        <p className="text-sm font-medium text-foreground/80">{att.name}</p>
+                        <p className="text-xs text-muted-foreground">{att.size}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+
+            <AnimatedReveal delay={5}>
+              <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">
-                      Tổng giá thầu (Roll-up)
-                    </label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount <span className="text-red-500">*</span></label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0).toLocaleString()}
+                    </div>
                     <input
-                      type="number"
-                      value={totalBidAmount}
-                      readOnly
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm font-semibold text-gray-900"
+                      type="number" min="0" step="100"
+                      value={form.bidAmount || ""}
+                      onChange={(e) => updateField("bidAmount", e.target.value === "" ? 0 : Number(e.target.value))}
+                      className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
+                      placeholder="5000"
+                      required
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-800 mb-2">
-                      Tổng thời gian mới (Roll-up)
-                    </label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration <span className="text-red-500">*</span></label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Auto-computed from tasks:
+                    </div>
                     <div className="relative">
-                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input
                         type="number"
-                        value={totalDurationDays}
+                        value={tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0)}
                         readOnly
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm font-semibold text-gray-900"
+                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/50 text-muted-foreground text-sm cursor-not-allowed"
+                        placeholder="14"
+                        required
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Tự động cộng từ thời gian của từng Task.
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium text-accent">Automatically calculated as the sum of completion days for all tasks.</p>
                   </div>
                 </div>
+              </SectionCard>
+            </AnimatedReveal>
 
-                {/* Timeline and Budget Comparison Warnings */}
-                <div className="space-y-3 mt-6">
-                  {/* Timeline banner */}
-                  {project?.deadline !== undefined && (
-                    totalDurationDays > project.deadline ? (
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-center justify-between">
-                        <div>
-                          <span>Cảnh báo: Bạn đã thêm thời gian mà client đưa ra cần lưu ý.</span>
-                          <span className="block text-xs text-amber-600 mt-0.5">
-                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày (+{totalDurationDays - project.deadline} ngày)
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-md">Vượt hạn chót</span>
-                      </div>
-                    ) : (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 flex items-center justify-between">
-                        <div>
-                          <span>Quá tốt.</span>
-                          <span className="block text-xs text-green-600 mt-0.5">
-                            Yêu cầu của Client: {project.deadline} ngày | Đề xuất của bạn: {totalDurationDays} ngày
-                          </span>
-                        </div>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-md">Đúng hạn</span>
-                      </div>
-                    )
-                  )}
+            {/* Deviation Warnings */}
+            {(() => {
+              const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+              const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+              const finalBid = Number(form.bidAmount) || totalBid;
+              const clientBudget = project?.originalBudget || project?.budget || 0;
+              const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
+              const budgetDeviation = clientBudget - finalBid;
+              const timeDeviation = clientDuration - totalDays;
+              const exceedsBudget = budgetDeviation < 0;
+              const exceedsTime = timeDeviation < 0;
 
-                  {/* Budget banner */}
-                  {project?.budget !== undefined && (
-                    totalBidAmount > project.budget ? (
-                      <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 flex items-center justify-between">
+              if (exceedsBudget || exceedsTime) {
+                return (
+                  <div className="space-y-3">
+                    {exceedsTime && (
+                      <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <span className="font-bold flex items-center gap-1.5 text-red-900">
-                            <AlertTriangle className="w-4 h-4 text-red-600" />
-                            Cảnh báo: Đề xuất vượt quá ngân sách gốc của Client!
-                          </span>
-                          <span className="block text-xs text-red-600 mt-1 font-semibold">
-                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
-                          </span>
-                          <span className="block text-xs text-red-700 mt-0.5">
-                            Sự lệch ngân sách (Budget Deviation): -${(totalBidAmount - project.budget).toFixed(2)}
-                          </span>
+                          <p className="text-sm font-bold">Thời gian đề xuất vượt quá yêu cầu</p>
+                          <p className="text-xs text-amber-700 mt-0.5">
+                            Thời gian của bạn ({totalDays} ngày) vượt quá mốc gốc của khách hàng ({clientDuration} ngày) là {Math.abs(timeDeviation)} ngày.
+                          </p>
                         </div>
-                        <span className="px-2 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-md flex-shrink-0">Vượt ngân sách</span>
                       </div>
-                    ) : (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 flex items-center justify-between">
+                    )}
+                    {exceedsBudget && (
+                      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <span>Quá tốt.</span>
-                          <span className="block text-xs text-green-600 mt-0.5">
-                            Ngân sách của Client: ${project.budget} | Đề xuất của bạn: ${totalBidAmount}
-                          </span>
+                          <p className="text-sm font-bold">Ngân sách đề xuất vượt quá ngân sách gốc</p>
+                          <p className="text-xs text-rose-700 mt-0.5">
+                            Giá bid của bạn ({finalBid.toLocaleString()} USD) vượt quá ngân sách của khách hàng ({clientBudget.toLocaleString()} USD) là {Math.abs(budgetDeviation).toLocaleString()} USD.
+                          </p>
                         </div>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-md">Trong ngân sách</span>
                       </div>
-                    )
-                  )}
-                </div>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
-                {(hasTimeOverrun || (project?.budget !== undefined && totalBidAmount > project.budget)) && (
-                  <div className="flex items-start gap-2.5 p-4 bg-amber-50/50 border border-amber-100 rounded-xl mt-4 text-left">
-                    <input
-                      type="checkbox"
-                      id="extensionConfirmed"
-                      checked={extensionConfirmed}
-                      onChange={(e) => setExtensionConfirmed(e.target.checked)}
-                      className="mt-1 rounded border-gray-300 text-brand-primary focus:ring-brand-primary h-4 w-4 cursor-pointer"
-                    />
-                    <label htmlFor="extensionConfirmed" className="text-xs text-amber-900 font-semibold cursor-pointer">
-                      Tôi xác nhận và đồng ý gửi đề xuất với mức chi phí/timeline vượt quá chỉ tiêu của khách hàng.
+            {/* Submit */}
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
+              {(() => {
+                const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
+                const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
+                const finalBid = Number(form.bidAmount) || totalBid;
+                const clientBudget = project?.originalBudget || project?.budget || 0;
+                const clientDuration = project?.originalTotalDurationDays || project?.deadline || 0;
+                const exceedsTargets = (clientBudget - finalBid < 0) || (clientDuration - totalDays < 0);
+
+                if (exceedsTargets) {
+                  return (
+                    <label className="flex items-start gap-3 cursor-pointer p-3 bg-warning/5 border border-warning/20 rounded-xl">
+                      <input
+                        type="checkbox"
+                        checked={!!form.acknowledged}
+                        onChange={(e) => updateField("acknowledged", e.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span className="text-sm text-destructive/90 font-medium">
+                        I understand that my proposal exceeds the Client's original budget/timeline. This may reduce my chances of being selected.
+                      </span>
                     </label>
-                  </div>
+                  );
+                }
+                return null;
+              })()}
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full h-12 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
+              >
+                {submitting ? (
+                  <span className="animate-pulse">Submitting...</span>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" /> Submit Proposal
+                  </>
                 )}
-
-                {submitError && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm font-semibold text-red-700">
-                    {submitError}
-                  </div>
-                )}
-              </div>
-
-              {/* ================================================================ */}
-              {/* Footer — Submit                                                   */}
-              {/* ================================================================ */}
-              <div className="p-8 border-t border-gray-100 bg-gray-50/50">
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full h-11 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm"
-                >
-                  {submitting ? (
-                    <span className="animate-pulse">Submitting...</span>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4" /> Submit Proposal
-                    </>
-                  )}
-                </button>
-              </div>
+              </button>
             </div>
           </form>
         </div>
@@ -937,7 +1021,7 @@ export function SendProposal() {
         {/* ── AI Project Planner Panel (right side) ── */}
         {showAIPlanner && (
           <aside className="lg:col-span-3">
-            <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
               <AIPlannerPanel
                 onClose={handleCloseAI}
                 projectInfo={{
@@ -946,6 +1030,7 @@ export function SendProposal() {
                 }}
                 onApplyTasks={handleApplyAITasks}
                 existingTasks={tasks}
+                clientUseCases={project?.useCases || []}
               />
             </div>
           </aside>

@@ -271,18 +271,7 @@ export function EditExpertProfile() {
     industry: "",
   });
 
- const [skills, setSkills] = useState([]);
-  const [availableSkills, setAvailableSkills] = useState([]);
-  const [selectedSkill, setSelectedSkill] = useState("");
-
-  // Load available skills from API
-  useEffect(() => {
-    api.categoryTags.getSkills()
-      .then(res => {
-        setAvailableSkills(Array.isArray(res) ? res : []);
-      })
-      .catch(err => console.error("Failed to load skills:", err));
-  }, []);
+  const [skills, setSkills] = useState([]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -328,10 +317,6 @@ export function EditExpertProfile() {
     setSkills((prev) =>
       prev.includes(skillName) ? prev.filter((s) => s !== skillName) : [...prev, skillName]
     );
-  };
-
-  const removeSkill = (skillName) => {
-    setSkills((prev) => prev.filter((s) => s !== skillName));
   };
 
   const handleSubmit = async (e) => {
@@ -390,13 +375,13 @@ export function EditExpertProfile() {
         {user?.hasProfile !== false && (
           <Link
             to="/expert/profile"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
         )}
 
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-foreground">
           {user?.hasProfile === false
             ? "Hoàn thiện hồ sơ để bắt đầu"
             : "Edit Expert Profile"}
@@ -405,7 +390,7 @@ export function EditExpertProfile() {
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
+        className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium">
@@ -415,21 +400,21 @@ export function EditExpertProfile() {
 
         {/* Contact Person */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Contact Person <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             required
           />
         </div>
 
         {/* Professional Title */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Professional Title <span className="text-red-500">*</span>
           </label>
           <input
@@ -437,7 +422,7 @@ export function EditExpertProfile() {
             value={formData.jobTitle}
             onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
             placeholder="e.g. Senior ML Engineer"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             required
           />
         </div>
@@ -446,7 +431,7 @@ export function EditExpertProfile() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Category */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Category <span className="text-red-500">*</span>
             </label>
             <select
@@ -456,7 +441,7 @@ export function EditExpertProfile() {
                 setFormData(prev => ({ ...prev, category: cat, specialization: "" }));
                 setSkills([]);
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary bg-card"
               required
             >
               <option value="">-- Select Category --</option>
@@ -470,7 +455,7 @@ export function EditExpertProfile() {
 
           {/* Specialization */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Specialization <span className="text-red-500">*</span>
             </label>
             <select
@@ -481,7 +466,7 @@ export function EditExpertProfile() {
                 setSkills([]);
               }}
               disabled={!formData.category}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white disabled:bg-gray-50"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary bg-card disabled:bg-secondary/60"
               required
             >
               <option value="">-- Select Specialization --</option>
@@ -497,16 +482,16 @@ export function EditExpertProfile() {
 
         {/* Skills Selector (Togglable buttons) */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Skills <span className="text-red-500">*</span>
           </label>
           {!formData.category || !formData.specialization ? (
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               Please select a Category and Specialization to see available skills.
             </p>
           ) : (
             <div className="space-y-3">
-              <p className="text-xs text-gray-400">Select skills that apply to your specialization:</p>
+              <p className="text-xs text-muted-foreground">Select skills that apply to your specialization:</p>
               <div className="flex flex-wrap gap-2">
                 {CATEGORY_DATA[formData.category]?.skills[formData.specialization]?.map((skName) => {
                   const isSelected = skills.includes(skName);
@@ -517,8 +502,8 @@ export function EditExpertProfile() {
                       onClick={() => toggleSkill(skName)}
                       className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
                         isSelected
-                          ? "bg-brand-primary border-brand-primary text-white shadow-sm"
-                          : "bg-white border-gray-300 text-gray-700 hover:border-brand-primary"
+                          ? "bg-brand-primary border-brand-primary text-brand-primary-foreground shadow-sm"
+                          : "bg-card border-input text-foreground/80 hover:border-brand-primary"
                       }`}
                     >
                       {skName}
@@ -533,27 +518,27 @@ export function EditExpertProfile() {
         {/* Email & Phone side by side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Phone Number <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
               required
             />
           </div>
@@ -562,7 +547,7 @@ export function EditExpertProfile() {
         {/* Location & Website side by side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Location
             </label>
             <input
@@ -570,12 +555,12 @@ export function EditExpertProfile() {
               value={formData.location}
               onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="e.g. New York, NY"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Website
             </label>
             <input
@@ -583,7 +568,7 @@ export function EditExpertProfile() {
               value={formData.website}
               onChange={(e) => setFormData({ ...formData, website: e.target.value })}
               placeholder="e.g. https://myportfolio.com"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         </div>
@@ -591,7 +576,7 @@ export function EditExpertProfile() {
         {/* Industry & Portfolio URL side by side */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Industry
             </label>
             <input
@@ -599,12 +584,12 @@ export function EditExpertProfile() {
               value={formData.industry}
               onChange={(e) => setFormData({ ...formData, industry: e.target.value })}
               placeholder="e.g. IT, Software"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               Portfolio URL
             </label>
             <input
@@ -612,14 +597,14 @@ export function EditExpertProfile() {
               value={formData.portfolioUrls}
               onChange={(e) => setFormData({ ...formData, portfolioUrls: e.target.value })}
               placeholder="e.g. https://github.com/myusername"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         </div>
 
         {/* Hourly Rate */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Hourly Rate (USD/hr)
           </label>
           <input
@@ -628,13 +613,13 @@ export function EditExpertProfile() {
             value={formData.hourlyRate}
             onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
             placeholder="e.g. 50"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         {/* Bio */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Bio <span className="text-red-500">*</span>
           </label>
           <textarea
@@ -642,75 +627,16 @@ export function EditExpertProfile() {
             onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
             rows={4}
             placeholder="Write a brief professional bio..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             required
           />
-        </div>
-
-        <div className="space-y-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Skills
-          </label>
-          
-          {/* Dropdown chọn skill */}
-          <div className="mb-4 flex gap-2">
-            <select
-              value={selectedSkill}
-              onChange={(e) => setSelectedSkill(e.target.value)}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary bg-white text-sm"
-            >
-              <option value="">Select a skill...</option>
-              {availableSkills.map((skill) => (
-                <option key={skill.id} value={skill.name}>
-                  {skill.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedSkill && !skills.includes(selectedSkill)) {
-                  setSkills([...skills, selectedSkill]);
-                  setSelectedSkill("");
-                }
-              }}
-              className="h-10 px-4 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-semibold text-sm transition-colors"
-            >
-              Add
-            </button>
-          </div>
-
-          {/* Hiển thị các skill đã chọn */}
-          {skills.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              No skills added. Add skills to improve your profile visibility.
-            </p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {skills.map((skill) => (
-                <span
-                  key={skill}
-                  className="px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-sm inline-flex items-center gap-2 font-medium"
-                >
-                  {skill}
-                  <button
-                    type="button"
-                    onClick={() => removeSkill(skill)}
-                    className="text-brand-primary hover:text-brand-primary-hover font-bold"
-                  >
-                    &times;
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
             disabled={loading}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
+            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {loading ? "Saving..." : "Save Changes"}
@@ -719,7 +645,7 @@ export function EditExpertProfile() {
           {user?.hasProfile !== false && (
             <Link
               to="/expert/profile"
-              className="h-11 px-5 text-[15px] rounded-xl border border-gray-300 hover:bg-gray-50 font-medium inline-flex items-center justify-center"
+              className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
             >
               Cancel
             </Link>

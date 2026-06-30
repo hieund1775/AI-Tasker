@@ -9,7 +9,7 @@ export default function OwnerReviews() {
   return (
     <div>
       <div className="mb-6">
-        <p className="text-xs text-gray-400 uppercase tracking-wider">
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">
           Owner &rsaquo; Review Management
         </p>
       </div>

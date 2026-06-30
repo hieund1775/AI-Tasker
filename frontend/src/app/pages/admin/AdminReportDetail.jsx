@@ -58,6 +58,7 @@ const REPORT_STATUS_CONFIG = {
   "Awaiting Expert": { color: "bg-amber-100 text-amber-750 border border-amber-250", label: "Awaiting Expert" },
   "Awaiting Client": { color: "bg-blue-100 text-blue-750 border border-blue-250", label: "Awaiting Client" },
   "Awaiting Evidence": { color: "bg-purple-100 text-purple-750 border border-purple-250", label: "Awaiting Evidence" },
+  "Awaiting Both": { color: "bg-purple-100 text-purple-750 border border-purple-250", label: "Awaiting Both Sides" },
   Resolved: { color: "bg-green-100 text-green-750 border border-green-250", label: "Resolved" },
   Rejected: { color: "bg-red-100 text-red-750 border border-red-250", label: "Rejected" },
 };
@@ -103,6 +104,7 @@ export function AdminReportDetail() {
   }, [id]);
 
   const [activeTab, setActiveTab] = useState("client");
+  const [activePartyTab, setActivePartyTab] = useState("reporter");
 
   useEffect(() => {
     fetchReport();
@@ -126,6 +128,12 @@ export function AdminReportDetail() {
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
   const [evidenceNote, setEvidenceNote] = useState("");
   const [evidenceNoteError, setEvidenceNoteError] = useState("");
+  const [evidenceTarget, setEvidenceTarget] = useState("both"); // "client" | "expert" | "both"
+
+  // Request both additional states
+  const [showRequestBothModal, setShowRequestBothModal] = useState(false);
+  const [requestBothNote, setRequestBothNote] = useState("");
+  const [requestBothNoteError, setRequestBothNoteError] = useState("");
 
   // Force modals states
   const [showForcePayoutModal, setShowForcePayoutModal] = useState(false);
@@ -134,7 +142,7 @@ export function AdminReportDetail() {
   const [forceReasonError, setForceReasonError] = useState("");
 
   useEffect(() => {
-    if (!report?.replyDeadline || (report.status !== "Awaiting Expert" && report.status !== "Awaiting Client" && report.status !== "Awaiting Evidence")) {
+    if (!report?.replyDeadline || (report.status !== "Awaiting Expert" && report.status !== "Awaiting Client" && report.status !== "Awaiting Evidence" && report.status !== "Awaiting Both")) {
       setTimeLeft("");
       setIsDeadlineExpired(false);
       return;
@@ -194,11 +202,25 @@ export function AdminReportDetail() {
     }
     setActionLoading(true);
     try {
+      let actionName = "requestEvidenceBoth";
+      let successMsg = "Đã gửi yêu cầu bổ sung thông tin giải trình tới cả 2 bên và gia hạn thêm 48 giờ phản hồi.";
+      
+      if (evidenceTarget === "client") {
+        actionName = "requestEvidenceClient";
+        successMsg = "Đã gửi yêu cầu bổ sung bằng chứng tới Client và gia hạn thêm 48 giờ phản hồi.";
+      } else if (evidenceTarget === "expert") {
+        actionName = "requestEvidenceExpert";
+        successMsg = "Đã gửi yêu cầu bổ sung bằng chứng tới Expert và gia hạn thêm 48 giờ phản hồi.";
+      } else {
+        actionName = "requestEvidenceBoth";
+        successMsg = "Đã gửi yêu cầu bổ sung thông tin giải trình tới cả 2 bên và gia hạn thêm 48 giờ phản hồi.";
+      }
+
       await api.put(`/reports/${report.id}`, {
-        action: "requestMoreEvidence",
+        action: actionName,
         adminNote: evidenceNote
       });
-      showToast("Đã gửi yêu cầu bổ sung bằng chứng và gia hạn thêm 48 giờ phản hồi.");
+      showToast(successMsg);
       setEvidenceNote("");
       setEvidenceNoteError("");
       setShowEvidenceModal(false);
@@ -208,7 +230,30 @@ export function AdminReportDetail() {
     } finally {
       setActionLoading(false);
     }
-  }, [report, evidenceNote, fetchReport, showToast]);
+  }, [report, evidenceNote, evidenceTarget, fetchReport, showToast]);
+
+  const handleRequestAdditionalBoth = useCallback(async () => {
+    if (!requestBothNote.trim()) {
+      setRequestBothNoteError("Vui lòng nhập lý do/nội dung yêu cầu giải trình bổ sung.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}`, {
+        action: "requestAdditionalBoth",
+        adminNote: requestBothNote
+      });
+      showToast("Đã gửi yêu cầu bổ sung thông tin giải trình tới cả 2 bên và gia hạn thêm 48 giờ phản hồi.");
+      setRequestBothNote("");
+      setRequestBothNoteError("");
+      setShowRequestBothModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi gửi yêu cầu.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [report, requestBothNote, fetchReport, showToast]);
 
   const handleForcePayout = useCallback(async () => {
     if (!forceReason.trim()) {
@@ -276,6 +321,41 @@ export function AdminReportDetail() {
       setShowAcceptModal(false);
     }
   }, [id, report?.projectId, showToast]);
+
+  const handleAdminApproveCancel = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${id}/admin-approve-cancel`);
+      showToast("Đã duyệt yêu cầu hủy hợp đồng và chuyển tiếp cho đối tác.");
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi duyệt yêu cầu.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, fetchReport, showToast]);
+
+  const handleAdminRejectCancel = useCallback(async () => {
+    if (!rejectReason.trim()) {
+      setRejectReasonError("Vui lòng nhập lý do từ chối hủy hợp đồng.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${id}/admin-reject-cancel`, {
+        adminNote: rejectReason,
+      });
+      showToast("Đã từ chối đơn hủy hợp đồng. Dự án hoạt động lại bình thường.");
+      setRejectReason("");
+      setRejectReasonError("");
+      setShowRejectModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi từ chối yêu cầu.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, rejectReason, fetchReport, showToast]);
 
   // -----------------------------------------------------------------------
   // Reject Report
@@ -441,6 +521,33 @@ export function AdminReportDetail() {
   const isType2 = report.reportType === "type2";
   const canHandleMoney = report.status === "Pending Admin";
 
+  // Derived fields for Reporter and Responder
+  const isReporterClient = report.reporterRole === "client" || report.reportType === "type2";
+  const isReporterTab = activePartyTab === "reporter";
+
+  const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
+  const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
+  const reporterName = isReporterClient
+    ? (report.clientName || report.clientId || "—")
+    : (report.expertName || report.expertId || "—");
+  const responderName = isReporterClient
+    ? (report.expertName || report.expertId || "—")
+    : (report.clientName || report.clientId || "—");
+  const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
+  const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
+
+  // Reporter details
+  const reporterExplanation = isReporterClient ? report.clientExplanation : report.expertExplanation;
+  const reporterEvidence = isReporterClient ? report.clientExplanationEvidence : report.expertExplanationEvidence;
+
+  // Responder details
+  const responderReason = isReporterClient ? report.expertExplanationReason : report.clientExplanationReason;
+  const responderDescription = isReporterClient ? report.expertExplanationDescription : report.clientExplanationDescription;
+  const responderExplanation = isReporterClient ? report.expertExplanation : report.clientExplanation;
+  const responderDesiredResolution = isReporterClient ? report.expertExplanationDesiredResolution : report.clientExplanationDesiredResolution;
+  const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
+  const hasResponderResponded = !!responderExplanation;
+
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
@@ -478,7 +585,7 @@ export function AdminReportDetail() {
       </div>
 
       {/* Deadline warning banner */}
-      {(report.status === "Awaiting Expert" || report.status === "Awaiting Client") && (
+      {(report.status === "Awaiting Expert" || report.status === "Awaiting Client" || report.status === "Awaiting Both") && (
         <div className="mb-6 p-4 bg-red-55/70 border border-red-200 text-red-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-red-105 rounded-lg text-red-650">
@@ -548,329 +655,463 @@ export function AdminReportDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ---- Left: Report details ---- */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Project info */}
-          <SectionCard title="Project Information" icon={FileText}>
-            <DetailGrid>
-              <DetailItem label="Project ID" value={report.projectId} />
-              <DetailItem
-                label="Funds in Escrow"
-                value={
-                  <span className="font-semibold text-brand-primary">
-                    <MoneyDisplay
-                      amount={report.amount || report.escrowAmount || 0}
-                    />
-                  </span>
+      <div className="space-y-6">
+        {/* Project info */}
+        <SectionCard title="Project Information" icon={FileText}>
+          <DetailGrid>
+            <DetailItem label="Project ID" value={report.projectId} />
+            <DetailItem
+              label="Funds in Escrow"
+              value={
+                <span className="font-semibold text-brand-primary">
+                  <MoneyDisplay
+                    amount={report.amount || report.escrowAmount || 0}
+                  />
+                </span>
+              }
+            />
+            <DetailItem
+              label="Start Date"
+              value={
+                report.projectStartDate
+                  ? formatDateTime(report.projectStartDate)
+                  : "—"
+              }
+            />
+            <DetailItem
+              label="Deadline"
+              value={(() => {
+                if (!report.projectDeadline) return "—";
+                const num = Number(report.projectDeadline);
+                if (!Number.isNaN(num) && num < 1000) {
+                  const d = new Date(report.projectStartDate || new Date());
+                  d.setDate(d.getDate() + num);
+                  return formatDateTime(d.toISOString());
                 }
-              />
-              <DetailItem
-                label="Project Status"
-                value={report.projectStatus || "—"}
-              />
-              <DetailItem
-                label="Start Date"
-                value={
-                  report.projectStartDate
-                    ? formatDateTime(report.projectStartDate)
-                    : "—"
-                }
-              />
-              <DetailItem
-                label="Deadline"
-                value={
-                  report.projectDeadline
-                    ? formatDateTime(report.projectDeadline)
-                    : "—"
-                }
-              />
-            </DetailGrid>
-          </SectionCard>
-
-          {/* Client & Expert info */}
-          <SectionCard title="Parties Involved" icon={User}>
-            <div className="flex border-b border-gray-200 mb-4 font-sans">
-              {(() => {
-                const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
-                const tabsOrder = reporter === "client" ? ["client", "expert"] : ["expert", "client"];
-                return tabsOrder.map((role) => {
-                  const label = role === "client" ? "Client" : "Expert";
-                  const isSelected = activeTab === role;
-                  const isReporter = role === reporter;
-                  
-                  let activeClass = "";
-                  if (role === "client") {
-                    activeClass = isSelected 
-                      ? "border-blue-600 text-blue-600 bg-blue-50/50" 
-                      : "border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50/20";
-                  } else {
-                    activeClass = isSelected 
-                      ? "border-purple-600 text-purple-600 bg-purple-50/50" 
-                      : "border-transparent text-gray-500 hover:text-purple-600 hover:bg-purple-50/20";
-                  }
-                  
-                  return (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => setActiveTab(role)}
-                      className={`flex-1 py-3 text-center border-b-2 font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeClass}`}
-                    >
-                      <span>{label}</span>
-                      {isReporter && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-105 text-red-700 font-medium">
-                          Reporter (Bên tố cáo)
-                        </span>
-                      )}
-                    </button>
-                  );
-                });
+                return formatDateTime(report.projectDeadline);
               })()}
-            </div>
+            />
+          </DetailGrid>
+        </SectionCard>
 
-            <div className="min-h-[200px] font-sans">
-              {(() => {
-                const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
-                if (activeTab === "client") {
-                  return (
-                    <div className={`p-5 rounded-xl border transition-all relative ${
-                      report.status === "Awaiting Client" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-blue-50/30 border-blue-100"
-                    }`}>
-                      {report.status === "Awaiting Client" && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                          <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
-                            Chờ giải trình...
-                          </span>
-                        </div>
-                      )}
-                      <div className="space-y-4 text-left">
-                        <div>
-                          <p className="text-xs font-bold text-blue-750 uppercase tracking-wider mb-0.5">Client Name</p>
-                          <p className="text-base font-semibold text-gray-900">{report.clientName || report.clientId || "—"}</p>
-                          {report.clientEmail && <p className="text-xs text-gray-500">{report.clientEmail}</p>}
-                        </div>
-
-                        <div className="border-t border-blue-100/50 pt-3">
-                          {reporter === "client" ? (
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Nội dung tố cáo vi phạm</p>
-                              <div className="space-y-2">
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.reason}</p>
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.description}</p>
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.desiredResolution}</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Báo cáo phản hồi giải trình</p>
-                              {report.clientExplanation ? (
-                                <div className="space-y-2">
-                                  <p className="text-sm text-gray-850 italic leading-relaxed">&quot;{report.clientExplanation}&quot;</p>
-                                  {report.clientExplanationEvidence && report.clientExplanationEvidence.length > 0 && (
-                                    <div className="mt-2 text-xs text-gray-500">
-                                      <strong>Tài liệu đính kèm:</strong> {report.clientExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="py-6 text-center text-gray-400">
-                                  <p className="text-sm italic">Responder has not responded yet (Chưa có báo cáo phản hồi)</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                } else if (activeTab === "expert") {
-                  return (
-                    <div className={`p-5 rounded-xl border transition-all relative ${
-                      report.status === "Awaiting Expert" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-purple-50/30 border-purple-100"
-                    }`}>
-                      {report.status === "Awaiting Expert" && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                          <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
-                            Chờ giải trình...
-                          </span>
-                        </div>
-                      )}
-                      <div className="space-y-4 text-left">
-                        <div>
-                          <p className="text-xs font-bold text-purple-750 uppercase tracking-wider mb-0.5">Expert Name</p>
-                          <p className="text-base font-semibold text-gray-900">{report.expertName || report.expertId || "—"}</p>
-                          {report.expertEmail && <p className="text-xs text-gray-500">{report.expertEmail}</p>}
-                        </div>
-
-                        <div className="border-t border-purple-100/50 pt-3">
-                          {reporter === "expert" ? (
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Nội dung tố cáo vi phạm</p>
-                              <div className="space-y-2">
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.reason}</p>
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.description}</p>
-                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.desiredResolution}</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <p className="text-xs font-bold text-gray-500 uppercase mb-1">Báo cáo phản hồi giải trình</p>
-                              {report.expertExplanation ? (
-                                <div className="space-y-2">
-                                  <p className="text-sm text-gray-850 italic leading-relaxed">&quot;{report.expertExplanation}&quot;</p>
-                                  {report.expertExplanationEvidence && report.expertExplanationEvidence.length > 0 && (
-                                    <div className="mt-2 text-xs text-gray-500">
-                                      <strong>Tài liệu đính kèm:</strong> {report.expertExplanationEvidence.map(e => e.fileName || e.name).join(", ")}
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="py-6 text-center text-gray-400">
-                                  <p className="text-sm italic">Responder has not responded yet (Chưa có báo cáo phản hồi)</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          </SectionCard>
- 
-          {/* Report content */}
-          <SectionCard title="Report Content" icon={AlertTriangle}>
-            <div className="space-y-4 text-left font-sans">
+        {report.disputeType === "cancellation" ? (
+          <SectionCard title="Chi tiết yêu cầu hủy hợp đồng" icon={FileText}>
+            <div className="p-6 bg-card border border-border rounded-xl space-y-4 text-left text-sm font-sans">
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Report Reason *
-                </p>
-                <p className="text-sm text-gray-900 font-medium">
-                  {report.reason || "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Dispute Type *
-                </p>
-                <span className="inline-block text-xs text-brand-primary bg-brand-primary-light px-2.5 py-1 rounded-full font-bold border border-brand-primary/10">
-                  {report.disputeType === "financial" ? "Financial (Tài chính)" :
-                   report.disputeType === "quality" ? "Quality (Chất lượng)" :
-                   report.disputeType === "deadline" ? "Deadline (Tiến độ)" :
-                   report.disputeType || "—"}
+                <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Người yêu cầu hủy:</strong>
+                <span className="text-base font-semibold text-foreground">
+                  {report.reporterRole === "client" ? `Khách hàng (Client): ${report.clientName}` : `Chuyên gia (Expert): ${report.expertName}`}
                 </span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Detailed Description *
-                </p>
-                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {report.description || "—"}
+                <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Lý do yêu cầu hủy:</strong>
+                <p className="mt-1 text-sm text-foreground bg-muted/40 p-4 border border-border rounded-xl font-medium">
+                  &quot;{report.reason}&quot;
                 </p>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Desired Resolution *
-                </p>
-                <p className="text-sm text-gray-800 font-medium">
-                  {report.desiredResolution || "—"}
-                </p>
+              {report.evidence && report.evidence.length > 0 && (
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Tài liệu đính kèm:</strong>
+                  <span className="text-brand-primary underline flex items-center gap-1">
+                    <FileText className="w-4 h-4" />
+                    {report.evidence[0].fileName}
+                  </span>
+                </div>
+              )}
+              
+              <div className="border-t border-border pt-4">
+                <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-2">Phương án chia tiền ký quỹ (Escrow Split):</strong>
+                <div className="space-y-1.5 p-4 bg-muted/30 border border-border rounded-xl text-xs max-w-md">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Giá trị hợp đồng:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={report.payoutBreakdown?.contractAmount} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Tiến độ hiện tại:</span><span className="font-semibold text-foreground">{report.payoutBreakdown?.progressPercent}%</span></div>
+                  <div className="border-t border-border my-1.5" />
+                  <div className="flex justify-between font-semibold"><span className="text-foreground">Hoàn tiền Client:</span><span className="text-green-600"><MoneyDisplay amount={report.payoutBreakdown?.clientRefund} /></span></div>
+                  <div className="flex justify-between font-semibold"><span className="text-foreground">Thanh toán Expert:</span><span className="text-amber-600"><MoneyDisplay amount={report.payoutBreakdown?.expertPayout} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Phí sàn (5%):</span><span><MoneyDisplay amount={report.payoutBreakdown?.platformServiceFee} /></span></div>
+                </div>
               </div>
+
+              {report.partnerRejectionReason && (
+                <div className="border-t border-border pt-4">
+                  <strong className="text-red-650 block text-xs uppercase tracking-wider">Đối tác từ chối hủy hợp đồng với lý do:</strong>
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl mt-2 font-medium text-red-800">
+                    &quot;{report.partnerRejectionReason}&quot;
+                  </div>
+                  <p className="text-xs text-muted-foreground italic mt-1">Hệ thống đã tự động trả đơn hủy về cho người yêu cầu tự quyết định (Chấp nhận hoặc Phản hồi).</p>
+                </div>
+              )}
             </div>
           </SectionCard>
- 
-          {/* Evidence */}
-          <SectionCard title="Evidence" icon={Eye}>
+        ) : (
+          <SectionCard title="Parties Involved" icon={User}>
+          <div className="flex border-b border-gray-200 mb-4 font-sans">
             {(() => {
-              const allEvidence = [
-                ...(report.evidence || []).map((e, idx) => ({
-                  ...e,
-                  id: e.id || `orig-${idx}`,
-                  name: e.name || e.fileName || `Evidence ${idx + 1}`,
-                  sender: "Original (Bằng chứng tố cáo)",
-                })),
-                ...(report.clientEvidenceList || []).map((e, idx) => ({
-                  ...e,
-                  id: `client-${idx}`,
-                  name: e.fileName || `Client Evidence ${idx + 1}`,
-                  sender: "Client (Tài liệu bổ sung)",
-                })),
-                ...(report.expertEvidenceList || []).map((e, idx) => ({
-                  ...e,
-                  id: `expert-${idx}`,
-                  name: e.fileName || `Expert Evidence ${idx + 1}`,
-                  sender: "Expert (Tài liệu bổ sung)",
-                })),
-              ];
-              if (allEvidence.length === 0) {
-                return <p className="text-sm text-gray-400 font-sans">No evidence provided.</p>;
-              }
-              return (
-                <div className="space-y-3 font-sans">
-                  {allEvidence.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl bg-gray-50/30 text-left hover:border-gray-300 transition-colors"
-                    >
-                      <FileText className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="text-sm font-semibold text-gray-800 truncate">
-                            {item.name}
-                          </p>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-bold border border-gray-200">
-                            {item.sender}
-                          </span>
-                        </div>
-                        {item.note && (
-                          <p className="text-xs text-gray-500 leading-relaxed">
-                            {item.note}
-                          </p>
-                        )}
-                        {item.submittedAt && (
-                          <p className="text-[10px] text-gray-400 mt-1">
-                            Nộp ngày: {formatDateTime(item.submittedAt)}
-                          </p>
+              const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
+              const tabsOrder = reporter === "client" ? ["client", "expert"] : ["expert", "client"];
+              return tabsOrder.map((role) => {
+                const label = role === "client" ? "Client" : "Expert";
+                const isSelected = activeTab === role;
+                const isReporter = role === reporter;
+                
+                let activeClass = "";
+                if (role === "client") {
+                  activeClass = isSelected 
+                    ? "border-blue-600 text-blue-600 bg-blue-50/50" 
+                    : "border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50/20";
+                } else {
+                  activeClass = isSelected 
+                    ? "border-purple-600 text-purple-600 bg-purple-50/50" 
+                    : "border-transparent text-gray-500 hover:text-purple-600 hover:bg-purple-50/20";
+                }
+                
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setActiveTab(role)}
+                    className={`flex-1 py-3 text-center border-b-2 font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeClass}`}
+                  >
+                    <span>{label}</span>
+                    {isReporter && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-105 text-red-700 font-medium">
+                        Reporter (Bên tố cáo)
+                      </span>
+                    )}
+                  </button>
+                );
+              });
+            })()}
+          </div>
+
+          <div className="min-h-[200px] font-sans">
+            {(() => {
+              const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
+              if (activeTab === "client") {
+                return (
+                  <div className={`p-5 rounded-xl border transition-all relative ${
+                    report.status === "Awaiting Client" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-blue-50/30 border-blue-100"
+                  }`}>
+                    {report.status === "Awaiting Client" && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
+                        <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                          Chờ giải trình...
+                        </span>
+                      </div>
+                    )}
+                    <div className="space-y-4 text-left">
+                      <div>
+                        <p className="text-xs font-bold text-blue-750 uppercase tracking-wider mb-0.5">Client Name</p>
+                        <p className="text-base font-semibold text-gray-900">{report.clientName || report.clientId || "—"}</p>
+                        {report.clientEmail && <p className="text-xs text-gray-500">{report.clientEmail}</p>}
+                      </div>
+
+                      <div className="border-t border-blue-100/50 pt-3">
+                        {reporter === "client" ? (
+                          <div>
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Nội dung tố cáo vi phạm</p>
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.reason}</p>
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.description}</p>
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.desiredResolution}</p>
+                              
+                              {report.evidence && report.evidence.length > 0 && (
+                                <div className="mt-3 pt-2 border-t border-blue-100/50">
+                                  <strong className="text-xs text-gray-500 block mb-1">Tài liệu đính kèm lúc tố cáo:</strong>
+                                  <div className="space-y-1">
+                                    {report.evidence.map((e, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={e.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                        {e.fileName || e.name || `Tài liệu tố cáo ${idx + 1}`}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Báo cáo phản hồi giải trình</p>
+                            {report.clientExplanation ? (
+                              <div className="space-y-2">
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.clientExplanationReason || report.clientExplanation}</p>
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.clientExplanation}</p>
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
+                                {report.clientExplanationEvidence && report.clientExplanationEvidence.length > 0 && (
+                                  <div className="mt-2 text-xs text-gray-500">
+                                    <strong>Tài liệu đính kèm:</strong>
+                                    <div className="mt-1 space-y-1">
+                                      {report.clientExplanationEvidence.map((e, eIdx) => (
+                                        <a
+                                          key={eIdx}
+                                          href={e.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                        >
+                                          <FileText className="w-3.5 h-3.5" />
+                                          {e.fileName || e.name || `Tài liệu ${eIdx + 1}`}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="py-6 text-center text-gray-400">
+                                <p className="text-sm italic">Responder has not responded yet (Chưa có báo cáo phản hồi)</p>
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {item.fileUrl && (
-                        <a
-                          href={item.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-shrink-0 p-2 text-brand-primary hover:text-brand-primary-hover bg-brand-primary-light hover:bg-brand-primary/10 rounded-lg transition"
-                          title="Download"
-                        >
-                          <Download className="w-4 h-4" />
-                        </a>
+                    </div>
+                  </div>
+                );
+              } else if (activeTab === "expert") {
+                return (
+                  <div className={`p-5 rounded-xl border transition-all relative ${
+                    report.status === "Awaiting Expert" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-purple-50/30 border-purple-100"
+                  }`}>
+                    {report.status === "Awaiting Expert" && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
+                        <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                          Chờ giải trình...
+                        </span>
+                      </div>
+                    )}
+                    <div className="space-y-4 text-left">
+                      <div>
+                        <p className="text-xs font-bold text-purple-750 uppercase tracking-wider mb-0.5">Expert Name</p>
+                        <p className="text-base font-semibold text-gray-900">{report.expertName || report.expertId || "—"}</p>
+                        {report.expertEmail && <p className="text-xs text-gray-500">{report.expertEmail}</p>}
+                      </div>
+
+                      <div className="border-t border-purple-100/50 pt-3">
+                        {reporter === "expert" ? (
+                          <div>
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Nội dung tố cáo vi phạm</p>
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.reason}</p>
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.description}</p>
+                              <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.desiredResolution}</p>
+                              
+                              {report.evidence && report.evidence.length > 0 && (
+                                <div className="mt-3 pt-2 border-t border-purple-100/50">
+                                  <strong className="text-xs text-gray-500 block mb-1">Tài liệu đính kèm lúc tố cáo:</strong>
+                                  <div className="space-y-1">
+                                    {report.evidence.map((e, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={e.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-purple-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                        {e.fileName || e.name || `Tài liệu tố cáo ${idx + 1}`}
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-1">Báo cáo phản hồi giải trình</p>
+                            {report.expertExplanation ? (
+                              <div className="space-y-2">
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Lý do:</strong> {report.expertExplanationReason || report.expertExplanation}</p>
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Chi tiết:</strong> {report.expertExplanation}</p>
+                                <p className="text-sm text-gray-800"><strong className="text-gray-700">Nguyện vọng:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
+                                {report.expertExplanationEvidence && report.expertExplanationEvidence.length > 0 && (
+                                  <div className="mt-2 text-xs text-gray-500">
+                                    <strong>Tài liệu đính kèm:</strong>
+                                    <div className="mt-1 space-y-1">
+                                      {report.expertExplanationEvidence.map((e, eIdx) => (
+                                        <a
+                                          key={eIdx}
+                                          href={e.fileUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-purple-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                        >
+                                          <FileText className="w-3.5 h-3.5" />
+                                          {e.fileName || e.name || `Tài liệu ${eIdx + 1}`}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="py-6 text-center text-gray-400">
+                                <p className="text-sm italic">Responder has not responded yet (Chưa có báo cáo phản hồi)</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </div>
+        </SectionCard>
+        )}
+
+        {/* Form bổ sung (Additional Statements History) */}
+        {report.additionalRounds && report.additionalRounds.length > 0 && (
+          <SectionCard title="Giải trình bổ sung từ hai bên" icon={FileText}>
+            <div className="space-y-6">
+              {report.additionalRounds.map((round, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                  <h4 className="text-sm font-bold text-gray-850 mb-3 border-b pb-2">
+                    Vòng giải trình bổ sung #{round.roundNumber}
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Client additional submission */}
+                    <div className="bg-blue-50/20 border border-blue-100 rounded-xl p-4 text-left">
+                      <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Client
+                      </h5>
+                      {round.clientExplanation ? (
+                        <div className="space-y-2 text-xs">
+                          <p className="text-gray-700"><strong>Lý do:</strong> {round.clientExplanationReason || "—"}</p>
+                          <p className="text-gray-750"><strong>Chi tiết:</strong> {round.clientExplanation || "—"}</p>
+                          <p className="text-gray-755"><strong>Nguyện vọng:</strong> {round.clientExplanationDesiredResolution || "—"}</p>
+                          {round.clientExplanationEvidence && round.clientExplanationEvidence.length > 0 && (
+                            <div className="pt-2 border-t border-blue-100/50 mt-2">
+                              <strong className="text-gray-500 block mb-1">Tài liệu đính kèm:</strong>
+                              <div className="space-y-1">
+                                {round.clientExplanationEvidence.map((e, eIdx) => (
+                                  <a
+                                    key={eIdx}
+                                    href={e.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    {e.fileName || e.name || `Tài liệu ${eIdx + 1}`}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Chưa nộp giải trình bổ sung...</p>
                       )}
                     </div>
-                  ))}
+
+                    {/* Expert additional submission */}
+                    <div className="bg-purple-50/20 border border-purple-100 rounded-xl p-4 text-left">
+                      <h5 className="text-xs font-bold text-purple-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-purple-500"></span> Expert
+                      </h5>
+                      {round.expertExplanation ? (
+                        <div className="space-y-2 text-xs">
+                          <p className="text-gray-700"><strong>Lý do:</strong> {round.expertExplanationReason || "—"}</p>
+                          <p className="text-gray-750"><strong>Chi tiết:</strong> {round.expertExplanation || "—"}</p>
+                          <p className="text-gray-755"><strong>Nguyện vọng:</strong> {round.expertExplanationDesiredResolution || "—"}</p>
+                          {round.expertExplanationEvidence && round.expertExplanationEvidence.length > 0 && (
+                            <div className="pt-2 border-t border-purple-100/50 mt-2">
+                              <strong className="text-gray-500 block mb-1">Tài liệu đính kèm:</strong>
+                              <div className="space-y-1">
+                                {round.expertExplanationEvidence.map((e, eIdx) => (
+                                  <a
+                                    key={eIdx}
+                                    href={e.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                  >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    {e.fileName || e.name || `Tài liệu ${eIdx + 1}`}
+                                  </a>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Chưa nộp giải trình bổ sung...</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              );
-            })()}
+              ))}
+            </div>
           </SectionCard>
-        </div>
+        )}
 
-        {/* ---- Right: Actions sidebar ---- */}
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sticky top-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4 animate-none">
-              Admin Actions
-            </h3>
-
-            {/* ---- Pending: Accept / Reject ---- */}
-            {isPending && (
-              <div className="space-y-3">
+        {/* ---- Bottom: Admin Actions Section ---- */}
+        <SectionCard title="Admin Actions" icon={AlertTriangle}>
+          <div className="font-sans">
+            {report.disputeType === "cancellation" ? (
+              <div className="space-y-4 font-sans text-left">
+                {report.status === "Pending Admin" && (
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={handleAdminApproveCancel}
+                      disabled={actionLoading}
+                      className="flex-1 h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                      Duyệt gửi đối tác (Approve)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRejectModal(true)}
+                      disabled={actionLoading}
+                      className="flex-1 h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Từ chối đơn hủy (Reject)
+                    </button>
+                  </div>
+                )}
+                {report.status === "Awaiting Partner" && (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center text-amber-800 font-medium">
+                    Đang chờ đối tác phản hồi đơn hủy hợp đồng...
+                  </div>
+                )}
+                {report.status === "Returned" && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center text-rose-750 font-medium">
+                    Đối tác đã từ chối yêu cầu hủy. Đã trả đơn về người yêu cầu giải quyết.
+                  </div>
+                )}
+                {report.status === "Resolved" && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center text-green-700 font-medium">
+                    Đơn hủy hợp đồng đã được giải quyết thành công (Dự án đã đóng).
+                  </div>
+                )}
+                {report.status === "Rejected" && (
+                  <div className="p-4 bg-red-55/10 border border-red-200 rounded-xl text-center text-red-700 font-medium">
+                    Đơn hủy hợp đồng đã bị từ chối/hủy bỏ (Dự án tiếp tục hoạt động).
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                {isPending && (
+                  <div className="flex gap-4">
                 <button
                   type="button"
                   onClick={() => setShowAcceptModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="flex-1 h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -883,7 +1124,7 @@ export function AdminReportDetail() {
                   type="button"
                   onClick={() => setShowRejectModal(true)}
                   disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                  className="flex-1 h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                 >
                   {actionLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -895,124 +1136,87 @@ export function AdminReportDetail() {
               </div>
             )}
 
-            {/* ---- Awaiting Expert / Client: Chat / Evidence ---- */}
-            {(report.status === "Awaiting Expert" || report.status === "Awaiting Client") && (
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={handleCreateChat}
-                  disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                >
-                  {actionLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <MessageCircle className="w-4 h-4" />
-                  )}
-                  Create Dispute Chat
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowEvidenceModal(true)}
-                  disabled={actionLoading}
-                  className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                >
-                  <AlertTriangle className="w-4 h-4" />
-                  Yêu cầu bằng chứng
-                </button>
-              </div>
-            )}
 
             {/* ---- Pending Admin / Awaiting Evidence: Settle Options ---- */}
             {(report.status === "Pending Admin" || report.status === "Awaiting Evidence") && (() => {
               const isEvidenceAwaiting = report.status === "Awaiting Evidence" && !isDeadlineExpired;
               return (
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleCreateChat}
-                    disabled={actionLoading}
-                    className="w-full h-11 px-5 bg-purple-65 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                  >
-                    {actionLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <MessageCircle className="w-4 h-4" />
-                    )}
-                    Create Dispute Chat
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowEvidenceModal(true)}
-                    disabled={actionLoading}
-                    className="w-full h-11 px-5 bg-amber-50 text-amber-755 hover:bg-amber-100 border border-amber-250 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                    Yêu cầu bằng chứng
-                  </button>
-
-                  <div className="border-t border-gray-100 pt-3">
-                    <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider text-left">
+                <div className="space-y-4">
+                  <div className="text-left">
+                    <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">
                       Settle Decision:
                     </p>
-                    {isType2 ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setShowForcePayoutModal(true)}
-                          disabled={actionLoading || isEvidenceAwaiting}
-                          className="w-full h-11 px-5 bg-green-600 text-white rounded-[14px] hover:bg-green-700 disabled:opacity-55 disabled:cursor-not-allowed text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
-                        >
-                          ✓ Force Payout
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowForceRefundModal(true)}
-                          disabled={actionLoading || isEvidenceAwaiting}
-                          className="w-full h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-55 disabled:cursor-not-allowed text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                        >
-                          ✗ Force Refund
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => setShowContinueModal(true)}
-                          disabled={actionLoading || isEvidenceAwaiting}
-                          className="w-full h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-55 disabled:cursor-not-allowed text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer mb-2"
-                        >
-                          <Play className="w-4 h-4" />
-                          Continue Project
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowStopModal(true)}
-                          disabled={actionLoading || isEvidenceAwaiting}
-                          className="w-full h-11 px-5 bg-red-65 text-red-705 border border-red-200 rounded-[14px] disabled:opacity-55 disabled:cursor-not-allowed text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                        >
-                          <StopCircle className="w-4 h-4" />
-                          Stop Project
-                        </button>
-                      </>
-                    )}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {isType2 ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowForcePayoutModal(true)}
+                            disabled={actionLoading || isEvidenceAwaiting}
+                            className="h-11 px-5 bg-green-600 text-white rounded-[14px] hover:bg-green-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          >
+                            ✓ Force Payout (Chọn Expert)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowForceRefundModal(true)}
+                            disabled={actionLoading || isEvidenceAwaiting}
+                            className="h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          >
+                            ✗ Force Refund (Chọn Client)
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setShowContinueModal(true)}
+                            disabled={actionLoading || isEvidenceAwaiting}
+                            className="h-11 px-5 bg-green-600 text-white rounded-[14px] hover:bg-green-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          >
+                            <Play className="w-4 h-4" />
+                            Continue Project (Chọn Expert)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowStopModal(true)}
+                            disabled={actionLoading || isEvidenceAwaiting}
+                            className="h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          >
+                            <StopCircle className="w-4 h-4" />
+                            Stop Project (Chọn Client)
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setShowRequestBothModal(true)}
+                        disabled={actionLoading || isEvidenceAwaiting}
+                        className="h-11 px-5 bg-purple-600 text-white rounded-[14px] hover:bg-purple-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Gửi cả 2 bản (Yêu cầu bổ sung)
+                      </button>
+                    </div>
                     {isEvidenceAwaiting ? (
-                      <p className="text-[11px] text-red-600 font-bold bg-red-50 border border-red-150 p-2.5 rounded-xl mt-3 text-left leading-normal font-sans">
+                      <p className="text-[11px] text-red-600 font-bold bg-red-50 border border-red-150 p-2.5 rounded-xl mt-3 text-left leading-normal">
                         ⚠ Các nút phán quyết bị khóa cứng cho đến khi cả hai bên nộp xong bằng chứng bổ sung hoặc hết hạn 48 giờ.
                       </p>
                     ) : report.status === "Awaiting Evidence" && isDeadlineExpired && (
-                      <p className="text-[11px] text-green-700 font-bold bg-green-50 border border-green-150 p-2.5 rounded-xl mt-3 text-left leading-normal font-sans">
-                        ✓ Hạn nộp bằng chứng đã hết. Trưởng ban trọng tài đã có thể đưa ra phán quyết dựa trên các bằng chứng hiện có.
+                      <p className="text-[11px] text-green-700 font-bold bg-green-50 border border-green-150 p-2.5 rounded-xl mt-3 text-left leading-normal">
+                        ✓ Hạn nộp bằng chứng đã hết. Trọng tài viên đã có thể đưa ra phán quyết dựa trên các bằng chứng hiện có.
                       </p>
                     )}
                   </div>
                 </div>
               );
             })()}
-
+              </>
+            )}
+            
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
             {(isResolved || isRejected) && (
-              <div className="p-4 bg-gray-50 rounded-lg text-center font-sans border border-gray-150">
+              <div className="p-4 bg-gray-50 rounded-lg text-center border border-gray-150">
                 <p className="text-sm font-semibold text-gray-700">
                   {isResolved
                     ? `Resolved — ${
@@ -1040,7 +1244,7 @@ export function AdminReportDetail() {
               </div>
             )}
           </div>
-        </div>
+        </SectionCard>
       </div>
       <ConfirmationModal
         open={showAcceptModal}
@@ -1057,12 +1261,12 @@ export function AdminReportDetail() {
       <ConfirmationModal
         open={showRejectModal}
         onOpenChange={setShowRejectModal}
-        title="Reject Report"
-        description="Please enter the rejection reason. A notification will be sent to the Expert."
-        confirmLabel="Reject"
+        title={report?.disputeType === "cancellation" ? "Từ chối yêu cầu hủy" : "Reject Report"}
+        description={report?.disputeType === "cancellation" ? "Vui lòng nhập lý do từ chối yêu cầu hủy hợp đồng này." : "Please enter the rejection reason. A notification will be sent to the Expert."}
+        confirmLabel={report?.disputeType === "cancellation" ? "Từ chối (Reject)" : "Reject"}
         variant="danger"
         loading={actionLoading}
-        onConfirm={handleRejectReport}
+        onConfirm={report?.disputeType === "cancellation" ? handleAdminRejectCancel : handleRejectReport}
       >
         <textarea
           value={rejectReason}
@@ -1194,8 +1398,20 @@ export function AdminReportDetail() {
       <ConfirmationModal
         open={showEvidenceModal}
         onOpenChange={setShowEvidenceModal}
-        title="Yêu cầu bổ sung bằng chứng"
-        description="Gửi thông báo yêu cầu cung cấp thêm bằng chứng. Thời gian phản hồi sẽ được gia hạn thêm 48 giờ kể từ lúc gửi."
+        title={
+          evidenceTarget === "client" 
+            ? "Yêu cầu Client bổ sung bằng chứng" 
+            : evidenceTarget === "expert" 
+              ? "Yêu cầu Expert bổ sung bằng chứng" 
+              : "Yêu cầu cả hai bên bổ sung giải trình"
+        }
+        description={
+          evidenceTarget === "client"
+            ? "Gửi thông báo yêu cầu Client cung cấp thêm bằng chứng giải trình. Hạn phản hồi được gia hạn thêm 48 giờ."
+            : evidenceTarget === "expert"
+              ? "Gửi thông báo yêu cầu Expert cung cấp thêm bằng chứng giải trình. Hạn phản hồi được gia hạn thêm 48 giờ."
+              : "Yêu cầu cả Client và Expert cùng gửi lại bản báo cáo/giải trình và bằng chứng bổ sung. Thời hạn phản hồi sẽ được gia hạn thêm 48 giờ."
+        }
         confirmLabel="Gửi yêu cầu"
         variant="default"
         loading={actionLoading}
@@ -1207,7 +1423,13 @@ export function AdminReportDetail() {
             setEvidenceNote(e.target.value);
             if (evidenceNoteError) setEvidenceNoteError("");
           }}
-          placeholder="Nhập nội dung/lý do chi tiết yêu cầu bổ sung bằng chứng..."
+          placeholder={
+            evidenceTarget === "client"
+              ? "Nhập nội dung/lý do chi tiết yêu cầu Client bổ sung bằng chứng..."
+              : evidenceTarget === "expert"
+                ? "Nhập nội dung/lý do chi tiết yêu cầu Expert bổ sung bằng chứng..."
+                : "Nhập nội dung/lý do chi tiết yêu cầu cả hai bên bổ sung giải trình..."
+          }
           rows={3}
           className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             evidenceNoteError ? "border-red-300" : "border-gray-300"
@@ -1274,6 +1496,35 @@ export function AdminReportDetail() {
         />
         {forceReasonError && (
           <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
+        )}
+      </ConfirmationModal>
+
+      {/* Request Both Additional Modal */}
+      <ConfirmationModal
+        open={showRequestBothModal}
+        onOpenChange={setShowRequestBothModal}
+        title="Yêu cầu giải trình bổ sung từ cả hai bên"
+        description="Admin yêu cầu cả Client và Expert cùng gửi lại bản báo cáo/giải trình và bằng chứng bổ sung. Thời hạn phản hồi của cả hai bên sẽ được gia hạn thêm 48 giờ."
+        confirmLabel="✓ Gửi yêu cầu giải trình"
+        variant="default"
+        loading={actionLoading}
+        onConfirm={handleRequestAdditionalBoth}
+      >
+        <textarea
+          value={requestBothNote}
+          onChange={(e) => {
+            setRequestBothNote(e.target.value);
+            if (requestBothNoteError) setRequestBothNoteError("");
+          }}
+          placeholder="Nhập nội dung/lý do chi tiết yêu cầu bổ sung thông tin gửi tới cả hai bên..."
+          rows={3}
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
+            requestBothNoteError ? "border-red-300" : "border-gray-300"
+          }`}
+          disabled={actionLoading}
+        />
+        {requestBothNoteError && (
+          <p className="text-xs text-red-500 mt-1">{requestBothNoteError}</p>
         )}
       </ConfirmationModal>
     </div>

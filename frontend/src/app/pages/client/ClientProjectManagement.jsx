@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, MessageSquare, CreditCard, Send, AlertTriangle, Clock } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -9,12 +9,17 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { releaseProjectMoneyToExpert } from "../../../services/escrowService.js";
+import { cancelProjectContract } from "../../../services/escrowService.js";
 import api from "../../../services/api.js";
 import { createReport } from "../../../services/reportService.js";
 import { DisputeBanner } from "../../components/shared/DisputeBanner.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 
 // =============================================================================
 // ClientProjectManagement — client-side project progress management page.
@@ -29,7 +34,6 @@ export default function ClientProjectDetail() {
   const {
     project,
     tasks,
-    useCases,
     expert,
     loading,
     error,
@@ -37,15 +41,6 @@ export default function ClientProjectDetail() {
     handleToggleMiniTask,
     handleAcceptProjectFinalDelivery,
     handleDeclineProjectFinalDelivery,
-    handleApproveTask,
-    handleRequestUrgentSubmission,
-    handleRequestRevision,
-    handleUseCaseSubmitForReview,
-    handleUseCaseApprove,
-    handleUseCaseRequestProduct,
-    handleUseCaseSubmitProduct,
-    handleUseCaseDeclineProduct,
-    activityLogs,
     retry,
   } = useProjectProgress(currentProjectId, "client");
 
@@ -59,13 +54,79 @@ export default function ClientProjectDetail() {
 
   // Dispute / Report states
   const [report, setReport] = useState(null);
-  const [showReportForm, setShowReportForm] = useState(false);
-  const [reportSubmitting, setReportSubmitting] = useState(false);
   const [showExplanationModal, setShowExplanationModal] = useState(false);
 
+  // Cancel Contract states
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
+  // New Cancellation Negotiation states
+  const [evidenceFileName, setEvidenceFileName] = useState("");
+  const [showSendConfirmDialog, setShowSendConfirmDialog] = useState(false);
+  const [showPartnerRejectForm, setShowPartnerRejectForm] = useState(false);
+  const [partnerRejectReason, setPartnerRejectReason] = useState("");
+  const [partnerActionLoading, setPartnerActionLoading] = useState(false);
+
+  const [elapsedTime, setElapsedTime] = useState("");
+
+  useEffect(() => {
+    if (!project?.finalWorkSubmittedAt) return;
+    const updateElapsed = () => {
+      const submittedAt = new Date(project.finalWorkSubmittedAt);
+      const diffMs = Date.now() - submittedAt.getTime();
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHrs = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHrs / 24);
+
+      if (diffSecs < 60) {
+        setElapsedTime(`${diffSecs} giây trước`);
+      } else if (diffMins < 60) {
+        setElapsedTime(`${diffMins} phút ${diffSecs % 60} giây trước`);
+      } else if (diffHrs < 24) {
+        setElapsedTime(`${diffHrs} giờ ${diffMins % 60} phút trước`);
+      } else {
+        setElapsedTime(`${diffDays} ngày ${diffHrs % 24} giờ trước`);
+      }
+    };
+
+    updateElapsed();
+    const interval = setInterval(updateElapsed, 1000);
+    return () => clearInterval(interval);
+  }, [project?.finalWorkSubmittedAt]);
+
   const isDisputed = project?.status?.toLowerCase() === "disputed";
-  const isFullFreeze = isDisputed && report?.reporterRole === "client";
-  const hasPendingReportFromMe = report && report.reporterRole === "client" && report.status === "Pending";
+  const isContractCancelled = project?.status?.toLowerCase() === "contract_cancelled" || project?.status?.toLowerCase() === "cancel_done";
+  const isLocked = isDisputed || isContractCancelled || project?.status === "Awaiting_Cancellation";
+
+  // ── Cancel Contract availability: block on terminal/final states ──
+  const normalizedStatus = String(project?.status || "").toLowerCase();
+  const normalizedFinalDeliveryStatus = String(project?.finalDeliveryStatus || "").toLowerCase();
+
+  const TERMINAL_STATUSES = new Set([
+    "completed",
+    "cancelled",
+    "canceled",            // US spelling variant
+    "contract_cancelled",
+    "cancel_done",
+    "stopped",
+    "closed",
+    "disputed",
+    "payment_released",
+  ]);
+
+  const FINAL_DELIVERY_DONE = new Set([
+    "accepted",
+    "final_delivery_accepted",
+    "delivery_accepted",
+  ]);
+
+  const canCancel =
+    !TERMINAL_STATUSES.has(normalizedStatus)
+    && normalizedStatus !== "awaiting_cancellation"
+    && !FINAL_DELIVERY_DONE.has(normalizedFinalDeliveryStatus)
+    && !project?.finalDeliveryAccepted;
 
   useEffect(() => {
     if (!currentProjectId) return;
@@ -93,31 +154,22 @@ export default function ClientProjectDetail() {
 
   const handleClientSubmitExplanation = async (explanationData) => {
     try {
-      await api.put(`/reports/${report.id}`, explanationData);
-      toast.success("Nộp báo cáo giải trình thành công!");
+      await api.put(`/reports/${report.id}`, {
+        clientExplanation: explanationData.description,
+        clientExplanationReason: explanationData.reason,
+        clientExplanationDescription: explanationData.description,
+        clientExplanationDisputeType: explanationData.disputeType,
+        clientExplanationDesiredResolution: explanationData.desiredResolution,
+        clientExplanationEvidence: explanationData.evidence
+      });
+      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error(err.message || "Không thể nộp báo cáo giải trình.");
     }
   };
 
-  const handleClientSubmitReport = async (reportData) => {
-    setReportSubmitting(true);
-    try {
-      await createReport({
-        ...reportData,
-        reporterRole: "client",
-        reportType: "type1"
-      });
-      setShowReportForm(false);
-      toast.success("Báo cáo vi phạm đã được gửi tới Admin thành công.");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    } catch (err) {
-      toast.error(err.message || "Không thể gửi báo cáo vi phạm.");
-    } finally {
-      setReportSubmitting(false);
-    }
-  };
+
 
   const handleReleasePayment = async () => {
     setReleaseLoading(true);
@@ -129,16 +181,122 @@ export default function ClientProjectDetail() {
       });
       setShowReleaseConfirmModal(false);
       toast.success("Giải ngân thành công! Dự án đã hoàn thành.");
-      
+
       // Dispatch database update event to trigger refresh
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      
+
       // Force reload the hook data
       retry();
     } catch (err) {
       toast.error(err.message || "Không thể thực hiện giải ngân.");
     } finally {
       setReleaseLoading(false);
+    }
+  };
+
+  const handleCancelContractInit = () => {
+    if (!cancelReason.trim()) {
+      toast.error("Vui lòng nhập lý do hủy hợp đồng.");
+      return;
+    }
+    setShowSendConfirmDialog(true);
+  };
+
+  const handleConfirmCancellationSend = async () => {
+    setCancelLoading(true);
+    try {
+      await api.post("/interactions/transaction", {
+        projectId: currentProjectId,
+        reason: cancelReason,
+        evidenceFileName: evidenceFileName || "",
+        type: "cancel_contract",
+        transactionType: "cancel_contract",
+      });
+      setShowCancelModal(false);
+      setShowSendConfirmDialog(false);
+      setCancelReason("");
+      setEvidenceFileName("");
+      toast.success("Đã gửi yêu cầu hủy hợp đồng lên Admin xét duyệt.");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      retry();
+    } catch (err) {
+      toast.error(err.message || "Không thể gửi yêu cầu hủy hợp đồng.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handlePartnerAcceptCancel = async () => {
+    setPartnerActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}/partner-accept-cancel`);
+      toast.success("Bạn đã đồng ý hủy hợp đồng. Tiền đã được giải ngân/hoàn trả.");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      retry();
+    } catch (err) {
+      toast.error(err.message || "Thao tác thất bại.");
+    } finally {
+      setPartnerActionLoading(false);
+    }
+  };
+
+  const handlePartnerRejectCancel = async () => {
+    if (!partnerRejectReason.trim()) {
+      toast.error("Vui lòng nhập lý do từ chối hủy hợp đồng.");
+      return;
+    }
+    setPartnerActionLoading(true);
+    try {
+      await api.put(`/reports/${report.id}/partner-reject-cancel`, {
+        partnerRejectionReason: partnerRejectReason,
+      });
+      toast.success("Bạn đã từ chối yêu cầu hủy. Lý do đã được gửi lên Admin.");
+      setShowPartnerRejectForm(false);
+      setPartnerRejectReason("");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      retry();
+    } catch (err) {
+      toast.error(err.message || "Thao tác thất bại.");
+    } finally {
+      setPartnerActionLoading(false);
+    }
+  };
+
+  const handleInitiatorAcceptRejection = async () => {
+    setCancelLoading(true);
+    try {
+      await api.put(`/reports/${report.id}/initiator-accept-rejection`);
+      toast.success("Bạn đã chấp nhận từ chối hủy. Dự án hoạt động bình thường trở lại.");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      retry();
+    } catch (err) {
+      toast.error(err.message || "Thao tác thất bại.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
+
+  const handleInitiatorRespondRejection = async () => {
+    if (!cancelReason.trim()) {
+      toast.error("Vui lòng nhập lý do hủy đầy đủ hơn.");
+      return;
+    }
+    setCancelLoading(true);
+    try {
+      await api.put(`/reports/${report.id}/initiator-respond-rejection`, {
+        reason: cancelReason,
+        evidenceFileName: evidenceFileName || "",
+      });
+      toast.success("Đã phản hồi và gửi lại đơn hủy hợp đồng mới lên Admin.");
+      setShowCancelModal(false);
+      setCancelReason("");
+      setEvidenceFileName("");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      retry();
+    } catch (err) {
+      toast.error(err.message || "Thao tác thất bại.");
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -162,7 +320,7 @@ export default function ClientProjectDetail() {
           action={
             <button
               onClick={retry}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
             >
               Retry
             </button>
@@ -183,7 +341,7 @@ export default function ClientProjectDetail() {
           action={
             <button
               onClick={() => navigate("/client/my-projects")}
-              className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
             >
               Go to My Projects
             </button>
@@ -194,210 +352,429 @@ export default function ClientProjectDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans bg-gray-50 min-h-screen">
-      {/* Back button */}
-      <button
-        onClick={() => navigate(-1)}
-        className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors font-medium"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
+      <BackButton fallback="/client/my-projects" className="mb-6">
+        Quay lại dự án của tôi
+      </BackButton>
+      <PageHeader
+        title="Project Workspace"
+        subtitle="Track progress, review deliverables, and manage escrow safely."
+        badge={
+          project?.status ? (() => {
+            const status = project.status.toLowerCase();
+            let label = project.status;
+            let colorClasses = "bg-accent-light text-accent";
+            if (report?.status === "Resolved") {
+              label = "End a quarrel";
+              colorClasses = "bg-success/15 text-success border border-success/20";
+            } else if (status === "completed") {
+              colorClasses = "bg-success/15 text-success border border-success/20";
+            } else if (status === "cancelled" || status === "canceled") {
+              colorClasses = "bg-success/15 text-success border border-success/20";
+            } else if (status === "disputed") {
+              colorClasses = "bg-destructive/15 text-destructive border border-destructive/20 animate-pulse";
+            }
+            return (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize ${colorClasses}`}>
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {label}
+              </span>
+            );
+          })() : null
+        }
+        illustration={
+          <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.25" />
+            <rect x="60" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.35" />
+            <rect x="110" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.2" />
+            <rect x="160" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.15" />
+            <line x1="30" y1="38" x2="30" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="80" y1="38" x2="80" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="130" y1="38" x2="130" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <line x1="180" y1="38" x2="180" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+            <circle cx="30" cy="68" r="5" fill="currentColor" opacity="0.4" />
+            <circle cx="80" cy="68" r="5" fill="currentColor" opacity="0.3" />
+            <circle cx="130" cy="68" r="5" fill="currentColor" opacity="0.2" />
+            <circle cx="180" cy="68" r="5" fill="currentColor" opacity="0.1" />
+            <line x1="35" y1="68" x2="75" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="85" y1="68" x2="125" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <line x1="135" y1="68" x2="175" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            <text x="30" y="88" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.35">Tasks</text>
+            <text x="80" y="88" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.3">Submit</text>
+            <text x="130" y="88" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.2">Accept</text>
+            <text x="180" y="88" textAnchor="middle" fontSize="6" fill="currentColor" opacity="0.15">Pay</text>
+          </svg>
+        }
+      />
 
       <div className="space-y-6">
-        {/* Dispute banner */}
-        {isDisputed && <DisputeBanner report={report} />}
-
-          <>
-            {/* Project header */}
-            <ProjectHeaderCard
-              project={project}
-              expert={expert}
-              role="client"
-              overallProgress={overallProgress}
-              loading={false}
-              onMessage={() => navigate("/messenger")}
-            >
-              {/* Escrow payout button (client only) */}
-              <div className="flex items-center gap-3">
-                {isDisputed && report?.status === "Awaiting Client" && (
-                  <button
-                    type="button"
-                    onClick={() => setShowExplanationModal(true)}
-                    className="h-11 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-[14px] font-bold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-md animate-pulse"
-                  >
-                    ⚠️ Phản hồi vi phạm
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowReportForm(true)}
-                  className="h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
-                >
-                  <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
-                </button>
-                {project.status === "completed" && (
-                  <span className="px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-xl text-xs font-bold uppercase tracking-wider font-sans">
-                    Hoàn thành (Complete)
-                  </span>
-                )}
-              </div>
-            </ProjectHeaderCard>
-
-            {/* Project Final Handover Card */}
-            {project.status !== "completed" && !isFullFreeze && (() => {
-              const allUseCasesDone = useCases.length > 0 && useCases.every(uc => uc.status === "done");
-              const isReadyForFinalSubmit = overallProgress === 100 && allUseCasesDone;
-              return (
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
-                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 font-sans">
-                    <Send className="w-5 h-5 text-brand-primary" /> Nghiệm thu dự án tổng thể (Project Final Handover)
-                  </h2>
-                  
-                  {project.finalWorkDeclineReason && (
-                    <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm">
-                      <strong className="block font-semibold mb-1">Yêu cầu sửa đổi sản phẩm bàn giao cuối cùng:</strong>
-                      {project.finalWorkDeclineReason}
-                    </div>
-                  )}
-
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gray-50 p-4 rounded-xl">
-                    <div className="space-y-1">
-                      <p className="text-sm text-gray-700">
-                        {!isReadyForFinalSubmit ? (
-                          <span className="text-gray-400 italic">
-                            Chưa đạt điều kiện 100% tiến độ và tất cả Use Cases được duyệt để nộp sản phẩm tổng.
-                          </span>
-                        ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
-                          <span className="text-brand-primary font-semibold">
-                            Chuyên gia đã nộp sản phẩm tổng thể. Vui lòng xem và thẩm định.
-                          </span>
-                        ) : project.finalDeliveryStatus === "Accepted" ? (
-                          <span className="text-green-600 font-semibold">
-                            Đã phê duyệt sản phẩm tổng thể. Vui lòng bấm Giải ngân.
-                          </span>
-                        ) : (
-                          <span className="text-amber-600 font-semibold animate-pulse">
-                            Chờ expert gửi sản phẩm tổng
-                          </span>
-                        )}
-                      </p>
-                      {project.finalDeliveryStatus === "Final Product Submitted" && (
-                        <div className="text-xs text-gray-500 space-y-0.5 mt-1 pt-1 border-t border-gray-200">
-                          <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                          {project.finalProjectFile && <p><strong>Project File:</strong> <span className="font-semibold text-gray-700">{project.finalProjectFile}</span></p>}
-                          {project.finalProjectImage && <p><strong>Project Image:</strong> <span className="font-semibold text-gray-700">{project.finalProjectImage}</span></p>}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {/* Xem sản phẩm tổng button */}
-                      {!isReadyForFinalSubmit ? (
-                        <button
-                          disabled
-                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                          title="Dự án chưa hoàn thành tất cả Use Cases"
-                        >
-                          Xem sản phẩm tổng
-                        </button>
-                      ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowFinalWorkModal(true)}
-                          className="h-11 px-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
-                        >
-                          Xem sản phẩm tổng
-                        </button>
-                      ) : (
-                        <button
-                          disabled
-                          className="h-11 px-5 bg-gray-100 text-gray-400 border border-gray-200 rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                          title="Chờ expert gửi sản phẩm tổng"
-                        >
-                          Chờ expert gửi sản phẩm tổng
-                        </button>
-                      )}
-
-                      {/* Release payment button */}
-                      {isReadyForFinalSubmit && project.finalDeliveryStatus === "Accepted" && (
-                        <button
-                          type="button"
-                          disabled={releaseLoading}
-                          onClick={handleReleasePayment}
-                          className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-[14px] font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
-                        >
-                          <CreditCard className="w-4 h-4" /> Release Payment (Giải ngân)
-                        </button>
-                      )}
-                    </div>
+        {/* Multi-Stage Cancellation Negotiation Widget */}
+        {project?.status === "Awaiting_Cancellation" && report?.disputeType === "cancellation" && (
+          <div className="p-6 bg-card border border-amber-300 rounded-2xl shadow-sm text-sm font-sans space-y-4">
+            {report.reporterRole === "client" ? (
+              report.status === "Pending Admin" ? (
+                <div className="flex items-start gap-3 text-left">
+                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-foreground text-base">Đơn yêu cầu hủy hợp đồng của bạn đang chờ xét duyệt</h4>
+                    <p className="text-muted-foreground mt-1">Đơn hủy đã được gửi lên hệ thống. Admin đang tiến hành duyệt đơn của bạn trước khi chuyển cho đối tác.</p>
                   </div>
                 </div>
-              );
-            })()}
+              ) : report.status === "Awaiting Partner" ? (
+                <div className="flex items-start gap-3 text-left">
+                  <Clock className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-foreground text-base">Đã gửi yêu cầu hủy cho đối tác (Expert)</h4>
+                    <p className="text-muted-foreground mt-1">Admin đã thông qua đơn hủy hợp đồng của bạn. Đang chờ Expert xem xét phản hồi (Chấp nhận hoặc Từ chối).</p>
+                  </div>
+                </div>
+              ) : report.status === "Returned" ? (
+                <div className="space-y-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-foreground text-base text-red-600">Yêu cầu hủy hợp đồng bị đối tác từ chối</h4>
+                      <p className="text-muted-foreground mt-1">Expert không đồng ý hủy hợp đồng với các lý do sau:</p>
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl mt-2 font-medium text-red-800">
+                        &quot;{report.partnerRejectionReason}&quot;
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={handleInitiatorAcceptRejection}
+                      disabled={cancelLoading}
+                      className="px-4 py-2 border border-input rounded-xl text-foreground font-semibold text-sm hover:bg-secondary transition-all cursor-pointer"
+                    >
+                      Chấp nhận từ chối (Dự án chạy lại)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelReason(report.reason || "");
+                        setShowCancelModal(true);
+                      }}
+                      className="px-4 py-2 bg-brand-primary text-white rounded-xl font-bold text-sm hover:bg-brand-primary-hover transition-all cursor-pointer"
+                    >
+                      Phản hồi (Gửi lại đơn hủy mới)
+                    </button>
+                  </div>
+                </div>
+              ) : null
+            ) : (
+              report.status === "Pending Admin" ? (
+                <div className="flex items-start gap-3 text-left">
+                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-foreground text-base">Expert yêu cầu hủy hợp đồng</h4>
+                    <p className="text-muted-foreground mt-1">Expert đã gửi yêu cầu hủy hợp đồng lên Admin. Dự án tạm khóa để chờ Admin xét duyệt.</p>
+                  </div>
+                </div>
+              ) : report.status === "Awaiting Partner" ? (
+                <div className="space-y-4 text-left">
+                  <div className="flex items-start gap-3 border-b border-border pb-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-bold text-foreground text-base">Expert yêu cầu hủy hợp đồng</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Vui lòng xem chi tiết lý do và phương án phân chia tiền ký quỹ bên dưới.</p>
+                    </div>
+                  </div>
 
-            {/* Project progress panel */}
-            <ProjectProgressPanel
-              tasks={tasks}
-              useCases={useCases}
-              overallProgress={overallProgress}
-              role="client"
-              projectId={currentProjectId}
-              onToggleMiniTask={() => {}} // Client cannot toggle
-              loading={false}
-              readOnly={false}
-              onApproveTask={handleApproveTask}
-              onRequestUrgentSubmission={handleRequestUrgentSubmission}
-              onRequestRevision={handleRequestRevision}
-              onUseCaseApprove={handleUseCaseApprove}
-              onUseCaseRequestProduct={handleUseCaseRequestProduct}
-              onUseCaseDeclineProduct={handleUseCaseDeclineProduct}
-            />
-          </>
-      </div>
+                  <div className="space-y-2">
+                    <p className="text-sm text-foreground">
+                      <strong className="text-muted-foreground font-semibold">Lý do hủy:</strong> &quot;{report.reason}&quot;
+                    </p>
+                    {report.evidence && report.evidence.length > 0 && (
+                      <p className="text-xs text-foreground flex items-center gap-1.5 mt-1">
+                        <strong className="text-muted-foreground font-semibold">Tài liệu đi kèm:</strong>
+                        <span className="text-brand-primary underline cursor-pointer">{report.evidence[0].fileName}</span>
+                      </p>
+                    )}
+                  </div>
 
-      {/* Explanation Form Modal */}
-      <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border-none">
-          <ClientDisputeExplanationPanel
-            report={report}
-            onSubmit={async (data) => {
-              await handleClientSubmitExplanation(data);
-              setShowExplanationModal(false);
-            }}
+                  <div className="space-y-1.5 p-4 bg-muted/40 border border-border rounded-xl text-xs max-w-md">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Giá trị hợp đồng:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={report.payoutBreakdown?.contractAmount} /></span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Tiến độ hiện tại:</span><span className="font-semibold text-foreground">{report.payoutBreakdown?.progressPercent}%</span></div>
+                    <div className="border-t border-border my-1.5" />
+                    <div className="flex justify-between font-bold"><span className="text-foreground">Bạn nhận lại (Hoàn tiền):</span><span className="text-green-600"><MoneyDisplay amount={report.payoutBreakdown?.clientRefund} /></span></div>
+                    <div className="flex justify-between font-bold"><span className="text-foreground">Thanh toán cho Expert:</span><span className="text-amber-600"><MoneyDisplay amount={report.payoutBreakdown?.expertPayout} /></span></div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground"><span className="italic">* Phí sàn 5% và bồi thường 10% đã được tự động áp dụng.</span></div>
+                  </div>
+
+                  {!showPartnerRejectForm ? (
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={handlePartnerAcceptCancel}
+                        disabled={partnerActionLoading}
+                        className="px-5 py-2 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all cursor-pointer shadow-sm"
+                      >
+                        Accept (Đồng ý hủy & Nhận tiền)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowPartnerRejectForm(true)}
+                        disabled={partnerActionLoading}
+                        className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
+                      >
+                        Reject (Từ chối hủy)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 pt-2 animate-slide-up">
+                      <label className="block text-xs font-bold text-foreground/80 uppercase">Lý do từ chối hủy hợp đồng <span className="text-red-500">*</span></label>
+                      <textarea
+                        rows={2}
+                        placeholder="Vui lòng cung cấp lý do bạn từ chối yêu cầu hủy này..."
+                        value={partnerRejectReason}
+                        onChange={(e) => setPartnerRejectReason(e.target.value)}
+                        className="w-full max-w-lg p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePartnerRejectCancel}
+                          disabled={partnerActionLoading}
+                          className="px-4 py-1.5 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 transition-all cursor-pointer"
+                        >
+                          Gửi lý do từ chối
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPartnerRejectForm(false);
+                            setPartnerRejectReason("");
+                          }}
+                          className="px-3 py-1.5 border border-input rounded-xl text-foreground text-xs hover:bg-secondary transition-all cursor-pointer"
+                        >
+                          Hủy
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : report.status === "Returned" ? (
+                <div className="flex items-start gap-3 text-left">
+                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-bold text-foreground text-base">Đã từ chối hủy hợp đồng</h4>
+                    <p className="text-muted-foreground mt-1">Bạn đã từ chối yêu cầu hủy của đối tác. Đang chờ đối tác đưa ra phản hồi hoặc chấp nhận hủy bỏ yêu cầu hủy.</p>
+                  </div>
+                </div>
+              ) : null
+            )}
+          </div>
+        )}
+        {project?.status === "cancel_done" && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium text-left">
+            Hợp đồng dự án đã được hủy thành công. Tiền ký quỹ đã được phân chia dựa trên tiến độ dự án ({project?.contractCancellation?.progressPercent || 0}%). Dự án hiện chỉ có thể xem.
+          </div>
+        )}
+        {/* Dispute banner */}
+        {isDisputed && <DisputeBanner report={report} />}
+        {report?.status === "Rejected" && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start gap-2 shadow-sm">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-foreground">Báo cáo vi phạm đã bị Admin từ chối giải quyết</p>
+              {report.rejectionReason && (
+                <p className="mt-1 text-muted-foreground"><strong>Lý do từ chối:</strong> {report.rejectionReason}</p>
+              )}
+            </div>
+          </div>
+        )}
+        {report?.status === "Resolved" && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-sans flex items-start gap-2.5 shadow-sm animate-fade-in">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-emerald-950">Tranh chấp đã được giải quyết thành công</p>
+              <p className="mt-1 text-emerald-800/90">
+                {report.moneyAction === "refund" || project?.status?.toLowerCase() === "cancelled" ? (
+                  "Dự án đã kết thúc (Huỷ bỏ). Toàn bộ tiền ký quỹ (escrow) đã được Admin hoàn trả lại vào ví của Khách hàng."
+                ) : (
+                  "Dự án đã kết thúc (Hoàn thành). Toàn bộ tiền ký quỹ (escrow) đã được Admin giải ngân chuyển vào ví của Chuyên gia."
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+        {isContractCancelled && (
+          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium">
+            This contract has been cancelled. Escrow has been distributed based on project progress ({project?.contractCancellation?.progressPercent || 0}%). The project is now read-only.
+          </div>
+        )}
+
+        {/* Delivery & Payment Stepper */}
+        <AnimatedReveal>
+          <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" />
+        </AnimatedReveal>
+
+        {/* Realtime Submission Timebar & Timer */}
+        {project?.finalDeliveryStatus === "Final Product Submitted" && project?.finalWorkSubmittedAt && (
+          <AnimatedReveal>
+            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-foreground text-sm">Sản phẩm tổng thể đã được bàn giao (Real-time Timeline)</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Được nộp lúc: <span className="font-semibold text-foreground">{new Date(project.finalWorkSubmittedAt).toLocaleString("vi-VN")}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">Thời gian trôi qua</span>
+                  <span className="font-mono text-sm font-bold text-emerald-600">{elapsedTime}</span>
+                </div>
+              </div>
+            </div>
+          </AnimatedReveal>
+        )}
+
+        {/* Project header */}
+        <AnimatedReveal delay={1}>
+          <ProjectHeaderCard
+            project={project}
+            expert={expert}
+            role="client"
+            overallProgress={overallProgress}
+            loading={false}
+            onMessage={() => navigate("/messenger")}
+          >
+            {/* Action buttons (client only) */}
+            <div className="flex items-center gap-3">
+              {canCancel && (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  className="h-11 px-4 border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+                >
+                  <Ban className="w-4 h-4" /> Cancel Contract
+                </button>
+              )}
+
+              {report && (report?.status === "Awaiting Client" || (report?.status === "Awaiting Both" && !report?.currentRoundClientSubmitted)) && (
+                <button
+                  type="button"
+                  onClick={() => setShowExplanationModal(true)}
+                  className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                >
+                  <AlertTriangle className="w-4 h-4" /> Gửi báo cáo giải trình
+                </button>
+              )}
+              {report && (
+                (report?.reporterRole === "client") ||
+                (report?.status === "Awaiting Both" && report?.currentRoundClientSubmitted) ||
+                (report?.status === "Pending Admin" || report?.status === "Awaiting Evidence" || report?.status === "Awaiting Expert")
+              ) && (
+                  <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                    <AlertTriangle className="w-4 h-4" /> Đang chờ xử lý...
+                  </div>
+                )}
+              {overallProgress === 100 && project.status !== "completed" && (
+                <>
+                  {/* View Final Work Button */}
+                  {project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" || project.finalDeliveryStatus === "Declined" ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowFinalWorkModal(true)}
+                      disabled={isLocked}
+                      className={`h-11 px-5 rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all ${isLocked
+                          ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
+                          : "bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer"
+                        }`}
+                    >
+                      View Final Work
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                    >
+                      View Final Work
+                    </button>
+                  )}
+
+                  {/* Release Payment Button */}
+                  {project.finalDeliveryStatus === "Accepted" && !isLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowReleaseConfirmModal(true)}
+                      className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                    >
+                      <CreditCard className="w-4 h-4" /> Release Payment
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                    >
+                      <CreditCard className="w-4 h-4" /> Release Payment
+                    </button>
+                  )}
+                </>
+              )}
+              {project.status === "completed" && (
+                <button
+                  disabled
+                  className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> Payment Released
+                </button>
+              )}
+            </div>
+          </ProjectHeaderCard>
+        </AnimatedReveal>
+
+        {/* Project progress panel */}
+        <AnimatedReveal delay={2}>
+          <ProjectProgressPanel
+            tasks={tasks}
+            overallProgress={overallProgress}
+            role="client"
+            projectId={currentProjectId}
+            onToggleMiniTask={() => { }} // Client cannot toggle
+            loading={false}
+            readOnly={isLocked}
+            project={project}
           />
-        </DialogContent>
-      </Dialog>
+        </AnimatedReveal>
+      </div>
 
       {/* Release Payment Confirmation Modal */}
       {showReleaseConfirmModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
             {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
               <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-lg">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 font-sans">Giải ngân dự án (Release Payment)</h3>
-                <p className="text-xs text-gray-500 mt-0.5 font-sans">Dự án đã đạt 100% hoàn thành</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Giải ngân dự án (Release Payment)</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Dự án đã đạt 100% hoàn thành</p>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-4 text-sm text-gray-600 font-sans">
+            <div className="p-6 space-y-4 text-sm text-muted-foreground font-sans">
               <p>Bạn có chắc chắn muốn giải ngân cho dự án <strong>{project?.title}</strong>?</p>
-              <p className="p-3 bg-blue-50/50 text-blue-800 rounded-xl border border-blue-100 leading-relaxed">
+              <p className="p-3 bg-muted/50 text-foreground rounded-xl border border-border leading-relaxed">
                 Số tiền ký quỹ (<strong><MoneyDisplay amount={project?.budget} /></strong>) đang trong hệ thống Escrow sẽ được chuyển trực tiếp vào tài khoản khả dụng của Chuyên gia (Available Balance và Total Earned). Hành động này không thể hoàn tác.
               </p>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 font-sans">
+            <div className="flex items-center justify-end gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans">
               <button
                 type="button"
                 disabled={releaseLoading}
                 onClick={() => setShowReleaseConfirmModal(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-semibold text-sm transition-all cursor-pointer"
+                className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
               >
                 Hủy
               </button>
@@ -405,7 +782,7 @@ export default function ClientProjectDetail() {
                 type="button"
                 disabled={releaseLoading}
                 onClick={handleReleasePayment}
-                className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {releaseLoading ? "Đang xử lý..." : "Đồng ý giải ngân"}
               </button>
@@ -417,45 +794,54 @@ export default function ClientProjectDetail() {
       {/* View Final Work Modal */}
       {showFinalWorkModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-white rounded-2xl border border-gray-150 shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
             {/* Header */}
-            <div className="flex items-center gap-3 px-6 py-4 bg-gray-50 border-b border-gray-100">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+            <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
+              <div className="p-2 bg-muted text-muted-foreground rounded-lg">
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900 font-sans">Thẩm định sản phẩm tổng thể (View Final Work)</h3>
-                <p className="text-xs text-gray-500 mt-0.5 font-sans">Kiểm tra kỹ lưỡng các sản phẩm Expert đã bàn giao trước khi giải ngân</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Thẩm định sản phẩm tổng thể (View Final Work)</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Kiểm tra kỹ lưỡng các sản phẩm Expert đã bàn giao trước khi giải ngân</p>
               </div>
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-4 text-sm text-gray-600 font-sans">
-              <div className="space-y-3 p-4 bg-blue-50/40 border border-blue-100 rounded-xl">
-                <p className="font-semibold text-gray-800">Sản phẩm bàn giao tổng thể của Expert:</p>
+            <div className="p-6 space-y-4 text-sm text-muted-foreground font-sans">
+              <div className="space-y-3 p-4 bg-muted/30 border border-border rounded-xl">
+                <p className="font-semibold text-foreground">Sản phẩm bàn giao tổng thể của Expert:</p>
                 <div>
-                  <strong className="block text-gray-500 text-xs uppercase tracking-wider">Project Link</strong>
+                  <strong className="block text-muted-foreground text-xs uppercase tracking-wider">Project Link</strong>
                   <a
                     href={project?.finalProjectLink}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-blue-600 hover:underline font-medium break-all"
+                    className="text-accent hover:underline font-medium break-all"
                   >
                     {project?.finalProjectLink || "Chưa cung cấp link"}
                   </a>
                 </div>
                 <div>
-                  <strong className="block text-gray-500 text-xs uppercase tracking-wider">Project Files</strong>
-                  <span className="font-semibold text-gray-800 break-all">
+                  <strong className="block text-muted-foreground text-xs uppercase tracking-wider">Project Files</strong>
+                  <span className="font-semibold text-foreground break-all">
                     {project?.finalProjectFile || "Chưa cung cấp file"}
                   </span>
                 </div>
+                {project?.finalWorkSubmittedAt && (
+                  <div className="pt-2.5 border-t border-border mt-3">
+                    <strong className="block text-muted-foreground text-xs uppercase tracking-wider mb-1">Thời gian chờ thẩm định</strong>
+                    <div className="flex items-center justify-between text-xs bg-secondary/85 px-3 py-2 rounded-lg border border-border">
+                      <span className="text-muted-foreground">Đã nộp: {new Date(project.finalWorkSubmittedAt).toLocaleString("vi-VN")}</span>
+                      <span className="font-mono font-bold text-accent">{elapsedTime}</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Decline Feedback Textarea */}
               {showDeclineForm && (
-                <div className="space-y-2 border-t border-gray-100 pt-4 animate-slide-up">
-                  <label className="block text-gray-700 font-semibold">
+                <div className="space-y-2 border-t border-border pt-4 animate-slide-up">
+                  <label className="block text-foreground/80 font-semibold">
                     Lý do từ chối sản phẩm bàn giao cuối cùng <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -463,14 +849,14 @@ export default function ClientProjectDetail() {
                     placeholder="Vui lòng cung cấp lý do chi tiết để Expert sửa đổi..."
                     value={declineFeedback}
                     onChange={(e) => setDeclineFeedback(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-brand-primary text-gray-800"
+                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
                   />
                 </div>
               )}
             </div>
 
             {/* Footer */}
-            <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100 font-sans">
+            <div className="flex flex-wrap items-center justify-end gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans">
               <button
                 type="button"
                 disabled={actionLoading}
@@ -479,7 +865,7 @@ export default function ClientProjectDetail() {
                   setShowDeclineForm(false);
                   setDeclineFeedback("");
                 }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 font-semibold text-sm transition-all cursor-pointer"
+                className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
               >
                 Đóng
               </button>
@@ -549,167 +935,246 @@ export default function ClientProjectDetail() {
           </div>
         </div>
       )}
-      {/* Dialog for Report Form */}
-      <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
+      {/* Cancel Contract Confirmation Modal */}
+      {showCancelModal && (() => {
+        // Pre-compute breakdown for modal preview
+        const contractAmount = project?.escrowAmount || project?.budget || 0;
+        const progressRate = overallProgress / 100;
+        const progressPayout = Math.round(contractAmount * progressRate * 100) / 100;
+        const compensationFee = Math.round(contractAmount * 0.10 * 100) / 100;
+        const platformServiceFee = Math.round(contractAmount * 0.05 * 100) / 100;
+        const rawExpertPayout = progressPayout + compensationFee;
+        const expertPayout = Math.round(Math.min(contractAmount - platformServiceFee, rawExpertPayout) * 100) / 100;
+        const clientRefund = Math.round(Math.max(0, contractAmount - expertPayout - platformServiceFee) * 100) / 100;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+            <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+              {/* Header */}
+              <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
+                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                  <Ban className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground font-sans">Cancel Contract</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-sans">This action will end the project and distribute the escrow based on current progress</p>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4 text-sm font-sans">
+                <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-xl">
+                  <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
+                  <div className="border-t border-border my-2" />
+                  <div className="flex justify-between"><span className="text-muted-foreground">Expert Progress Pay:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={progressPayout} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Expert Compensation (10%):</span><span className="font-semibold text-foreground"><MoneyDisplay amount={compensationFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Platform Service Fee (5%):</span><span className="font-semibold text-foreground"><MoneyDisplay amount={platformServiceFee} /></span></div>
+                  <div className="border-t border-border my-2" />
+                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">Expert Total Payout:</span><span className="font-bold text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
+                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">Your Refund:</span><span className="font-bold text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                </div>
+
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                  After cancellation, the project will be closed and cannot be continued. This action cannot be undone.
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-foreground/80 font-semibold text-sm">
+                    Lý do hủy hợp đồng <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Tại sao bạn muốn hủy hợp đồng này?"
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-foreground/80 font-semibold text-sm">
+                    Đính kèm tài liệu/bằng chứng (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: bang_chung.pdf, hop_dong_bo_sung.docx"
+                    value={evidenceFileName}
+                    onChange={(e) => setEvidenceFileName(e.target.value)}
+                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans">
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason("");
+                    setEvidenceFileName("");
+                  }}
+                  className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelLoading}
+                  onClick={report?.status === "Returned" ? handleInitiatorRespondRejection : handleCancelContractInit}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {cancelLoading ? "Processing..." : "Confirm Cancellation"}
+                </button>
+              </div>
+
+              {/* Send Confirmation Dialog */}
+              {showSendConfirmDialog && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
+                  <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
+                    <h4 className="text-base font-bold text-foreground">Xác nhận gửi yêu cầu</h4>
+                    <p className="text-sm text-muted-foreground mt-2 font-medium">Bạn có chắc chắn muốn gửi yêu cầu hủy hợp đồng này lên Admin xét duyệt?</p>
+                    <div className="flex justify-end gap-3 mt-4">
+                      <button
+                        type="button"
+                        onClick={() => setShowSendConfirmDialog(false)}
+                        className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
+                      >
+                        Hủy (Từ chối)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmCancellationSend}
+                        className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                      >
+                        Đồng ý (Accept)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+
+
+      {/* Dialog for Explanation Form */}
+      <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
-              Báo cáo vi phạm Chuyên gia (Client Report Expert)
+            <DialogTitle className="text-xl font-bold text-red-950">
+              Gửi phản hồi báo cáo vi phạm
             </DialogTitle>
           </DialogHeader>
+          <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left mb-4">
+            {report?.reporterRole === "expert" ? (
+              <>
+                <p className="font-semibold text-foreground">Nội dung tố cáo từ Chuyên gia:</p>
+                <p className="text-foreground/85"><strong>Lý do:</strong> {report?.reason || report?.reportName}</p>
+                <p className="text-foreground/85"><strong>Chi tiết:</strong> {report?.description}</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-foreground">Nội dung phản hồi giải trình từ Chuyên gia:</p>
+                {report?.expertExplanation ? (
+                  <>
+                    <p className="text-foreground/85"><strong>Lý do:</strong> {report?.expertExplanationReason || "—"}</p>
+                    <p className="text-foreground/85"><strong>Chi tiết:</strong> {report?.expertExplanation}</p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground italic">Chuyên gia chưa nộp phản hồi giải trình.</p>
+                )}
+              </>
+            )}
+          </div>
           <ReportForm
             project={project}
-            onSubmit={handleClientSubmitReport}
-            onCancel={() => setShowReportForm(false)}
-            loading={reportSubmitting}
+            onSubmit={async (formData) => {
+              await handleClientSubmitExplanation(formData);
+              setShowExplanationModal(false);
+            }}
+            onCancel={() => setShowExplanationModal(false)}
+            isResponse={true}
+            role="client"
+            submitLabel="Gửi phản hồi"
+            initialDisputeType={report?.disputeType}
           />
         </DialogContent>
       </Dialog>
-
-      {/* Project Activity Log Container */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4 font-sans text-left mt-6">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-brand-primary animate-pulse" /> Nhật ký hoạt động (Activity Log)
-        </h2>
-        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
-          {!activityLogs || activityLogs.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">Chưa có hoạt động nào được ghi nhận.</p>
-          ) : (
-            <div className="relative border-l-2 border-slate-100 ml-3 pl-6 space-y-4 pt-1">
-              {activityLogs.map((log, idx) => (
-                <div key={log.id || idx} className="relative">
-                  {/* Dot marker */}
-                  <div className="absolute -left-[31px] top-1.5 w-3 h-3 rounded-full bg-brand-primary border-2 border-white shadow-sm" />
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-start text-xs">
-                      <span className="font-bold text-gray-800">{log.userName || log.userRole || "Hệ thống"}</span>
-                      <span className="text-gray-400 font-mono">{new Date(log.timestamp).toLocaleString("vi-VN")}</span>
-                    </div>
-                    <p className="text-sm text-gray-600 leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-100/60 font-medium">
-                      {log.actionDescription || log.message}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Client Dispute Explanation Panel (Luồng 2 Step 3 response form)
+// Delivery & Payment Stepper
 // ---------------------------------------------------------------------------
 
-function ClientDisputeExplanationPanel({ report, onSubmit }) {
-  const [explanation, setExplanation] = useState("");
-  const [evidenceName, setEvidenceName] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState("");
+function DeliveryPaymentStepper({ project, overallProgress, role }) {
+  const finalStatus = project?.finalDeliveryStatus || "";
+  const isCompleted = project?.status === "completed";
 
-  useEffect(() => {
-    if (!report?.replyDeadline) return;
-    function calculateTime() {
-      const now = new Date().getTime();
-      const deadline = new Date(report.replyDeadline).getTime();
-      const diff = deadline - now;
-
-      if (diff <= 0) {
-        setTimeLeft("HẾT HẠN PHẢN HỒI (Admin có thể xử thua)");
-      } else {
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft(`${hours} giờ ${minutes} phút ${seconds} giây còn lại`);
-      }
-    }
-    calculateTime();
-    const interval = setInterval(calculateTime, 1000);
-    return () => clearInterval(interval);
-  }, [report?.replyDeadline]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!explanation.trim()) {
-      toast.error("Vui lòng nhập nội dung giải trình.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await onSubmit({
-        clientExplanation: explanation,
-        clientExplanationEvidence: evidenceName ? [{ fileName: evidenceName, note: "Bằng chứng khách hàng nộp" }] : []
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  const steps = [
+    {
+      label: "Tasks Done",
+      done: overallProgress === 100,
+      active: overallProgress < 100,
+    },
+    {
+      label: "Final Work Submitted",
+      done: ["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus),
+      active: overallProgress === 100 && !["Final Product Submitted", "Accepted", "Declined"].includes(finalStatus),
+    },
+    {
+      label: "Delivery Accepted",
+      done: finalStatus === "Accepted" || isCompleted,
+      active: finalStatus === "Final Product Submitted",
+    },
+    {
+      label: "Payment Released",
+      done: isCompleted,
+      active: finalStatus === "Accepted" && !isCompleted,
+    },
+  ];
 
   return (
-    <div className="bg-white rounded-2xl border border-red-200 shadow-lg overflow-hidden font-sans">
-      <div className="bg-red-50 px-6 py-4 border-b border-red-150 flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-bold text-red-950">YÊU CẦU GIẢI TRÌNH TRANH CHẤP THANH TOÁN</h3>
-          <p className="text-xs text-red-700 mt-0.5">Chuyên gia báo cáo bạn trì hoãn giải ngân. Vui lòng phản hồi.</p>
-        </div>
-        <div className="px-3 py-1.5 bg-red-100 text-red-800 rounded-lg text-xs font-bold border border-red-200">
-          Hạn chót: {timeLeft || "48 giờ"}
-        </div>
-      </div>
-      <div className="p-6 space-y-6 text-left">
-        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-          <h4 className="font-bold text-gray-900 text-sm">Nội dung báo cáo từ Chuyên gia:</h4>
-          <p className="text-sm text-gray-700"><strong>Lý do:</strong> {report.reason || report.reportName}</p>
-          <p className="text-sm text-gray-700"><strong>Mô tả chi tiết:</strong> {report.description}</p>
-          {report.evidence && report.evidence.length > 0 && (
-            <div className="text-xs text-gray-500 pt-2 border-t border-gray-200">
-              <strong>Bằng chứng đính kèm:</strong> {report.evidence.map(e => e.fileName || e.name).join(", ")}
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
+      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Delivery & Payment Progress</h3>
+      <div className="flex flex-wrap items-center gap-0">
+        {steps.map((step, i) => (
+          <div key={step.label} className="flex items-center">
+            <div className="flex flex-col items-center">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done
+                    ? "bg-success text-white"
+                    : step.active
+                      ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+              >
+                {step.done ? "✓" : i + 1}
+              </div>
+              <span
+                className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"
+                  }`}
+              >
+                {step.label}
+              </span>
             </div>
-          )}
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">
-              Nội dung giải trình của bạn <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              required
-              rows={4}
-              placeholder="Giải trình lý do bạn chưa giải ngân (ví dụ: sản phẩm chưa đạt chất lượng, Expert chưa sửa lỗi...)"
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-[10px] focus:outline-none focus:border-red-500 text-gray-800 text-sm"
-            />
+            {i < steps.length - 1 && (
+              <div
+                className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-success" : "bg-muted"
+                  }`}
+              />
+            )}
           </div>
-
-          <div>
-            <label className="block text-gray-700 font-semibold mb-1 text-sm">
-              Tài liệu / Bằng chứng giải trình (Tên file)
-            </label>
-            <input
-              type="text"
-              placeholder="Ví dụ: chat_proof.pdf, qa_report.pdf..."
-              value={evidenceName}
-              onChange={(e) => setEvidenceName(e.target.value)}
-              className="w-full h-11 px-3 border border-gray-300 rounded-[10px] focus:outline-none focus:border-red-500 text-gray-800 text-sm"
-            />
-          </div>
-
-          <div className="flex items-center justify-end pt-2 border-t border-gray-100">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-md cursor-pointer disabled:opacity-50"
-            >
-              {submitting ? "Đang gửi giải trình..." : "Gửi báo cáo giải trình"}
-            </button>
-          </div>
-        </form>
+        ))}
       </div>
     </div>
   );
 }
+
+
 

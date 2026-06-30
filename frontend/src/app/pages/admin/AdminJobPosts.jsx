@@ -24,7 +24,7 @@ import api from "../../../services/api.js";
 
 const JOB_POST_STATUS_CONFIG = {
   Active: { color: "bg-green-100 text-green-700", label: "Active" },
-  Inactive: { color: "bg-gray-100 text-gray-700", label: "Inactive" },
+  Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
   Closed: { color: "bg-red-100 text-red-700", label: "Closed" },
   Draft: { color: "bg-yellow-100 text-yellow-700", label: "Draft" },
 };
@@ -133,8 +133,8 @@ export function AdminJobPosts() {
       label: "Title",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-gray-900 text-sm">{val || "—"}</p>
-          <p className="text-xs text-gray-500">
+          <p className="font-medium text-foreground text-sm">{val || "—"}</p>
+          <p className="text-xs text-muted-foreground">
             {row.clientName || row.clientId
               ? `Posted by: ${row.clientName || row.clientId}`
               : ""}
@@ -155,7 +155,7 @@ export function AdminJobPosts() {
       key: "category",
       label: "Category",
       render: (val) => (
-        <span className="text-xs text-gray-600">{val || "—"}</span>
+        <span className="text-xs text-muted-foreground">{val || "—"}</span>
       ),
     },
     {
@@ -172,7 +172,7 @@ export function AdminJobPosts() {
       key: "createdAt",
       label: "Posted",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -185,10 +185,10 @@ export function AdminJobPosts() {
         Back to Dashboard
       </BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         Job Post / Service Management
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage violating job posts and services on the platform.
       </p>
 
@@ -207,21 +207,21 @@ export function AdminJobPosts() {
       {/* Filter row */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by title..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-card"
           >
             {JOB_POST_STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>

@@ -24,56 +24,42 @@ import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
 import api from "../../../services/api.js";
 
 const DISPUTE_TYPES = [
-  { value: "financial", label: "Financial (Tài chính)" },
-  { value: "quality", label: "Quality (Chất lượng)" },
-  { value: "deadline", label: "Deadline (Tiến độ)" },
+  { value: "financial", label: "Financial / Payment Dispute" },
+  { value: "quality", label: "Work Quality Dispute" },
+  { value: "deadline", label: "Deadline Dispute" },
+  { value: "scope", label: "Scope of Work Dispute" },
+  { value: "other", label: "Other" },
 ];
 
 export function ReportForm({
   project,
-  reporterRole = "expert",
   onSubmit,
   onCancel,
   loading: externalLoading = false,
+  submitLabel = "Submit Report",
+  role = "expert",
+  isResponse = false,
+  initialDisputeType = "",
 }) {
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
-  const [disputeType, setDisputeType] = useState("financial");
+  const [disputeType, setDisputeType] = useState(initialDisputeType || "financial");
   const [desiredResolution, setDesiredResolution] = useState("");
   const [evidence, setEvidence] = useState([]); // { id, name, note, file? }
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [submitTime, setSubmitTime] = useState(new Date());
-  const [clientName, setClientName] = useState("");
-  const [expertName, setExpertName] = useState("");
+
+  useEffect(() => {
+    if (initialDisputeType) {
+      setDisputeType(initialDisputeType);
+    }
+  }, [initialDisputeType]);
+
+  const [clientUser, setClientUser] = useState(null);
+  const [expertUser, setExpertUser] = useState(null);
 
   const isLoading = externalLoading || submitting;
-
-  // Load client and expert full names
-  useEffect(() => {
-    async function loadNames() {
-      if (!project) return;
-      const cId = project.clientId;
-      const eId = project.assignedExpertId || project.expertId;
-      if (cId) {
-        try {
-          const u = await api.users.getById(cId);
-          setClientName(u?.fullName || u?.name || project.client || cId);
-        } catch {
-          setClientName(project.client || cId);
-        }
-      }
-      if (eId) {
-        try {
-          const u = await api.users.getById(eId);
-          setExpertName(u?.fullName || u?.name || project.expert || eId);
-        } catch {
-          setExpertName(project.expert || eId);
-        }
-      }
-    }
-    loadNames();
-  }, [project]);
 
   // Real-time submission time
   useEffect(() => {
@@ -81,17 +67,38 @@ export function ReportForm({
     return () => clearInterval(interval);
   }, []);
 
+  // Fetch client & expert details
+  useEffect(() => {
+    if (!project) return;
+    async function fetchUsers() {
+      try {
+        if (project.clientId) {
+          const client = await api.users.getById(project.clientId);
+          setClientUser(client);
+        }
+        if (project.assignedExpertId || project.expertId) {
+          const expId = project.assignedExpertId || project.expertId;
+          const expert = await api.users.getById(expId);
+          setExpertUser(expert);
+        }
+      } catch (err) {
+        console.error("Failed to fetch users in ReportForm:", err);
+      }
+    }
+    fetchUsers();
+  }, [project]);
+
   const validate = useCallback(() => {
     const errs = {};
-    if (!reason.trim()) errs.reason = "Please enter a report reason.";
-    if (!description.trim()) errs.description = "Please enter a detailed description.";
+    if (!reason.trim()) errs.reason = isResponse ? "Vui lòng nhập lý do phản hồi." : "Please enter a report reason.";
+    if (!description.trim()) errs.description = isResponse ? "Vui lòng nhập nội dung phản hồi chi tiết." : "Please enter a detailed description.";
     if (!desiredResolution.trim())
-      errs.desiredResolution = "Please enter your desired resolution.";
+      errs.desiredResolution = isResponse ? "Vui lòng nhập phương án giải quyết mong muốn." : "Please enter your desired resolution.";
     if (evidence.length === 0)
-      errs.evidence = "Please upload at least 1 piece of evidence.";
+      errs.evidence = isResponse ? "Vui lòng tải lên ít nhất 1 tài liệu/bằng chứng." : "Please upload at least 1 piece of evidence.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
-  }, [reason, description, desiredResolution, evidence]);
+  }, [reason, description, desiredResolution, evidence, isResponse]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -135,66 +142,75 @@ export function ReportForm({
 
   if (!project) {
     return (
-      <div className="p-6 text-center text-gray-500">
+      <div className="p-6 text-center text-muted-foreground">
         Project information not found.
       </div>
     );
   }
 
+  // Pre-calculate display deadline and start date
+  const displayStartDate = project.createdAt
+    ? formatDateTime(project.createdAt)
+    : "—";
+
+  const displayDeadline = (() => {
+    if (!project.deadline) return "—";
+    const num = Number(project.deadline);
+    if (!Number.isNaN(num) && num < 1000) {
+      const d = new Date(project.createdAt || new Date());
+      d.setDate(d.getDate() + num);
+      return formatDateTime(d.toISOString());
+    }
+    return formatDateTime(project.deadline);
+  })();
+
+  const clientName =
+    clientUser?.fullName ||
+    clientUser?.name ||
+    project.clientName ||
+    (typeof project.client === "string" ? project.client : project.client?.fullName || project.client?.name) ||
+    "—";
+
+  const expertName =
+    expertUser?.fullName ||
+    expertUser?.name ||
+    project.expertName ||
+    (typeof project.expert === "string" ? project.expert : project.expert?.fullName || project.expert?.name) ||
+    "—";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* ---- Auto-filled project info ---- */}
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
+      <div className="bg-secondary/60 rounded-xl p-4 border border-border">
+        <h3 className="text-sm font-semibold text-foreground/80 mb-3">
           Project Information
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <InfoRow label="Project Name" value={project.title || "—"} />
-          <InfoRow
-            label="Client"
-            value={clientName || project.clientName || project.client || "—"}
-          />
-          <InfoRow
-            label="Expert"
-            value={expertName || project.expertName || project.expert || "—"}
-          />
+          <InfoRow label="Client" value={clientName} />
+          <InfoRow label="Expert" value={expertName} />
           <InfoRow
             label="Funds in Escrow"
-            value={<MoneyDisplay amount={project.escrowBalance || project.escrowAmount || project.budget || 0} />}
+            value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
           />
-          <InfoRow
-            label="Start Date"
-            value={
-              project.startDate
-                ? formatDateTime(project.startDate)
-                : project.createdAt
-                ? formatDateTime(project.createdAt)
-                : "—"
-            }
-          />
-          <InfoRow
-            label="Deadline"
-            value={
-              project.deadline
-                ? formatDateTime(project.deadline)
-                : "—"
-            }
-          />
+          <InfoRow label="Status" value={project.status || "—"} />
+          <InfoRow label="Start Date" value={displayStartDate} />
+          <InfoRow label="Deadline" value={displayDeadline} />
         </div>
       </div>
 
-      {/* ---- Expert-entered fields ---- */}
+      {/* ---- Entered fields ---- */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Report Reason <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
+          {isResponse ? "Lý do phản hồi" : "Report Reason"} <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="e.g. Client has not paid after project completion"
+          placeholder={isResponse ? "Ví dụ: Sản phẩm đã hoàn thành nhưng khách hàng không giải ngân" : "e.g. Client has not paid after project completion"}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-            errors.reason ? "border-red-300" : "border-gray-300"
+            errors.reason ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -204,14 +220,14 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
           Dispute Type <span className="text-red-500">*</span>
         </label>
         <select
           value={disputeType}
           onChange={(e) => setDisputeType(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-brand-primary"
-          disabled={isLoading}
+          className="w-full px-4 py-2.5 border border-input rounded-lg text-sm focus:outline-none focus:border-brand-primary bg-secondary/30 disabled:opacity-80 disabled:cursor-not-allowed"
+          disabled={isLoading || isResponse}
         >
           {DISPUTE_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
@@ -222,16 +238,16 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Detailed Description <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
+          {isResponse ? "Mô tả phản hồi chi tiết" : "Detailed Description"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe the issue in detail, timeline of events..."
+          placeholder={isResponse ? "Mô tả chi tiết nội dung giải trình..." : "Describe the issue in detail, timeline of events..."}
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.description ? "border-red-300" : "border-gray-300"
+            errors.description ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -241,16 +257,16 @@ export function ReportForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Desired Resolution <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-foreground/80 mb-1">
+          {isResponse ? "Phương án giải quyết mong muốn" : "Desired Resolution"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={desiredResolution}
           onChange={(e) => setDesiredResolution(e.target.value)}
-          placeholder="How would you like this to be resolved?"
+          placeholder={isResponse ? "Ví dụ: Yêu cầu giải ngân toàn bộ số tiền escrow" : "How would you like this to be resolved?"}
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.desiredResolution ? "border-red-300" : "border-gray-300"
+            errors.desiredResolution ? "border-red-300" : "border-input"
           }`}
           disabled={isLoading}
         />
@@ -264,8 +280,8 @@ export function ReportForm({
       {/* ---- Evidence upload ---- */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">
-            Evidence <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-foreground/80">
+            {isResponse ? "Tài liệu / Bằng chứng" : "Evidence"} <span className="text-red-500">*</span>
           </label>
           <button
             type="button"
@@ -282,9 +298,9 @@ export function ReportForm({
         )}
 
         {evidence.length === 0 && (
-          <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center">
-            <Upload className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">
+          <div className="border-2 border-dashed border-input rounded-xl p-6 text-center">
+            <Upload className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
               No evidence added yet. Click &quot;Add Evidence&quot; to upload
               images, documents, or screenshots.
             </p>
@@ -295,14 +311,14 @@ export function ReportForm({
           {evidence.map((item) => (
             <div
               key={item.id}
-              className="p-3 border border-gray-200 rounded-lg bg-gray-50/50 space-y-3"
+              className="p-3 border border-border rounded-lg bg-secondary/50 space-y-3"
             >
               <div className="flex items-start justify-between">
-                <FileText className="w-5 h-5 text-gray-400 mt-0.5" />
+                <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
                 <button
                   type="button"
                   onClick={() => removeEvidence(item.id)}
-                  className="p-1 text-gray-400 hover:text-red-500 transition"
+                  className="p-1 text-muted-foreground hover:text-red-500 transition"
                   disabled={isLoading}
                 >
                   <X className="w-4 h-4" />
@@ -316,7 +332,7 @@ export function ReportForm({
                   updateEvidence(item.id, "name", e.target.value)
                 }
                 placeholder="Evidence name (e.g. Chat screenshot)"
-                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
+                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
                 disabled={isLoading}
               />
 
@@ -337,7 +353,7 @@ export function ReportForm({
                   updateEvidence(item.id, "note", e.target.value)
                 }
                 placeholder="Note for this evidence (optional)"
-                className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:border-brand-primary"
+                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
                 disabled={isLoading}
               />
             </div>
@@ -348,11 +364,11 @@ export function ReportForm({
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> {reporterRole === "client" ? "Client" : "Expert"} •{" "}
+          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} •{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">
-          This report will be sent to Admin for dispute resolution review.
+          {isResponse ? "Phản hồi này sẽ được gửi tới Admin để xem xét giải quyết tranh chấp." : "This report will be sent to Admin for dispute resolution review."}
         </p>
       </div>
 
@@ -362,9 +378,9 @@ export function ReportForm({
           type="button"
           onClick={onCancel}
           disabled={isLoading}
-          className="px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition"
+          className="px-5 py-2.5 border border-input rounded-lg text-sm font-medium text-foreground/80 hover:bg-secondary/60 disabled:opacity-50 transition"
         >
-          Cancel
+          {isResponse ? "Hủy" : "Cancel"}
         </button>
         <button
           type="submit"
@@ -374,10 +390,10 @@ export function ReportForm({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              Submitting Report...
+              {isResponse ? "Đang gửi phản hồi..." : "Submitting Report..."}
             </>
           ) : (
-            "Submit Report"
+            submitLabel
           )}
         </button>
       </div>
@@ -392,8 +408,8 @@ export function ReportForm({
 function InfoRow({ label, value }) {
   return (
     <div>
-      <span className="text-gray-500">{label}:</span>{" "}
-      <span className="font-medium text-gray-800">{value}</span>
+      <span className="text-muted-foreground">{label}:</span>{" "}
+      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
 }

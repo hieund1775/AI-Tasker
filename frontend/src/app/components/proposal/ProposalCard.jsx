@@ -1,10 +1,10 @@
 import { Link } from "react-router";
 import {
-  AlertTriangle,
   MessageSquare,
   CheckCircle,
   XCircle,
-  Eye,
+  Clock,
+  GitBranch,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 
@@ -27,32 +27,27 @@ export function ProposalCard({
   hasBeenActed,
   onAccept,
   onDecline,
+  onAcceptTask,
+  onRejectTask,
 }) {
-  const groupedUseCases = (proposal.useCases?.length ? proposal.useCases : [])
-    .map((uc, index) => ({
-      ...uc,
-      index: uc.index ?? index,
-      title: uc.title || uc.name || uc.nameAndDeadline || `Use Case ${index + 1}`,
-      tasks: (proposal.tasks || []).filter((task) => Number(task.useCaseIndex || 0) === Number(uc.index ?? index)),
-    }))
-    .filter((uc) => uc.tasks.length > 0 || proposal.useCases?.length);
+  const hasUseCaseBreakdown = proposal.useCaseBreakdown?.length > 0;
 
   return (
     <div
-      className={`bg-white rounded-xl border p-6 transition ${
+      className={`bg-card rounded-xl border p-6 transition-colors ${
         isAccepted
-          ? "border-green-300 bg-green-50/30"
+          ? "border-success/30 bg-success-light/40"
           : isDeclined
-            ? "border-red-200 bg-red-50/20 opacity-75"
-            : "border-gray-200 hover:shadow-md"
+            ? "border-destructive/20 bg-destructive-light/30 opacity-75"
+            : "border-border hover:border-border/80 hover:shadow-sm"
       }`}
     >
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         {/* ── Expert info ── */}
         <div className="flex items-start gap-4 flex-1">
           {/* Avatar initials */}
-          <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-lg font-bold text-purple-700">
+          <div className="w-12 h-12 bg-accent-light rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-lg font-bold text-accent">
               {proposal.expert?.initials}
             </span>
           </div>
@@ -60,19 +55,19 @@ export function ProposalCard({
           <div className="flex-1 min-w-0">
             {/* Name + match % */}
             <div className="flex items-center flex-wrap gap-3 mb-1">
-              <h3 className="font-semibold text-gray-900">
+              <h3 className="font-semibold text-foreground">
                 {proposal.expert?.name}
               </h3>
-              <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
+              <span className="px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold">
                 {proposal.matchPct}% match
               </span>
               {isAccepted && (
-                <span className="px-2.5 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                <span className="px-2.5 py-0.5 bg-success-light text-success rounded-full text-xs font-medium inline-flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" /> Accepted
                 </span>
               )}
               {isDeclined && (
-                <span className="px-2.5 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                <span className="px-2.5 py-0.5 bg-destructive-light text-destructive rounded-full text-xs font-medium inline-flex items-center gap-1">
                   <XCircle className="w-3 h-3" /> Declined
                 </span>
               )}
@@ -80,72 +75,16 @@ export function ProposalCard({
 
             {/* Title */}
             {proposal.expert?.title && (
-              <p className="text-base text-gray-500 mb-2">
+              <p className="text-sm text-muted-foreground mb-2">
                 {proposal.expert.title}
               </p>
             )}
 
             {/* Cover letter / message */}
             {(proposal.coverLetter || proposal.message) && (
-              <p className="text-gray-700 text-base leading-relaxed mb-3">
+              <p className="text-foreground/80 text-sm leading-relaxed mb-3">
                 {proposal.coverLetter || proposal.message}
               </p>
-            )}
-
-            {proposal.extensionRequested && (
-              <div className="mb-3 inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
-                <AlertTriangle className="w-4 h-4" />
-                Expert requests timeline extension for at least one Use Case.
-              </div>
-            )}
-
-            {groupedUseCases.length > 0 && (
-              <div className="mb-4 space-y-3">
-                {groupedUseCases.map((uc) => (
-                  <div key={uc.index} className={`rounded-xl border p-3 text-left ${uc.isOverrun ? "border-red-200 bg-red-50" : "border-gray-200 bg-gray-50"}`}>
-                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                      <p className="text-sm font-bold text-gray-900">{uc.title}</p>
-                      <div className="flex items-center gap-2 text-xs">
-                        {uc.originalDays ? (
-                          <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600">
-                            Client: {uc.originalDays}d
-                          </span>
-                        ) : null}
-                        <span className="px-2 py-0.5 bg-white border border-gray-200 rounded-full text-gray-600">
-                          Expert: {uc.proposedDays || 0}d
-                        </span>
-                        {uc.isOverrun && (
-                          <span className="px-2 py-0.5 bg-red-100 text-red-700 border border-red-200 rounded-full font-semibold">
-                            Extension
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {uc.tasks.map((task) => (
-                        <div key={task.id} className="rounded-lg bg-white border border-gray-200 px-3 py-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <p className="text-sm font-semibold text-gray-800">{task.title || "Untitled task"}</p>
-                            <p className="text-xs text-gray-500">
-                              {task.durationDays || 0} days · <MoneyDisplay amount={task.amount || 0} />
-                            </p>
-                          </div>
-                          {task.miniTasks?.length > 0 && (
-                            <ul className="mt-2 space-y-1 text-xs text-gray-500">
-                              {task.miniTasks.map((mini) => (
-                                <li key={mini.id} className="flex gap-1.5">
-                                  <span>•</span>
-                                  <span>{mini.title}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
             )}
 
             {/* Expert skills */}
@@ -154,15 +93,140 @@ export function ProposalCard({
                 {proposal.expert.skills.slice(0, 5).map((skill) => (
                   <span
                     key={skill}
-                    className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[13px] font-medium"
+                    className="px-2 py-0.5 bg-secondary text-muted-foreground rounded-md text-[13px] font-medium"
                   >
                     {skill}
                   </span>
                 ))}
                 {proposal.expert.skills.length > 5 && (
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-400 rounded-md text-xs">
+                  <span className="px-2 py-0.5 bg-secondary text-muted-foreground/60 rounded-md text-xs">
                     +{proposal.expert.skills.length - 5} more
                   </span>
+                )}
+              </div>
+            )}
+
+            {/* ── Use Case & Task Breakdown ── */}
+            {(hasUseCaseBreakdown || proposal.tasks?.length > 0) && (
+              <div className="mb-3 p-3 bg-secondary/30 rounded-xl border border-border/60 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                  <GitBranch className="w-3.5 h-3.5" /> Use Case & Task Breakdown
+                </div>
+
+                {hasUseCaseBreakdown ? (
+                  /* ── Grouped by use case ── */
+                  proposal.useCaseBreakdown.map((uc) => (
+                    <div key={uc.useCaseId} className="space-y-1.5">
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">Use Case</span>
+                        <span className="text-xs font-semibold text-foreground">{uc.useCaseTitle}</span>
+                        <span className="text-xs text-muted-foreground">{uc.originalDuration}d</span>
+                      </div>
+                      {(uc.tasks || []).map((task, i) => {
+                        const isClient = task.source === "client" || task.source === "client_use_case_fallback";
+                        const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
+                        const isTaskAccepted = task.approvalStatus === "accepted" && task.source === "expert";
+                        const isTaskRejected = task.approvalStatus === "rejected" && task.source === "expert";
+                        const borderColor = isTaskAccepted ? "border-green-300" : isTaskRejected ? "border-red-200 opacity-60" : isProposed ? "border-amber-200" : "border-blue-200";
+
+                        return (
+                          <div key={task.id || i} className={`pl-2 border-l-2 ${borderColor} space-y-0.5 ml-2`}>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
+                              {isClient && (
+                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">Client Task</span>
+                              )}
+                              {isProposed && (
+                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Pending Approval</span>
+                              )}
+                              {isTaskAccepted && (
+                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Accepted</span>
+                              )}
+                              {isTaskRejected && (
+                                <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">Rejected</span>
+                              )}
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${Number(task.price).toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                              {isProposed && !hasBeenActed && onAcceptTask && onRejectTask && (
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Accept proposed task">
+                                    <CheckCircle className="w-3 h-3" /> Accept
+                                  </button>
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); onRejectTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Reject proposed task">
+                                    <XCircle className="w-3 h-3" /> Reject
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                ) : (
+                  /* ── Flat fallback ── */
+                  <>
+                    {proposal.tasks.filter(t => t.source !== "expert" || t.approvalStatus !== "pending_client_approval").map((task, i) => (
+                      <div key={task.id || i} className="pl-2 border-l-2 border-blue-200 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
+                          {task.source === "client" || task.source === "client_use_case_fallback" ? (
+                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">Client Task</span>
+                          ) : null}
+                          <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                        </div>
+
+                      </div>
+                    ))}
+
+                    {/* ── Expert-Proposed Tasks ── */}
+                    {(proposal.proposedTasks?.length > 0 || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")).length > 0) && (
+                      <div className="pt-2 border-t border-amber-200">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Proposed by Expert</span>
+                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Pending Client Approval</span>
+                        </div>
+                        {(proposal.proposedTasks || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")) || []).map((task, i) => {
+                          const taskStatus = task.approvalStatus || "pending_client_approval";
+                          const isPending = taskStatus === "pending_client_approval";
+                          const isTaskAccepted = taskStatus === "accepted";
+                          const isTaskRejected = taskStatus === "rejected";
+
+                          return (
+                          <div key={task.id || `prop-${i}`} className={`pl-2 border-l-2 space-y-0.5 ${isTaskAccepted ? "border-green-300" : isTaskRejected ? "border-red-200 opacity-60" : "border-amber-200"}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Proposed Task #${i + 1}`}</span>
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                              {isTaskAccepted && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Accepted</span>}
+                              {isTaskRejected && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">Rejected</span>}
+                              {isPending && !hasBeenActed && onAcceptTask && onRejectTask && (
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }}
+                                    className="h-7 px-2 bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                                    title="Accept proposed task"
+                                  >
+                                    <CheckCircle className="w-3 h-3" /> Accept
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); onRejectTask(proposal.id, task.id, task); }}
+                                    className="h-7 px-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                                    title="Reject proposed task"
+                                  >
+                                    <XCircle className="w-3 h-3" /> Reject
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                          </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -173,29 +237,21 @@ export function ProposalCard({
         <div className="flex flex-col items-start md:items-end gap-3 md:min-w-[180px] flex-shrink-0">
           {/* Bid amount */}
           <div className="text-right">
-            <p className="text-lg font-bold text-gray-900">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Bid</span>
+            <p className="text-lg font-bold text-accent">
               <MoneyDisplay amount={proposal.bidAmount} />
             </p>
-            <p className="text-xs text-gray-400">
-              {proposal.durationDays
-                ? `${proposal.durationDays} days`
-                : ""}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Duration: {proposal.durationDays || proposal.estimatedDays || 0} days
             </p>
           </div>
 
           {/* Actions */}
           {!hasBeenActed && (
-            <div className="flex flex-col gap-2 w-full md:w-auto">
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Link
-                to={`/client/proposals/${proposal.id}`}
-                className="min-w-[140px] justify-center h-11 px-5 bg-blue-900 text-white rounded-[14px] hover:bg-blue-800 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
-              >
-                <Eye className="w-4 h-4" />
-                View Proposal
-              </Link>
-              <Link
-                to={`/messenger?expertId=${proposal.expertId}`}
-                className="min-w-[140px] justify-center h-11 px-5 border border-gray-300 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+                to="/messenger"
+                className="min-w-[140px] justify-center h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
                 title="Message expert"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -209,7 +265,7 @@ export function ProposalCard({
                     proposal.expert?.name,
                   )
                 }
-                className="min-w-[140px] justify-center h-11 px-5 border border-red-200 text-red-600 rounded-[14px] hover:bg-red-50 text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[140px] justify-center h-11 px-5 border border-destructive/20 text-destructive rounded-xl hover:bg-destructive-light text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
                 <XCircle className="w-4 h-4" />
                 Decline
@@ -222,7 +278,7 @@ export function ProposalCard({
                     proposal.expert?.name,
                   )
                 }
-                className="min-w-[140px] justify-center h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[140px] justify-center h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
                 <CheckCircle className="w-4 h-4" />
                 Accept

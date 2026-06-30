@@ -26,7 +26,7 @@ const PROJECT_STATUS_CONFIG = {
   Active: { color: "bg-green-100 text-green-700", label: "Active" },
   Completed: { color: "bg-brand-primary-light text-brand-primary", label: "Completed" },
   Disputed: { color: "bg-red-100 text-red-700", label: "Disputed" },
-  Stopped: { color: "bg-gray-100 text-gray-700", label: "Stopped" },
+  Stopped: { color: "bg-secondary text-foreground/80", label: "Stopped" },
   Resolved: { color: "bg-purple-100 text-purple-700", label: "Resolved" },
   Draft: { color: "bg-yellow-100 text-yellow-700", label: "Draft" },
 };
@@ -78,8 +78,8 @@ export function AdminProjects() {
       label: "Project",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-gray-900 text-sm">{val || "—"}</p>
-          <p className="text-xs text-gray-500">
+          <p className="font-medium text-foreground text-sm">{val || "—"}</p>
+          <p className="text-xs text-muted-foreground">
             {row.clientName || row.clientId
               ? `Client: ${row.clientName || row.clientId}`
               : `ID: ${row.id}`}
@@ -110,7 +110,7 @@ export function AdminProjects() {
       key: "expertName",
       label: "Expert",
       render: (val, row) => (
-        <span className="text-sm text-gray-600">
+        <span className="text-sm text-muted-foreground">
           {val || row.expertId || "None"}
         </span>
       ),
@@ -119,7 +119,7 @@ export function AdminProjects() {
       key: "createdAt",
       label: "Created",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -132,8 +132,8 @@ export function AdminProjects() {
         Back to Dashboard
       </BackButton>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Project Management</h1>
-      <p className="text-gray-600 mb-6">
+      <h1 className="text-2xl font-bold text-foreground mb-2">Project Management</h1>
+      <p className="text-muted-foreground mb-6">
         View and manage all platform projects.
       </p>
 
@@ -146,21 +146,21 @@ export function AdminProjects() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by project name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
+            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
+            className="pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-card"
           >
             {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -179,7 +179,7 @@ export function AdminProjects() {
         actions={(row) => (
           <Link
             to={`/client/projects/${row.id}`}
-            className="px-2.5 py-1.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1 transition"
+            className="px-2.5 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1 transition"
           >
             <Eye className="w-3.5 h-3.5" />
             View

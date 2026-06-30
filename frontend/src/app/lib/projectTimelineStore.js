@@ -91,16 +91,11 @@ const _runtimeExtensionRequests = new Map();
  * @returns the full log entry
  */
 export function addProjectActivity(projectId, { actor, message }) {
-  const timeStr = new Date().toISOString();
   const entry = {
     id: `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     actor,
-    userRole: actor,
-    userName: actor === "Expert" ? "Chuyên gia" : (actor === "Client" ? "Khách hàng" : actor),
-    time: timeStr,
-    timestamp: timeStr,
+    time: new Date().toISOString(),
     message,
-    actionDescription: message,
   };
   if (!_runtimeActivityLogs.has(projectId)) {
     _runtimeActivityLogs.set(projectId, []);
@@ -118,7 +113,7 @@ export function addProjectActivity(projectId, { actor, message }) {
 }
 
 /** Get merged static + runtime activity logs for a project, newest first. */
-export function getMergedActivityLogs(projectId) {
+function getMergedActivityLogs(projectId) {
   // TODO: Replace with API call — api.timeline.getActivityLogs(projectId)
   const staticLogs = [].map((log) => ({
     id: log.id,
@@ -495,11 +490,7 @@ export function deriveTaskStatus(task) {
 export function deriveTaskProgress(task) {
   const miniTasks = task?.miniTasks || [];
   const total = miniTasks.length;
-  if (total === 0) {
-    const rawStatus = task?.status?.toLowerCase();
-    const isCompleted = rawStatus === "completed" || rawStatus === "done" || task?.approval === "Approved";
-    return { completed: isCompleted ? 1 : 0, total: 1, percent: isCompleted ? 100 : 0 };
-  }
+  if (total === 0) return { completed: 0, total: 0, percent: 0 };
   const completed = miniTasks.filter(
     (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed",
   ).length;
@@ -581,48 +572,6 @@ export function getDeadlineInfo(deadlineDate) {
     remainingText,
     isOverdue,
     urgency,
+    daysRemaining: isOverdue ? -Math.abs(diffDays) : diffDays,
   };
 }
-
-export function getRemainingTimelineText(deadlineDate) {
-  if (!deadlineDate) return "N/A";
-
-  let deadline = new Date(deadlineDate);
-
-  // Handle relative days offset (e.g. 14 or 30)
-  const num = Number(deadlineDate);
-  if (!isNaN(num) && num < 1000) {
-    deadline = new Date();
-    deadline.setDate(deadline.getDate() + num);
-  }
-
-  const now = new Date();
-  const diffMs = deadline.getTime() - now.getTime();
-
-  if (diffMs <= 0) {
-    return "Đã quá hạn";
-  }
-
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHours = Math.floor(diffMin / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays >= 30) {
-    const months = Math.floor(diffDays / 30);
-    const remDays = diffDays % 30;
-    return `${months} tháng ${remDays} ngày`;
-  } else if (diffDays >= 1) {
-    const hours = diffHours % 24;
-    return `${diffDays} ngày ${hours} giờ`;
-  } else if (diffHours >= 1) {
-    const minutes = diffMin % 60;
-    return `${diffHours} giờ ${minutes} phút`;
-  } else if (diffMin >= 1) {
-    const seconds = diffSec % 60;
-    return `${diffMin} phút ${seconds} giây`;
-  } else {
-    return `${diffSec} giây`;
-  }
-}
-

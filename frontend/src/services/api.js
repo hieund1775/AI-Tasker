@@ -18,11 +18,25 @@ function clearToken() {
 }
 
 async function request(endpoint, options = {}) {
+  let finalEndpoint = endpoint;
+  if (options.params) {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        searchParams.append(key, val);
+      }
+    });
+    const qs = searchParams.toString();
+    if (qs) {
+      finalEndpoint += (finalEndpoint.includes("?") ? "&" : "?") + qs;
+    }
+  }
+
   // ── Mock DB short-circuit — bypass network entirely when enabled ──
   if (import.meta.env.VITE_USE_MOCK_DB === "true") {
     const { handleMockRequest } = await import("../data/mockApiHandler.js");
     const method = options.method || (options.body ? "POST" : "GET");
-    return handleMockRequest(endpoint, method, options.body, options.authenticated !== false, getToken());
+    return handleMockRequest(finalEndpoint, method, options.body, options.authenticated !== false, getToken());
   }
   // ── End mock DB guard ──
 
@@ -39,7 +53,7 @@ async function request(endpoint, options = {}) {
 
   // Mock interceptor disabled - proceed with real API calls
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${API_BASE_URL}${finalEndpoint}`;
 
   const headers = {
     "Content-Type": "application/json",

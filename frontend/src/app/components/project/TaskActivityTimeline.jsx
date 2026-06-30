@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Clock, CheckCircle2, FileText, Edit3, Send, ThumbsUp, RotateCcw, Unlock, AlertTriangle } from "lucide-react";
 import { getTaskAuditLogs, formatAuditMessage } from "../../lib/auditTrail.js";
 import { EmptyState } from "../shared/EmptyState.jsx";
+import { safeArray, safeDateTimeFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
@@ -27,16 +28,16 @@ const ACTION_ICONS = {
 };
 
 const ACTION_COLORS = {
-  mini_task_created: "bg-brand-primary-light text-brand-primary",
-  mini_task_completed: "bg-brand-green/10 text-brand-green",
-  mini_tasks_confirmed: "bg-purple-50 text-purple-600",
-  mini_tasks_unlocked: "bg-orange-50 text-orange-600",
-  task_submitted_for_review: "bg-brand-primary-light text-brand-primary",
-  task_approved: "bg-brand-green/10 text-brand-green",
-  task_revision_requested: "bg-red-50 text-red-600",
-  task_reopened: "bg-red-50 text-red-600",
-  mini_task_revision_requested: "bg-red-50 text-red-600",
-  urgent_submission_requested: "bg-red-50 text-red-600",
+  mini_task_created: "bg-primary-light text-primary",
+  mini_task_completed: "bg-success-light text-success",
+  mini_tasks_confirmed: "bg-accent-light text-accent",
+  mini_tasks_unlocked: "bg-warning-light text-warning",
+  task_submitted_for_review: "bg-primary-light text-primary",
+  task_approved: "bg-success-light text-success",
+  task_revision_requested: "bg-destructive-light text-destructive",
+  task_reopened: "bg-destructive-light text-destructive",
+  mini_task_revision_requested: "bg-destructive-light text-destructive",
+  urgent_submission_requested: "bg-destructive-light text-destructive",
 };
 
 export function TaskActivityTimeline({ taskId, loading = false, compact = false }) {
@@ -68,10 +69,10 @@ export function TaskActivityTimeline({ taskId, loading = false, compact = false 
       <div className="space-y-3 animate-pulse p-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="flex gap-3">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex-shrink-0" />
+            <div className="w-8 h-8 rounded-full bg-secondary flex-shrink-0" />
             <div className="flex-1 space-y-1.5">
-              <div className="h-3 bg-gray-200 rounded w-1/3" />
-              <div className="h-3 bg-gray-200 rounded w-2/3" />
+              <div className="h-3 bg-secondary rounded w-1/3" />
+              <div className="h-3 bg-secondary rounded w-2/3" />
             </div>
           </div>
         ))}
@@ -94,9 +95,9 @@ export function TaskActivityTimeline({ taskId, loading = false, compact = false 
 
   return (
     <div className={cn("space-y-0", compact ? "max-h-64 overflow-y-auto" : "max-h-96 overflow-y-auto")}>
-      {logs.map((entry, idx) => {
+      {safeArray(logs).map((entry, idx) => {
         const IconComponent = ACTION_ICONS[entry.action] || FileText;
-        const colorClasses = ACTION_COLORS[entry.action] || "bg-gray-50 text-gray-600";
+        const colorClasses = ACTION_COLORS[entry.action] || "bg-secondary text-muted-foreground";
         const isLast = idx === logs.length - 1;
 
         return (
@@ -112,18 +113,18 @@ export function TaskActivityTimeline({ taskId, loading = false, compact = false 
                 <IconComponent className="w-3.5 h-3.5" />
               </div>
               {!isLast && (
-                <div className="w-px flex-1 bg-gray-200 my-1" />
+                <div className="w-px flex-1 bg-border my-1" />
               )}
             </div>
 
             {/* Content */}
             <div className={cn("flex-1 min-w-0", !isLast && "pb-4")}>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm text-gray-900">
+                <span className="text-sm text-foreground">
                   {entry.actorName || entry.actor}
                 </span>
-                <span className="text-sm text-gray-400">
-                  {new Date(entry.timestamp).toLocaleString("en-US", {
+                <span className="text-sm text-muted-foreground">
+                  {safeDateTimeFormat(entry.timestamp, {
                     month: "short",
                     day: "numeric",
                     hour: "2-digit",
@@ -131,7 +132,7 @@ export function TaskActivityTimeline({ taskId, loading = false, compact = false 
                   })}
                 </span>
               </div>
-              <p className="text-base text-gray-600 mt-0.5">
+              <p className="text-sm text-muted-foreground mt-0.5">
                 {formatAuditMessage(entry)}
               </p>
             </div>

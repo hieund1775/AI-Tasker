@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router";
 import { Clock, CheckCircle2, MessageSquare, User, ArrowLeft, Check, Loader2 } from "lucide-react";
 
@@ -7,6 +7,7 @@ import {
   deriveTaskProgress,
   getTaskStatusClass,
 } from "../../lib/projectTimelineStore.js";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
 
 // Import real mock DB functions for data persistence
 import {
@@ -18,6 +19,7 @@ import {
   requestTaskRevision,
   listProjects,
   listUsers,
+  updateTask,
 } from "../../../data/mockDatabase.js";
 
 /**
@@ -97,14 +99,18 @@ export function TaskUpdatePage() {
   const [feedbackText, setFeedbackText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  // Controlled note inputs — seeded from mock DB on first render
-  const [miniTaskNotes, setMiniTaskNotes] = useState(() => {
-    const notes = {};
+  const [productLink, setProductLink] = useState(task?.productLink || "");
+  const [productFile, setProductFile] = useState(task?.productFile || "");
+
+  // Controlled title inputs
+  const [miniTaskTitles, setMiniTaskTitles] = useState(() => {
+    const titles = {};
     task?.miniTasks?.forEach((mt) => {
-      notes[mt.id] = mt.note || "";
+      titles[mt.id] = mt.title || "";
     });
-    return notes;
+    return titles;
   });
+
   // Debounce timers for note auto-save
   const noteTimers = useRef({});
 
@@ -112,21 +118,21 @@ export function TaskUpdatePage() {
   const handleToggleMiniTask = useCallback((miniTaskId) => {
     const updated = toggleMockMiniTask(taskId, miniTaskId, actorName);
     if (updated) {
-      // Force re-render — React reads fresh mock DB on next render
-      setMiniTaskNotes((prev) => ({ ...prev }));
+      // Force re-render
+      setMiniTaskTitles((prev) => ({ ...prev }));
     }
   }, [taskId, actorName]);
 
-  // ---- Mini task note change (debounced auto-save) ----
-  const handleNoteChange = useCallback((miniTaskId, value) => {
-    setMiniTaskNotes((prev) => ({ ...prev, [miniTaskId]: value }));
+  // ---- Mini task title change (debounced auto-save) ----
+  const handleTitleChange = useCallback((miniTaskId, value) => {
+    setMiniTaskTitles((prev) => ({ ...prev, [miniTaskId]: value }));
 
-    // Debounce the mock-DB write (300ms after last keystroke)
-    if (noteTimers.current[miniTaskId]) {
-      clearTimeout(noteTimers.current[miniTaskId]);
+    if (noteTimers.current[`title-${miniTaskId}`]) {
+      clearTimeout(noteTimers.current[`title-${miniTaskId}`]);
     }
-    noteTimers.current[miniTaskId] = setTimeout(() => {
-      updateMockMiniTaskNote(taskId, miniTaskId, value);
+    noteTimers.current[`title-${miniTaskId}`] = setTimeout(() => {
+      updateMiniTaskInTask(taskId, miniTaskId, { title: value });
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     }, 300);
   }, [taskId]);
 
@@ -134,6 +140,11 @@ export function TaskUpdatePage() {
   const handleDone = useCallback(() => {
     if (!allMiniTasksDone || submitting) return;
     setSubmitting(true);
+    // Persist deliverables first
+    updateTask(taskId, {
+      productLink: productLink.trim(),
+      productFile: productFile.trim(),
+    });
     const updated = markTaskSubmitted(taskId, actorName);
     if (updated) {
       setSubmitted(true);
@@ -141,7 +152,7 @@ export function TaskUpdatePage() {
       navigate(-1);
     }
     setSubmitting(false);
-  }, [taskId, allMiniTasksDone, submitting, navigate, actorName]);
+  }, [taskId, allMiniTasksDone, submitting, navigate, actorName, productLink, productFile]);
 
   // ---- Client approve ----
   const handleClientApprove = useCallback(() => {
@@ -172,10 +183,12 @@ export function TaskUpdatePage() {
   if (!task) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">Task not found</h3>
-          <p className="text-sm text-gray-400">The task you are looking for may have been removed.</p>
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Clock className="w-8 h-8 text-muted-foreground/30" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">Task not found</h3>
+          <p className="text-sm text-muted-foreground">The task you are looking for may have been removed.</p>
         </div>
       </div>
     );
@@ -183,18 +196,18 @@ export function TaskUpdatePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+      <div className="bg-card rounded-xl border border-border p-8">
         {/* Header */}
         <div className="mb-6">
           {project && (
-            <p className="text-sm text-brand-primary font-medium mb-1">{project.title}</p>
+            <p className="text-sm text-primary font-medium mb-1">{project.title}</p>
           )}
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{task.title}</h1>
-          <p className="text-gray-600">{task.description}</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">{task.title}</h1>
+          <p className="text-muted-foreground">{task.description}</p>
         </div>
 
         {/* Meta */}
-        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${getTaskStatusClass(derivedStatus)}`}>
             {derivedStatus}
           </span>
@@ -208,15 +221,15 @@ export function TaskUpdatePage() {
           )}
           {task.dueDate && (
             <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" /> Due: {new Date(task.dueDate).toLocaleDateString()}
+              <Clock className="w-4 h-4" /> Due: {safeDateFormat(task.dueDate)}
             </span>
           )}
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-gray-200 rounded-full h-2 mb-6">
+        <div className="w-full bg-secondary rounded-full h-2 mb-6">
           <div
-            className="bg-brand-primary h-2 rounded-full transition-all"
+            className="bg-primary h-2 rounded-full transition-all duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -224,50 +237,48 @@ export function TaskUpdatePage() {
         {/* Expert notes */}
         {task.expertNotes && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Expert Notes
             </h3>
-            <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-4">{task.expertNotes}</p>
+            <p className="text-sm text-muted-foreground bg-muted rounded-lg p-4">{task.expertNotes}</p>
           </div>
         )}
 
         {/* Client feedback */}
         {task.clientFeedback && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <MessageSquare className="w-4 h-4" /> Client Feedback
             </h3>
-            <p className="text-sm text-gray-600 bg-brand-primary-light rounded-lg p-4">{task.clientFeedback}</p>
           </div>
         )}
-
-        {/* Mini Tasks */}
+        {/* Task Breakdown: task lớn và các task con */}
         {task.miniTasks?.length > 0 && (
           <div className="border-t pt-6 mb-6">
-            <h3 className="font-semibold text-gray-900 mb-4">
-              Mini Tasks ({completedMiniTasks}/{totalMiniTasks})
+            <h3 className="font-semibold text-foreground mb-4">
+              Task: {task.title} ({completedMiniTasks}/{totalMiniTasks} hoàn thành)
             </h3>
             <div className="space-y-3">
-              {task.miniTasks.map((mt) => {
+              {safeArray(task.miniTasks).map((mt) => {
                 const isDone = mt.status === "done";
                 return (
                   <div
                     key={mt.id}
-                    className={`border rounded-xl p-4 transition ${
+                    className={`border rounded-xl p-4 transition-colors ${
                       isDone
-                        ? "bg-brand-green/10 border-brand-green/20"
-                        : "bg-white border-gray-200"
+                        ? "bg-success/10 border-success/20"
+                        : "bg-card border-border"
                     }`}
                   >
-                    {/* Top row: checkbox + title + status badge */}
+                    {/* Top row: checkbox + title input (expert edits) + status badge */}
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
                         onClick={() => handleToggleMiniTask(mt.id)}
-                        className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition ${
+                        className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                           isDone
-                            ? "bg-brand-green border-brand-green text-white"
-                            : "border-gray-300 hover:border-brand-primary/50 text-transparent"
+                            ? "bg-success border-success text-success-foreground"
+                            : "border-border hover:border-ring/50 text-transparent"
                         }`}
                         title={isDone ? "Mark as incomplete" : "Mark as done"}
                       >
@@ -276,37 +287,73 @@ export function TaskUpdatePage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span
-                            className={`text-sm font-medium ${
-                              isDone ? "line-through text-gray-400" : "text-gray-900"
-                            }`}
-                          >
-                            {mt.title}
-                          </span>
+                          {role === "expert" ? (
+                            <input
+                              type="text"
+                              value={miniTaskTitles[mt.id] || ""}
+                              onChange={(e) => handleTitleChange(mt.id, e.target.value)}
+                              placeholder="Task name"
+                              className={`text-sm font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none text-foreground py-0.5 px-1 w-full max-w-md ${
+                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            />
+                          ) : (
+                            <span
+                              className={`text-sm font-semibold ${
+                                isDone ? "line-through text-muted-foreground" : "text-foreground"
+                              }`}
+                            >
+                              {mt.title}
+                            </span>
+                          )}
                           <span
                             className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                               isDone
-                                ? "bg-brand-green/20 text-brand-green"
-                                : "bg-gray-100 text-gray-600"
+                                ? "bg-success/20 text-success"
+                                : "bg-secondary text-muted-foreground"
                             }`}
                           >
                             {isDone ? "Done" : "Todo"}
                           </span>
                         </div>
-
-                        {/* Expert note textarea */}
-                        <textarea
-                          value={miniTaskNotes[mt.id] || ""}
-                          onChange={(e) => handleNoteChange(mt.id, e.target.value)}
-                          placeholder="Add a note..."
-                          rows={2}
-                          className="mt-2 w-full text-xs border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-brand-primary/50 resize-none bg-white"
-                        />
                       </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Deliverables: Link sản phẩm + Tên file đính kèm */}
+        {role === "expert" && (
+          <div className="border-t pt-6 mb-6">
+            <h3 className="font-semibold text-foreground mb-4">Sản phẩm bàn giao</h3>
+            <div className="space-y-4 max-w-md bg-muted/40 p-4 border border-border rounded-xl">
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Link sản phẩm
+                </label>
+                <input
+                  type="text"
+                  value={productLink}
+                  onChange={(e) => setProductLink(e.target.value)}
+                  placeholder="https://example.com/demo-product"
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Tên file đính kèm
+                </label>
+                <input
+                  type="text"
+                  value={productFile}
+                  onChange={(e) => setProductFile(e.target.value)}
+                  placeholder="project_output_v1.zip"
+                  className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -318,7 +365,7 @@ export function TaskUpdatePage() {
               <button
                 type="button"
                 onClick={handleBack}
-                className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold inline-flex items-center gap-2 transition"
+                className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back
@@ -328,10 +375,10 @@ export function TaskUpdatePage() {
                 type="button"
                 onClick={handleDone}
                 disabled={!allMiniTasksDone || submitting}
-                className={`h-11 px-5 rounded-[14px] text-base font-semibold inline-flex items-center gap-2 transition ${
+                className={`h-11 px-5 rounded-xl text-sm font-semibold inline-flex items-center gap-2 transition-colors ${
                   allMiniTasksDone && !submitting
-                    ? "bg-brand-primary text-white hover:bg-brand-primary-hover"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    ? "bg-primary text-primary-foreground hover:bg-primary-hover"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {submitting ? (
@@ -348,7 +395,7 @@ export function TaskUpdatePage() {
               </button>
             </div>
             {!allMiniTasksDone && (
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-muted-foreground mt-2">
                 Complete all mini tasks ({completedMiniTasks}/{totalMiniTasks}) to enable Done.
               </p>
             )}
@@ -357,7 +404,7 @@ export function TaskUpdatePage() {
 
         {/* ── Submitted toast ── */}
         {submitted && (
-          <div className="fixed bottom-6 right-6 bg-brand-green text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium z-50 animate-bounce">
+          <div className="fixed bottom-6 right-6 bg-success text-success-foreground px-5 py-3 rounded-xl shadow-sm text-sm font-medium z-50 animate-fade-in">
             <CheckCircle2 className="w-4 h-4 inline mr-2" />
             Task submitted for client review!
           </div>
@@ -366,26 +413,26 @@ export function TaskUpdatePage() {
         {/* Feedback form (client reviewing) */}
         {role === "client" && action === "review" && derivedStatus === "Pending Review" && (
           <div className="border-t pt-6 mt-6">
-            <h3 className="font-semibold text-gray-900 mb-3">Review Task</h3>
+            <h3 className="font-semibold text-foreground mb-3">Review Task</h3>
             <textarea
               rows={3}
               value={feedbackText}
               onChange={(e) => setFeedbackText(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-input-background"
               placeholder="Add feedback (required for requesting changes)..."
             />
             <div className="flex gap-3 mt-3">
               <button
                 onClick={handleClientApprove}
                 disabled={submitting}
-                className="h-11 px-5 bg-brand-green text-white rounded-[14px] hover:bg-brand-green/90 text-base font-semibold disabled:opacity-50"
+                className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:bg-success/85 text-sm font-semibold disabled:opacity-50 transition-colors"
               >
                 {submitting ? "..." : "Approve"}
               </button>
               <button
                 onClick={handleClientRequestChanges}
                 disabled={!feedbackText.trim() || submitting}
-                className="h-11 px-5 bg-orange-600 text-white rounded-[14px] hover:bg-orange-700 text-base font-semibold disabled:opacity-50"
+                className="h-11 px-5 bg-warning text-warning-foreground rounded-xl hover:bg-warning/85 text-sm font-semibold disabled:opacity-50 transition-colors"
               >
                 {submitting ? "..." : "Request Changes"}
               </button>

@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { AIFileUploadZone } from "./AIFileUploadZone.jsx";
 
-// Helper function to mock AI requirements scanning
+// ponytail: mock AI use case generator — maps user message keywords to preset category/skills/use cases
 function generateClientUseCases(userMessage, fileNames) {
   const msg = (userMessage || "").toLowerCase();
   const hasFiles = fileNames.length > 0;
@@ -18,10 +18,10 @@ function generateClientUseCases(userMessage, fileNames) {
   let specialization = "Natural Language Processing";
   let skills = ["Hugging Face Transformers", "Semantic Search", "Python", "BERT"];
   let useCases = [
-    { nameAndDeadline: "Use Case 1: Thiết lập cơ sở dữ liệu & Xác thực người dùng - Hạn chót: 5 ngày", description: "Cài đặt JWT Auth, lưu trữ phiên trò chuyện và thiết kế cơ sở dữ liệu lịch sử chat.", durationDays: 5, durationValue: 5, durationUnit: "days" },
-    { nameAndDeadline: "Use Case 2: Phân tách & Nhúng tài liệu (Document Embedding) - Hạn chót: 7 ngày", description: "Xây dựng cổng upload tài liệu PDF/TXT, triển khai thuật toán phân tách câu và lưu vector embeddings.", durationDays: 7, durationValue: 7, durationUnit: "days" },
-    { nameAndDeadline: "Use Case 3: Cấu hình LLM & Prompt RAG API - Hạn chót: 6 ngày", description: "Tích hợp thư viện LangChain để gọi LLM và triển khai hệ thống kiểm duyệt câu trả lời (guardrails).", durationDays: 6, durationValue: 6, durationUnit: "days" },
-    { nameAndDeadline: "Use Case 4: Giao diện Chatbot Real-time & Stream Response - Hạn chót: 6 ngày", description: "Thiết kế giao diện chat responsive, hiệu ứng typing indicator, stream text từ API và định dạng markdown.", durationDays: 6, durationValue: 6, durationUnit: "days" }
+    { title: "Thiết lập cơ sở dữ liệu & Xác thực người dùng", description: "Cài đặt JWT Auth, lưu trữ phiên trò chuyện và thiết kế cơ sở dữ liệu lịch sử chat.", originalDurationDays: 5 },
+    { title: "Phân tách & Nhúng tài liệu (Document Embedding)", description: "Xây dựng cổng upload tài liệu PDF/TXT, triển khai thuật toán phân tách câu và lưu vector embeddings.", originalDurationDays: 7 },
+    { title: "Cấu hình LLM & Prompt RAG API", description: "Tích hợp thư viện LangChain để gọi LLM và triển khai hệ thống kiểm duyệt câu trả lời (guardrails).", originalDurationDays: 6 },
+    { title: "Giao diện Chatbot Real-time & Stream Response", description: "Thiết kế giao diện chat responsive, hiệu ứng typing indicator, stream text từ API và định dạng markdown.", originalDurationDays: 6 }
   ];
 
   if (msg.includes("medical") || msg.includes("imaging") || msg.includes("lung") || msg.includes("scan") || msg.includes("x-ray")) {
@@ -29,50 +29,49 @@ function generateClientUseCases(userMessage, fileNames) {
     specialization = "Computer Vision";
     skills = ["OpenCV Library", "YOLO Object Detection", "Image Segmentation", "PyTorch Vision"];
     useCases = [
-      { nameAndDeadline: "Use Case 1: Đọc & Chuẩn hóa ảnh DICOM - Hạn chót: 5 ngày", description: "Phát triển bộ đọc tệp tin y tế DICOM, trích xuất metadata và lưu trữ thông tin ảnh vào cơ sở dữ liệu.", durationDays: 5, durationValue: 5, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 2: Huấn luyện & Đánh giá Model PyTorch - Hạn chót: 12 ngày", description: "Huấn luyện mô hình phân loại tổn thương phổi trên PyTorch, tối ưu hóa độ nhạy đạt tối thiểu 94%.", durationDays: 12, durationValue: 12, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 3: Giao diện vẽ Box & Đánh dấu cho bác sĩ - Hạn chót: 8 ngày", description: "Thiết kế canvas vẽ bounding box và vùng phân đoạn ảnh trực quan trên giao diện web.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 4: Tự động xuất báo cáo chẩn đoán PDF - Hạn chót: 5 ngày", description: "Hệ thống tự động tổng hợp kết quả của AI và tạo tệp tin PDF báo cáo y tế chuẩn hóa.", durationDays: 5, durationValue: 5, durationUnit: "days" }
+      { title: "Đọc & Chuẩn hóa ảnh DICOM", description: "Phát triển bộ đọc tệp tin y tế DICOM, trích xuất metadata và lưu trữ thông tin ảnh vào cơ sở dữ liệu.", originalDurationDays: 5 },
+      { title: "Huấn luyện & Đánh giá Model PyTorch", description: "Huấn luyện mô hình phân loại tổn thương phổi trên PyTorch, tối ưu hóa độ nhạy đạt tối thiểu 94%.", originalDurationDays: 12 },
+      { title: "Giao diện vẽ Box & Đánh dấu cho bác sĩ", description: "Thiết kế canvas vẽ bounding box và vùng phân đoạn ảnh trực quan trên giao diện web.", originalDurationDays: 8 },
+      { title: "Tự động xuất báo cáo chẩn đoán PDF", description: "Hệ thống tự động tổng hợp kết quả của AI và tạo tệp tin PDF báo cáo y tế chuẩn hóa.", originalDurationDays: 5 }
     ];
   } else if (msg.includes("fraud") || msg.includes("transaction") || msg.includes("payment") || msg.includes("risk")) {
     category = "Artificial Intelligence";
     specialization = "Machine Learning";
     skills = ["Python", "Scikit-Learn", "Regression Models", "Classification & Clustering"];
     useCases = [
-      { nameAndDeadline: "Use Case 1: Pipeline thu thập giao dịch thời gian thực - Hạn chót: 8 ngày", description: "Thiết lập consumer Kafka xử lý dữ liệu giao dịch đầu vào với tốc độ 50K events/giây.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 2: Huấn luyện Model phát hiện gian lận - Hạn chót: 10 ngày", description: "Xây dựng và tối ưu hóa mô hình phân lớp XGBoost/LightGBM dựa trên các đặc trưng hành vi giao dịch.", durationDays: 10, durationValue: 10, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 3: Dashboard giải thích quyết định của AI (XAI) - Hạn chót: 8 ngày", description: "Hiển thị giá trị đóng góp SHAP/LIME để giải thích lý do giao dịch bị đánh dấu gian lận cho nhân viên kiểm duyệt.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 4: Hệ thống cảnh báo & Tự động khóa thẻ - Hạn chót: 4 ngày", description: "Kích hoạt cảnh báo thời gian thực qua SMS/Email và tự động gửi lệnh khóa tài khoản/thẻ có dấu hiệu rủi ro cao.", durationDays: 4, durationValue: 4, durationUnit: "days" }
+      { title: "Pipeline thu thập giao dịch thời gian thực", description: "Thiết lập consumer Kafka xử lý dữ liệu giao dịch đầu vào với tốc độ 50K events/giây.", originalDurationDays: 8 },
+      { title: "Huấn luyện Model phát hiện gian lận", description: "Xây dựng và tối ưu hóa mô hình phân lớp XGBoost/LightGBM dựa trên các đặc trưng hành vi giao dịch.", originalDurationDays: 10 },
+      { title: "Dashboard giải thích quyết định của AI (XAI)", description: "Hiển thị giá trị đóng góp SHAP/LIME để giải thích lý do giao dịch bị đánh dấu gian lận cho nhân viên kiểm duyệt.", originalDurationDays: 8 },
+      { title: "Hệ thống cảnh báo & Tự động khóa thẻ", description: "Kích hoạt cảnh báo thời gian thực qua SMS/Email và tự động gửi lệnh khóa tài khoản/thẻ có dấu hiệu rủi ro cao.", originalDurationDays: 4 }
     ];
   } else if (msg.includes("recommend") || msg.includes("suggest") || msg.includes("recommender") || msg.includes("movie") || msg.includes("e-commerce")) {
     category = "Artificial Intelligence";
     specialization = "Generative AI";
     skills = ["OpenAI API Integration", "LangChain Framework", "Vector Databases (Pinecone/Chroma)", "Prompt Engineering"];
     useCases = [
-      { nameAndDeadline: "Use Case 1: Thu thập hành vi tương tác của người dùng - Hạn chót: 6 ngày", description: "Ghi nhận lượt xem sản phẩm, đánh giá và lịch sử mua sắm theo thời gian thực.", durationDays: 6, durationValue: 6, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 2: Huấn luyện mô hình Collaborative Filtering - Hạn chót: 8 ngày", description: "Xây dựng mô hình Matrix Factorization hoặc Two-Tower Neural Network để dự đoán sản phẩm gợi ý.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 3: Triển khai hạ tầng A/B Testing - Hạn chót: 6 ngày", description: "Phân luồng người dùng thử nghiệm và đo lường sự thay đổi của tỷ lệ chuyển đổi đơn hàng.", durationDays: 6, durationValue: 6, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 4: API gợi ý sản phẩm độ trễ thấp (<100ms) - Hạn chót: 5 ngày", description: "Xây dựng hệ thống cache Redis để phục vụ danh sách gợi ý sản phẩm ngay khi tải trang.", durationDays: 5, durationValue: 5, durationUnit: "days" }
+      { title: "Thu thập hành vi tương tác của người dùng", description: "Ghi nhận lượt xem sản phẩm, đánh giá và lịch sử mua sắm theo thời gian thực.", originalDurationDays: 6 },
+      { title: "Huấn luyện mô hình Collaborative Filtering", description: "Xây dựng mô hình Matrix Factorization hoặc Two-Tower Neural Network để dự đoán sản phẩm gợi ý.", originalDurationDays: 8 },
+      { title: "Triển khai hạ tầng A/B Testing", description: "Phân luồng người dùng thử nghiệm và đo lường sự thay đổi của tỷ lệ chuyển đổi đơn hàng.", originalDurationDays: 6 },
+      { title: "API gợi ý sản phẩm độ trễ thấp (<100ms)", description: "Xây dựng hệ thống cache Redis để phục vụ danh sách gợi ý sản phẩm ngay khi tải trang.", originalDurationDays: 5 }
     ];
   } else if (msg.includes("game") || msg.includes("npc") || msg.includes("unreal") || msg.includes("reinforcement")) {
     category = "Artificial Intelligence";
     specialization = "AI Agent Development";
     skills = ["Python", "AI Agent Tooling", "Deep Neural Networks", "PyTorch Library", "CNN/RNN Architectures"];
     useCases = [
-      { nameAndDeadline: "Use Case 1: RL Environment & Wrapper - Hạn chót: 10 ngày", description: "Expose NPC states, actions, rewards into a Python training script wrapper.", durationDays: 10, durationValue: 10, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 2: Multi-Agent Policy Training - Hạn chót: 14 ngày", description: "Train agents using PPO/SAC with attention models for social behaviors.", durationDays: 14, durationValue: 14, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 3: UE5 PyTorch C++ Plugin - Hạn chót: 10 ngày", description: "Create plugin wrapping PyTorch lib to load models and query actions at 60 FPS.", durationDays: 10, durationValue: 10, durationUnit: "days" }
+      { title: "RL Environment & Wrapper", description: "Expose NPC states, actions, rewards into a Python training script wrapper.", originalDurationDays: 10 },
+      { title: "Multi-Agent Policy Training", description: "Train agents using PPO/SAC with attention models for social behaviors.", originalDurationDays: 14 },
+      { title: "UE5 PyTorch C++ Plugin", description: "Create plugin wrapping PyTorch lib to load models and query actions at 60 FPS.", originalDurationDays: 10 }
     ];
   } else if (!msg.includes("chatbot") && !msg.includes("nlp") && !msg.includes("assistant")) {
-    // Other categories fallback
     category = "Mobile Phones & Computing";
     specialization = "Software Engineering";
     skills = ["Python", "System Design", "Algorithms"];
     useCases = [
-      { nameAndDeadline: "Use Case 1: Phân tích yêu cầu & Thiết kế kiến trúc - Hạn chót: 4 ngày", description: "Vẽ sơ đồ luồng nghiệp vụ, đặc tả cơ sở dữ liệu ERD và định nghĩa các tài liệu thiết kế.", durationDays: 4, durationValue: 4, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 2: Triển khai Cơ sở dữ liệu & Viết Backend API - Hạn chót: 8 ngày", description: "Viết migrations, cấu hình database và hoàn thiện các API Endpoint CRUD cơ bản.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 3: Tích hợp giao diện Frontend - Hạn chót: 8 ngày", description: "Tạo các trang màn hình, kết nối form dữ liệu với API và quản lý state tập trung.", durationDays: 8, durationValue: 8, durationUnit: "days" },
-      { nameAndDeadline: "Use Case 4: Kiểm thử hệ thống & Bàn giao - Hạn chót: 5 ngày", description: "Chạy các bài kiểm thử tích hợp (Integration Tests) và deploy dự án lên môi trường staging để nghiệm thu.", durationDays: 5, durationValue: 5, durationUnit: "days" }
+      { title: "Phân tích yêu cầu & Thiết kế kiến trúc", description: "Vẽ sơ đồ luồng nghiệp vụ, đặc tả cơ sở dữ liệu ERD và định nghĩa các tài liệu thiết kế.", originalDurationDays: 4 },
+      { title: "Triển khai Cơ sở dữ liệu & Viết Backend API", description: "Viết migrations, cấu hình database và hoàn thiện các API Endpoint CRUD cơ bản.", originalDurationDays: 8 },
+      { title: "Tích hợp giao diện Frontend", description: "Tạo các trang màn hình, kết nối form dữ liệu với API và quản lý state tập trung.", originalDurationDays: 8 },
+      { title: "Kiểm thử hệ thống & Bàn giao", description: "Chạy các bài kiểm thử tích hợp (Integration Tests) và deploy dự án lên môi trường staging để nghiệm thu.", originalDurationDays: 5 }
     ];
   }
 
@@ -82,9 +81,9 @@ function generateClientUseCases(userMessage, fileNames) {
   return { category, specialization, skills, useCases, introText };
 }
 
-export function AIClientsUseCasePlanner({ 
-  onClose, 
-  onApplyPlan, 
+export function AIClientsUseCasePlanner({
+  onClose,
+  onApplyPlan,
   existingFiles = [],
   initialTitle = "",
   initialDescription = ""
@@ -131,11 +130,11 @@ export function AIClientsUseCasePlanner({
       setGeneratedPlan(result);
       setApplied(false);
 
-      const aiMsg = { 
-        role: "ai", 
-        text: result.introText, 
-        plan: result, 
-        timestamp: Date.now() 
+      const aiMsg = {
+        role: "ai",
+        text: result.introText,
+        plan: result,
+        timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
       setLoading(false);
@@ -154,7 +153,7 @@ export function AIClientsUseCasePlanner({
     if (newFiles.length > 0) {
       const names = newFiles.map((f) => f.name).join(", ");
       setMessages((prev) => [
-        ...prev, 
+        ...prev,
         { role: "user", text: `Đã đính kèm tài liệu: ${names}`, timestamp: Date.now() }
       ]);
     }
@@ -163,38 +162,38 @@ export function AIClientsUseCasePlanner({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-4 py-3 bg-gray-50/50">
+      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-secondary/50">
         <div>
-          <h2 className="text-sm font-bold text-gray-900">🤖 AI Use Case Planner</h2>
-          <p className="text-xs text-gray-500 mt-0.5 font-medium">
+          <h2 className="text-sm font-bold text-foreground">🤖 AI Use Case Planner</h2>
+          <p className="text-xs text-muted-foreground mt-0.5 font-medium">
             Lập kế hoạch Use Cases từ tài liệu & trò chuyện
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-gray-400 hover:text-gray-600 font-semibold transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
         >
           Đóng
         </button>
       </div>
 
       {/* Upload Requirements */}
-      <div className="shrink-0 px-4 py-3 border-b border-gray-100 bg-white">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+      <div className="shrink-0 px-4 py-3 border-b border-border bg-card">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
           📎 Tải lên BRD / SRS
         </p>
         <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 bg-slate-50">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 bg-secondary/40">
         <div className="space-y-3">
           {messages.length === 0 && !loading && (
             <div className="text-center py-8 px-4">
-              <MessageSquare className="w-8 h-8 text-gray-350 mx-auto mb-2" />
-              <p className="text-sm text-gray-500 font-medium">Hãy nhắn tin hoặc tải lên tài liệu để AI tự động lập luồng Use Cases dự án.</p>
-              <p className="text-xs text-gray-400 mt-1 italic">Ví dụ: "Tôi muốn làm chatbot hỗ trợ khách hàng tích hợp RAG"</p>
+              <MessageSquare className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground font-medium">Hãy nhắn tin hoặc tải lên tài liệu để AI tự động lập luồng Use Cases dự án.</p>
+              <p className="text-xs text-muted-foreground/60 mt-1 italic">Ví dụ: "Tôi muốn làm chatbot hỗ trợ khách hàng tích hợp RAG"</p>
             </div>
           )}
 
@@ -203,32 +202,32 @@ export function AIClientsUseCasePlanner({
               <div
                 className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
                   msg.role === "user"
-                    ? "bg-brand-primary text-white rounded-br-md shadow-sm"
-                    : "bg-white text-gray-800 rounded-bl-md border border-gray-200 shadow-sm"
+                    ? "bg-brand-primary text-brand-primary-foreground rounded-br-md shadow-sm"
+                    : "bg-card text-foreground rounded-bl-md border border-border shadow-sm"
                 }`}
               >
                 <p className="whitespace-pre-wrap font-medium">{msg.text}</p>
 
-                {/* Show details if generated plan is embedded inside AI response */}
                 {msg.role === "ai" && msg.plan && (
-                  <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
-                    <div className="bg-purple-50/50 border border-purple-100 rounded-lg p-2.5">
-                      <p className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">
+                  <div className="mt-4 space-y-3 border-t border-border pt-3">
+                    <div className="bg-accent/10 border border-accent/20 rounded-lg p-2.5">
+                      <p className="text-[11px] font-bold text-accent uppercase tracking-wider">
                         Phân loại dự đoán:
                       </p>
-                      <p className="text-xs text-gray-700 font-semibold mt-0.5">
+                      <p className="text-xs text-foreground font-semibold mt-0.5">
                         {msg.plan.category} ({msg.plan.specialization})
                       </p>
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                         Danh sách Use Cases đề xuất:
                       </p>
                       {msg.plan.useCases.map((uc, index) => (
-                        <div key={index} className="bg-gray-50 border border-gray-150 rounded-lg p-2.5 text-xs text-gray-700 space-y-1">
-                          <p className="font-semibold text-gray-900">{uc.nameAndDeadline}</p>
-                          <p className="text-gray-500 leading-normal">{uc.description}</p>
+                        <div key={index} className="bg-secondary/60 border border-border rounded-lg p-2.5 text-xs space-y-1">
+                          <p className="font-semibold text-foreground">{uc.title}</p>
+                          <p className="text-muted-foreground leading-normal">{uc.description}</p>
+                          <p className="text-accent font-medium">{uc.originalDurationDays} ngày</p>
                         </div>
                       ))}
                     </div>
@@ -240,10 +239,10 @@ export function AIClientsUseCasePlanner({
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-150 rounded-xl rounded-bl-md px-4 py-3 shadow-sm">
+              <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
-                  <span className="text-sm text-gray-500 font-medium">AI đang phân tích tài liệu & yêu cầu...</span>
+                  <span className="text-sm text-muted-foreground font-medium">AI đang phân tích tài liệu & yêu cầu...</span>
                 </div>
               </div>
             </div>
@@ -255,15 +254,15 @@ export function AIClientsUseCasePlanner({
 
       {/* Plan Applicator / Submit Footer */}
       {generatedPlan && !loading && (
-        <div className="shrink-0 bg-white border-t border-gray-150 p-3 flex flex-col gap-2">
+        <div className="shrink-0 bg-card border-t border-border p-3 flex flex-col gap-2">
           <button
             type="button"
             onClick={handleApply}
             disabled={applied}
-            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
               applied
-                ? "bg-emerald-50 text-emerald-700 border border-emerald-250 cursor-default"
-                : "bg-brand-primary text-white hover:bg-brand-primary-hover"
+                ? "bg-success/10 text-success border border-success/20 cursor-default"
+                : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover"
             }`}
           >
             <Sparkles className="w-4 h-4" />
@@ -273,7 +272,7 @@ export function AIClientsUseCasePlanner({
       )}
 
       {/* Chat Input */}
-      <div className="shrink-0 p-3 bg-white border-t border-gray-100">
+      <div className="shrink-0 p-3 bg-card border-t border-border">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -288,12 +287,12 @@ export function AIClientsUseCasePlanner({
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
             placeholder="Mô tả dự án hoặc đặt câu hỏi..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-brand-primary"
+            className="flex-1 px-4 py-2 border border-input rounded-xl text-sm focus:outline-none focus:border-brand-primary bg-card"
           />
           <button
             type="submit"
             disabled={(!input.trim() && files.length === 0) || loading}
-            className="h-10 w-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center transition-colors shadow-sm"
+            className="h-10 w-10 shrink-0 bg-brand-primary hover:bg-brand-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-brand-primary-foreground rounded-xl flex items-center justify-center transition-colors"
           >
             <Send className="w-4 h-4" />
           </button>
