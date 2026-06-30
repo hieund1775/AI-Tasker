@@ -38,9 +38,10 @@ public class DataContext : DbContext
     public DbSet<ProjectSkill> ProjectSkills { get; set; }
     public DbSet<ProposalAiChat> ProposalAiChats { get; set; }
     
-    // Đăng ký các bảng phân hệ mới vào DbContext
+    // Đăng ký các bảng phân hệ mới vào DbContext theo đặc tả
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<Report> Reports { get; set; }
+    public DbSet<Contract> Contracts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,9 +65,10 @@ public class DataContext : DbContext
         modelBuilder.Entity<TransactionLog>().HasKey(x => x.Id);
         modelBuilder.Entity<ProposalAiChat>().HasKey(x => x.Id);
         
-        // Khởi tạo khóa chính vật lý
+        // Khởi tạo khóa chính vật lý cho phân hệ bổ sung
         modelBuilder.Entity<Dispute>().HasKey(x => x.Id);
         modelBuilder.Entity<Report>().HasKey(x => x.Id);
+        modelBuilder.Entity<Contract>().HasKey(x => x.Id);
 
         modelBuilder.Entity<DomainExpertProfile>().HasKey(x => new { x.DomainId, x.ExpertProfilesUserId });
 
@@ -153,6 +155,9 @@ public class DataContext : DbContext
         modelBuilder.Entity<Report>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Report>().HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Report>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
+
+        // --- CẤU HÌNH LIÊN KẾT CHO CONTRACT ĐẢM BẢO KHÔNG XUNG ĐỘT LUỒNG XÓA ---
+        modelBuilder.Entity<Contract>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<Specialization>().HasOne(x => x.Domain).WithMany(x => x.Specializations).HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<DomainExpertProfile>().HasOne(x => x.Domain).WithMany().HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.NoAction);

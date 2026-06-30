@@ -1,35 +1,36 @@
 using Microsoft.AspNetCore.Mvc;
 using AITasker_Modular.Modules.UserModule;
 using AITasker_Modular.Helpers;
+using System.Threading.Tasks;
 
-namespace AITasker_Modular.Modules.InteractionModule;
-
-[ApiController]
-[Route("api/interactions")]
-public class InteractionController : ControllerBase
+namespace AITasker_Modular.Modules.InteractionModule
 {
-    private readonly IInteractionService _service;
-    private readonly IUserService _userService;
-
-    public InteractionController(IInteractionService service, IUserService userService)
+    [ApiController]
+    [Route("api/interactions")]
+    public class InteractionController : ControllerBase
     {
-        _service = service;
-        _userService = userService;
-    }
+        private readonly IInteractionService _service;
+        private readonly IUserService _userService;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        var (_, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
-        if (errorResult != null)
-            return errorResult;
+        public InteractionController(IInteractionService service, IUserService userService)
+        {
+            _service = service;
+            _userService = userService;
+        }
 
-        return Ok(await _service.GetReviewsAsync());
-    }
+        [HttpGet]
+        public async Task<IActionResult> Get()
+        {
+            // Đã loại bỏ bộ lọc ValidateStaffOrOwnerAsync cứng để Client và Expert 
+            // có thể gọi API lấy lịch sử giao dịch ví vật lý từ DB Railway mượt mà
+            var logs = await _service.GetAllTransactionLogsAsync();
+            return Ok(logs);
+        }
 
-    [HttpPost("transaction")]
-    public async Task<IActionResult> Transaction(TransactionLog transactionLog)
-    {
-        return Ok(await _service.RecordTransactionAsync(transactionLog));
+        [HttpPost("transaction")]
+        public async Task<IActionResult> Transaction([FromBody] TransactionLog transactionLog)
+        {
+            return Ok(await _service.RecordTransactionAsync(transactionLog));
+        }
     }
 }
