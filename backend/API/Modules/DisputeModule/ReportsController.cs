@@ -1,12 +1,14 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Database;
-using AITasker_Modular.Modules.DisputeModule;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace AITasker_Modular.Modules.DisputeModule;
+
+public class AdminRejectRequest { public string? AdminNote { get; set; } }
+public class PartnerRejectRequest { public string? PartnerRejectionReason { get; set; } }
 
 [ApiController]
 [Route("api/[controller]")]
@@ -19,27 +21,29 @@ public class ReportsController : ControllerBase
         _context = context;
     }
 
-    // API 2.2.1: Gửi đơn yêu cầu hủy (Client/Expert gửi đơn)
+    // API 2.2.1: Gửi đơn yêu cầu hủy
     [HttpPost]
     public async Task<IActionResult> CreateReport([FromBody] Report report)
     {
         report.Id = Guid.NewGuid();
-        report.Status = "Pending"; // Chờ Admin duyệt
+        report.Status = "Pending"; 
         report.CreatedAt = DateTime.UtcNow;
-        report.UpdatedAt = DateTime.UtcNow;
+        report.UpdatedAt = DateTime.UtcNow.AddDays(30);
 
-        // Tìm dự án tương ứng để khóa Workspace
         var project = await _context.Projects.FindAsync(report.ProjectId);
-        if (project != null)
-        {
-            project.Status = "Awaiting_Cancellation"; // Khóa cứng trạng thái dự án theo đặc tả
-            
-            // Tính toán đền bù phạt sơ bộ (Ví dụ: Giữ phạt 10% trên tổng giá trị dự án làm quỹ đền bù)
-            decimal totalBudget = project.EscrowBalance; 
-            report.PlatformFee = totalBudget * 0.05m; // Phí sàn 5%
-            report.EscrowRefundClient = totalBudget * 0.90m; // Hoàn trả Client 90% nếu hủy thành công
-            report.EscrowPayExpert = 0;
-        }
+        if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+
+        project.Status = "Awaiting_Cancellation";
+        decimal totalBudget = project.EscrowBalance; 
+
+        decimal progressRate = 0.30m; 
+        decimal expertWorkValue = totalBudget * progressRate;
+
+        report.PlatformFee = expertWorkValue * 0.05m; 
+        report.EscrowPayExpert = expertWorkValue - report.PlatformFee;
+
+        decimal penaltyAmount = totalBudget * 0.10m;
+        report.EscrowRefundClient = totalBudget - expertWorkValue - penaltyAmount;
 
         _context.Reports.Add(report);
         await _context.SaveChangesAsync();
@@ -53,36 +57,14 @@ public class ReportsController : ControllerBase
         var report = await _context.Reports.FindAsync(id);
         if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
 
-        report.Status = "Awaiting Partner"; // Chuyển trạng thái chờ đối tác phản hồi
+        report.Status = "Awaiting Partner"; 
         report.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đơn hủy đã được phê duyệt, đang chờ đối tác phản hồi.", Report = report });
+        return Ok(new { Message = "Admin đã duyệt đơn hủy. Chờ đối tác phản hồi." });
     }
 
-    // API 2.2.2 (Phần 2): Admin bác bỏ đơn hủy (Mở lại dự án)
-    [HttpPut("{id}/admin-reject-cancel")]
-    public async Task<IActionResult> AdminRejectCancel(Guid id, [FromBody] AdminRejectRequest request)
-    {
-        var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
-
-        report.Status = "Rejected";
-        report.AdminNote = request.AdminNote;
-        report.UpdatedAt = DateTime.UtcNow;
-
-        // Mở khóa dự án quay về trạng thái làm việc bình thường
-        var project = await _context.Projects.FindAsync(report.ProjectId);
-        if (project != null)
-        {
-            project.Status = "in_progress";
-        }
-
-        await _context.SaveChangesAsync();
-        return Ok(new { Message = "Admin đã bác bỏ đơn hủy. Dự án tiếp tục chạy.", Report = report });
-    }
-
-    // API 2.2.3 (Phần 1): Đối tác đồng ý hủy -> Phân chia tiền ký quỹ vật lý về ví
+    // API 2.2.2 (Phần 2): Đối tác đồng ý hủy -> TÍCH HỢP KẾT SẮT VÀ NHẬT KÝ DÒNG TIỀN MỚI
     [HttpPut("{id}/partner-accept-cancel")]
     public async Task<IActionResult> PartnerAcceptCancel(Guid id)
     {
@@ -95,80 +77,67 @@ public class ReportsController : ControllerBase
         var project = await _context.Projects.FindAsync(report.ProjectId);
         if (project != null)
         {
-            project.Status = "cancel_done"; // Kết thúc luồng dự án
+            project.Status = "cancel_done";
+            decimal totalBudget = project.EscrowBalance;
 
-            // --- LOGIC DI CHUYỂN TIỀN VẬT LÝ ---
-            // Tìm ví của Client để cộng lại tiền hoàn (EscrowRefundClient)
+            // 1. Giải ngân phần tiền sạch về ví cho Expert
+            var expertWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ExpertId);
+            if (expertWallet != null)
+            {
+                expertWallet.Balance += report.EscrowPayExpert;
+            }
+
+            // 2. Hoàn trả phần tiền còn lại (đã trừ phạt) về ví cho Client
             var clientWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ClientId);
             if (clientWallet != null)
             {
                 clientWallet.Balance += report.EscrowRefundClient;
             }
 
-            // Giải phóng quỹ ký quỹ của dự án về 0
+            // Tính toán số tiền thực tế sàn thu được từ vụ hủy đơn này
+            decimal penaltyAmount = totalBudget * 0.10m;
+            decimal totalPlatformIncome = report.PlatformFee + penaltyAmount;
+
+            // 3. NẠP TIỀN VÀO KẾT SẮT DOANH THU TỔNG: Bốc dòng TOTAL cố định (Hiệu năng O(1))
+            var systemWallet = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
+            if (systemWallet != null)
+            {
+                systemWallet.TotalBalance += totalPlatformIncome;
+                systemWallet.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // 4. CHI CHIẾT HÓA ĐƠN ĐỐI SOÁT: Thêm dòng nhật ký dòng tiền cho hệ thống
+            var log = new SystemTransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                Amount = totalPlatformIncome,
+                Type = "Penalty & Fee",
+                Description = $"Thu 5% phí sàn ({report.PlatformFee}) và 10% tiền phạt hủy ngang ({penaltyAmount}) từ đơn hủy {report.Id}.",
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.SystemTransactionLogs.Add(log);
+
             project.EscrowBalance = 0;
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Hủy hợp đồng thành công. Tiền ký quỹ đã hoàn trả về ví các bên.", Report = report });
+        return Ok(new { Message = "Hủy hợp đồng thành công. Tiền ký quỹ đã phân rã hoàn toàn về ví các bên và hệ thống.", Report = report });
     }
 
-    // API 2.2.3 (Phần 2): Đối tác từ chối hủy -> Chuyển sang trạng thái đàm phán giải trình
+    // API 2.2.3 (Phần 2): Đối tác từ chối hủy
     [HttpPut("{id}/partner-reject-cancel")]
     public async Task<IActionResult> PartnerRejectCancel(Guid id, [FromBody] PartnerRejectRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
         if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
 
-        report.Status = "Returned"; // Trả đơn về trạng thái đàm phán thương lượng
+        report.Status = "Returned";
         report.PartnerRejectionReason = request.PartnerRejectionReason;
         report.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đối tác từ chối đề xuất hủy. Chuyển sang luồng thương lượng đàm phán.", Report = report });
-    }
-
-    // API 2.2.4 (Phần 1): Người gửi đơn chấp nhận kết quả từ chối (Rút đơn, chạy tiếp dự án)
-    [HttpPut("{id}/initiator-accept-rejection")]
-    public async Task<IActionResult> InitiatorAcceptRejection(Guid id)
-    {
-        var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
-
-        report.Status = "Rejected";
-        report.UpdatedAt = DateTime.UtcNow;
-
-        var project = await _context.Projects.FindAsync(report.ProjectId);
-        if (project != null)
-        {
-            project.Status = "in_progress"; // Mở khóa Workspace
-        }
-
-        await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đơn hủy đã rút. Dự án hoạt động trở lại bình thường.", Report = report });
-    }
-
-    // API 2.2.4 (Phần 2): Người gửi đơn bổ sung bằng chứng mới (Resubmit chờ Admin duyệt lại)
-    [HttpPut("{id}/initiator-respond-rejection")]
-    public async Task<IActionResult> InitiatorRespondRejection(Guid id, [FromBody] ResubmitRequest request)
-    {
-        var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
-
-        // Backup thông tin cũ vào lịch sử log JSON trước khi ghi đè dữ liệu mới
-        report.HistoryLogsJson = $"[Backup_{DateTime.UtcNow.Ticks}]: Reason={report.Reason}, Evidence={report.EvidenceUrl}";
-        
-        report.Reason = request.Reason;
-        report.EvidenceUrl = request.EvidenceFileName;
-        report.Status = "Pending"; // Quay lại hàng đợi chờ Admin phân xử vòng mới
-        report.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return Ok(new { Message = "Bổ sung bằng chứng thành công. Đang chờ Admin thụ lý vòng mới.", Report = report });
+        return Ok(new { Message = "Đối tác từ chối đề xuất hủy. Chuyển sang luồng thương lượng giải trình.", Report = report });
     }
 }
-
-// Các DTO (Data Transfer Object) hứng dữ liệu Request Body
-public class AdminRejectRequest { public string AdminNote { get; set; } = string.Empty; }
-public class PartnerRejectRequest { public string PartnerRejectionReason { get; set; } = string.Empty; }
-public class ResubmitRequest { public string Reason { get; set; } = string.Empty; public string EvidenceFileName { get; set; } = string.Empty; }

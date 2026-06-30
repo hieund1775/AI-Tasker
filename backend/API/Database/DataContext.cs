@@ -1,4 +1,4 @@
-using AITasker_Modular.Modules.CategoryTagModule;
+﻿using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.DisputeModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
@@ -11,6 +11,26 @@ using System.Linq;
 using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 
 namespace AITasker_Modular.Database;
+
+// ===================================================================================
+// THÊM MỚI 2 THỰC THỂ MÔ HÌNH TÀI CHÍNH QUẢN LÝ DOANH THU SÀN
+// ===================================================================================
+public class SystemWallet
+{
+    public Guid Id { get; set; }
+    public decimal TotalBalance { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class SystemTransactionLog
+{
+    public Guid Id { get; set; }
+    public Guid ProjectId { get; set; }
+    public decimal Amount { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
 
 public class DataContext : DbContext
 {
@@ -38,10 +58,13 @@ public class DataContext : DbContext
     public DbSet<ProjectSkill> ProjectSkills { get; set; }
     public DbSet<ProposalAiChat> ProposalAiChats { get; set; }
     
-    // Đăng ký các bảng phân hệ mới vào DbContext theo đặc tả
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<Report> Reports { get; set; }
     public DbSet<Contract> Contracts { get; set; }
+
+    // Đăng ký 2 bảng quản lý tài chính doanh thu hệ thống tách biệt
+    public DbSet<SystemWallet> SystemWallets { get; set; }
+    public DbSet<SystemTransactionLog> SystemTransactionLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,10 +88,13 @@ public class DataContext : DbContext
         modelBuilder.Entity<TransactionLog>().HasKey(x => x.Id);
         modelBuilder.Entity<ProposalAiChat>().HasKey(x => x.Id);
         
-        // Khởi tạo khóa chính vật lý cho phân hệ bổ sung
         modelBuilder.Entity<Dispute>().HasKey(x => x.Id);
         modelBuilder.Entity<Report>().HasKey(x => x.Id);
         modelBuilder.Entity<Contract>().HasKey(x => x.Id);
+
+        // Khởi tạo khóa chính vật lý cho hệ thống tài chính mới
+        modelBuilder.Entity<SystemWallet>().HasKey(x => x.Id);
+        modelBuilder.Entity<SystemTransactionLog>().HasKey(x => x.Id);
 
         modelBuilder.Entity<DomainExpertProfile>().HasKey(x => new { x.DomainId, x.ExpertProfilesUserId });
 
@@ -111,6 +137,14 @@ public class DataContext : DbContext
             .HasForeignKey(x => x.SkillsId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // SEED DATA: Tự động khởi tạo 1 dòng két sắt duy nhất bất tử có số dư bằng 0
+        modelBuilder.Entity<SystemWallet>().HasData(new SystemWallet
+        {
+            Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            TotalBalance = 0,
+            UpdatedAt = DateTime.UtcNow
+        });
+
         foreach (var property in modelBuilder.Model.GetEntityTypes().SelectMany(t => t.GetProperties()))
         {
             if (property.ClrType == typeof(decimal) || property.ClrType == typeof(decimal?))
@@ -148,7 +182,6 @@ public class DataContext : DbContext
         modelBuilder.Entity<ProposalAiChat>().HasOne(x => x.JobPost).WithMany().HasForeignKey(x => x.JobPostId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<ProposalAiChat>().HasOne(x => x.Expert).WithMany().HasForeignKey(x => x.ExpertId).OnDelete(DeleteBehavior.NoAction);
 
-        // --- CẤU HÌNH KHÓA NGOẠI LIÊN KẾT CHO PHÂN HỆ DISPUTEMODULE ĐỘC LẬP ---
         modelBuilder.Entity<Dispute>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Dispute>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
         
@@ -156,7 +189,6 @@ public class DataContext : DbContext
         modelBuilder.Entity<Report>().HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterId).OnDelete(DeleteBehavior.NoAction);
         modelBuilder.Entity<Report>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
 
-        // --- CẤU HÌNH LIÊN KẾT CHO CONTRACT ĐẢM BẢO KHÔNG XUNG ĐỘT LUỒNG XÓA ---
         modelBuilder.Entity<Contract>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<Specialization>().HasOne(x => x.Domain).WithMany(x => x.Specializations).HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.Cascade);
