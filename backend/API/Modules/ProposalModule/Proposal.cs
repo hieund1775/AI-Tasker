@@ -19,8 +19,10 @@ public class Proposal
     [Required]
     public string Introduction { get; set; } = string.Empty;
 
-    [Required]
+    [NotMapped]
     public string Implementation { get; set; } = string.Empty;
+
+    public ICollection<ProposalTask> ProposalTasks { get; set; } = new List<ProposalTask>();
 
     public string? Portfolio { get; set; }
 

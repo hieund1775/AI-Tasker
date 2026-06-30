@@ -23,6 +23,8 @@ public class Task
     public Project? Project { get; set; }
     public ICollection<MiniTask> MiniTasks { get; set; } = new List<MiniTask>();
 
+    [NotMapped]
+    public int TotalDuration => MiniTasks?.Sum(m => m.Duration) ?? 0;
 
     [ForeignKey(nameof(FeedbackSenderId))]
     public ApplicationUser? FeedbackSender { get; set; }

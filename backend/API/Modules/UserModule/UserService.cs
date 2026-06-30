@@ -246,21 +246,44 @@ public class UserService : IUserService
             })
             .ToListAsync();
 
-        var proposals = await _context.Proposals
+        var proposalsDb = await _context.Proposals
+            .Include(p => p.ProposalTasks)
+            .ThenInclude(t => t.ProposalMiniTasks)
             .Where(p => p.ExpertId == userGuid)
-            .Select(p => new DTOs.UserProposalDto
+            .ToListAsync();
+
+        var proposals = proposalsDb.Select(p => {
+            var wbsJson = "";
+            if (p.ProposalTasks != null && p.ProposalTasks.Any())
+            {
+                var list = p.ProposalTasks.Select(t => new
+                {
+                    Title = t.Title,
+                    TotalDuration = t.TotalDuration,
+                    MiniTasks = t.ProposalMiniTasks != null
+                        ? t.ProposalMiniTasks.Select(m => new
+                        {
+                            Title = m.Title,
+                            Deadline = m.Deadline,
+                            Duration = m.Duration
+                        }).ToList()
+                        : new()
+                }).ToList();
+                wbsJson = System.Text.Json.JsonSerializer.Serialize(list);
+            }
+            return new DTOs.UserProposalDto
             {
                 Id = p.Id.ToString(),
                 JobPostId = p.JobPostId.ToString(),
                 BidAmount = p.BidAmount,
                 EstimatedDuration = p.EstimatedDuration,
                 Introduction = p.Introduction,
-                Implementation = p.Implementation,
+                Implementation = wbsJson,
                 Portfolio = p.Portfolio,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt
-            })
-            .ToListAsync();
+            };
+        }).ToList();
 
         var projects = await _context.Projects
             .Where(p => p.ClientId == userGuid || p.ExpertId == userGuid)

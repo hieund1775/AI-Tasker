@@ -1,4 +1,4 @@
-﻿using AITasker_Modular.Modules.CategoryTagModule;
+using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.DisputeModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
@@ -65,6 +65,10 @@ public class DataContext : DbContext
     // Đăng ký 2 bảng quản lý tài chính doanh thu hệ thống tách biệt
     public DbSet<SystemWallet> SystemWallets { get; set; }
     public DbSet<SystemTransactionLog> SystemTransactionLogs { get; set; }
+
+    // Đăng ký các bảng WBS của Proposal
+    public DbSet<ProposalTask> ProposalTasks { get; set; }
+    public DbSet<ProposalMiniTask> ProposalMiniTasks { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -190,6 +194,21 @@ public class DataContext : DbContext
         modelBuilder.Entity<Report>().HasOne(x => x.HandlerStaff).WithMany().HasForeignKey(x => x.HandlerStaffId).OnDelete(DeleteBehavior.NoAction);
 
         modelBuilder.Entity<Contract>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.NoAction);
+
+        // Mối quan hệ WBS của Proposal
+        modelBuilder.Entity<ProposalTask>().HasKey(x => x.Id);
+        modelBuilder.Entity<ProposalTask>()
+            .HasOne(x => x.Proposal)
+            .WithMany(x => x.ProposalTasks)
+            .HasForeignKey(x => x.ProposalId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ProposalMiniTask>().HasKey(x => x.Id);
+        modelBuilder.Entity<ProposalMiniTask>()
+            .HasOne(x => x.ProposalTask)
+            .WithMany(x => x.ProposalMiniTasks)
+            .HasForeignKey(x => x.ProposalTaskId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Specialization>().HasOne(x => x.Domain).WithMany(x => x.Specializations).HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<DomainExpertProfile>().HasOne(x => x.Domain).WithMany().HasForeignKey(x => x.DomainId).OnDelete(DeleteBehavior.NoAction);

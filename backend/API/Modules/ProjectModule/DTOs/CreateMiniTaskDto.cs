@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 
 namespace AITasker_Modular.Modules.ProjectModule.DTOs
@@ -6,5 +7,7 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
     {
         [Required]
         public string Title { get; set; } = string.Empty;
+        public DateTime? Deadline { get; set; }
+        public int Duration { get; set; }
     }
 }

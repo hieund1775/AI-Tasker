@@ -22,6 +22,99 @@ namespace AITasker_Modular.Modules.ProposalModule
             _projectService = projectService;
         }
 
+        private class ProposalTaskJsonDto
+        {
+            public string Title { get; set; } = string.Empty;
+            public List<ProposalMiniTaskJsonDto> MiniTasks { get; set; } = new();
+        }
+
+        private class ProposalMiniTaskJsonDto
+        {
+            public string Title { get; set; } = string.Empty;
+            public DateTime? Deadline { get; set; }
+            public int Duration { get; set; }
+        }
+
+        private void SaveProposalWbs(Guid proposalId, string implementationInput)
+        {
+            var tasks = new List<ProposalTask>();
+            string trimmed = implementationInput?.Trim() ?? string.Empty;
+
+            if (trimmed.StartsWith("["))
+            {
+                try
+                {
+                    var parsed = System.Text.Json.JsonSerializer.Deserialize<List<ProposalTaskJsonDto>>(trimmed);
+                    if (parsed != null)
+                    {
+                        foreach (var tDto in parsed)
+                        {
+                            var task = new ProposalTask
+                            {
+                                Id = Guid.NewGuid(),
+                                ProposalId = proposalId,
+                                Title = tDto.Title
+                            };
+                            task.ProposalMiniTasks = tDto.MiniTasks.Select(mDto => new ProposalMiniTask
+                            {
+                                Id = Guid.NewGuid(),
+                                ProposalTaskId = task.Id,
+                                Title = mDto.Title,
+                                Deadline = mDto.Deadline,
+                                Duration = mDto.Duration
+                            }).ToList();
+                            tasks.Add(task);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback to single text task on error
+                    var task = new ProposalTask
+                    {
+                        Id = Guid.NewGuid(),
+                        ProposalId = proposalId,
+                        Title = trimmed
+                    };
+                    tasks.Add(task);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(trimmed))
+            {
+                var task = new ProposalTask
+                {
+                    Id = Guid.NewGuid(),
+                    ProposalId = proposalId,
+                    Title = trimmed
+                };
+                tasks.Add(task);
+            }
+
+            if (tasks.Any())
+            {
+                _context.ProposalTasks.AddRange(tasks);
+            }
+        }
+
+        private string GetProposalWbsJson(Proposal proposal)
+        {
+            if (proposal.ProposalTasks == null || !proposal.ProposalTasks.Any()) return string.Empty;
+            var list = proposal.ProposalTasks.Select(t => new
+            {
+                Title = t.Title,
+                TotalDuration = t.TotalDuration,
+                MiniTasks = t.ProposalMiniTasks != null
+                    ? t.ProposalMiniTasks.Select(m => new
+                    {
+                        Title = m.Title,
+                        Deadline = m.Deadline,
+                        Duration = m.Duration
+                    }).ToList()
+                    : new()
+            }).ToList();
+            return System.Text.Json.JsonSerializer.Serialize(list);
+        }
+
         public async Task<Proposal> SubmitProposalAsync(CreateProposalDto dto)
         {
             var hasActiveProposal = await _context.Proposals
@@ -42,7 +135,6 @@ namespace AITasker_Modular.Modules.ProposalModule
                 BidAmount = dto.BidAmount,
                 EstimatedDuration = dto.EstimatedDuration,
                 Introduction = dto.Introduction.Trim(),
-                Implementation = dto.Implementation.Trim(),
                 Portfolio = dto.PortfolioUrl,
                 AttachmentUrl = dto.AttachmentUrl,
                 Status = "Pending",
@@ -50,29 +142,61 @@ namespace AITasker_Modular.Modules.ProposalModule
             };
 
             _context.Proposals.Add(proposal);
+            SaveProposalWbs(proposal.Id, dto.Implementation);
             await _context.SaveChangesAsync();
-            return await _context.Proposals
+
+            var result = await _context.Proposals
                 .Include(x => x.JobPost)
                 .Include(x => x.Expert)
+                .Include(x => x.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstAsync(x => x.Id == proposal.Id);
+
+            result.Implementation = GetProposalWbsJson(result);
+            return result;
         }
 
         public async Task<IEnumerable<Proposal>> GetProposalsByJobPostIdAsync(Guid jobPostId)
         {
-            return await _context.Proposals
+            var proposals = await _context.Proposals
                 .Include(x => x.JobPost)
                 .Include(x => x.Expert)
+                .Include(x => x.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .Where(x => x.JobPostId == jobPostId)
                 .ToListAsync();
+
+            foreach (var proposal in proposals)
+            {
+                if (proposal.Status.Equals("Accepted", StringComparison.OrdinalIgnoreCase))
+                {
+                    proposal.Implementation = GetProposalWbsJson(proposal);
+                }
+                else
+                {
+                    proposal.Implementation = string.Empty; // Ẩn giải pháp kỹ thuật đối với Client nếu chưa Accepted
+                }
+            }
+
+            return proposals;
         }
 
         public async Task<IEnumerable<Proposal>> GetProposalsByExpertIdAsync(Guid expertId)
         {
-            return await _context.Proposals
+            var proposals = await _context.Proposals
                 .Include(x => x.JobPost)
                 .Include(x => x.Expert)
+                .Include(x => x.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .Where(x => x.ExpertId == expertId)
                 .ToListAsync();
+
+            foreach (var proposal in proposals)
+            {
+                proposal.Implementation = GetProposalWbsJson(proposal); // Expert luôn được xem giải pháp của mình
+            }
+
+            return proposals;
         }
 
         public async Task<Proposal?> UpdateProposalStatusAsync(Guid proposalId, string status)
@@ -80,6 +204,8 @@ namespace AITasker_Modular.Modules.ProposalModule
             var proposal = await _context.Proposals
                 .Include(p => p.JobPost)
                 .Include(p => p.Expert)
+                .Include(p => p.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstOrDefaultAsync(x => x.Id == proposalId);
                 
             if (proposal == null) return null;
@@ -90,18 +216,23 @@ namespace AITasker_Modular.Modules.ProposalModule
             if (newStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase))
             {
                 await _projectService.CreateProjectFromProposalAsync(proposalId);
-                // Reload proposal to return the modified status and dependencies
+                // Tải lại để lấy thông tin cập nhật
                 proposal = await _context.Proposals
                     .Include(p => p.JobPost)
                     .Include(p => p.Expert)
+                    .Include(p => p.ProposalTasks)
+                    .ThenInclude(t => t.ProposalMiniTasks)
                     .FirstOrDefaultAsync(x => x.Id == proposalId);
             }
             else
             {
-                proposal.Status = newStatus;
                 await _context.SaveChangesAsync();
             }
 
+            if (proposal != null)
+            {
+                proposal.Implementation = GetProposalWbsJson(proposal);
+            }
             return proposal;
         }
 
@@ -110,6 +241,8 @@ namespace AITasker_Modular.Modules.ProposalModule
             var proposal = await _context.Proposals
                 .Include(p => p.JobPost)
                 .Include(p => p.Expert)
+                .Include(p => p.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstOrDefaultAsync(x => x.Id == proposalId);
 
             if (proposal == null) return null;
@@ -126,7 +259,13 @@ namespace AITasker_Modular.Modules.ProposalModule
                 proposal.Introduction = dto.Introduction.Trim();
                 
             if (!string.IsNullOrWhiteSpace(dto.Implementation))
-                proposal.Implementation = dto.Implementation.Trim();
+            {
+                // Xóa WBS cũ
+                var oldTasks = await _context.ProposalTasks.Where(t => t.ProposalId == proposalId).ToListAsync();
+                _context.ProposalTasks.RemoveRange(oldTasks);
+
+                SaveProposalWbs(proposalId, dto.Implementation);
+            }
 
             if (dto.PortfolioUrl != null)
             {
@@ -134,17 +273,33 @@ namespace AITasker_Modular.Modules.ProposalModule
             }
 
             await _context.SaveChangesAsync();
-            return proposal;
+
+            // reload
+            var result = await _context.Proposals
+                .Include(p => p.JobPost)
+                .Include(p => p.Expert)
+                .Include(p => p.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
+                .FirstOrDefaultAsync(x => x.Id == proposalId);
+
+            if (result != null)
+            {
+                result.Implementation = GetProposalWbsJson(result);
+            }
+            return result;
         }
 
         public async Task<string?> GenerateProposalMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays)
         {
             var proposal = await _context.Proposals
                 .Include(p => p.JobPost)
+                .Include(p => p.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstOrDefaultAsync(p => p.Id == proposalId);
                 
             if (proposal == null) return null;
 
+            proposal.Implementation = GetProposalWbsJson(proposal);
             var markdownBuilder = new StringBuilder();
             markdownBuilder.AppendLine($"# BẢN PHÂN RÃ TIẾN ĐỘ ĐỀ XUẤT (WBS) - DỰ ÁN: {proposal.JobPostTitle.ToUpper()}");
             markdownBuilder.AppendLine($"* **Mã số Proposal:** {proposal.Id}");

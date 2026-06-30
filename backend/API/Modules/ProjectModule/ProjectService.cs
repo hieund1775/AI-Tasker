@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Database;
 using System;
 using System.Linq;
@@ -16,7 +16,7 @@ public class ProjectService : IProjectService
         _context = context;
     }
 
-    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId)
+    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, DateTime? deadline, int duration)
     {
         var miniTask = await _context.MiniTasks.FirstOrDefaultAsync(x => x.Id == miniTaskId);
         if (miniTask == null) return null;
@@ -26,6 +26,10 @@ public class ProjectService : IProjectService
         {
             miniTask.FeedbackContent = feedbackContent;
         }
+        
+        // Cập nhật deadline nếu được truyền
+        miniTask.Deadline = deadline;
+        miniTask.Duration = duration;
 
         await _context.SaveChangesAsync();
         return miniTask;
@@ -101,7 +105,7 @@ public class ProjectService : IProjectService
         return null;
     }
 
-    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title)
+    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, DateTime? deadline, int duration)
     {
         var miniTask = new MiniTask
         {
@@ -109,7 +113,9 @@ public class ProjectService : IProjectService
             TaskId = taskId,
             Title = title,
             IsCompleted = false,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Deadline = deadline,
+            Duration = duration
         };
 
         _context.MiniTasks.Add(miniTask);
@@ -133,11 +139,90 @@ public class ProjectService : IProjectService
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects.Where(p => p.ExpertId == expertId).ToListAsync();
     public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status) => null;
     public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink) => null;
-    public async Task<Project?> GetProjectByIdAsync(Guid projectId) => await _context.Projects.FindAsync(projectId);
-    public async Task<bool> DeleteMiniTaskAsync(Guid miniTaskId) => false;
+    public async Task<Project?> GetProjectByIdAsync(Guid projectId) => await _context.Projects
+        .Include(p => p.Tasks)
+        .ThenInclude(t => t.MiniTasks)
+        .FirstOrDefaultAsync(p => p.Id == projectId);
+        
+    public async Task<bool> DeleteMiniTaskAsync(Guid miniTaskId)
+    {
+        var miniTask = await _context.MiniTasks.FindAsync(miniTaskId);
+        if (miniTask == null) return false;
+        _context.MiniTasks.Remove(miniTask);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+    
     public async Task<ProjectTask?> SubmitTaskForReviewAsync(Guid taskId) => null;
     public async Task<ProjectTask?> ReviewTaskAsync(Guid taskId, bool isApproved, string? feedback, Guid reviewerId) => null;
-    public async Task<Project?> CreateProjectFromProposalAsync(Guid proposalId) => null;
+    
+    public async Task<Project?> CreateProjectFromProposalAsync(Guid proposalId)
+    {
+        var proposal = await _context.Proposals
+            .Include(p => p.JobPost)
+            .Include(p => p.ProposalTasks)
+            .ThenInclude(pt => pt.ProposalMiniTasks)
+            .FirstOrDefaultAsync(p => p.Id == proposalId);
+            
+        if (proposal == null) return null;
+
+        // Check if project already exists for this job post
+        var existingProject = await _context.Projects.FirstOrDefaultAsync(p => p.JobPostId == proposal.JobPostId);
+        if (existingProject != null) return existingProject;
+
+        // Create Project
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            JobPostId = proposal.JobPostId,
+            ClientId = proposal.JobPost?.ClientId ?? Guid.Empty,
+            ExpertId = proposal.ExpertId,
+            EscrowBalance = proposal.BidAmount,
+            Status = "In Progress",
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow.AddDays(proposal.EstimatedDuration)
+        };
+
+        _context.Projects.Add(project);
+
+        // Copy WBS items (ProposalTasks and ProposalMiniTasks) to ProjectTasks and MiniTasks
+        if (proposal.ProposalTasks != null && proposal.ProposalTasks.Any())
+        {
+            foreach (var propTask in proposal.ProposalTasks)
+            {
+                var projectTask = new ProjectTask
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = project.Id,
+                    Title = propTask.Title,
+                    Status = "In Progress",
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.ProjectTasks.Add(projectTask);
+
+                if (propTask.ProposalMiniTasks != null && propTask.ProposalMiniTasks.Any())
+                {
+                    foreach (var propMini in propTask.ProposalMiniTasks)
+                    {
+                        var miniTask = new MiniTask
+                        {
+                            Id = Guid.NewGuid(),
+                            TaskId = projectTask.Id,
+                            Title = propMini.Title,
+                            IsCompleted = false,
+                            CreatedAt = DateTime.UtcNow,
+                            Deadline = propMini.Deadline,
+                            Duration = propMini.Duration
+                        };
+                        _context.MiniTasks.Add(miniTask);
+                    }
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return project;
+    }
     public async Task<bool> LockProjectForDisputeAsync(Guid projectId) => true;
     public async Task<decimal> PayoutDisputeEscrowAsync(Guid projectId, string decision) => 0m;
 }
