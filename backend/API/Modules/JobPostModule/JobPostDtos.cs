@@ -4,6 +4,22 @@ using System.ComponentModel.DataAnnotations;
 
 namespace AITasker_Modular.Modules.JobPostModule
 {
+    public class JobPostMiniTaskInputDto
+    {
+        [Required(ErrorMessage = "MiniTask title is required.")]
+        public string Title { get; set; } = string.Empty;
+        
+        public int Duration { get; set; }
+    }
+
+    public class JobPostTaskInputDto
+    {
+        [Required(ErrorMessage = "Task title is required.")]
+        public string Title { get; set; } = string.Empty;
+        
+        public List<JobPostMiniTaskInputDto> MiniTasks { get; set; } = new();
+    }
+
     public class CreateJobPostDto
     {
         [Required(ErrorMessage = "Title is required.")]
@@ -28,7 +44,7 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public List<string>? SkillIds { get; set; }
 
-        public string? Implementation { get; set; }
+        public List<JobPostTaskInputDto>? Implementation { get; set; }
     }
 
     public class UpdateJobPostDto
@@ -52,6 +68,6 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public List<string>? SkillIds { get; set; }
 
-        public string? Implementation { get; set; }
+        public List<JobPostTaskInputDto>? Implementation { get; set; }
     }
 }

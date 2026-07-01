@@ -19,69 +19,30 @@ public class JobPostService : IJobPostService
         _context = context;
     }
 
-    private class JobPostTaskJsonDto
+    private void SaveJobPostWbs(Guid jobPostId, List<JobPostTaskInputDto> implementationInput)
     {
-        public string Title { get; set; } = string.Empty;
-        public List<JobPostMiniTaskJsonDto> MiniTasks { get; set; } = new();
-    }
+        if (implementationInput == null || !implementationInput.Any()) return;
 
-    private class JobPostMiniTaskJsonDto
-    {
-        public string Title { get; set; } = string.Empty;
-        public int Duration { get; set; }
-    }
-
-    private void SaveJobPostWbs(Guid jobPostId, string implementationInput)
-    {
         var tasks = new List<JobPostTask>();
-        string trimmed = implementationInput?.Trim() ?? string.Empty;
-
-        if (trimmed.StartsWith("["))
-        {
-            try
-            {
-                var parsed = System.Text.Json.JsonSerializer.Deserialize<List<JobPostTaskJsonDto>>(trimmed);
-                if (parsed != null)
-                {
-                    foreach (var tDto in parsed)
-                    {
-                        var task = new JobPostTask
-                        {
-                            Id = Guid.NewGuid(),
-                            JobPostId = jobPostId,
-                            Title = tDto.Title
-                        };
-                        task.JobPostMiniTasks = tDto.MiniTasks.Select(mDto => new JobPostMiniTask
-                        {
-                            Id = Guid.NewGuid(),
-                            JobPostTaskId = task.Id,
-                            Title = mDto.Title,
-                            Duration = mDto.Duration
-                        }).ToList();
-                        tasks.Add(task);
-                    }
-                }
-            }
-            catch
-            {
-                // Fallback to single text task on error
-                var task = new JobPostTask
-                {
-                    Id = Guid.NewGuid(),
-                    JobPostId = jobPostId,
-                    Title = trimmed
-                };
-                tasks.Add(task);
-            }
-        }
-        else if (!string.IsNullOrWhiteSpace(trimmed))
+        foreach (var tDto in implementationInput)
         {
             var task = new JobPostTask
             {
                 Id = Guid.NewGuid(),
                 JobPostId = jobPostId,
-                Title = trimmed
+                Title = tDto.Title
             };
+            
+            if (tDto.MiniTasks != null && tDto.MiniTasks.Any())
+            {
+                task.JobPostMiniTasks = tDto.MiniTasks.Select(mDto => new JobPostMiniTask
+                {
+                    Id = Guid.NewGuid(),
+                    JobPostTaskId = task.Id,
+                    Title = mDto.Title,
+                    Duration = mDto.Duration
+                }).ToList();
+            }
             tasks.Add(task);
         }
 
@@ -136,7 +97,7 @@ public class JobPostService : IJobPostService
             CreatedAt = DateTime.UtcNow,
             DomainId = jobPostDto.DomainId,
             SpecializationId = jobPostDto.SpecializationId,
-            Implementation = jobPostDto.Implementation
+            Implementation = jobPostDto.Implementation != null ? System.Text.Json.JsonSerializer.Serialize(jobPostDto.Implementation) : null
         };
 
         if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
@@ -151,7 +112,7 @@ public class JobPostService : IJobPostService
         }
 
         _context.JobPosts.Add(jobPost);
-        if (!string.IsNullOrWhiteSpace(jobPostDto.Implementation))
+        if (jobPostDto.Implementation != null && jobPostDto.Implementation.Any())
         {
             SaveJobPostWbs(jobPost.Id, jobPostDto.Implementation);
         }
@@ -237,14 +198,14 @@ public class JobPostService : IJobPostService
         }
 
 
-        jobPost.Implementation = jobPostDto.Implementation;
+        jobPost.Implementation = jobPostDto.Implementation != null ? System.Text.Json.JsonSerializer.Serialize(jobPostDto.Implementation) : null;
 
         if (jobPostDto.Implementation != null)
         {
             var oldTasks = await _context.JobPostTasks.Where(t => t.JobPostId == id).ToListAsync();
             _context.JobPostTasks.RemoveRange(oldTasks);
 
-            if (!string.IsNullOrWhiteSpace(jobPostDto.Implementation))
+            if (jobPostDto.Implementation.Any())
             {
                 SaveJobPostWbs(id, jobPostDto.Implementation);
             }
