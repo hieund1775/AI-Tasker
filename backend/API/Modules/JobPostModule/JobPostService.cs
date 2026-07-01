@@ -239,7 +239,7 @@ public class JobPostService : IJobPostService
         if (!string.IsNullOrEmpty(status))
         {
             string statusClean = status.Trim();
-            query = query.Where(x => x.Status.Equals(statusClean, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(x => x.Status.ToLower() == statusClean.ToLower());
         }
 
         if (categoryDomainId.HasValue && categoryDomainId.Value != Guid.Empty)

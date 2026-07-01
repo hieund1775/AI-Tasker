@@ -103,8 +103,8 @@ public class AiRecommendationService
 
         // 2. Fetch active experts
         var activeExperts = await _context.Users
-            .Where(u => u.Role.Equals("Expert", StringComparison.OrdinalIgnoreCase) && 
-                        u.Status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+            .Where(u => u.Role.ToLower() == "expert" && 
+                        u.Status.ToLower() == "active")
             .ToListAsync();
 
         if (!activeExperts.Any())

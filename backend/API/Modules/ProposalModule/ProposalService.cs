@@ -117,7 +117,7 @@ namespace AITasker_Modular.Modules.ProposalModule
             var hasActiveProposal = await _context.Proposals
                 .AnyAsync(x => x.JobPostId == dto.JobPostId 
                             && x.ExpertId == dto.ExpertId 
-                            && !x.Status.Equals("Rejected", StringComparison.OrdinalIgnoreCase));
+                            && x.Status.ToLower() != "rejected");
 
             if (hasActiveProposal)
             {
