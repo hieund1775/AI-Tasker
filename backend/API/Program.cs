@@ -6,7 +6,7 @@ using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.JobPostModule; 
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Modules.AdminModule; // Đồng bộ cấu trúc AdminModule của Minh
+using AITasker_Modular.Modules.AdminModule; 
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
@@ -57,8 +57,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// --- CẤU HÌNH CORS ĐỒNG BỘ: MỞ RỘNG THÊM CỔNG 8080 VÀ CHO PHÉP WEBHOOK TỰ DO ---
 builder.Services.AddCors(options =>
 {
+    // Giữ nguyên Policy cũ của nhóm để không lỗi code FrontEnd của các bạn
     options.AddPolicy("AllowLocalhost5173",
         policy =>
         {
@@ -66,6 +68,15 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .AllowCredentials();
+        });
+
+    // Thêm Policy mở rộng cho cổng test của Minh để thông mạch trình duyệt lập tức
+    options.AddPolicy("AllowAllTest",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         });
 });
 
@@ -375,9 +386,6 @@ using (var scope = app.Services.CreateScope())
         }
 
         await db.SaveChangesAsync();
-
-
-
     }
     catch (Exception ex)
     {
@@ -393,7 +401,9 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
-app.UseCors("AllowLocalhost5173");
+// Ép chạy chính sách AllowAllTest để chấp nhận request từ mọi nguồn port không bị chặn CORS
+app.UseCors("AllowAllTest");
+
 app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
