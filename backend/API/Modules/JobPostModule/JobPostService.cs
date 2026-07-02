@@ -345,4 +345,261 @@ public class JobPostService : IJobPostService
 
         return fileUrl;
     }
+    public async Task<List<ExpertRecommendationResultDto>> RecommendExpertsAsync(ExpertRecommendationRequestDto dto)
+    {
+        // 1. Resolve Job Post details
+        string title = string.Empty;
+        string description = string.Empty;
+        decimal budget = 0m;
+        int deadline = 0;
+        string? domainName = null;
+        string? specializationName = null;
+        Guid? domainId = null;
+        Guid? specializationId = null;
+        List<string> requiredSkills = new();
+        List<string> detailedRequirements = new();
+
+        if (dto.JobPostId.HasValue && dto.JobPostId.Value != Guid.Empty)
+        {
+            var jobPost = await _context.JobPosts
+                .Include(j => j.JobPostSkills).ThenInclude(js => js.Skill)
+                .Include(j => j.JobPostTasks)
+                .Include(j => j.Domain)
+                .Include(j => j.Specialization)
+                .FirstOrDefaultAsync(j => j.Id == dto.JobPostId.Value);
+
+            if (jobPost == null)
+            {
+                return new List<ExpertRecommendationResultDto>();
+            }
+
+            title = jobPost.Title;
+            description = jobPost.Description;
+            budget = jobPost.Budget;
+            deadline = jobPost.Deadline;
+            domainId = jobPost.DomainId;
+            specializationId = jobPost.SpecializationId;
+            domainName = jobPost.Domain?.Name;
+            specializationName = jobPost.Specialization?.Name;
+            requiredSkills = jobPost.JobPostSkills
+                .Select(js => js.Skill?.Name ?? string.Empty)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
+            detailedRequirements = jobPost.JobPostTasks
+                .Select(r => r.Title)
+                .Where(desc => !string.IsNullOrEmpty(desc))
+                .ToList();
+        }
+        else
+        {
+            title = dto.Title ?? string.Empty;
+            description = dto.Description ?? string.Empty;
+            budget = dto.Budget ?? 0m;
+            deadline = dto.Deadline ?? 0;
+            domainId = dto.DomainId;
+            specializationId = dto.SpecializationId;
+
+            if (domainId.HasValue)
+            {
+                var domain = await _context.Domains.FindAsync(domainId.Value);
+                domainName = domain?.Name;
+            }
+            if (specializationId.HasValue)
+            {
+                var spec = await _context.Specializations.FindAsync(specializationId.Value);
+                specializationName = spec?.Name;
+            }
+
+            if (dto.SkillIds != null && dto.SkillIds.Any())
+            {
+                var skillGuids = dto.SkillIds
+                    .Select(id => Guid.TryParse(id, out var g) ? g : Guid.Empty)
+                    .Where(g => g != Guid.Empty)
+                    .ToList();
+
+                requiredSkills = await _context.Skills
+                    .Where(s => skillGuids.Contains(s.Id))
+                    .Select(s => s.Name)
+                    .ToListAsync();
+            }
+        }
+
+        // 2. Fetch active experts
+        var activeExperts = await _context.Users
+            .Where(u => u.Role.ToLower() == "expert" && 
+                        u.Status.ToLower() == "active")
+            .ToListAsync();
+
+        if (!activeExperts.Any())
+        {
+            return new List<ExpertRecommendationResultDto>();
+        }
+
+        var expertIds = activeExperts.Select(e => e.Id).ToList();
+        var expertProfiles = await _context.ExpertProfiles
+            .Where(p => expertIds.Contains(p.UserId))
+            .Include(p => p.ExpertProfileSkills).ThenInclude(eps => eps.Skill)
+            .ToListAsync();
+
+        var expertProfileMap = expertProfiles.ToDictionary(p => p.UserId);
+
+        var domainExpertProfiles = await _context.DomainExpertProfiles
+            .Where(dep => expertIds.Contains(dep.ExpertProfilesUserId))
+            .Include(dep => dep.Domain)
+            .ToListAsync();
+
+        var expertDomainsMap = domainExpertProfiles
+            .GroupBy(dep => dep.ExpertProfilesUserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(dep => dep.Domain?.Name ?? string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
+            );
+
+        // 3. Score and Filter candidates in memory to select top 10
+        var candidateList = new List<ExpertCandidateInternal>();
+        var jobWords = TokenizeText(title + " " + description);
+
+        foreach (var expert in activeExperts)
+        {
+            if (!expertProfileMap.TryGetValue(expert.Id, out var profile))
+            {
+                continue; // Skip experts without profile details
+            }
+
+            var expertSkills = profile.ExpertProfileSkills
+                .Select(eps => eps.Skill?.Name ?? string.Empty)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
+
+            // Calculate skill intersection
+            int matchingSkillsCount = expertSkills
+                .Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            // Calculate keyword overlap fallback
+            var expertBioWords = TokenizeText(profile.JobTitle + " " + profile.Major + " " + profile.Bio);
+            int keywordMatchCount = jobWords.Intersect(expertBioWords, StringComparer.OrdinalIgnoreCase).Count();
+
+            // Resolve domains
+            expertDomainsMap.TryGetValue(expert.Id, out var expertDomains);
+            expertDomains ??= new List<string>();
+
+            bool expertHasMatchingDomain = false;
+            if (domainId.HasValue)
+            {
+                expertHasMatchingDomain = domainExpertProfiles.Any(dep => dep.ExpertProfilesUserId == expert.Id && dep.DomainId == domainId.Value);
+            }
+
+            candidateList.Add(new ExpertCandidateInternal
+            {
+                User = expert,
+                Profile = profile,
+                Skills = expertSkills,
+                Domains = expertDomains,
+                MatchingSkillsCount = matchingSkillsCount,
+                KeywordMatchCount = keywordMatchCount,
+                HasMatchingDomain = expertHasMatchingDomain
+            });
+        }
+
+        // Rank by matching domain -> matching skills count -> keyword matches -> success rate -> reputation credit
+        var topCandidates = candidateList
+            .OrderByDescending(c => c.HasMatchingDomain)
+            .ThenByDescending(c => c.MatchingSkillsCount)
+            .ThenByDescending(c => c.KeywordMatchCount)
+            .ThenByDescending(c => c.Profile.SuccessRate)
+            .ThenByDescending(c => c.Profile.ReputationCredit)
+            .Take(10)
+            .ToList();
+
+        if (!topCandidates.Any())
+        {
+            return new List<ExpertRecommendationResultDto>();
+        }
+
+        return GenerateDatabaseFallbackRecommendations(requiredSkills, topCandidates);
+    }
+
+    private List<ExpertRecommendationResultDto> GenerateDatabaseFallbackRecommendations(
+        List<string> requiredSkills, List<ExpertCandidateInternal> candidates)
+    {
+        var finalResult = new List<ExpertRecommendationResultDto>();
+
+        foreach (var c in candidates)
+        {
+            // Calculate a score based on skill match proportion + success rate + reputation credit
+            double skillRatio = requiredSkills.Any() 
+                ? (double)c.MatchingSkillsCount / requiredSkills.Count 
+                : 0.5;
+
+            // score components: domain match (20%), skill ratio (40%), success rate (30%), reputation credit (10%)
+            double domainScore = c.HasMatchingDomain ? 20 : 0;
+            double skillScore = skillRatio * 40;
+            double successScore = (c.Profile.SuccessRate / 100.0) * 30;
+            double reputationScore = ((double)c.Profile.ReputationCredit / 5.0) * 10;
+            if (reputationScore > 10) reputationScore = 10;
+
+            int matchScore = (int)Math.Round(domainScore + skillScore + successScore + reputationScore);
+            matchScore = Math.Clamp(matchScore, 20, 100); // base min match is 20%
+
+            // Construct Vietnamese explanation
+            string matchedSkillsList = c.MatchingSkillsCount > 0 
+                ? string.Join(", ", c.Skills.Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase))
+                : "không trùng khớp kỹ năng trực tiếp";
+
+            string domainInfo = c.HasMatchingDomain 
+                ? "Chuyên gia hoạt động trong lĩnh vực trùng khớp với công việc. " 
+                : string.Empty;
+
+            string explanation = $"[Đề xuất tự động] {domainInfo}Chuyên gia có chuyên ngành {c.Profile.Major} và chức danh \"{c.Profile.JobTitle}\". " +
+                                  $"Có {c.MatchingSkillsCount} kỹ năng phù hợp ({matchedSkillsList}). " +
+                                  $"Tỷ lệ hoàn thành công việc xuất sắc đạt {c.Profile.SuccessRate}%.";
+
+            finalResult.Add(new ExpertRecommendationResultDto
+            {
+                UserId = c.User.Id,
+                FullName = c.User.FullName,
+                Email = c.User.Email,
+                AvatarUrl = c.User.AvatarUrl,
+                JobTitle = c.Profile.JobTitle,
+                Major = c.Profile.Major,
+                Certifications = c.Profile.Certifications,
+                Bio = c.Profile.Bio,
+                PortfolioUrls = c.Profile.PortfolioUrls,
+                SuccessRate = c.Profile.SuccessRate,
+                ReputationCredit = c.Profile.ReputationCredit,
+                Skills = c.Skills,
+                MatchScore = matchScore,
+                Explanation = explanation,
+                MatchedSkills = c.Skills.Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase).ToList()
+            });
+        }
+
+        return finalResult.OrderByDescending(r => r.MatchScore).ToList();
+    }
+
+    private static HashSet<string> TokenizeText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return new HashSet<string>();
+
+        // simple tokenization by space/punctuation, remove short words
+        var words = text.ToLower()
+            .Split(new[] { ' ', '.', ',', ';', ':', '-', '(', ')', '[', ']', '{', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+            .Where(w => w.Length > 2)
+            .Distinct();
+
+        return new HashSet<string>(words);
+    }
+
+    private class ExpertCandidateInternal
+    {
+        public AITasker_Modular.Modules.UserModule.ApplicationUser User { get; set; } = null!;
+        public AITasker_Modular.Modules.UserModule.ExpertProfile Profile { get; set; } = null!;
+        public List<string> Skills { get; set; } = new();
+        public List<string> Domains { get; set; } = new();
+        public int MatchingSkillsCount { get; set; }
+        public int KeywordMatchCount { get; set; }
+        public bool HasMatchingDomain { get; set; }
+    }
 }

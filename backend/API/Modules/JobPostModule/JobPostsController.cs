@@ -113,5 +113,23 @@ namespace AITasker_Modular.Modules.JobPostModule
             }
             return Ok(result);
         }
+        [HttpPost("recommend-experts")]
+        public async Task<IActionResult> RecommendExperts([FromBody] ExpertRecommendationRequestDto dto)
+        {
+            if (!dto.JobPostId.HasValue && (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Description)))
+            {
+                return BadRequest(new { error = "Vui lòng cung cấp JobPostId hoặc nhập đầy đủ tiêu đề (Title) và mô tả (Description) của công việc." });
+            }
+
+            try
+            {
+                var recommendations = await _jobService.RecommendExpertsAsync(dto);
+                return Ok(recommendations);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Lỗi hệ thống khi phân tích gợi ý: {ex.Message}" });
+            }
+        }
     }
 }

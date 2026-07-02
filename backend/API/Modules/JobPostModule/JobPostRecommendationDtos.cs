@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace AITasker_Modular.Modules.AiModule;
+namespace AITasker_Modular.Modules.JobPostModule;
 
 public class ExpertRecommendationRequestDto
 {

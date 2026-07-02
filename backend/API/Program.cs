@@ -104,7 +104,6 @@ builder.Services.AddScoped<IJobPostService, JobPostService>();
 // --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
 builder.Services.AddHttpClient<GeminiUtil>();
 builder.Services.AddScoped<AiChatService>(); 
-builder.Services.AddScoped<AiRecommendationService>();
 
 var app = builder.Build();
 

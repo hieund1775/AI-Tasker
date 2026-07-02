@@ -18,5 +18,6 @@ namespace AITasker_Modular.Modules.JobPostModule
         // THAO TÁC CƠ HỌC: ĐỤC THÊM CHỮ KÝ HÀM MỚI THEO Ý THẦY BỘ MÔN
         Task<string?> UploadAttachmentAsync(IFormFile file);
         Task<string?> GenerateMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays);
+        Task<List<ExpertRecommendationResultDto>> RecommendExpertsAsync(ExpertRecommendationRequestDto dto);
     }
 }
