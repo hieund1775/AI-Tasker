@@ -610,6 +610,12 @@ public class JobPostService : IJobPostService
             throw new Exception("Chuyên gia chưa thiết lập hồ sơ (Profile). Vui lòng cập nhật hồ sơ trước khi nhận gợi ý.");
         }
 
+        bool hasActiveProject = await _context.Projects.AnyAsync(p => p.ExpertId == expertId && (p.Status == "In Progress" || p.Status == "under_review"));
+        if (hasActiveProject)
+        {
+            throw new Exception("Chuyên gia đang có dự án chưa hoàn thành. Không thể nhận thêm gợi ý dự án mới.");
+        }
+
         var expertSkills = profile.ExpertProfileSkills
             .Select(eps => eps.Skill?.Name ?? string.Empty)
             .Where(name => !string.IsNullOrEmpty(name))
