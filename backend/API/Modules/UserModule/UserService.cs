@@ -17,7 +17,7 @@ public class UserService : IUserService
         _context = context;
     }
 
-    public async Task<string> RegisterAsync(string email, string password, string fullName, string role)
+    public async Task<string> RegisterAsync(string email, string password, string fullName, string role, string phoneNumber)
     {
         var normalizedRole = role?.Trim().ToLowerInvariant();
         if (normalizedRole != "client" && normalizedRole != "expert")
@@ -38,7 +38,8 @@ public class UserService : IUserService
             FullName = fullName.Trim(),
             Role = string.IsNullOrWhiteSpace(role) ? "Client" : role,
             Status = "Active",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PhoneNumber = phoneNumber?.Trim()
         };
 
         _context.Users.Add(user);
@@ -73,7 +74,8 @@ public class UserService : IUserService
             Role = user.Role,
             Status = user.Status,
             AvatarUrl = user.AvatarUrl,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber
         };
 
         var token = $"mock-jwt-token-for-{user.Id}";
@@ -204,6 +206,9 @@ public class UserService : IUserService
         if (dto.Role != null)
             user.Role = dto.Role;
 
+        if (dto.PhoneNumber != null)
+            user.PhoneNumber = dto.PhoneNumber;
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -236,7 +241,8 @@ public class UserService : IUserService
                 Role = u.Role,
                 Status = u.Status,
                 AvatarUrl = u.AvatarUrl,
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                PhoneNumber = u.PhoneNumber
             })
             .ToListAsync();
 
@@ -332,6 +338,7 @@ public class UserService : IUserService
             Status = user.Status,
             AvatarUrl = user.AvatarUrl,
             CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber,
             Wallet = wallet != null ? new DTOs.UserWalletDto { Balance = wallet.Balance } : null,
             ExpertProfile = profile != null ? new DTOs.UserExpertProfileDto
             {

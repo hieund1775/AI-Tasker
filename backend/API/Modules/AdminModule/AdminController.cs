@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +34,7 @@ namespace AITasker_Modular.Modules.AdminModule
             var ownerId = Guid.Parse(ownerIdStr!);
 
             try {
-                var staffId = await _adminService.CreateStaffAsync(dto.Username, dto.Password, dto.FullName, ownerId);
+                var staffId = await _adminService.CreateStaffAsync(dto.Username, dto.Password, dto.FullName, dto.PhoneNumber, ownerId);
                 return Ok(new { Message = "Đã khởi tạo Staff thành công.", StaffId = staffId });
             } catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
               catch (ArgumentException ex) { return BadRequest(ex.Message); }
@@ -94,5 +94,14 @@ namespace AITasker_Modular.Modules.AdminModule
         }
     }
 
-    public class CreateStaffInput { public string Username { get; set; } = string.Empty; public string Password { get; set; } = string.Empty; public string FullName { get; set; } = string.Empty; }
+    public class CreateStaffInput 
+    { 
+        public string Username { get; set; } = string.Empty; 
+        public string Password { get; set; } = string.Empty; 
+        public string FullName { get; set; } = string.Empty; 
+
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^0[0-9]{9}$", ErrorMessage = "Số điện thoại không đúng định dạng (10 số, bắt đầu bằng số 0).")]
+        public string PhoneNumber { get; set; } = string.Empty;
+    }
 }

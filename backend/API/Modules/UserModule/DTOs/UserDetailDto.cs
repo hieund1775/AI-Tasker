@@ -12,6 +12,7 @@ public class UserDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public class UserWalletDto
@@ -77,6 +78,7 @@ public class UserDetailDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 
     public UserWalletDto? Wallet { get; set; }
     public UserExpertProfileDto? ExpertProfile { get; set; }

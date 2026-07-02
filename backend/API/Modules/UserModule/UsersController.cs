@@ -29,7 +29,7 @@ public class UsersController : ControllerBase
 
         try
         {
-            var result = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role!);
+            var result = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role!, dto.PhoneNumber);
             return result.Contains("already exists", StringComparison.OrdinalIgnoreCase)
                 ? BadRequest(new { message = result })
                 : Ok(new { message = result });

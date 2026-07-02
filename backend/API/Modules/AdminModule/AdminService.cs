@@ -16,7 +16,7 @@ namespace AITasker_Modular.Modules.AdminModule
             _context = context;
         }
 
-        public async Task<Guid> CreateStaffAsync(string username, string password, string fullName, Guid ownerId)
+        public async Task<Guid> CreateStaffAsync(string username, string password, string fullName, string phoneNumber, Guid ownerId)
         {
             var owner = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId && x.Role.ToLower() == "owner");
             if (owner == null) throw new UnauthorizedAccessException("Chỉ duy nhất Owner tối thượng có quyền khởi tạo nhân sự vận hành.");
@@ -34,7 +34,8 @@ namespace AITasker_Modular.Modules.AdminModule
                 Status = "Active",
                 StaffCode = "STF-" + DateTime.UtcNow.ToString("yyyyMMdd") + "-" + new Random().Next(100, 999),
                 AppointedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                PhoneNumber = phoneNumber.Trim()
             };
 
             _context.Users.Add(staff);

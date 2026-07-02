@@ -22,4 +22,5 @@ public class ApplicationUser
     public string? StaffCode { get; set; }
     public DateTime? AppointedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 }
