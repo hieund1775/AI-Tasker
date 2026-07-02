@@ -131,5 +131,19 @@ namespace AITasker_Modular.Modules.JobPostModule
                 return StatusCode(500, new { error = $"Lỗi hệ thống khi phân tích gợi ý: {ex.Message}" });
             }
         }
+
+        [HttpGet("recommend-for-expert/{expertId:guid}")]
+        public async Task<IActionResult> RecommendJobPostsForExpert(Guid expertId)
+        {
+            try
+            {
+                var recommendations = await _jobService.RecommendJobPostsForExpertAsync(expertId);
+                return Ok(recommendations);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

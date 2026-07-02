@@ -19,5 +19,6 @@ namespace AITasker_Modular.Modules.JobPostModule
         Task<string?> UploadAttachmentAsync(IFormFile file);
         Task<string?> GenerateMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays);
         Task<List<ExpertRecommendationResultDto>> RecommendExpertsAsync(ExpertRecommendationRequestDto dto);
+        Task<List<JobPostRecommendationResultDto>> RecommendJobPostsForExpertAsync(Guid expertId);
     }
 }

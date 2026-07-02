@@ -55,3 +55,20 @@ public class GeminiRecommendationItem
     [JsonPropertyName("matchedSkills")]
     public List<string> MatchedSkills { get; set; } = new();
 }
+
+public class JobPostRecommendationResultDto
+{
+    public Guid JobPostId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal Budget { get; set; }
+    public int Deadline { get; set; }
+    public string? DomainName { get; set; }
+    public string? SpecializationName { get; set; }
+    public List<string> RequiredSkills { get; set; } = new();
+    
+    // AI suggestion scoring & explanation
+    public int MatchScore { get; set; }
+    public string Explanation { get; set; } = string.Empty;
+    public List<string> MatchedSkills { get; set; } = new();
+}

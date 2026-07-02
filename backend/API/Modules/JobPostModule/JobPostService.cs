@@ -592,6 +592,125 @@ public class JobPostService : IJobPostService
         return new HashSet<string>(words);
     }
 
+    public async Task<List<JobPostRecommendationResultDto>> RecommendJobPostsForExpertAsync(Guid expertId)
+    {
+        // 1. Fetch expert profile
+        var expert = await _context.Users.FirstOrDefaultAsync(u => u.Id == expertId && u.Role.ToLower() == "expert" && u.Status.ToLower() == "active");
+        if (expert == null)
+        {
+            throw new Exception("Không tìm thấy chuyên gia (Expert) này hoặc tài khoản đang không hoạt động.");
+        }
+
+        var profile = await _context.ExpertProfiles
+            .Include(p => p.ExpertProfileSkills).ThenInclude(eps => eps.Skill)
+            .FirstOrDefaultAsync(p => p.UserId == expertId);
+
+        if (profile == null)
+        {
+            throw new Exception("Chuyên gia chưa thiết lập hồ sơ (Profile). Vui lòng cập nhật hồ sơ trước khi nhận gợi ý.");
+        }
+
+        var expertSkills = profile.ExpertProfileSkills
+            .Select(eps => eps.Skill?.Name ?? string.Empty)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .ToList();
+
+        var domainExpertProfiles = await _context.DomainExpertProfiles
+            .Where(dep => dep.ExpertProfilesUserId == expertId)
+            .Include(dep => dep.Domain)
+            .ToListAsync();
+
+        var expertDomains = domainExpertProfiles
+            .Select(dep => dep.Domain?.Name ?? string.Empty)
+            .Where(name => !string.IsNullOrEmpty(name))
+            .ToList();
+
+        var expertDomainIds = domainExpertProfiles.Select(dep => dep.DomainId).ToList();
+
+        var expertBioWords = TokenizeText(profile.JobTitle + " " + profile.Major + " " + profile.Bio);
+
+        // 2. Fetch open Job Posts
+        var openJobPosts = await _context.JobPosts
+            .Include(j => j.JobPostSkills).ThenInclude(js => js.Skill)
+            .Include(j => j.Domain)
+            .Include(j => j.Specialization)
+            .Where(j => j.Status == "Open")
+            .ToListAsync();
+
+        if (!openJobPosts.Any())
+        {
+            return new List<JobPostRecommendationResultDto>();
+        }
+
+        // 3. Score candidates in memory
+        var recommendationList = new List<JobPostRecommendationResultDto>();
+
+        foreach (var jobPost in openJobPosts)
+        {
+            var jobSkills = jobPost.JobPostSkills
+                .Select(js => js.Skill?.Name ?? string.Empty)
+                .Where(name => !string.IsNullOrEmpty(name))
+                .ToList();
+
+            int matchingSkillsCount = expertSkills
+                .Intersect(jobSkills, StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            var jobWords = TokenizeText(jobPost.Title + " " + jobPost.Description);
+            int keywordMatchCount = expertBioWords.Intersect(jobWords, StringComparer.OrdinalIgnoreCase).Count();
+
+            bool hasMatchingDomain = false;
+            if (jobPost.DomainId.HasValue)
+            {
+                hasMatchingDomain = expertDomainIds.Contains(jobPost.DomainId.Value);
+            }
+
+            // Calculate a score
+            double skillRatio = jobSkills.Any()
+                ? (double)matchingSkillsCount / jobSkills.Count
+                : 0.5;
+
+            double domainScore = hasMatchingDomain ? 30 : 0;
+            double skillScore = skillRatio * 50;
+            double keywordScore = keywordMatchCount > 0 ? Math.Min(20, keywordMatchCount * 2) : 0;
+
+            int matchScore = (int)Math.Round(domainScore + skillScore + keywordScore);
+            matchScore = Math.Clamp(matchScore, 20, 100);
+
+            var matchedSkills = expertSkills.Intersect(jobSkills, StringComparer.OrdinalIgnoreCase).ToList();
+            string matchedSkillsList = matchedSkills.Any()
+                ? string.Join(", ", matchedSkills)
+                : "không có kỹ năng trùng khớp";
+
+            string domainInfo = hasMatchingDomain
+                ? "Dự án thuộc lĩnh vực chuyên môn của bạn. "
+                : string.Empty;
+
+            string explanation = $"[Đề xuất tự động] {domainInfo}Dự án yêu cầu {jobSkills.Count} kỹ năng, bạn đáp ứng {matchingSkillsCount} ({matchedSkillsList}).";
+
+            recommendationList.Add(new JobPostRecommendationResultDto
+            {
+                JobPostId = jobPost.Id,
+                Title = jobPost.Title,
+                Description = jobPost.Description,
+                Budget = jobPost.Budget,
+                Deadline = jobPost.Deadline,
+                DomainName = jobPost.Domain?.Name,
+                SpecializationName = jobPost.Specialization?.Name,
+                RequiredSkills = jobSkills,
+                MatchScore = matchScore,
+                Explanation = explanation,
+                MatchedSkills = matchedSkills
+            });
+        }
+
+        // 4. Sort and take top 10
+        return recommendationList
+            .OrderByDescending(r => r.MatchScore)
+            .Take(10)
+            .ToList();
+    }
+
     private class ExpertCandidateInternal
     {
         public AITasker_Modular.Modules.UserModule.ApplicationUser User { get; set; } = null!;
