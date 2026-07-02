@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using BCryptTool = BCrypt.Net.BCrypt;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
+using AITasker_Modular.Modules.InteractionModule;
 
 namespace AITasker_Modular.Modules.UserModule;
 
@@ -93,6 +94,17 @@ public class UserService : IUserService
             throw new InvalidOperationException($"Wallet not found for user ID: {userId}");
 
         wallet.Balance += amount;
+
+        var log = new TransactionLog
+        {
+            Id = Guid.NewGuid(),
+            DestinationWalletId = wallet.UserId,
+            Amount = amount,
+            Type = "Deposit",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.TransactionLogs.Add(log);
+
         await _context.SaveChangesAsync();
         return wallet.Balance;
     }
@@ -112,6 +124,17 @@ public class UserService : IUserService
             throw new InvalidOperationException("Insufficient balance.");
 
         wallet.Balance -= amount;
+
+        var log = new TransactionLog
+        {
+            Id = Guid.NewGuid(),
+            SourceWalletId = wallet.UserId,
+            Amount = amount,
+            Type = "Withdraw",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.TransactionLogs.Add(log);
+
         await _context.SaveChangesAsync();
         return wallet.Balance;
     }
@@ -406,5 +429,45 @@ public class UserService : IUserService
         user.Status = isActive ? "Active" : "Inactive";
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<System.Collections.Generic.List<DTOs.UserDetailDto>> GetPublicExpertsAsync()
+    {
+        var experts = await _context.Users
+            .Where(u => u.Role.Equals("Expert") && u.Status.Equals("Active"))
+            .ToListAsync();
+
+        var expertIds = experts.Select(e => e.Id).ToList();
+
+        var profiles = await _context.ExpertProfiles
+            .Where(p => expertIds.Contains(p.UserId))
+            .ToListAsync();
+
+        var result = experts.Select(user => {
+            var profile = profiles.FirstOrDefault(p => p.UserId == user.Id);
+            return new DTOs.UserDetailDto
+            {
+                Id = user.Id.ToString(),
+                Email = user.Email,
+                FullName = user.FullName,
+                Role = user.Role,
+                Status = user.Status,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt,
+                ExpertProfile = profile != null ? new DTOs.UserExpertProfileDto
+                {
+                    JobTitle = profile.JobTitle,
+                    Major = profile.Major,
+                    Certifications = profile.Certifications,
+                    Bio = profile.Bio,
+                    PortfolioUrls = profile.PortfolioUrls,
+                    Location = profile.Location,
+                    ReputationCredit = profile.ReputationCredit,
+                    SuccessRate = profile.SuccessRate
+                } : null
+            };
+        }).ToList();
+
+        return result;
     }
 }

@@ -131,9 +131,62 @@ public class UsersController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPost("{userId}/deposit")]
+    public async Task<IActionResult> Deposit(string userId, [FromBody] TransactionDto dto)
+    {
+        if (dto.Amount <= 0)
+            return BadRequest(new { message = "Deposit amount must be positive." });
+
+        try
+        {
+            var newBalance = await _userService.DepositAsync(userId, dto.Amount);
+            return Ok(new { message = "Deposit successful.", balance = newBalance });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("{userId}/withdraw")]
+    public async Task<IActionResult> Withdraw(string userId, [FromBody] TransactionDto dto)
+    {
+        if (dto.Amount <= 0)
+            return BadRequest(new { message = "Withdrawal amount must be positive." });
+
+        try
+        {
+            var newBalance = await _userService.WithdrawAsync(userId, dto.Amount);
+            return Ok(new { message = "Withdrawal successful.", balance = newBalance });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("experts")]
+    public async Task<IActionResult> GetPublicExperts()
+    {
+        try
+        {
+            var experts = await _userService.GetPublicExpertsAsync();
+            return Ok(experts);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
 
 public class SetUserActiveDto
 {
     public bool IsActive { get; set; }
+}
+
+public class TransactionDto
+{
+    public decimal Amount { get; set; }
 }

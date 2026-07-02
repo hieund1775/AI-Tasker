@@ -13,4 +13,5 @@ public interface IUserService
     Task<bool> IsStaffOrOwnerAsync(string userId);
     Task<bool> IsOwnerAsync(string userId);
     Task<bool> SetUserActiveStatusAsync(string userId, bool isActive);
+    Task<System.Collections.Generic.List<DTOs.UserDetailDto>> GetPublicExpertsAsync();
 }

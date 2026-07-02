@@ -104,7 +104,17 @@ public class ProjectService : IProjectService
 
     public async Task<ProjectTask?> CreateTaskAsync(Guid projectId, string title)
     {
-        return null;
+        var task = new ProjectTask
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            Title = title,
+            Status = "In Progress",
+            UpdatedAt = DateTime.UtcNow
+        };
+        _context.ProjectTasks.Add(task);
+        await _context.SaveChangesAsync();
+        return task;
     }
 
     public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? deadlineDays)
@@ -139,7 +149,16 @@ public class ProjectService : IProjectService
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects.Where(p => p.ClientId == clientId).ToListAsync();
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects.Where(p => p.ExpertId == expertId).ToListAsync();
     public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status) => null;
-    public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink) => null;
+    public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink)
+    {
+        var project = await _context.Projects.FindAsync(projectId);
+        if (project == null) return null;
+        
+        project.ProjectLink = projectLink;
+        project.Status = "under_review";
+        await _context.SaveChangesAsync();
+        return project;
+    }
     public async Task<Project?> GetProjectByIdAsync(Guid projectId) => await _context.Projects
         .Include(p => p.Tasks)
         .ThenInclude(t => t.MiniTasks)
@@ -154,8 +173,38 @@ public class ProjectService : IProjectService
         return true;
     }
     
-    public async Task<ProjectTask?> SubmitTaskForReviewAsync(Guid taskId) => null;
-    public async Task<ProjectTask?> ReviewTaskAsync(Guid taskId, bool isApproved, string? feedback, Guid reviewerId) => null;
+    public async Task<ProjectTask?> SubmitTaskForReviewAsync(Guid taskId)
+    {
+        var task = await _context.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId);
+        if (task == null) return null;
+        
+        task.Status = "Pending Approval";
+        task.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return task;
+    }
+
+    public async Task<ProjectTask?> ReviewTaskAsync(Guid taskId, bool isApproved, string? feedback, Guid reviewerId)
+    {
+        var task = await _context.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId);
+        if (task == null) return null;
+        
+        task.FeedbackContent = feedback;
+        task.FeedbackSenderId = reviewerId;
+
+        if (isApproved)
+        {
+            await _context.SaveChangesAsync();
+            return await UpdateTaskStatusAsync(taskId, "Completed");
+        }
+        else
+        {
+            task.Status = "In Progress";
+            task.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return task;
+        }
+    }
     
     public async Task<Project?> CreateProjectFromProposalAsync(Guid proposalId)
     {
