@@ -57,12 +57,12 @@ namespace AITasker_Modular.Modules.ProjectModule
             return Ok(result);
         }
 
-        [HttpPut("{id:guid}/submit-work")]
-        public async Task<IActionResult> SubmitWork(Guid id, [FromQuery] string projectLink)
+        [HttpPost("{id:guid}/submit-work")]
+        public async Task<IActionResult> SubmitWork(Guid id, [FromBody] SubmitWorkDto dto)
         {
-            if (string.IsNullOrEmpty(projectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
+            if (dto == null || string.IsNullOrEmpty(dto.ProjectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
             
-            var result = await _projectService.SubmitProjectLinkAsync(id, projectLink);
+            var result = await _projectService.SubmitProjectLinkAsync(id, dto.ProjectLink);
             if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
             return Ok(result);
         }
@@ -80,6 +80,38 @@ namespace AITasker_Modular.Modules.ProjectModule
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [HttpGet("{projectId:guid}/tasks")]
+        public async Task<IActionResult> GetProjectTasks(Guid projectId)
+        {
+            var project = await _projectService.GetProjectByIdAsync(projectId);
+            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            
+            var tasks = project.Tasks.Select(t => new ExpertTaskDto
+            {
+                Id = t.Id,
+                ProjectId = t.ProjectId,
+                Title = t.Title,
+                Status = t.Status,
+                UpdatedAt = t.UpdatedAt,
+                FeedbackContent = t.FeedbackContent,
+                FeedbackSenderId = t.FeedbackSenderId,
+                Deadline = t.Deadline,
+                MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
+                {
+                    Id = mt.Id,
+                    TaskId = mt.TaskId,
+                    Title = mt.Title,
+                    IsCompleted = mt.IsCompleted,
+                    FeedbackContent = mt.FeedbackContent,
+                    FeedbackSenderId = mt.FeedbackSenderId,
+                    CreatedAt = mt.CreatedAt,
+                    Deadline = mt.Deadline
+                }).ToList()
+            }).ToList();
+            
+            return Ok(tasks);
         }
 
         #endregion
@@ -117,11 +149,12 @@ namespace AITasker_Modular.Modules.ProjectModule
         }
 
         [HttpPost("tasks/{taskId:guid}/submit")]
-        public async Task<IActionResult> SubmitTaskForReview(Guid taskId)
+        public async Task<IActionResult> SubmitTaskForReview(Guid taskId, [FromBody] SubmitTaskDto dto)
         {
             try
             {
-                var result = await _projectService.SubmitTaskForReviewAsync(taskId);
+                // Pass dto.Notes to save the submitted notes
+                var result = await _projectService.SubmitTaskForReviewAsync(taskId, dto?.Notes);
                 if (result == null)
                     return NotFound("Không tìm thấy task tương ứng.");
 
@@ -204,6 +237,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                 EndDate = project.EndDate,
                 ProjectLink = project.ProjectLink,
                 ConversationId = project.ConversationId,
+                Title = project.JobPost?.Title ?? string.Empty,
+                Budget = project.JobPost?.Budget ?? 0,
+                Category = project.JobPost?.Domain?.Name,
                 ProjectSkills = project.ProjectSkills.Select(ps => new ProjectSkillDto
                 {
                     SkillId = ps.SkillsId,
@@ -218,7 +254,18 @@ namespace AITasker_Modular.Modules.ProjectModule
                     UpdatedAt = t.UpdatedAt,
                     FeedbackContent = t.FeedbackContent,
                     FeedbackSenderId = t.FeedbackSenderId,
-                    Deadline = t.Deadline
+                    Deadline = t.Deadline,
+                    MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
+                    {
+                        Id = mt.Id,
+                        TaskId = mt.TaskId,
+                        Title = mt.Title,
+                        IsCompleted = mt.IsCompleted,
+                        FeedbackContent = mt.FeedbackContent,
+                        FeedbackSenderId = mt.FeedbackSenderId,
+                        CreatedAt = mt.CreatedAt,
+                        Deadline = mt.Deadline
+                    }).ToList()
                 }).ToList()
             };
         }
@@ -239,6 +286,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                 EndDate = project.EndDate,
                 ProjectLink = project.ProjectLink,
                 ConversationId = project.ConversationId,
+                Title = project.JobPost?.Title ?? string.Empty,
+                Budget = project.JobPost?.Budget ?? 0,
+                Category = project.JobPost?.Domain?.Name,
                 ProjectSkills = project.ProjectSkills.Select(ps => new ProjectSkillDto
                 {
                     SkillId = ps.SkillsId,

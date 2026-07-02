@@ -18,6 +18,7 @@ public class Task
     public DateTime UpdatedAt { get; set; }
     public string? FeedbackContent { get; set; }
     public Guid? FeedbackSenderId { get; set; }
+    public string? Notes { get; set; }
 
     [JsonIgnore]
     public Project? Project { get; set; }

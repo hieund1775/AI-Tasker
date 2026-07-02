@@ -19,7 +19,7 @@ namespace AITasker_Modular.Modules.DisputeModule
         public async Task<IActionResult> SubmitReport([FromBody] SubmitReportInputDto dto)
         {
             try {
-                var reportId = await _disputeService.SubmitProjectReportAsync(dto.ProjectId, dto.ReporterId, dto.Reason, dto.EvidenceUrl);
+                var reportId = await _disputeService.SubmitProjectReportAsync(dto.ProjectId, dto.ReporterId, dto.Reason, dto.EvidenceUrl, dto.ReporterRole, dto.ReportType, dto.Description, dto.DisputeType, dto.DesiredResolution);
                 return Ok(new { ReportId = reportId, Message = "Đơn khiếu nại của bạn đã được gửi tới Ban quản trị sàn." });
             } catch (Exception ex) { return BadRequest(ex.Message); }
         }
@@ -60,5 +60,30 @@ namespace AITasker_Modular.Modules.DisputeModule
         public Guid ReporterId { get; set; } 
         public string Reason { get; set; } = string.Empty; 
         public string? EvidenceUrl { get; set; } 
+        public string ReporterRole { get; set; } = string.Empty;
+        public string ReportType { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public string DisputeType { get; set; } = string.Empty;
+        public string DesiredResolution { get; set; } = string.Empty;
+    }
+
+    public class ReportDto
+    {
+        public Guid Id { get; set; }
+        public Guid ProjectId { get; set; }
+        public string ProjectTitle { get; set; } = string.Empty;
+        public DateTime? ProjectStartDate { get; set; }
+        public DateTime? ProjectEndDate { get; set; }
+        public Guid ReporterId { get; set; }
+        public string ReporterName { get; set; } = string.Empty;
+        public string ReporterRole { get; set; } = string.Empty;
+        public string ReportType { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? DisputeType { get; set; }
+        public string? DesiredResolution { get; set; }
+        public string? EvidenceUrl { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
     }
 }

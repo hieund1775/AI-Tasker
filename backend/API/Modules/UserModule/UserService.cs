@@ -314,6 +314,7 @@ public class UserService : IUserService
         }).ToList();
 
         var projects = await _context.Projects
+            .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
             .Where(p => p.ClientId == userGuid || p.ExpertId == userGuid)
             .Select(p => new DTOs.UserProjectDto
             {
@@ -325,7 +326,10 @@ public class UserService : IUserService
                 Status = p.Status,
                 StartDate = p.StartDate,
                 EndDate = p.EndDate,
-                ProjectLink = p.ProjectLink
+                ProjectLink = p.ProjectLink,
+                Title = p.JobPost != null ? p.JobPost.Title : string.Empty,
+                Budget = p.JobPost != null ? p.JobPost.Budget : 0,
+                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null
             })
             .ToListAsync();
 

@@ -18,7 +18,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? deadlineDays);
         Task<bool> DeleteTaskAsync(Guid taskId);
         Task<bool> DeleteMiniTaskAsync(Guid miniTaskId);
-        Task<Task?> SubmitTaskForReviewAsync(Guid taskId);
+        Task<Task?> SubmitTaskForReviewAsync(Guid taskId, string? notes = null);
         Task<Task?> ReviewTaskAsync(Guid taskId, bool approve, string? feedbackContent, Guid feedbackSenderId);
         Task<Project?> CreateProjectFromProposalAsync(Guid proposalId);
 

@@ -610,12 +610,6 @@ public class JobPostService : IJobPostService
             throw new Exception("Chuyên gia chưa thiết lập hồ sơ (Profile). Vui lòng cập nhật hồ sơ trước khi nhận gợi ý.");
         }
 
-        bool hasActiveProject = await _context.Projects.AnyAsync(p => p.ExpertId == expertId && (p.Status == "In Progress" || p.Status == "under_review"));
-        if (hasActiveProject)
-        {
-            throw new Exception("Chuyên gia đang có dự án chưa hoàn thành. Không thể nhận thêm gợi ý dự án mới.");
-        }
-
         var expertSkills = profile.ExpertProfileSkills
             .Select(eps => eps.Skill?.Name ?? string.Empty)
             .Where(name => !string.IsNullOrEmpty(name))
@@ -635,12 +629,26 @@ public class JobPostService : IJobPostService
 
         var expertBioWords = TokenizeText(profile.JobTitle + " " + profile.Major + " " + profile.Bio);
 
-        // 2. Fetch open Job Posts
+        // Fetch IDs of JobPosts that are already converted to Projects (đã có người nhận)
+        var awardedJobPostIds = await _context.Projects
+            .Where(p => p.JobPostId != null)
+            .Select(p => p.JobPostId!.Value)
+            .ToListAsync();
+
+        // Fetch IDs of JobPosts that this expert has already applied for
+        var appliedJobPostIds = await _context.Proposals
+            .Where(p => p.ExpertId == expertId)
+            .Select(p => p.JobPostId)
+            .ToListAsync();
+
+        var excludedJobPostIds = awardedJobPostIds.Union(appliedJobPostIds).ToList();
+
+        // 2. Fetch open Job Posts, excluding those already awarded or applied
         var openJobPosts = await _context.JobPosts
             .Include(j => j.JobPostSkills).ThenInclude(js => js.Skill)
             .Include(j => j.Domain)
             .Include(j => j.Specialization)
-            .Where(j => j.Status == "Open")
+            .Where(j => j.Status == "Open" && !excludedJobPostIds.Contains(j.Id))
             .ToListAsync();
 
         if (!openJobPosts.Any())

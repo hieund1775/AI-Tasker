@@ -21,7 +21,7 @@ namespace AITasker_Modular.Modules.DisputeModule
             _projectService = projectService;
         }
 
-        public async Task<Guid> SubmitProjectReportAsync(Guid projectId, Guid reporterId, string reason, string? evidenceUrl)
+        public async Task<Guid> SubmitProjectReportAsync(Guid projectId, Guid reporterId, string reason, string? evidenceUrl, string reporterRole, string reportType, string description, string disputeType, string desiredResolution)
         {
             var projectExists = await _context.Projects.AnyAsync(x => x.Id == projectId);
             if (!projectExists) throw new KeyNotFoundException("Không tìm thấy dự án tương ứng để khiếu nại.");
@@ -33,6 +33,11 @@ namespace AITasker_Modular.Modules.DisputeModule
                 ReporterId = reporterId,
                 Reason = reason,
                 EvidenceUrl = evidenceUrl,
+                ReporterRole = reporterRole,
+                ReportType = reportType,
+                Description = description,
+                DisputeType = disputeType,
+                DesiredResolution = desiredResolution,
                 CreatedAt = DateTime.UtcNow,
                 Status = "Pending",
                 HandlerStaffId = null
@@ -43,14 +48,35 @@ namespace AITasker_Modular.Modules.DisputeModule
             return report.Id;
         }
 
-        public async Task<List<Report>> GetSharedReportsQueueAsync(Guid staffId)
+        public async Task<List<ReportDto>> GetSharedReportsQueueAsync(Guid staffId)
         {
             var isStaff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
             if (!isStaff) throw new UnauthorizedAccessException("Cổng thông tin này chỉ dành riêng cho Staff đang hoạt động.");
 
             return await _context.Reports
+                .Include(r => r.Project).ThenInclude(p => p!.JobPost)
+                .Include(r => r.Reporter)
                 .Where(r => r.Status == "Pending")
                 .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new ReportDto
+                {
+                    Id = r.Id,
+                    ProjectId = r.ProjectId,
+                    ProjectTitle = r.Project != null && r.Project.JobPost != null ? r.Project.JobPost.Title : string.Empty,
+                    ProjectStartDate = r.Project != null ? r.Project.StartDate : null,
+                    ProjectEndDate = r.Project != null ? r.Project.EndDate : null,
+                    ReporterId = r.ReporterId,
+                    ReporterName = r.Reporter != null ? r.Reporter.FullName : string.Empty,
+                    ReporterRole = r.ReporterRole,
+                    ReportType = r.ReportType,
+                    Reason = r.Reason,
+                    Description = r.Description,
+                    DisputeType = r.DisputeType,
+                    DesiredResolution = r.DesiredResolution,
+                    EvidenceUrl = r.EvidenceUrl,
+                    Status = r.Status,
+                    CreatedAt = r.CreatedAt
+                })
                 .ToListAsync();
         }
 

@@ -146,8 +146,8 @@ public class ProjectService : IProjectService
     // ===================================================================================
     // KHỚP NỐI CHÍNH XÁC KIỂU TRẢ VỀ CỦA INTERFACE ĐỂ BUILD THÀNH CÔNG THẦN TỐC
     // ===================================================================================
-    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects.Where(p => p.ClientId == clientId).ToListAsync();
-    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects.Where(p => p.ExpertId == expertId).ToListAsync();
+    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects.Include(p => p.JobPost).ThenInclude(jp => jp!.Domain).Where(p => p.ClientId == clientId).ToListAsync();
+    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects.Include(p => p.JobPost).ThenInclude(jp => jp!.Domain).Where(p => p.ExpertId == expertId).ToListAsync();
     public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status) => null;
     public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink)
     {
@@ -173,12 +173,16 @@ public class ProjectService : IProjectService
         return true;
     }
     
-    public async Task<ProjectTask?> SubmitTaskForReviewAsync(Guid taskId)
+    public async Task<ProjectTask?> SubmitTaskForReviewAsync(Guid taskId, string? notes = null)
     {
         var task = await _context.ProjectTasks.FirstOrDefaultAsync(t => t.Id == taskId);
         if (task == null) return null;
         
         task.Status = "Pending Approval";
+        if (notes != null)
+        {
+            task.Notes = notes;
+        }
         task.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         return task;
