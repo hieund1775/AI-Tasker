@@ -7,12 +7,24 @@ using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 
 namespace AITasker_Modular.Modules.ProjectModule;
 
-public class ProjectService : IProjectService
-{
-    private readonly DataContext _context;
-
-    public ProjectService(DataContext context)
+    public class ProjectService : IProjectService
     {
+        private readonly DataContext _context;
+
+        private class TaskDto
+        {
+            public string Title { get; set; } = string.Empty;
+            public List<MiniTaskDto> MiniTasks { get; set; } = new();
+        }
+
+        private class MiniTaskDto
+        {
+            public string Title { get; set; } = string.Empty;
+            public int Duration { get; set; }
+        }
+
+        public ProjectService(DataContext context)
+        {
         _context = context;
     }
 
@@ -146,8 +158,20 @@ public class ProjectService : IProjectService
     // ===================================================================================
     // KHỚP NỐI CHÍNH XÁC KIỂU TRẢ VỀ CỦA INTERFACE ĐỂ BUILD THÀNH CÔNG THẦN TỐC
     // ===================================================================================
-    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects.Include(p => p.JobPost).ThenInclude(jp => jp!.Domain).Where(p => p.ClientId == clientId).ToListAsync();
-    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects.Include(p => p.JobPost).ThenInclude(jp => jp!.Domain).Where(p => p.ExpertId == expertId).ToListAsync();
+    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects
+        .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
+        .Include(p => p.Client)
+        .Include(p => p.Expert)
+        .Include(p => p.Tasks).ThenInclude(t => t.MiniTasks)
+        .Include(p => p.ProjectSkills).ThenInclude(ps => ps.Skill)
+        .Where(p => p.ClientId == clientId).ToListAsync();
+    public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId) => await _context.Projects
+        .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
+        .Include(p => p.Client)
+        .Include(p => p.Expert)
+        .Include(p => p.Tasks).ThenInclude(t => t.MiniTasks)
+        .Include(p => p.ProjectSkills).ThenInclude(ps => ps.Skill)
+        .Where(p => p.ExpertId == expertId).ToListAsync();
     public async Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status) => null;
     public async Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink)
     {
@@ -162,6 +186,9 @@ public class ProjectService : IProjectService
     public async Task<Project?> GetProjectByIdAsync(Guid projectId) => await _context.Projects
         .Include(p => p.Tasks)
         .ThenInclude(t => t.MiniTasks)
+        .Include(p => p.Client)
+        .Include(p => p.Expert)
+        .Include(p => p.ProjectSkills).ThenInclude(ps => ps.Skill)
         .FirstOrDefaultAsync(p => p.Id == projectId);
         
     public async Task<bool> DeleteMiniTaskAsync(Guid miniTaskId)
@@ -244,11 +271,57 @@ public class ProjectService : IProjectService
         {
             foreach (var propTask in proposal.ProposalTasks)
             {
+                if (!string.IsNullOrWhiteSpace(propTask.Title) && propTask.Title.Trim().StartsWith("["))
+                {
+                    try
+                    {
+                        var taskDtos = System.Text.Json.JsonSerializer.Deserialize<List<TaskDto>>(propTask.Title);
+                        if (taskDtos != null)
+                        {
+                            foreach (var tDto in taskDtos)
+                            {
+                                var pt = new ProjectTask
+                                {
+                                    Id = Guid.NewGuid(),
+                                    ProjectId = project.Id,
+                                    Title = tDto.Title,
+                                    Status = "In Progress",
+                                    UpdatedAt = DateTime.UtcNow
+                                };
+                                _context.ProjectTasks.Add(pt);
+
+                                if (tDto.MiniTasks != null && tDto.MiniTasks.Any())
+                                {
+                                    foreach (var mDto in tDto.MiniTasks)
+                                    {
+                                        var mt = new MiniTask
+                                        {
+                                            Id = Guid.NewGuid(),
+                                            TaskId = pt.Id,
+                                            Title = mDto.Title,
+                                            IsCompleted = false,
+                                            CreatedAt = DateTime.UtcNow,
+                                            Deadline = DateTime.UtcNow.AddDays(mDto.Duration)
+                                        };
+                                        _context.MiniTasks.Add(mt);
+                                    }
+                                }
+                            }
+                            continue; // Skip the normal fallback creation
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback below if parsing fails
+                    }
+                }
+
+                // Normal creation / fallback
                 var projectTask = new ProjectTask
                 {
                     Id = Guid.NewGuid(),
                     ProjectId = project.Id,
-                    Title = propTask.Title,
+                    Title = propTask.Title ?? "Untitled Task",
                     Status = "In Progress",
                     UpdatedAt = DateTime.UtcNow
                 };
