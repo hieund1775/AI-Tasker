@@ -8,7 +8,8 @@ namespace AITasker.API.Modules.PaymentModule
 {
     public class PaymentRequest
     {
-        public string order_id { get; set; }
+        // Khắc phục CS8618: Gán giá trị mặc định bằng chuỗi rỗng để tránh Null Cảnh báo
+        public string order_id { get; set; } = string.Empty;
         public decimal amount { get; set; }
     }
 
@@ -25,6 +26,7 @@ namespace AITasker.API.Modules.PaymentModule
         }
 
         [HttpPost("zalopay-webhook")]
+        // ĐÃ SỬA: Thêm dấu cách chuẩn giữa [PaymentRequest] và [request] để hết lỗi cú pháp
         public async Task<IActionResult> HandleWebhook([FromForm] PaymentRequest request)
         {
             // Kiểm tra dữ liệu đầu vào

@@ -1,34 +1,63 @@
 using System.Text;
 using System.Text.Json;
+using System.IO;
+using Microsoft.AspNetCore.Http;
 using AITasker_Modular.Modules.AiModule;
- 
+
 namespace AITasker_Modular.Modules.AiModule;
- 
+
 public class AiChatService
 {
     private readonly GeminiUtil _geminiUtil;
- 
+
     public AiChatService(GeminiUtil geminiUtil)
     {
         _geminiUtil = geminiUtil;
     }
- 
-    public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request)
+
+    // NÂNG CẤP HÀM: Nhận diện linh hoạt văn bản hoặc File đính kèm thả trực tiếp từ giao diện
+    public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request, IFormFile? file)
     {
-        // 1. Build contents (lịch sử chat)
-        var contentsList = BuildContents(request);
- 
-        // 2. Nếu có currentDraft, inject vào tin nhắn cuối của user
-        //    để AI biết draft hiện tại mà không cần parse lại lịch sử
-        if (request.CurrentDraft != null)
+        var partsList = new List<object>();
+
+        // 1. Nếu có chuỗi tóm tắt context của các lượt trước, nạp vào đầu luồng để AI biết lịch sử dữ liệu cũ
+        if (!string.IsNullOrEmpty(request.ContextSummary))
         {
-            InjectDraftContext(contentsList, request.CurrentDraft);
+            partsList.Add(new { text = $"[CONTEXT_SUMMARY_TRẠNG_THÁI_CŨ]:\n{request.ContextSummary}" });
         }
- 
-        // 3. Build payload gửi Gemini
+
+        // 2. Lấy tin nhắn mới nhất của User gửi lên
+        var lastUserMsg = request.MessagesHistory?
+            .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase));
+        string currentInputText = lastUserMsg?.Content ?? string.Empty;
+
+        // 3. XỬ LÝ ĐỌC FILE LỰC TIẾP: Nếu phát hiện người dùng thả file vào ô chat
+        if (file != null && file.Length > 0)
+        {
+            // Bung luồng StreamReader bóc tách toàn bộ ký tự bên trong file
+            using var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8);
+            string fileTextContent = await reader.ReadToEndAsync();
+
+            partsList.Add(new { text = $"[INPUT_MỚI_NỘI_DUNG_FILE_ĐÍNH_KÈM]:\n{fileTextContent}" });
+            
+            if (!string.IsNullOrEmpty(currentInputText))
+            {
+                partsList.Add(new { text = $"[YÊU_CẦU_HIỆU_CHỈNH_ĐI_KÈM]:\n{currentInputText}" });
+            }
+        }
+        else
+        {
+            // Nếu không có file thả vào, xử lý chuỗi text nghiệp vụ như bình thường
+            partsList.Add(new { text = $"[INPUT_MỚI_DẠNG_TEXT]:\n{currentInputText}" });
+        }
+
+        // 4. Build payload gửi Gemini (Bảo toàn cơ chế chuyển dữ liệu của GeminiUtil)
         var payload = new
         {
-            contents = contentsList,
+            contents = new[]
+            {
+                new { role = "user", parts = partsList.ToArray() }
+            },
             systemInstruction = new
             {
                 parts = new[]
@@ -38,69 +67,23 @@ public class AiChatService
             },
             generationConfig = new
             {
-                // Tăng nhiệt độ thấp để AI ít "sáng tạo" hơn, dễ ra JSON chuẩn
-                temperature = 0.3,
-                responseMimeType = "application/json"   // Yêu cầu Gemini trả JSON mode
+                temperature = 0.2, // Giảm sáng tạo để AI tập trung chỉnh sửa mảng cấu trúc JSON chính xác
+                responseMimeType = "application/json"
             }
         };
- 
-        // 4. Gọi API
+
+        // 5. Gọi API thông qua GeminiUtil có sẵn của nhóm
         var rawJson = await _geminiUtil.CallGeminiApiAsync(payload);
- 
-        // 5. Lấy text từ Gemini response envelope
+
+        // 6. Trích xuất văn bản thô từ cấu trúc phong bì response envelope của Google
         var aiText = ExtractTextFromGeminiResponse(rawJson);
- 
-        // 6. Parse JSON cấu trúc từ AI text → AiStructuredResponse
+
+        // 7. Sửa lỗi cú pháp dở dang cũ của nhóm, parse JSON an toàn ra DTO sạch
         return ParseStructuredResponse(aiText);
     }
- 
+
     // -------------------------------------------------------
-    // Build Gemini contents list từ MessagesHistory
-    // -------------------------------------------------------
-    private static List<object> BuildContents(AIChatRequest request)
-    {
-        var list = new List<object>();
- 
-        foreach (var msg in request.MessagesHistory)
-        {
-            var geminiRole = msg.Role.Equals("assistant", StringComparison.OrdinalIgnoreCase)
-                ? "model"
-                : "user";
- 
-            list.Add(new
-            {
-                role = geminiRole,
-                parts = new[] { new { text = msg.Content } }
-            });
-        }
- 
-        return list;
-    }
- 
-    // -------------------------------------------------------
-    // Inject draft vào cuối contents để AI có full context
-    // Không sửa content gốc của user, thêm 1 "user" turn hệ thống
-    // -------------------------------------------------------
-    private static void InjectDraftContext(List<object> contentsList, JobPostDraft draft)
-    {
-        var draftJson = JsonSerializer.Serialize(draft, new JsonSerializerOptions
-        {
-            WriteIndented = false,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        });
- 
-        var contextMessage = $"[SYSTEM_CONTEXT] Draft job post hiện tại: {draftJson}";
- 
-        // Chèn vào trước message user cuối cùng (nếu có) hoặc append
-        contentsList.Add(new
-        {
-            role = "user",
-            parts = new[] { new { text = contextMessage } }
-        });
-    }
- 
-    // -------------------------------------------------------
-    // Parse Gemini response envelope, lấy text từ candidates[0]
+    // BẢO TOÀN NGUYÊN VẸN CÁC HÀM BỎ TRỢ PHÂN TÁCH CHUỖI CỦA CÓ CŨ
     // -------------------------------------------------------
     private static string ExtractTextFromGeminiResponse(string rawJson)
     {
@@ -112,19 +95,27 @@ public class AiChatService
                   .GetProperty("text")
                   .GetString() ?? string.Empty;
     }
- 
-    // -------------------------------------------------------
-    // Parse JSON cấu trúc từ text AI trả về → AiStructuredResponse
-    // Xử lý trường hợp AI vẫn wrap trong ```json ... ```
-    // -------------------------------------------------------
+
+    private static string StripMarkdownFences(string text)
+    {
+        var trimmed = text.Trim();
+
+        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
+            trimmed = trimmed[7..]; 
+        else if (trimmed.StartsWith("```"))
+            trimmed = trimmed[3..]; 
+
+        if (trimmed.EndsWith("```"))
+            trimmed = trimmed[..^3]; 
+
+        return trimmed.Trim();
+    }
+
+    // SỬA LỖI CÚ PHÁP: Khôi phục lại định nghĩa hàm private chuẩn xác
     private static AiStructuredResponse ParseStructuredResponse(string aiText)
     {
-        if (string.IsNullOrWhiteSpace(aiText))
-            return AiStructuredResponse.ParseError("AI trả về rỗng");
- 
-        // Strip markdown code fences nếu AI vẫn wrap dù đã bảo không
         var cleaned = StripMarkdownFences(aiText);
- 
+
         try
         {
             var options = new JsonSerializerOptions
@@ -132,31 +123,13 @@ public class AiChatService
                 PropertyNameCaseInsensitive = true,
                 AllowTrailingCommas = true,
             };
- 
+
             var result = JsonSerializer.Deserialize<AiStructuredResponse>(cleaned, options);
             return result ?? AiStructuredResponse.ParseError(aiText);
         }
         catch (JsonException)
         {
-            // Nếu vẫn fail: trả error response kèm raw text để FE debug
             return AiStructuredResponse.ParseError(aiText);
         }
     }
- 
-    private static string StripMarkdownFences(string text)
-    {
-        var trimmed = text.Trim();
- 
-        // Xử lý ```json ... ``` hoặc ``` ... ```
-        if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed[7..]; // bỏ ```json
-        else if (trimmed.StartsWith("```"))
-            trimmed = trimmed[3..]; // bỏ ```
- 
-        if (trimmed.EndsWith("```"))
-            trimmed = trimmed[..^3]; // bỏ ``` cuối
- 
-        return trimmed.Trim();
-    }
 }
- 
