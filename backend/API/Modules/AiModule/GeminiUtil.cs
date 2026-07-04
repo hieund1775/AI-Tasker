@@ -11,29 +11,56 @@ public class GeminiUtil
     private readonly HttpClient _httpClient;
     private readonly string _apiKey;
 
-    // Model flash cho nhanh, hoặc đổi thành gemini-1.5-pro nếu cần chính xác hơn
+    // Su dung dong model gemini-2.5-flash de xu ly context dai cuc muot va phan hoi nhanh
     private const string GeminiBaseUrl =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-
-    private const string DefaultApiKey = "gen-lang-client-0551836681";
-
-    private static readonly JsonSerializerOptions SerializeOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-    };
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
     public GeminiUtil(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-        _apiKey = configuration["Gemini:ApiKey"] ?? DefaultApiKey;
+
+        // Doc API Key tu appsettings.json (section "Gemini:ApiKey") hoac bien moi truong GEMINI_API_KEY
+        _apiKey = configuration["Gemini:ApiKey"]
+            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+            ?? throw new InvalidOperationException(
+                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey) hoac bien moi truong GEMINI_API_KEY.");
     }
 
+    // Goi Gemini API voi payload contents thuan tuy, khong ep JSON schema (dung cho cac tac vu tu do)
     public async Task<string> CallGeminiApiAsync(object payload)
+    {
+        return await SendRequestAsync(payload);
+    }
+
+    // Goi Gemini API co system instruction rieng + ep buoc tra ve dung JSON (application/json)
+    // Day la ham nen dung cho AiChatService de dam bao Gemini KHONG BAO GIO tra loi bang van ban tu do
+    public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
+    {
+        var payload = new
+        {
+            systemInstruction = new
+            {
+                parts = new[] { new { text = systemInstructionText } }
+            },
+            contents = contents,
+            generationConfig = new
+            {
+                responseMimeType = "application/json"
+            }
+        };
+
+        return await SendRequestAsync(payload);
+    }
+
+    private async Task<string> SendRequestAsync(object payload)
     {
         var requestUrl = $"{GeminiBaseUrl}?key={_apiKey}";
 
-        var json = JsonSerializer.Serialize(payload, SerializeOptions);
+        var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
 
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUrl)
         {
@@ -41,14 +68,13 @@ public class GeminiUtil
         };
 
         var response = await _httpClient.SendAsync(httpRequest);
+        var responseBody = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
-            var errorBody = await response.Content.ReadAsStringAsync();
-            throw new HttpRequestException(
-                $"Gemini API Error [{response.StatusCode}]: {errorBody}");
+            throw new HttpRequestException($"Gemini API Error [{response.StatusCode}]: {responseBody}");
         }
 
-        return await response.Content.ReadAsStringAsync();
+        return responseBody;
     }
 }

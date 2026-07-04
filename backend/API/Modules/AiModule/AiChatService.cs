@@ -1,89 +1,140 @@
 using System.Text;
 using System.Text.Json;
-using System.IO;
 using Microsoft.AspNetCore.Http;
 using AITasker_Modular.Modules.AiModule;
+using NPOI.XWPF.UserModel;
 
 namespace AITasker_Modular.Modules.AiModule;
 
 public class AiChatService
 {
     private readonly GeminiUtil _geminiUtil;
+    private readonly IWebHostEnvironment _env;
 
-    public AiChatService(GeminiUtil geminiUtil)
+    // Cache system prompt trong bo nho, chi doc file 1 lan duy nhat luc can (lazy init, thread-safe)
+    private static string? _cachedSystemPrompt;
+    private static readonly object _cacheLock = new();
+
+    public AiChatService(GeminiUtil geminiUtil, IWebHostEnvironment env)
     {
         _geminiUtil = geminiUtil;
+        _env = env;
     }
 
-    // NÂNG CẤP HÀM: Nhận diện linh hoạt văn bản hoặc File đính kèm thả trực tiếp từ giao diện
-    public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request, IFormFile? file)
+    // Xu ly mot luot chat: nhan van ban nguoi dung nhap + (tuy chon) file da upload san tren server
+    public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request)
     {
+        var systemPrompt = GetSystemPrompt();
         var partsList = new List<object>();
 
-        // 1. Nếu có chuỗi tóm tắt context của các lượt trước, nạp vào đầu luồng để AI biết lịch sử dữ liệu cũ
+        // 1. Neu co chuoi tom tat context (danh sach User Story hien tai) cua cac luot truoc,
+        //    nap vao dau luong de AI biet ma sua/them/xoa, khong tao moi hoan toan
         if (!string.IsNullOrEmpty(request.ContextSummary))
         {
-            partsList.Add(new { text = $"[CONTEXT_SUMMARY_TRẠNG_THÁI_CŨ]:\n{request.ContextSummary}" });
+            partsList.Add(new { text = $"[CONTEXT_SUMMARY_TRANG_THAI_CU]:\n{request.ContextSummary}" });
         }
 
-        // 2. Lấy tin nhắn mới nhất của User gửi lên
+        // 2. Lay tin nhan moi nhat cua User (Expert) gui len
         var lastUserMsg = request.MessagesHistory?
             .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase));
         string currentInputText = lastUserMsg?.Content ?? string.Empty;
 
-        // 3. XỬ LÝ ĐỌC FILE LỰC TIẾP: Nếu phát hiện người dùng thả file vào ô chat
-        if (file != null && file.Length > 0)
+        // 3. Neu co file_path (Expert da keo-tha file kem theo), doc noi dung file do va nap vao luong
+        if (!string.IsNullOrEmpty(request.FilePath))
         {
-            // Bung luồng StreamReader bóc tách toàn bộ ký tự bên trong file
-            using var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8);
-            string fileTextContent = await reader.ReadToEndAsync();
-
-            partsList.Add(new { text = $"[INPUT_MỚI_NỘI_DUNG_FILE_ĐÍNH_KÈM]:\n{fileTextContent}" });
-            
-            if (!string.IsNullOrEmpty(currentInputText))
+            string fileTextContent;
+            try
             {
-                partsList.Add(new { text = $"[YÊU_CẦU_HIỆU_CHỈNH_ĐI_KÈM]:\n{currentInputText}" });
+                fileTextContent = ReadTextFromFile(request.FilePath);
             }
-        }
-        else
-        {
-            // Nếu không có file thả vào, xử lý chuỗi text nghiệp vụ như bình thường
-            partsList.Add(new { text = $"[INPUT_MỚI_DẠNG_TEXT]:\n{currentInputText}" });
+            catch (Exception ex)
+            {
+                fileTextContent = $"[LOI DOC FILE: {ex.Message}]";
+            }
+
+            partsList.Add(new { text = $"[NOI_DUNG_FILE_DINH_KEM]:\n{fileTextContent}" });
         }
 
-        // 4. Build payload gửi Gemini (Bảo toàn cơ chế chuyển dữ liệu của GeminiUtil)
-        var payload = new
+        // 4. Them yeu cau van ban hien tai cua Expert (Use Case goc hoac yeu cau chinh sua)
+        if (!string.IsNullOrEmpty(currentInputText))
         {
-            contents = new[]
-            {
-                new { role = "user", parts = partsList.ToArray() }
-            },
-            systemInstruction = new
-            {
-                parts = new[]
-                {
-                    new { text = AiContraint.BuildSystemPrompt() }
-                }
-            },
-            generationConfig = new
-            {
-                temperature = 0.2, // Giảm sáng tạo để AI tập trung chỉnh sửa mảng cấu trúc JSON chính xác
-                responseMimeType = "application/json"
-            }
+            partsList.Add(new { text = $"[YEU_CAU_HIEN_TAI]:\n{currentInputText}" });
+        }
+
+        // 5. Goi Gemini voi system instruction rieng + ep buoc tra ve dung JSON schema
+        var contents = new object[]
+        {
+            new { role = "user", parts = partsList }
         };
 
-        // 5. Gọi API thông qua GeminiUtil có sẵn của nhóm
-        var rawJson = await _geminiUtil.CallGeminiApiAsync(payload);
+        var rawJson = await _geminiUtil.CallGeminiApiWithJsonModeAsync(systemPrompt, contents);
 
-        // 6. Trích xuất văn bản thô từ cấu trúc phong bì response envelope của Google
+        // 6. Trich xuat van ban tho tu cau truc phong bi response envelope cua Google
         var aiText = ExtractTextFromGeminiResponse(rawJson);
 
-        // 7. Sửa lỗi cú pháp dở dang cũ của nhóm, parse JSON an toàn ra DTO sạch
+        // 7. Parse JSON an toan ra DTO sach
         return ParseStructuredResponse(aiText);
     }
 
     // -------------------------------------------------------
-    // BẢO TOÀN NGUYÊN VẸN CÁC HÀM BỎ TRỢ PHÂN TÁCH CHUỖI CỦA CÓ CŨ
+    // DOC & CACHE FILE SYSTEM PROMPT (chi doc tu dia 1 lan)
+    // -------------------------------------------------------
+    private string GetSystemPrompt()
+    {
+        if (_cachedSystemPrompt != null) return _cachedSystemPrompt;
+
+        lock (_cacheLock)
+        {
+            if (_cachedSystemPrompt != null) return _cachedSystemPrompt;
+
+            var promptPath = Path.Combine(_env.ContentRootPath, "Modules", "AiModule", "Prompts", "ai-system-prompt.md");
+
+            if (!File.Exists(promptPath))
+                throw new FileNotFoundException($"Khong tim thay file system prompt tai: {promptPath}");
+
+            _cachedSystemPrompt = File.ReadAllText(promptPath, Encoding.UTF8);
+            return _cachedSystemPrompt;
+        }
+    }
+
+    // -------------------------------------------------------
+    // DOC FILE .docx / .txt TU DUONG DAN DA UPLOAD SAN
+    // -------------------------------------------------------
+    private string ReadTextFromFile(string relativePath)
+    {
+        var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
+        var fullPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
+
+        if (!fullPath.StartsWith(Path.GetFullPath(webRoot), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Duong dan file khong hop le.");
+
+        if (!File.Exists(fullPath))
+            throw new FileNotFoundException("Khong tim thay file tren server.", fullPath);
+
+        var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+
+        return ext switch
+        {
+            ".txt" => File.ReadAllText(fullPath, Encoding.UTF8),
+            ".docx" => ReadDocx(fullPath),
+            _ => throw new NotSupportedException($"Dinh dang file '{ext}' chua duoc ho tro. Chi ho tro .docx, .txt.")
+        };
+    }
+
+    private static string ReadDocx(string fullPath)
+    {
+        using var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+        var document = new XWPFDocument(fs);
+        var sb = new StringBuilder();
+        foreach (var para in document.Paragraphs)
+        {
+            sb.AppendLine(para.Text);
+        }
+        return sb.ToString();
+    }
+
+    // -------------------------------------------------------
+    // CAC HAM BO TRO PHAN TICH RESPONSE CUA GEMINI
     // -------------------------------------------------------
     private static string ExtractTextFromGeminiResponse(string rawJson)
     {
@@ -101,17 +152,16 @@ public class AiChatService
         var trimmed = text.Trim();
 
         if (trimmed.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-            trimmed = trimmed[7..]; 
+            trimmed = trimmed[7..];
         else if (trimmed.StartsWith("```"))
-            trimmed = trimmed[3..]; 
+            trimmed = trimmed[3..];
 
         if (trimmed.EndsWith("```"))
-            trimmed = trimmed[..^3]; 
+            trimmed = trimmed[..^3];
 
         return trimmed.Trim();
     }
 
-    // SỬA LỖI CÚ PHÁP: Khôi phục lại định nghĩa hàm private chuẩn xác
     private static AiStructuredResponse ParseStructuredResponse(string aiText)
     {
         var cleaned = StripMarkdownFences(aiText);
