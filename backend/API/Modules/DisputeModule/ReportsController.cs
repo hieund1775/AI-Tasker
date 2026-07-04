@@ -26,6 +26,28 @@ public class ReportsController : ControllerBase
         _context = context;
     }
 
+    // =========================================================================
+    // THÊM MỚI ENDPOINT GET ĐỂ TRẢ VỀ ĐƠN HỦY (RẤT QUAN TRỌNG)
+    // =========================================================================
+    [HttpGet]
+    public async Task<IActionResult> GetReports([FromQuery] Guid? projectId)
+    {
+        if (projectId == null)
+        {
+            var allReports = await _context.Reports
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+            return Ok(allReports);
+        }
+
+        var reports = await _context.Reports
+            .Where(r => r.ProjectId == projectId)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        return Ok(reports);
+    }
+
     // Endpoint hỗ trợ dọn dẹp và reset dữ liệu test để đảm bảo tính lặp lại (Idempotency)
     [HttpPost("reset-test-data")]
     public async Task<IActionResult> ResetTestData()

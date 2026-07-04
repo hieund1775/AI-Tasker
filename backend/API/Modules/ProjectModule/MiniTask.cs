@@ -19,6 +19,12 @@ public class MiniTask
     public DateTime CreatedAt { get; set; }
     public DateTime? Deadline { get; set; }
 
+    // =========================================================================
+    // THÊM MỚI 2 THUỘC TÍNH NÀY:
+    // =========================================================================
+    public string? ProductLink { get; set; }
+    public string? ProductFile { get; set; }
+
     [JsonIgnore]
     public Task? Task { get; set; }
     public ApplicationUser? FeedbackSender { get; set; }

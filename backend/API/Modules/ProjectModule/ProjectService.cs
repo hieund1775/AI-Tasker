@@ -28,10 +28,15 @@ namespace AITasker_Modular.Modules.ProjectModule;
         _context = context;
     }
 
-    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? deadlineDays)
+    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, string? title, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? deadlineDays, string? productLink, string? productFile)
     {
         var miniTask = await _context.MiniTasks.FirstOrDefaultAsync(x => x.Id == miniTaskId);
         if (miniTask == null) return null;
+
+        if (!string.IsNullOrEmpty(title))
+        {
+            miniTask.Title = title;
+        }
 
         miniTask.IsCompleted = isCompleted;
         if (feedbackContent != null)
@@ -44,6 +49,9 @@ namespace AITasker_Modular.Modules.ProjectModule;
         {
             miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
         }
+
+        miniTask.ProductLink = productLink;
+        miniTask.ProductFile = productFile;
 
         await _context.SaveChangesAsync();
         return miniTask;

@@ -50,8 +50,12 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<List<ReportDto>> GetSharedReportsQueueAsync(Guid staffId)
         {
-            var isStaff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
-            if (!isStaff) throw new UnauthorizedAccessException("Cổng thông tin này chỉ dành riêng cho Staff đang hoạt động.");
+            // CẬP NHẬT ĐIỀU KIỆN KIỂM TRA ROLE (CHẤP NHẬN CẢ STAFF, ADMIN VÀ OWNER):
+            var isValidRole = await _context.Users.AnyAsync(x => 
+                x.Id == staffId && 
+                (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin" || x.Role.ToLower() == "owner") && 
+                x.Status == "Active");
+            if (!isValidRole) throw new UnauthorizedAccessException("Cổng thông tin này chỉ dành riêng cho Ban quản trị đang hoạt động.");
 
             return await _context.Reports
                 .Include(r => r.Project).ThenInclude(p => p!.JobPost)

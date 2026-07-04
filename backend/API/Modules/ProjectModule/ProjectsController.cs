@@ -107,7 +107,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                     FeedbackContent = mt.FeedbackContent,
                     FeedbackSenderId = mt.FeedbackSenderId,
                     CreatedAt = mt.CreatedAt,
-                    Deadline = mt.Deadline
+                    Deadline = mt.Deadline,
+                    ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                    ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                 }).ToList()
             }).ToList();
             
@@ -202,7 +204,15 @@ namespace AITasker_Modular.Modules.ProjectModule
         [HttpPut("minitasks/{miniTaskId:guid}")]
         public async Task<IActionResult> UpdateMiniTask(Guid miniTaskId, [FromBody] DTOs.UpdateMiniTaskDto dto)
         {
-            var result = await _projectService.UpdateMiniTaskAsync(miniTaskId, dto.IsCompleted, dto.FeedbackContent, dto.FeedbackSenderId, dto.DeadlineDays);
+            var result = await _projectService.UpdateMiniTaskAsync(
+                miniTaskId, 
+                dto.Title, 
+                dto.IsCompleted, 
+                dto.FeedbackContent, 
+                dto.FeedbackSenderId, 
+                dto.DeadlineDays, 
+                dto.ProductLink, 
+                dto.ProductFile);
             if (result == null) return NotFound("Không tìm thấy mini-task tương ứng.");
             return Ok(result);
         }
@@ -264,7 +274,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                         FeedbackContent = mt.FeedbackContent,
                         FeedbackSenderId = mt.FeedbackSenderId,
                         CreatedAt = mt.CreatedAt,
-                        Deadline = mt.Deadline
+                        Deadline = mt.Deadline,
+                        ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                        ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                     }).ToList()
                 }).ToList()
             };
@@ -313,7 +325,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                         FeedbackContent = mt.FeedbackContent,
                         FeedbackSenderId = mt.FeedbackSenderId,
                         CreatedAt = mt.CreatedAt,
-                        Deadline = mt.Deadline
+                        Deadline = mt.Deadline,
+                        ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                        ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                     }).ToList()
                 }).ToList()
             };
