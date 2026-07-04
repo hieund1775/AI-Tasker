@@ -1,33 +1,28 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
+using System.Threading.Tasks;
+using AITasker_Modular.Modules.AiModule;
 
-namespace AITasker_Modular.Modules.AiModule;
-
-[ApiController]
-[Route("api/[controller]")]
-public class AiChatController : ControllerBase
+namespace API.Modules.AiModule
 {
-    private readonly AiChatService _aiChatService;
-
-    public AiChatController(AiChatService aiChatService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class AiChatController : ControllerBase
     {
-        _aiChatService = aiChatService;
-    }
+        private readonly AiChatService _aiChatService;
 
-    [HttpPost("send-session")]
-    public async Task<IActionResult> SendSession([FromForm] AIChatRequest request, IFormFile? file)
-    {
-        if (request.MessagesHistory == null || request.MessagesHistory.Count == 0)
-            return BadRequest(new { error = "Lịch sử phiên chat trống." });
-
-        try
+        public AiChatController(AiChatService aiChatService)
         {
-            var structured = await _aiChatService.ProcessChatSessionAsync(request, file);
-            return Ok(structured);
+            _aiChatService = aiChatService;
         }
-        catch (Exception ex)
+
+        [HttpPost("send-session")]
+        public async Task<IActionResult> SendSession([FromBody] AIChatRequest request)
         {
-            return StatusCode(500, new { error = $"Lỗi xử lý AI: {ex.Message}" });
+            if (request == null)
+                return BadRequest(new { error = "Request body khong hop le." });
+
+            var result = await _aiChatService.ProcessChatSessionAsync(request);
+            return Ok(result);
         }
     }
 }

@@ -7,20 +7,25 @@ public class AIChatRequest
     [JsonPropertyName("messages_history")]
     public List<AIMessageDto> MessagesHistory { get; set; } = new();
 
-    // Hộp chứa chuỗi tóm tắt ngữ cảnh cũ do FE lưu trữ và gửi ngược lên
+    // Chuoi tom tat ngu canh cu do FE luu tru va gui nguoc len
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 
-    // Giữ lại để không lỗi code FrontEnd cũ
+    // Giu lai de khong loi code FrontEnd cu
     [JsonPropertyName("current_draft")]
     public object? CurrentDraft { get; set; }
+
+    // Duong dan tuong doi cua file da upload san qua /api/FileUpload/upload
+    // Vi du: "uploads/chat-files/abc123.docx"
+    [JsonPropertyName("file_path")]
+    public string? FilePath { get; set; }
 }
 
 public class AIMessageDto
 {
     [JsonPropertyName("role")]
     public string Role { get; set; } = string.Empty; // "user" | "assistant"
-    
+
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
 }
@@ -33,11 +38,11 @@ public class AiStructuredResponse
     [JsonPropertyName("chat_message")]
     public string ChatMessage { get; set; } = string.Empty;
 
-    // ĐỐI TƯỢNG ĐỘNG: Chứa bất kỳ cấu trúc JSON nào (Hợp đồng, Use Case, User Story...) dựa trên đề bài mới nhất
+    // Chua bat ky cau truc JSON nao (Hop dong, Use Case, User Story...) dua tren de bai moi nhat
     [JsonPropertyName("payload")]
     public object? Payload { get; set; }
 
-    // Trả chuỗi tóm tắt context mới về cho FE lưu trữ để phục vụ lượt gọi sau
+    // Tra chuoi tom tat context moi ve cho FE luu tru de phuc vu luot goi sau
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 
@@ -50,7 +55,7 @@ public class AiStructuredResponse
     public static AiStructuredResponse ParseError(string rawText) => new()
     {
         Intent = "error",
-        ChatMessage = "Hệ thống AI không thể đồng bộ hóa cấu trúc dữ liệu động. Vui lòng gửi lại câu lệnh.",
-        ValidationErrors = new List<string> { $"Lỗi cấu trúc dữ liệu: {rawText[..Math.Min(rawText.Length, 40)]}" }
+        ChatMessage = "He thong AI khong the dong bo hoa cau truc du lieu dong. Vui long gui lai cau lenh.",
+        ValidationErrors = new List<string> { $"Loi cau truc du lieu: {rawText[..Math.Min(rawText.Length, 40)]}" }
     };
 }
