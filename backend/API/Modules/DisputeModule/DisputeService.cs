@@ -21,7 +21,7 @@ namespace AITasker_Modular.Modules.DisputeModule
             _projectService = projectService;
         }
 
-        public async Task<Guid> SubmitProjectReportAsync(Guid projectId, Guid reporterId, string reason, string? evidenceUrl, string reporterRole, string reportType, string description, string disputeType, string desiredResolution)
+        public async Task<Guid> SubmitProjectReportAsync(Guid projectId, Guid reporterId, string reason, string? evidenceUrl, string? reporterRole, string? reportType, string? description, string? disputeType, string? desiredResolution)
         {
             var projectExists = await _context.Projects.AnyAsync(x => x.Id == projectId);
             if (!projectExists) throw new KeyNotFoundException("Không tìm thấy dự án tương ứng để khiếu nại.");
@@ -33,8 +33,8 @@ namespace AITasker_Modular.Modules.DisputeModule
                 ReporterId = reporterId,
                 Reason = reason,
                 EvidenceUrl = evidenceUrl,
-                ReporterRole = reporterRole,
-                ReportType = reportType,
+                ReporterRole = reporterRole ?? string.Empty,
+                ReportType = reportType ?? string.Empty,
                 Description = description,
                 DisputeType = disputeType,
                 DesiredResolution = desiredResolution,
@@ -86,7 +86,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> TriggerProjectDisputeLockAsync(Guid projectId, string reason, Guid staffId)
         {
-            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
+            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
             if (!staff) throw new UnauthorizedAccessException("Chỉ Staff vận hành có quyền kích hoạt lệnh đóng băng tài chính.");
 
             // TỰ THỰC THI THAY VÌ GỌI QUA PROJECTSERVICE
@@ -118,7 +118,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> ExecuteDisputeVerdictAsync(Guid disputeId, string winnerRole, string verdictReason, Guid staffId)
         {
-            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && x.Role.ToLower() == "staff" && x.Status == "Active");
+            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
             if (!staff) throw new UnauthorizedAccessException("Chỉ Staff có quyền thực thi phán quyết tài chính.");
 
             var dispute = await _context.Disputes.FirstOrDefaultAsync(x => x.Id == disputeId);

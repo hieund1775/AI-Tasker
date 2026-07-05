@@ -19,7 +19,7 @@ namespace AITasker_Modular.Modules.DisputeModule
         public async Task<IActionResult> SubmitReport([FromBody] SubmitReportInputDto dto)
         {
             try {
-                var reportId = await _disputeService.SubmitProjectReportAsync(dto.ProjectId, dto.ReporterId, dto.ReportReason, dto.EvidenceUrl, dto.ReporterRole, dto.ReportType, dto.Description, dto.DisputeType, dto.DesiredResolution);
+                var reportId = await _disputeService.SubmitProjectReportAsync(dto.ProjectId, dto.ReporterId, dto.Reason, dto.EvidenceUrl, dto.ReporterRole, dto.ReportType, dto.Description, dto.DisputeType, dto.DesiredResolution);
                 return Ok(new { ReportId = reportId, Message = "Đơn khiếu nại của bạn đã được gửi tới Ban quản trị sàn." });
             } catch (Exception ex) { return BadRequest(ex.Message); }
         }
@@ -58,13 +58,13 @@ namespace AITasker_Modular.Modules.DisputeModule
     { 
         public Guid ProjectId { get; set; } 
         public Guid ReporterId { get; set; } 
-        public string ReportReason { get; set; } = string.Empty; 
+        public string Reason { get; set; } = string.Empty; 
         public string? EvidenceUrl { get; set; } 
-        public string ReporterRole { get; set; } = string.Empty;
-        public string ReportType { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public string DisputeType { get; set; } = string.Empty;
-        public string DesiredResolution { get; set; } = string.Empty;
+        public string? ReporterRole { get; set; }
+        public string? ReportType { get; set; }
+        public string? Description { get; set; }
+        public string? DisputeType { get; set; }
+        public string? DesiredResolution { get; set; }
     }
 
     public class ReportDto

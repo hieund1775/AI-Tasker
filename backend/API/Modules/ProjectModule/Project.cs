@@ -22,6 +22,8 @@ public class Project
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? ProjectLink { get; set; }
+    public string? ProjectFile { get; set; }      // Lưu tên file sản phẩm tổng do expert nộp
+    public string? DeclineReason { get; set; }     // Lưu lý do từ chối cuối cùng của Client
     public Guid? ConversationId { get; set; }
 
     public JobPost? JobPost { get; set; }
