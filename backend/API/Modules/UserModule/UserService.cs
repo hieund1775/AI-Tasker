@@ -371,7 +371,8 @@ public class UserService : IUserService
             return false;
 
         return user.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase) || 
-               user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+               user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase) ||
+               user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<bool> IsOwnerAsync(string userId)

@@ -198,9 +198,26 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
-        // Seed Test Users (Client & Expert)
+        // Seed Test Users (Client & Expert & Owner)
         var clientId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var expertId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var ownerId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+
+        if (!await db.Users.AnyAsync(u => u.Id == ownerId))
+        {
+            var testOwner = new ApplicationUser
+            {
+                Id = ownerId,
+                Email = "owner@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "Nguyễn Văn Owner",
+                Role = "Owner",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testOwner);
+            db.Wallets.Add(new Wallet { UserId = ownerId, Balance = 0m });
+        }
 
         if (!await db.Users.AnyAsync(u => u.Id == clientId))
         {

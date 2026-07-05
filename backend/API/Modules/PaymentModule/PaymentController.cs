@@ -10,6 +10,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using AITasker_Modular.Database;
 using AITasker_Modular.Modules.InteractionModule;
+using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Helpers;
 
 namespace AITasker.API.Modules.PaymentModule
 {
@@ -40,6 +42,7 @@ namespace AITasker.API.Modules.PaymentModule
         private readonly DataContext _context;
         private readonly IConfiguration _config;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly IUserService _userService;
 
         private string AppId  => _config["ZaloPay:AppId"]  ?? "2554";
         private string Key1   => _config["ZaloPay:Key1"]   ?? string.Empty;
@@ -47,11 +50,12 @@ namespace AITasker.API.Modules.PaymentModule
         private string CallbackUrl => _config["ZaloPay:CallbackUrl"] ?? string.Empty;
         private string ZaloPayCreateUrl => "https://sb-openapi.zalopay.vn/v2/create";
 
-        public PaymentController(DataContext context, IConfiguration config, IHttpClientFactory httpClientFactory)
+        public PaymentController(DataContext context, IConfiguration config, IHttpClientFactory httpClientFactory, IUserService userService)
         {
             _context = context;
             _config = config;
             _httpClientFactory = httpClientFactory;
+            _userService = userService;
         }
 
         /// <summary>
@@ -243,6 +247,10 @@ namespace AITasker.API.Modules.PaymentModule
         [HttpPost("dev/manual-deposit")]
         public async Task<IActionResult> ManualDeposit([FromBody] CreateZaloPayOrderRequest req)
         {
+            // Kiểm tra Token của Admin/Owner/Staff
+            var (requesterId, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
+            if (errorResult != null) return errorResult;
+
             if (req == null || req.UserId == Guid.Empty || req.Amount <= 0)
                 return BadRequest("UserId và Amount không hợp lệ.");
 
