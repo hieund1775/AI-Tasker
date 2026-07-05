@@ -13,6 +13,7 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
         public string? FeedbackContent { get; set; }
         public Guid? FeedbackSenderId { get; set; }
         public DateTime? Deadline { get; set; }
+        public string? Notes { get; set; }
         public ICollection<ProjectMiniTaskDto> MiniTasks { get; set; } = new List<ProjectMiniTaskDto>();
     }
 }

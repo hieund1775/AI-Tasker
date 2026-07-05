@@ -98,6 +98,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 FeedbackContent = t.FeedbackContent,
                 FeedbackSenderId = t.FeedbackSenderId,
                 Deadline = t.Deadline,
+                Notes = t.Notes,
                 MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
                 {
                     Id = mt.Id,
@@ -265,6 +266,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                     FeedbackContent = t.FeedbackContent,
                     FeedbackSenderId = t.FeedbackSenderId,
                     Deadline = t.Deadline,
+                    Notes = t.Notes,
                     MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
                     {
                         Id = mt.Id,
@@ -316,6 +318,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                     FeedbackContent = t.FeedbackContent,
                     FeedbackSenderId = t.FeedbackSenderId,
                     Deadline = t.Deadline,
+                    Notes = t.Notes,
                     MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
                     {
                         Id = mt.Id,
