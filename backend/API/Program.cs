@@ -98,10 +98,14 @@ builder.Services.AddScoped<IProposalService, ProposalService>();
 // --- TÍCH HỢP HỆ THỐNG QUẢN TRỊ ADMIN ĐỘC LẬP ---
 builder.Services.AddScoped<IAdminService, AdminService>();
 
+// --- ĐĂNG KÝ DISPUTE MODULE ---
+builder.Services.AddScoped<AITasker_Modular.Modules.DisputeModule.IDisputeService, AITasker_Modular.Modules.DisputeModule.DisputeService>();
+
 // --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
 builder.Services.AddScoped<IJobPostService, JobPostService>(); 
 
 // --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
+builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
 builder.Services.AddHttpClient<GeminiUtil>();
 builder.Services.AddScoped<AiChatService>(); 
 
