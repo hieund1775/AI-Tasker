@@ -26,6 +26,8 @@ namespace AITasker_Modular.Modules.DisputeModule
             var projectExists = await _context.Projects.AnyAsync(x => x.Id == projectId);
             if (!projectExists) throw new KeyNotFoundException("Không tìm thấy dự án tương ứng để khiếu nại.");
 
+            var isClient = (reporterRole ?? string.Empty).ToLower() == "client";
+
             var report = new Report
             {
                 Id = Guid.NewGuid(),
@@ -40,7 +42,21 @@ namespace AITasker_Modular.Modules.DisputeModule
                 DesiredResolution = desiredResolution,
                 CreatedAt = DateTime.UtcNow,
                 Status = "Pending",
-                HandlerStaffId = null
+                HandlerStaffId = null,
+                CurrentRoundClientSubmitted = isClient,
+                CurrentRoundExpertSubmitted = !isClient,
+                
+                ClientExplanation = isClient ? description : null,
+                ClientExplanationReason = isClient ? reason : null,
+                ClientExplanationDescription = isClient ? description : null,
+                ClientExplanationEvidence = isClient ? evidenceUrl : null,
+                ClientExplanationDesiredResolution = isClient ? desiredResolution : null,
+
+                ExpertExplanation = !isClient ? description : null,
+                ExpertExplanationReason = !isClient ? reason : null,
+                ExpertExplanationDescription = !isClient ? description : null,
+                ExpertExplanationEvidence = !isClient ? evidenceUrl : null,
+                ExpertExplanationDesiredResolution = !isClient ? desiredResolution : null
             };
 
             _context.Reports.Add(report);

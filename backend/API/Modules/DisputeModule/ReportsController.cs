@@ -14,6 +14,19 @@ public class InitiatorRespondRequest
     public string Reason { get; set; } = string.Empty; 
     public string? EvidenceFileName { get; set; } 
 }
+public class AdminAcceptReportRequest { public string? AdminNote { get; set; } }
+public class AdminRejectReportRequest { public string Reason { get; set; } = string.Empty; }
+public class PartnerSubmitResponseRequest
+{
+    public string Explanation { get; set; } = string.Empty;
+    public string? EvidenceUrl { get; set; }
+    public string? DesiredResolution { get; set; }
+}
+public class AdminRequestMoreEvidenceRequest
+{
+    public string Target { get; set; } = "both"; // "both" | "client" | "expert"
+    public string AdminNote { get; set; } = string.Empty;
+}
 
 [ApiController]
 [Route("api/[controller]")]
@@ -32,20 +45,33 @@ public class ReportsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetReports([FromQuery] Guid? projectId)
     {
-        if (projectId == null)
+        var query = _context.Reports
+            .Include(r => r.Project)
+                .ThenInclude(p => p!.JobPost)
+            .AsQueryable();
+
+        if (projectId != null)
         {
-            var allReports = await _context.Reports
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
-            return Ok(allReports);
+            query = query.Where(r => r.ProjectId == projectId);
         }
 
-        var reports = await _context.Reports
-            .Where(r => r.ProjectId == projectId)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync();
+        var reports = await query.OrderByDescending(r => r.CreatedAt).ToListAsync();
+        var dtos = reports.Select(MapToDetailDto).ToList();
+        return Ok(dtos);
+    }
 
-        return Ok(reports);
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetReportById(Guid id)
+    {
+        var report = await _context.Reports
+            .Include(r => r.Project)
+                .ThenInclude(p => p!.JobPost)
+            .FirstOrDefaultAsync(r => r.Id == id);
+
+        if (report == null)
+            return NotFound("Không tìm thấy đơn khiếu nại.");
+
+        return Ok(MapToDetailDto(report));
     }
 
     // Endpoint hỗ trợ dọn dẹp và reset dữ liệu test để đảm bảo tính lặp lại (Idempotency)
@@ -112,6 +138,27 @@ public class ReportsController : ControllerBase
         report.CreatedAt = DateTime.UtcNow;
         report.UpdatedAt = DateTime.UtcNow.AddDays(30);
 
+        var isClient = (report.ReporterRole ?? string.Empty).ToLower() == "client";
+        report.CurrentRoundClientSubmitted = isClient;
+        report.CurrentRoundExpertSubmitted = !isClient;
+        
+        if (isClient)
+        {
+            report.ClientExplanation = report.Description;
+            report.ClientExplanationReason = report.Reason;
+            report.ClientExplanationDescription = report.Description;
+            report.ClientExplanationEvidence = report.EvidenceUrl;
+            report.ClientExplanationDesiredResolution = report.DesiredResolution;
+        }
+        else
+        {
+            report.ExpertExplanation = report.Description;
+            report.ExpertExplanationReason = report.Reason;
+            report.ExpertExplanationDescription = report.Description;
+            report.ExpertExplanationEvidence = report.EvidenceUrl;
+            report.ExpertExplanationDesiredResolution = report.DesiredResolution;
+        }
+
         var project = await _context.Projects.FindAsync(report.ProjectId);
         if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
 
@@ -129,7 +176,15 @@ public class ReportsController : ControllerBase
 
         _context.Reports.Add(report);
         await _context.SaveChangesAsync();
-        return Ok(report);
+
+        // Load project and jobpost for DTO mapping
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(MapToDetailDto(report));
     }
 
     // API 2.2.2 (Phần 1): Admin duyệt đơn chuyển sang cho đối tác
@@ -143,7 +198,14 @@ public class ReportsController : ControllerBase
         report.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Admin đã duyệt đơn hủy. Chờ đối tác phản hồi." });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Admin đã duyệt đơn hủy. Chờ đối tác phản hồi.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.2 (Phần 2): Đối tác đồng ý hủy -> TÍCH HỢP KẾT SẮT VÀ NHẬT KÝ DÒNG TIỀN MỚI
@@ -205,7 +267,14 @@ public class ReportsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Hủy hợp đồng thành công. Tiền ký quỹ đã phân rã hoàn toàn về ví các bên và hệ thống.", Report = report });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Hủy hợp đồng thành công. Tiền ký quỹ đã phân rã hoàn toàn về ví các bên và hệ thống.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.3 (Phần 2): Đối tác từ chối hủy
@@ -220,7 +289,14 @@ public class ReportsController : ControllerBase
         report.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đối tác từ chối đề xuất hủy. Chuyển sang luồng thương lượng giải trình.", Report = report });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Đối tác từ chối đề xuất hủy. Chuyển sang luồng thương lượng giải trình.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.2 (Phần 2): Admin bác bỏ đơn hủy
@@ -241,7 +317,14 @@ public class ReportsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Admin đã bác bỏ đơn hủy. Dự án tiếp tục thực hiện.", Report = report });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Admin đã bác bỏ đơn hủy. Dự án tiếp tục thực hiện.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.4 (Phần 1): Người gửi đơn chấp nhận từ chối từ đối tác (Revert chạy tiếp dự án)
@@ -261,7 +344,14 @@ public class ReportsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đã rút đơn hủy hợp đồng. Dự án tiếp tục thực hiện.", Report = report });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Đã rút đơn hủy hợp đồng. Dự án tiếp tục thực hiện.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.4 (Phần 2): Người gửi đơn gửi phản hồi giải trình mới (Resubmit đơn hủy)
@@ -295,10 +385,240 @@ public class ReportsController : ControllerBase
         // Cập nhật thông tin bằng chứng mới và đổi trạng thái về Pending
         report.Reason = request.Reason;
         report.EvidenceUrl = request.EvidenceFileName;
-        report.Status = "Pending";
+        report.UpdatedAt = DateTime.UtcNow;
+
+        var isClient = (report.ReporterRole ?? string.Empty).ToLower() == "client";
+        report.CurrentRoundClientSubmitted = isClient;
+        report.CurrentRoundExpertSubmitted = !isClient;
+        
+        if (isClient)
+        {
+            report.ClientExplanation = request.Reason;
+            report.ClientExplanationEvidence = request.EvidenceFileName;
+        }
+        else
+        {
+            report.ExpertExplanation = request.Reason;
+            report.ExpertExplanationEvidence = request.EvidenceFileName;
+        }
+
+        if (report.CurrentRoundClientSubmitted && report.CurrentRoundExpertSubmitted)
+        {
+            report.Status = "Awaiting Both";
+        }
+        else
+        {
+            if (report.ReportType != "cancellation")
+            {
+                report.Status = !report.CurrentRoundExpertSubmitted ? "Awaiting Expert" : "Awaiting Client";
+            }
+            else
+            {
+                report.Status = "Pending";
+            }
+        }
+
+        await _context.SaveChangesAsync();
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Đã gửi phản hồi đàm phán giải trình mới. Đơn hủy chuyển về trạng thái chờ duyệt.", Report = MapToDetailDto(report) });
+    }
+
+    // BUG 3: PUT /api/Reports/{id}/admin-accept-report
+    [HttpPut("{id}/admin-accept-report")]
+    public async Task<IActionResult> AdminAcceptReport(Guid id, [FromBody] AdminAcceptReportRequest request)
+    {
+        var report = await _context.Reports.FindAsync(id);
+        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+
+        report.Status = (report.ReporterRole.ToLower() == "client") ? "Awaiting Expert" : "Awaiting Client";
+        report.ReplyDeadline = DateTime.UtcNow.AddDays(3);
+        report.AdminNote = request?.AdminNote;
+        report.UpdatedAt = DateTime.UtcNow;
+
+        var project = await _context.Projects.FindAsync(report.ProjectId);
+        if (project != null)
+        {
+            project.Status = "Disputed";
+        }
+
+        await _context.SaveChangesAsync();
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Admin đã chấp nhận báo cáo khiếu nại. Dự án đã chuyển sang trạng thái Disputed.", Report = MapToDetailDto(report) });
+    }
+
+    // BUG 3: PUT /api/Reports/{id}/admin-reject-report
+    [HttpPut("{id}/admin-reject-report")]
+    public async Task<IActionResult> AdminRejectReport(Guid id, [FromBody] AdminRejectReportRequest request)
+    {
+        var report = await _context.Reports.FindAsync(id);
+        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+
+        report.Status = "Rejected";
+        report.AdminNote = request.Reason;
+        report.UpdatedAt = DateTime.UtcNow;
+
+        var project = await _context.Projects.FindAsync(report.ProjectId);
+        if (project != null)
+        {
+            project.Status = "In Progress";
+        }
+
+        await _context.SaveChangesAsync();
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Admin đã bác bỏ đơn khiếu nại. Dự án tiếp tục bình thường.", Report = MapToDetailDto(report) });
+    }
+
+    // BUG 4: PUT /api/Reports/{id}/partner-submit-response
+    [HttpPut("{id}/partner-submit-response")]
+    public async Task<IActionResult> PartnerSubmitResponse(Guid id, [FromBody] PartnerSubmitResponseRequest request)
+    {
+        var report = await _context.Reports.FindAsync(id);
+        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+
+        if (report.ReporterRole.ToLower() == "client")
+        {
+            report.ExpertExplanation = request.Explanation;
+            report.ExpertExplanationEvidence = request.EvidenceUrl;
+            report.ExpertExplanationDesiredResolution = request.DesiredResolution;
+            report.CurrentRoundExpertSubmitted = true;
+        }
+        else
+        {
+            report.ClientExplanation = request.Explanation;
+            report.ClientExplanationEvidence = request.EvidenceUrl;
+            report.ClientExplanationDesiredResolution = request.DesiredResolution;
+            report.CurrentRoundClientSubmitted = true;
+        }
+
+        if (report.CurrentRoundClientSubmitted && report.CurrentRoundExpertSubmitted)
+        {
+            report.Status = "Awaiting Both";
+        }
+        else
+        {
+            report.Status = !report.CurrentRoundClientSubmitted ? "Awaiting Client" : "Awaiting Expert";
+        }
+
+        report.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Đã nộp phản hồi giải trình của đối tác.", Report = MapToDetailDto(report) });
+    }
+
+    // BUG 6: PUT /api/Reports/{id}/admin-request-more-evidence
+    [HttpPut("{id}/admin-request-more-evidence")]
+    public async Task<IActionResult> AdminRequestMoreEvidence(Guid id, [FromBody] AdminRequestMoreEvidenceRequest request)
+    {
+        var report = await _context.Reports.FindAsync(id);
+        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+
+        if (request.Target.ToLower() == "client")
+        {
+            report.CurrentRoundClientSubmitted = false;
+        }
+        else if (request.Target.ToLower() == "expert")
+        {
+            report.CurrentRoundExpertSubmitted = false;
+        }
+        else // both
+        {
+            report.CurrentRoundClientSubmitted = false;
+            report.CurrentRoundExpertSubmitted = false;
+        }
+
+        report.Status = "Awaiting Evidence";
+        report.ReplyDeadline = DateTime.UtcNow.AddHours(48);
+        report.AdminNote = request.AdminNote;
         report.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Đã gửi phản hồi đàm phán giải trình mới. Đơn hủy chuyển về trạng thái chờ duyệt.", Report = report });
+
+        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
+        if (report.Project != null)
+        {
+            await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
+        }
+
+        return Ok(new { Message = "Admin đã yêu cầu bổ sung bằng chứng.", Report = MapToDetailDto(report) });
+    }
+
+    private static ReportDetailDto MapToDetailDto(Report r)
+    {
+        object? historyObj = null;
+        if (!string.IsNullOrEmpty(r.HistoryLogsJson))
+        {
+            try
+            {
+                historyObj = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.List<object>>(r.HistoryLogsJson);
+            }
+            catch { }
+        }
+
+        return new ReportDetailDto
+        {
+            Id = r.Id,
+            ProjectId = r.ProjectId,
+            ReporterId = r.ReporterId,
+            ReporterRole = r.ReporterRole,
+            ReportType = r.ReportType,
+            Reason = r.Reason,
+            Description = r.Description,
+            DisputeType = r.DisputeType,
+            DesiredResolution = r.DesiredResolution,
+            EvidenceUrl = r.EvidenceUrl,
+            Status = r.Status,
+            EscrowRefundClient = r.EscrowRefundClient,
+            EscrowPayExpert = r.EscrowPayExpert,
+            PlatformFee = r.PlatformFee,
+            PartnerRejectionReason = r.PartnerRejectionReason,
+            PartnerExplanation = r.PartnerExplanation,
+            PartnerEvidenceUrl = r.PartnerEvidenceUrl,
+            AdminNote = r.AdminNote,
+            ClientExplanation = r.ClientExplanation,
+            ClientExplanationReason = r.ClientExplanationReason,
+            ClientExplanationDescription = r.ClientExplanationDescription,
+            ClientExplanationEvidence = r.ClientExplanationEvidence,
+            ClientExplanationDesiredResolution = r.ClientExplanationDesiredResolution,
+            ExpertExplanation = r.ExpertExplanation,
+            ExpertExplanationReason = r.ExpertExplanationReason,
+            ExpertExplanationDescription = r.ExpertExplanationDescription,
+            ExpertExplanationEvidence = r.ExpertExplanationEvidence,
+            ExpertExplanationDesiredResolution = r.ExpertExplanationDesiredResolution,
+            ReplyDeadline = r.ReplyDeadline,
+            CurrentRoundClientSubmitted = r.CurrentRoundClientSubmitted,
+            CurrentRoundExpertSubmitted = r.CurrentRoundExpertSubmitted,
+            ClientId = r.Project != null ? r.Project.ClientId : Guid.Empty,
+            ExpertId = r.Project != null ? r.Project.ExpertId : Guid.Empty,
+            ProjectTitle = r.Project != null && r.Project.JobPost != null ? r.Project.JobPost.Title : string.Empty,
+            ProjectDeadline = r.Project != null ? r.Project.EndDate : null,
+            ProjectStartDate = r.Project != null ? r.Project.StartDate : DateTime.MinValue,
+            HistoryLogs = historyObj,
+            CreatedAt = r.CreatedAt,
+            UpdatedAt = r.UpdatedAt
+        };
     }
 }

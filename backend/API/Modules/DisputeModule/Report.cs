@@ -31,6 +31,22 @@ namespace AITasker_Modular.Modules.DisputeModule
         public string? PartnerRejectionReason { get; set; }
         public string? PartnerExplanation { get; set; }
         public string? PartnerEvidenceUrl { get; set; }
+        
+        public string? ClientExplanation { get; set; }
+        public string? ClientExplanationReason { get; set; }
+        public string? ClientExplanationDescription { get; set; }
+        public string? ClientExplanationEvidence { get; set; }
+        public string? ClientExplanationDesiredResolution { get; set; }
+
+        public string? ExpertExplanation { get; set; }
+        public string? ExpertExplanationReason { get; set; }
+        public string? ExpertExplanationDescription { get; set; }
+        public string? ExpertExplanationEvidence { get; set; }
+        public string? ExpertExplanationDesiredResolution { get; set; }
+
+        public DateTime? ReplyDeadline { get; set; }
+        public bool CurrentRoundClientSubmitted { get; set; }
+        public bool CurrentRoundExpertSubmitted { get; set; }
 
         public string? AdminNote { get; set; }
         public string? HistoryLogsJson { get; set; } // Lưu vết các vòng đàm phán cũ bằng chuỗi JSON
