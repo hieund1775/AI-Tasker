@@ -21,6 +21,7 @@ public class PartnerSubmitResponseRequest
     public string Explanation { get; set; } = string.Empty;
     public string? EvidenceUrl { get; set; }
     public string? DesiredResolution { get; set; }
+    public Guid? UserId { get; set; }
 }
 public class AdminRequestMoreEvidenceRequest
 {
@@ -488,12 +489,52 @@ public class ReportsController : ControllerBase
 
     // BUG 4: PUT /api/Reports/{id}/partner-submit-response
     [HttpPut("{id}/partner-submit-response")]
-    public async Task<IActionResult> PartnerSubmitResponse(Guid id, [FromBody] PartnerSubmitResponseRequest request)
+    public async Task<IActionResult> PartnerSubmitResponse(Guid id, [FromQuery] Guid? userId, [FromBody] PartnerSubmitResponseRequest request)
     {
-        var report = await _context.Reports.FindAsync(id);
+        var report = await _context.Reports
+            .Include(r => r.Project)
+            .FirstOrDefaultAsync(r => r.Id == id);
+            
         if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
 
-        if (report.ReporterRole.ToLower() == "client")
+        // Determine the caller's role
+        string? callerRole = null;
+        Guid? effectiveUserId = userId ?? request.UserId;
+
+        if (effectiveUserId.HasValue)
+        {
+            var user = await _context.Users.FindAsync(effectiveUserId.Value);
+            if (user != null)
+            {
+                callerRole = user.Role;
+            }
+            else if (report.Project != null)
+            {
+                if (effectiveUserId.Value == report.Project.ClientId)
+                {
+                    callerRole = "client";
+                }
+                else if (effectiveUserId.Value == report.Project.ExpertId)
+                {
+                    callerRole = "expert";
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(callerRole))
+        {
+            // Fallback: assume the partner is calling (opposite of reporter)
+            callerRole = report.ReporterRole.Equals("client", StringComparison.OrdinalIgnoreCase) ? "expert" : "client";
+        }
+
+        if (callerRole.Equals("client", StringComparison.OrdinalIgnoreCase))
+        {
+            report.ClientExplanation = request.Explanation;
+            report.ClientExplanationEvidence = request.EvidenceUrl;
+            report.ClientExplanationDesiredResolution = request.DesiredResolution;
+            report.CurrentRoundClientSubmitted = true;
+        }
+        else if (callerRole.Equals("expert", StringComparison.OrdinalIgnoreCase))
         {
             report.ExpertExplanation = request.Explanation;
             report.ExpertExplanationEvidence = request.EvidenceUrl;
@@ -502,10 +543,7 @@ public class ReportsController : ControllerBase
         }
         else
         {
-            report.ClientExplanation = request.Explanation;
-            report.ClientExplanationEvidence = request.EvidenceUrl;
-            report.ClientExplanationDesiredResolution = request.DesiredResolution;
-            report.CurrentRoundClientSubmitted = true;
+            return BadRequest("Không xác định được vai trò của người gửi phản hồi.");
         }
 
         if (report.CurrentRoundClientSubmitted && report.CurrentRoundExpertSubmitted)
@@ -520,13 +558,12 @@ public class ReportsController : ControllerBase
         report.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        await _context.Entry(report).Reference(r => r.Project).LoadAsync();
         if (report.Project != null)
         {
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Đã nộp phản hồi giải trình của đối tác.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Đã nộp phản hồi giải trình.", Report = MapToDetailDto(report) });
     }
 
     // BUG 6: PUT /api/Reports/{id}/admin-request-more-evidence
