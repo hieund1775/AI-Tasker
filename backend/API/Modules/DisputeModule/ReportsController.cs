@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Database;
+using AITasker_Modular.Modules.InteractionModule;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -230,6 +231,7 @@ public class ReportsController : ControllerBase
             if (expertWallet != null)
             {
                 expertWallet.Balance += report.EscrowPayExpert;
+                expertWallet.TotalEarned += report.EscrowPayExpert;
             }
 
             // 2. Hoàn trả phần tiền còn lại (đã trừ phạt) về ví cho Client
@@ -237,6 +239,8 @@ public class ReportsController : ControllerBase
             if (clientWallet != null)
             {
                 clientWallet.Balance += report.EscrowRefundClient;
+                // Trừ EscrowBalance tương ứng của Client
+                clientWallet.EscrowBalance = Math.Max(0, clientWallet.EscrowBalance - totalBudget);
             }
 
             // Tính toán số tiền thực tế sàn thu được từ vụ hủy đơn này
@@ -263,6 +267,31 @@ public class ReportsController : ControllerBase
                 CreatedAt = DateTime.UtcNow
             };
             _context.SystemTransactionLogs.Add(log);
+
+            // [FIX 2.3.1] Ghi TransactionLog cho từng bên để hiện thị trong lịch sử giao dịch ví
+            // Giao dịch hoàn tiền Client (EscrowRefund)
+            _context.TransactionLogs.Add(new TransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                SourceWalletId = null,
+                DestinationWalletId = project.ClientId,
+                Amount = report.EscrowRefundClient,
+                Type = "EscrowRefund",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Giao dịch giải ngân Expert (ReleasePayment)
+            _context.TransactionLogs.Add(new TransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                SourceWalletId = project.ClientId,
+                DestinationWalletId = project.ExpertId,
+                Amount = report.EscrowPayExpert,
+                Type = "ReleasePayment",
+                CreatedAt = DateTime.UtcNow
+            });
 
             project.EscrowBalance = 0;
         }

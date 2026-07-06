@@ -168,7 +168,12 @@ namespace AITasker_Modular.Modules.DisputeModule
             var transaction = new InteractionModule.TransactionLog
             {
                 Id = Guid.NewGuid(),
-                Amount = moneyToTransfer
+                ProjectId = project.Id,
+                SourceWalletId = project.ClientId, // Tiền từ ký quỹ của Client
+                DestinationWalletId = targetWallet.UserId, // Chuyển về ví người thắng
+                Amount = moneyToTransfer,
+                Type = (winnerRole.ToLower() == "expert") ? "ReleasePayment" : "EscrowRefund",
+                CreatedAt = DateTime.UtcNow
             };
 
             _context.TransactionLogs.Add(transaction);
