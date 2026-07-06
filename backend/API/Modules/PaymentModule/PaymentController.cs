@@ -288,5 +288,43 @@ namespace AITasker.API.Modules.PaymentModule
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
             return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
         }
+
+        /// <summary>
+        /// [FIX] GET /api/payment/transactions?userId={guid}
+        /// Trả về lịch sử giao dịch kèm theo ProjectTitle để Frontend hiển thị trực tiếp.
+        /// </summary>
+        [HttpGet("transactions")]
+        public async Task<IActionResult> GetTransactions([FromQuery] Guid? userId)
+        {
+            var query = _context.TransactionLogs
+                .Include(t => t.Project)
+                    .ThenInclude(p => p != null ? p.JobPost : null)
+                .AsQueryable();
+
+            if (userId.HasValue)
+            {
+                query = query.Where(t =>
+                    t.SourceWalletId == userId.Value ||
+                    t.DestinationWalletId == userId.Value);
+            }
+
+            var logs = await query
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+
+            var result = logs.Select(t => new
+            {
+                t.Id,
+                t.ProjectId,
+                ProjectTitle = t.Project != null && t.Project.JobPost != null ? t.Project.JobPost.Title : null,
+                t.SourceWalletId,
+                t.DestinationWalletId,
+                t.Amount,
+                t.Type,
+                t.CreatedAt
+            });
+
+            return Ok(result);
+        }
     }
 }

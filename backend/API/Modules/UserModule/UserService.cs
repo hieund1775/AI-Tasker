@@ -343,7 +343,7 @@ public class UserService : IUserService
             AvatarUrl = user.AvatarUrl,
             CreatedAt = user.CreatedAt,
             PhoneNumber = user.PhoneNumber,
-            Wallet = wallet != null ? new DTOs.UserWalletDto { Balance = wallet.Balance } : null,
+            Wallet = wallet != null ? new DTOs.UserWalletDto { Balance = wallet.Balance, EscrowBalance = wallet.EscrowBalance, TotalEarned = wallet.TotalEarned } : null,
             ExpertProfile = profile != null ? new DTOs.UserExpertProfileDto
             {
                 JobTitle = profile.JobTitle,
