@@ -1,47 +1,341 @@
+using System;
+using System.Linq;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Helpers;
+using AITasker_Modular.Modules.ProjectModule.DTOs;
 
-namespace AITasker_Modular.Modules.ProjectModule;
-
-[ApiController]
-[Route("api/projects")]
-public class ProjectsController : ControllerBase
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    private readonly IProjectService _service;
-    private readonly IUserService _userService;
-
-    public ProjectsController(IProjectService service, IUserService userService)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class ProjectsController : ControllerBase
     {
-        _service = service;
-        _userService = userService;
-    }
+        private readonly IProjectService _projectService;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
-        if (errorResult != null)
-            return errorResult;
+        public ProjectsController(IProjectService projectService)
+        {
+            _projectService = projectService;
+        }
 
-        return Ok(await _service.GetProjectsAsync());
-    }
+        #region Project Endpoints
 
-    [HttpPost("progress")]
-    public async Task<IActionResult> Progress(string projectId, string status) // Changed Guid to string
-    {
-        try
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetById(Guid id, [FromQuery] string role = "expert")
         {
-            var project = await _service.UpdateProgressAsync(projectId, status);
-            return Ok(project);
+            var project = await _projectService.GetProjectByIdAsync(id);
+            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+
+            if (role?.Trim().ToLowerInvariant() == "client")
+            {
+                return Ok(MapToClientView(project));
+            }
+            return Ok(MapToExpertView(project));
         }
-        catch (ArgumentException ex)
+
+        [HttpGet("client/{clientId:guid}")]
+        public async Task<IActionResult> GetByClient(Guid clientId)
         {
-            return BadRequest(new { message = ex.Message });
+            var projects = await _projectService.GetProjectsByClientAsync(clientId);
+            var result = projects.Select(MapToClientView).ToList();
+            return Ok(result);
         }
-        catch (KeyNotFoundException ex)
+
+        [HttpGet("expert/{expertId:guid}")]
+        public async Task<IActionResult> GetByExpert(Guid expertId)
         {
-            return NotFound(new { message = ex.Message });
+            var projects = await _projectService.GetProjectsByExpertAsync(expertId);
+            var result = projects.Select(MapToExpertView).ToList();
+            return Ok(result);
         }
+
+        [HttpPut("{id:guid}/status")]
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
+        {
+            var result = await _projectService.UpdateProjectStatusAsync(id, status);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPost("{id:guid}/submit-work")]
+        public async Task<IActionResult> SubmitWork(Guid id, [FromBody] SubmitWorkDto dto)
+        {
+            if (dto == null || string.IsNullOrEmpty(dto.ProjectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
+            
+            var result = await _projectService.SubmitProjectLinkAsync(id, dto.ProjectLink);
+            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPost("proposal/{proposalId:guid}")]
+        public async Task<IActionResult> CreateProjectFromProposal(Guid proposalId)
+        {
+            try
+            {
+                var result = await _projectService.CreateProjectFromProposalAsync(proposalId);
+                if (result == null) return NotFound("Không tìm thấy hồ sơ đấu thầu tương ứng.");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("{projectId:guid}/tasks")]
+        public async Task<IActionResult> GetProjectTasks(Guid projectId)
+        {
+            var project = await _projectService.GetProjectByIdAsync(projectId);
+            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            
+            var tasks = project.Tasks.Select(t => new ExpertTaskDto
+            {
+                Id = t.Id,
+                ProjectId = t.ProjectId,
+                Title = t.Title,
+                Status = t.Status,
+                UpdatedAt = t.UpdatedAt,
+                FeedbackContent = t.FeedbackContent,
+                FeedbackSenderId = t.FeedbackSenderId,
+                Deadline = t.Deadline,
+                Notes = t.Notes,
+                MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
+                {
+                    Id = mt.Id,
+                    TaskId = mt.TaskId,
+                    Title = mt.Title,
+                    IsCompleted = mt.IsCompleted,
+                    FeedbackContent = mt.FeedbackContent,
+                    FeedbackSenderId = mt.FeedbackSenderId,
+                    CreatedAt = mt.CreatedAt,
+                    Deadline = mt.Deadline,
+                    ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                    ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
+                }).ToList()
+            }).ToList();
+            
+            return Ok(tasks);
+        }
+
+        #endregion
+
+        #region Task Endpoints
+
+        [HttpGet("tasks/{taskId:guid}")]
+        public async Task<IActionResult> GetTaskById(Guid taskId)
+        {
+            var result = await _projectService.GetTaskWithTimelineAsync(taskId);
+            if (result == null) return NotFound("Không tìm thấy task tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPost("{projectId:guid}/tasks")]
+        public async Task<IActionResult> CreateTask(Guid projectId, [FromBody] CreateTaskDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest("Tiêu đề task không được để trống.");
+
+            var result = await _projectService.CreateTaskAsync(projectId, dto.Title);
+            if (result == null)
+                return NotFound("Không tìm thấy dự án tương ứng.");
+
+            return CreatedAtAction(nameof(GetTaskById), new { taskId = result.Id }, result);
+        }
+
+        [HttpPut("tasks/{taskId:guid}/status")]
+        public async Task<IActionResult> UpdateTaskStatus(Guid taskId, [FromQuery] string status)
+        {
+            if (string.IsNullOrEmpty(status)) return BadRequest("Trạng thái không được để trống.");
+            var result = await _projectService.UpdateTaskStatusAsync(taskId, status);
+            if (result == null) return NotFound("Không tìm thấy task tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpPost("tasks/{taskId:guid}/submit")]
+        public async Task<IActionResult> SubmitTaskForReview(Guid taskId, [FromBody] SubmitTaskDto dto)
+        {
+            try
+            {
+                // Pass dto.Notes to save the submitted notes
+                var result = await _projectService.SubmitTaskForReviewAsync(taskId, dto?.Notes);
+                if (result == null)
+                    return NotFound("Không tìm thấy task tương ứng.");
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("tasks/{taskId:guid}/review")]
+        public async Task<IActionResult> ReviewTask(Guid taskId, [FromBody] ReviewTaskDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Dữ liệu đánh giá không hợp lệ.");
+
+            if (!dto.Approve && string.IsNullOrWhiteSpace(dto.FeedbackContent))
+                return BadRequest("Vui lòng cung cấp phản hồi (feedback) khi không duyệt task.");
+
+            var result = await _projectService.ReviewTaskAsync(taskId, dto.Approve, dto.FeedbackContent, dto.FeedbackSenderId);
+            if (result == null)
+                return NotFound("Không tìm thấy task tương ứng.");
+
+            return Ok(result);
+        }
+
+        #endregion
+
+        #region MiniTask Endpoints
+
+        [HttpPost("tasks/{taskId:guid}/minitasks")]
+        public async Task<IActionResult> CreateMiniTask(Guid taskId, [FromBody] CreateMiniTaskDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest("Tiêu đề mini-task không được để trống.");
+
+            var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.DeadlineDays);
+            if (result == null)
+                return NotFound("Không tìm thấy task tương ứng.");
+
+            return Ok(result);
+        }
+
+        [HttpPut("minitasks/{miniTaskId:guid}")]
+        public async Task<IActionResult> UpdateMiniTask(Guid miniTaskId, [FromBody] DTOs.UpdateMiniTaskDto dto)
+        {
+            var result = await _projectService.UpdateMiniTaskAsync(
+                miniTaskId, 
+                dto.Title, 
+                dto.IsCompleted, 
+                dto.FeedbackContent, 
+                dto.FeedbackSenderId, 
+                dto.DeadlineDays, 
+                dto.ProductLink, 
+                dto.ProductFile);
+            if (result == null) return NotFound("Không tìm thấy mini-task tương ứng.");
+            return Ok(result);
+        }
+
+        [HttpDelete("minitasks/{miniTaskId:guid}")]
+        public async Task<IActionResult> DeleteMiniTask(Guid miniTaskId)
+        {
+            var success = await _projectService.DeleteMiniTaskAsync(miniTaskId);
+            if (!success)
+                return NotFound("Không tìm thấy mini-task tương ứng.");
+
+            return NoContent();
+        }
+
+        #endregion
+
+        #region Private Helper Methods
+
+        private ClientViewProjectDto MapToClientView(Project project)
+        {
+            return new ClientViewProjectDto
+            {
+                Id = project.Id,
+                JobPostId = project.JobPostId,
+                ClientId = project.ClientId,
+                ClientName = project.ClientName,
+                ExpertId = project.ExpertId,
+                Expert = project.ExpertName,
+                EscrowBalance = project.EscrowBalance,
+                Status = project.Status,
+                StartDate = project.StartDate,
+                EndDate = project.EndDate,
+                ProjectLink = project.ProjectLink,
+                ConversationId = project.ConversationId,
+                Title = project.JobPost?.Title ?? string.Empty,
+                Budget = project.JobPost?.Budget ?? 0,
+                Category = project.JobPost?.Domain?.Name,
+                ProjectSkills = project.ProjectSkills.Select(ps => new ProjectSkillDto
+                {
+                    SkillId = ps.SkillsId,
+                    SkillName = ps.Skill?.Name ?? string.Empty
+                }).ToList(),
+                Tasks = project.Tasks.Select(t => new ClientTaskDto
+                {
+                    Id = t.Id,
+                    ProjectId = t.ProjectId,
+                    Title = t.Title,
+                    Status = t.Status,
+                    UpdatedAt = t.UpdatedAt,
+                    FeedbackContent = t.FeedbackContent,
+                    FeedbackSenderId = t.FeedbackSenderId,
+                    Deadline = t.Deadline,
+                    Notes = t.Notes,
+                    MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
+                    {
+                        Id = mt.Id,
+                        TaskId = mt.TaskId,
+                        Title = mt.Title,
+                        IsCompleted = mt.IsCompleted,
+                        FeedbackContent = mt.FeedbackContent,
+                        FeedbackSenderId = mt.FeedbackSenderId,
+                        CreatedAt = mt.CreatedAt,
+                        Deadline = mt.Deadline,
+                        ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                        ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
+                    }).ToList()
+                }).ToList()
+            };
+        }
+
+        private ExpertViewProjectDto MapToExpertView(Project project)
+        {
+            return new ExpertViewProjectDto
+            {
+                Id = project.Id,
+                JobPostId = project.JobPostId,
+                ClientId = project.ClientId,
+                ClientName = project.ClientName,
+                ExpertId = project.ExpertId,
+                Expert = project.ExpertName,
+                EscrowBalance = project.EscrowBalance,
+                Status = project.Status,
+                StartDate = project.StartDate,
+                EndDate = project.EndDate,
+                ProjectLink = project.ProjectLink,
+                ConversationId = project.ConversationId,
+                Title = project.JobPost?.Title ?? string.Empty,
+                Budget = project.JobPost?.Budget ?? 0,
+                Category = project.JobPost?.Domain?.Name,
+                ProjectSkills = project.ProjectSkills.Select(ps => new ProjectSkillDto
+                {
+                    SkillId = ps.SkillsId,
+                    SkillName = ps.Skill?.Name ?? string.Empty
+                }).ToList(),
+                Tasks = project.Tasks.Select(t => new ExpertTaskDto
+                {
+                    Id = t.Id,
+                    ProjectId = t.ProjectId,
+                    Title = t.Title,
+                    Status = t.Status,
+                    UpdatedAt = t.UpdatedAt,
+                    FeedbackContent = t.FeedbackContent,
+                    FeedbackSenderId = t.FeedbackSenderId,
+                    Deadline = t.Deadline,
+                    Notes = t.Notes,
+                    MiniTasks = t.MiniTasks.Select(mt => new ProjectMiniTaskDto
+                    {
+                        Id = mt.Id,
+                        TaskId = mt.TaskId,
+                        Title = mt.Title,
+                        IsCompleted = mt.IsCompleted,
+                        FeedbackContent = mt.FeedbackContent,
+                        FeedbackSenderId = mt.FeedbackSenderId,
+                        CreatedAt = mt.CreatedAt,
+                        Deadline = mt.Deadline,
+                        ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
+                        ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
+                    }).ToList()
+                }).ToList()
+            };
+        }
+
+        #endregion
     }
 }

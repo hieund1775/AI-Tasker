@@ -5,7 +5,7 @@ namespace AITasker_Modular.Helpers;
 
 public static class AuthorizationHelper
 {
-    public static async Task<(string? RequesterId, IActionResult? ErrorResult)> ValidateAdminOrOwnerAsync(this ControllerBase controller, IUserService userService)
+    public static async Task<(string? RequesterId, IActionResult? ErrorResult)> ValidateStaffOrOwnerAsync(this ControllerBase controller, IUserService userService)
     {
         var authHeader = controller.Request.Headers["Authorization"].ToString();
         if (string.IsNullOrEmpty(authHeader))
@@ -22,9 +22,9 @@ public static class AuthorizationHelper
         if (!Guid.TryParse(requesterId, out _))
             return (null, controller.Unauthorized(new { message = "Invalid token payload." }));
 
-        var isAdminOrOwner = await userService.IsAdminOrOwnerAsync(requesterId);
-        if (!isAdminOrOwner)
-            return (null, controller.StatusCode(403, new { message = "Only Admin or Owner can access this resource." }));
+        var isStaffOrOwner = await userService.IsStaffOrOwnerAsync(requesterId);
+        if (!isStaffOrOwner)
+            return (null, controller.StatusCode(403, new { message = "Only Staff or Owner can access this resource." }));
 
         return (requesterId, null);
     }
@@ -45,6 +45,19 @@ public static class AuthorizationHelper
         var requesterId = token.Substring("mock-jwt-token-for-".Length);
         if (!Guid.TryParse(requesterId, out _))
             return (null, controller.Unauthorized(new { message = "Invalid token payload." }));
+
+        return (requesterId, null);
+    }
+
+    public static async Task<(string? RequesterId, IActionResult? ErrorResult)> ValidateOwnerAsync(this ControllerBase controller, IUserService userService)
+    {
+        var (requesterId, errorResult) = controller.GetRequesterId();
+        if (errorResult != null)
+            return (null, errorResult);
+
+        var isOwner = await userService.IsOwnerAsync(requesterId!);
+        if (!isOwner)
+            return (null, controller.StatusCode(403, new { message = "Only Owner can access this resource." }));
 
         return (requesterId, null);
     }

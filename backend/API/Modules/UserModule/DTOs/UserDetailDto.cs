@@ -12,6 +12,7 @@ public class UserDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public class UserWalletDto
@@ -47,7 +48,10 @@ public class UserProposalDto
     public string Id { get; set; } = string.Empty;
     public string JobPostId { get; set; } = string.Empty;
     public decimal BidAmount { get; set; }
-    public string CoverLetter { get; set; } = string.Empty;
+    public int EstimatedDuration { get; set; }
+    public string Introduction { get; set; } = string.Empty;
+    public string Implementation { get; set; } = string.Empty;
+    public string? Portfolio { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
@@ -63,6 +67,9 @@ public class UserProjectDto
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? ProjectLink { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public decimal Budget { get; set; }
+    public string? Category { get; set; }
 }
 
 public class UserDetailDto
@@ -74,6 +81,7 @@ public class UserDetailDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 
     public UserWalletDto? Wallet { get; set; }
     public UserExpertProfileDto? ExpertProfile { get; set; }

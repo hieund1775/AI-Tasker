@@ -1,15 +1,39 @@
+using AITasker_Modular.Database;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
 namespace AITasker_Modular.Modules.InteractionModule;
 
 public class InteractionService : IInteractionService
 {
-    public Task<IReadOnlyList<Review>> GetReviewsAsync()
+    private readonly DataContext _context;
+
+    public InteractionService(DataContext context)
     {
-        return Task.FromResult<IReadOnlyList<Review>>(new List<Review>());
+        _context = context;
     }
 
-    public Task<TransactionLog> RecordTransactionAsync(TransactionLog transactionLog)
+    public async Task<IReadOnlyList<Review>> GetReviewsAsync()
+    {
+        return await _context.Reviews.ToListAsync();
+    }
+
+    public async Task<TransactionLog> RecordTransactionAsync(TransactionLog transactionLog)
     {
         transactionLog.Id = Guid.NewGuid();
-        return Task.FromResult(transactionLog);
+        transactionLog.CreatedAt = DateTime.UtcNow;
+        _context.TransactionLogs.Add(transactionLog);
+        await _context.SaveChangesAsync();
+        return transactionLog;
+    }
+
+    public async Task<IEnumerable<TransactionLog>> GetAllTransactionLogsAsync()
+    {
+        return await _context.TransactionLogs
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync();
     }
 }

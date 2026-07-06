@@ -19,5 +19,8 @@ public class ApplicationUser
     [Required]
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
+    public string? StaffCode { get; set; }
+    public DateTime? AppointedAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 }

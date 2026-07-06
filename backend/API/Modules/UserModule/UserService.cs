@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using BCryptTool = BCrypt.Net.BCrypt;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
+using AITasker_Modular.Modules.InteractionModule;
 
 namespace AITasker_Modular.Modules.UserModule;
 
@@ -16,8 +17,14 @@ public class UserService : IUserService
         _context = context;
     }
 
-    public async Task<string> RegisterAsync(string email, string password, string fullName, string role)
+    public async Task<string> RegisterAsync(string email, string password, string fullName, string role, string phoneNumber)
     {
+        var normalizedRole = role?.Trim().ToLowerInvariant();
+        if (normalizedRole != "client" && normalizedRole != "expert")
+        {
+            throw new ArgumentException("Chỉ chấp nhận đăng ký vai trò Client hoặc Expert.");
+        }
+
         var normalizedEmail = email.Trim().ToLowerInvariant();
 
         if (await _context.Users.AnyAsync(x => x.Email == normalizedEmail))
@@ -31,7 +38,8 @@ public class UserService : IUserService
             FullName = fullName.Trim(),
             Role = string.IsNullOrWhiteSpace(role) ? "Client" : role,
             Status = "Active",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            PhoneNumber = phoneNumber?.Trim()
         };
 
         _context.Users.Add(user);
@@ -66,7 +74,8 @@ public class UserService : IUserService
             Role = user.Role,
             Status = user.Status,
             AvatarUrl = user.AvatarUrl,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber
         };
 
         var token = $"mock-jwt-token-for-{user.Id}";
@@ -87,6 +96,17 @@ public class UserService : IUserService
             throw new InvalidOperationException($"Wallet not found for user ID: {userId}");
 
         wallet.Balance += amount;
+
+        var log = new TransactionLog
+        {
+            Id = Guid.NewGuid(),
+            DestinationWalletId = wallet.UserId,
+            Amount = amount,
+            Type = "Deposit",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.TransactionLogs.Add(log);
+
         await _context.SaveChangesAsync();
         return wallet.Balance;
     }
@@ -106,6 +126,17 @@ public class UserService : IUserService
             throw new InvalidOperationException("Insufficient balance.");
 
         wallet.Balance -= amount;
+
+        var log = new TransactionLog
+        {
+            Id = Guid.NewGuid(),
+            SourceWalletId = wallet.UserId,
+            Amount = amount,
+            Type = "Withdraw",
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.TransactionLogs.Add(log);
+
         await _context.SaveChangesAsync();
         return wallet.Balance;
     }
@@ -175,6 +206,9 @@ public class UserService : IUserService
         if (dto.Role != null)
             user.Role = dto.Role;
 
+        if (dto.PhoneNumber != null)
+            user.PhoneNumber = dto.PhoneNumber;
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -192,7 +226,7 @@ public class UserService : IUserService
             return (null, "Requester not found.");
         }
 
-        if (!requester.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) && 
+        if (!requester.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase) && 
             !requester.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase))
         {
             return (null, "Unauthorized");
@@ -207,7 +241,8 @@ public class UserService : IUserService
                 Role = u.Role,
                 Status = u.Status,
                 AvatarUrl = u.AvatarUrl,
-                CreatedAt = u.CreatedAt
+                CreatedAt = u.CreatedAt,
+                PhoneNumber = u.PhoneNumber
             })
             .ToListAsync();
 
@@ -240,20 +275,46 @@ public class UserService : IUserService
             })
             .ToListAsync();
 
-        var proposals = await _context.Proposals
+        var proposalsDb = await _context.Proposals
+            .Include(p => p.ProposalTasks)
+            .ThenInclude(t => t.ProposalMiniTasks)
             .Where(p => p.ExpertId == userGuid)
-            .Select(p => new DTOs.UserProposalDto
+            .ToListAsync();
+
+        var proposals = proposalsDb.Select(p => {
+            var wbsJson = "";
+            if (p.ProposalTasks != null && p.ProposalTasks.Any())
+            {
+                var list = p.ProposalTasks.Select(t => new
+                {
+                    Title = t.Title,
+                    Duration = t.Duration,
+                    MiniTasks = t.ProposalMiniTasks != null
+                        ? t.ProposalMiniTasks.Select(m => new
+                        {
+                            Title = m.Title,
+                            Duration = m.Duration
+                        }).ToList()
+                        : new()
+                }).ToList();
+                wbsJson = System.Text.Json.JsonSerializer.Serialize(list);
+            }
+            return new DTOs.UserProposalDto
             {
                 Id = p.Id.ToString(),
                 JobPostId = p.JobPostId.ToString(),
                 BidAmount = p.BidAmount,
-                CoverLetter = p.CoverLetter,
+                EstimatedDuration = p.EstimatedDuration,
+                Introduction = p.Introduction,
+                Implementation = wbsJson,
+                Portfolio = p.Portfolio,
                 Status = p.Status,
                 CreatedAt = p.CreatedAt
-            })
-            .ToListAsync();
+            };
+        }).ToList();
 
         var projects = await _context.Projects
+            .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
             .Where(p => p.ClientId == userGuid || p.ExpertId == userGuid)
             .Select(p => new DTOs.UserProjectDto
             {
@@ -265,7 +326,10 @@ public class UserService : IUserService
                 Status = p.Status,
                 StartDate = p.StartDate,
                 EndDate = p.EndDate,
-                ProjectLink = p.ProjectLink
+                ProjectLink = p.ProjectLink,
+                Title = p.JobPost != null ? p.JobPost.Title : string.Empty,
+                Budget = p.JobPost != null ? p.JobPost.Budget : 0,
+                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null
             })
             .ToListAsync();
 
@@ -278,6 +342,7 @@ public class UserService : IUserService
             Status = user.Status,
             AvatarUrl = user.AvatarUrl,
             CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber,
             Wallet = wallet != null ? new DTOs.UserWalletDto { Balance = wallet.Balance } : null,
             ExpertProfile = profile != null ? new DTOs.UserExpertProfileDto
             {
@@ -296,7 +361,7 @@ public class UserService : IUserService
         };
     }
 
-    public async Task<bool> IsAdminOrOwnerAsync(string userId)
+    public async Task<bool> IsStaffOrOwnerAsync(string userId)
     {
         if (!Guid.TryParse(userId, out var guid))
             return false;
@@ -305,8 +370,21 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
-        return user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase) || 
-               user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
+        return user.Role.Equals("Staff", StringComparison.OrdinalIgnoreCase) || 
+               user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase) ||
+               user.Role.Equals("Admin", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task<bool> IsOwnerAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var guid))
+            return false;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
+        if (user == null)
+            return false;
+
+        return user.Role.Equals("Owner", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string HashPassword(string password)
@@ -354,8 +432,54 @@ public class UserService : IUserService
         if (user == null)
             return false;
 
+        var role = user.Role.Trim().ToLowerInvariant();
+        if (role != "client" && role != "expert")
+        {
+            throw new InvalidOperationException("Chỉ có thể thay đổi trạng thái hoạt động của tài khoản Client hoặc Expert.");
+        }
+
         user.Status = isActive ? "Active" : "Inactive";
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    public async Task<System.Collections.Generic.List<DTOs.UserDetailDto>> GetPublicExpertsAsync()
+    {
+        var experts = await _context.Users
+            .Where(u => u.Role.Equals("Expert") && u.Status.Equals("Active"))
+            .ToListAsync();
+
+        var expertIds = experts.Select(e => e.Id).ToList();
+
+        var profiles = await _context.ExpertProfiles
+            .Where(p => expertIds.Contains(p.UserId))
+            .ToListAsync();
+
+        var result = experts.Select(user => {
+            var profile = profiles.FirstOrDefault(p => p.UserId == user.Id);
+            return new DTOs.UserDetailDto
+            {
+                Id = user.Id.ToString(),
+                Email = user.Email,
+                FullName = user.FullName,
+                Role = user.Role,
+                Status = user.Status,
+                AvatarUrl = user.AvatarUrl,
+                CreatedAt = user.CreatedAt,
+                ExpertProfile = profile != null ? new DTOs.UserExpertProfileDto
+                {
+                    JobTitle = profile.JobTitle,
+                    Major = profile.Major,
+                    Certifications = profile.Certifications,
+                    Bio = profile.Bio,
+                    PortfolioUrls = profile.PortfolioUrls,
+                    Location = profile.Location,
+                    ReputationCredit = profile.ReputationCredit,
+                    SuccessRate = profile.SuccessRate
+                } : null
+            };
+        }).ToList();
+
+        return result;
     }
 }
