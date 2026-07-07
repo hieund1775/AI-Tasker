@@ -44,7 +44,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             miniTask.FeedbackContent = feedbackContent;
         }
         
-        // Cập nhật deadline nếu số ngày được truyền vào
+        // Cáº­p nháº­t deadline náº¿u sá»‘ ngÃ y Ä‘Æ°á»£c truyá»n vÃ o
         if (deadlineDays.HasValue)
         {
             miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
@@ -72,7 +72,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             var hasUncompleted = await _context.MiniTasks.AnyAsync(mt => mt.TaskId == taskId && !mt.IsCompleted);
             if (hasUncompleted)
             {
-                throw new InvalidOperationException("Vui lòng hoàn thành tất cả các mini-task trước khi gửi duyệt.");
+                throw new InvalidOperationException("Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ cÃ¡c mini-task trÆ°á»›c khi gá»­i duyá»‡t.");
             }
         }
 
@@ -109,7 +109,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
                     ProjectId = project.Id,
                     Amount = platformFee,
                     Type = "PlatformFee",
-                    Description = $"Thu phí dịch vụ sàn 5% từ dự án {project.Id} hoàn thành.",
+                    Description = $"Thu phÃ­ dá»‹ch vá»¥ sÃ n 5% tá»« dá»± Ã¡n {project.Id} hoÃ n thÃ nh.",
                     CreatedAt = DateTime.UtcNow
                 };
                 _context.SystemTransactionLogs.Add(log);
@@ -164,7 +164,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
     }
 
     // ===================================================================================
-    // KHỚP NỐI CHÍNH XÁC KIỂU TRẢ VỀ CỦA INTERFACE ĐỂ BUILD THÀNH CÔNG THẦN TỐC
+    // KHá»šP Ná»I CHÃNH XÃC KIá»‚U TRáº¢ Vá»€ Cá»¦A INTERFACE Äá»‚ BUILD THÃ€NH CÃ”NG THáº¦N Tá»C
     // ===================================================================================
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects
         .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
@@ -273,6 +273,12 @@ namespace AITasker_Modular.Modules.ProjectModule;
         };
 
         _context.Projects.Add(project);
+
+        // [FIX 2.2] Tu dong doi trang thai JobPost sang In Progress de FE an khoi danh sach tuyen
+        if (proposal.JobPost != null)
+        {
+            proposal.JobPost.Status = "In Progress";
+        }
 
         // Copy WBS items (ProposalTasks and ProposalMiniTasks) to ProjectTasks and MiniTasks
         if (proposal.ProposalTasks != null && proposal.ProposalTasks.Any())
