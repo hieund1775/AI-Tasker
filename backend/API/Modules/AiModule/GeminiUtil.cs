@@ -18,10 +18,11 @@ public class GeminiUtil
     {
         _httpClient = httpClient;
 
-        _apiKey = configuration["Gemini:ApiKey"]
+        _apiKey = (configuration["Gemini:ApiKey"]
             ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
             ?? throw new InvalidOperationException(
-                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey) hoac bien moi truong GEMINI_API_KEY.");
+                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey) hoac bien moi truong GEMINI_API_KEY."))
+            .Trim(' ', '"', '\'', '\r', '\n');
     }
 
     public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
@@ -56,6 +57,10 @@ public class GeminiUtil
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+
+        // Tránh rò rỉ JWT token cục bộ sang Google API gây lỗi ACCESS_TOKEN_TYPE_UNSUPPORTED
+        httpRequest.Headers.Remove("Authorization");
+        httpRequest.Headers.Add("x-goog-api-key", _apiKey);
 
         var response = await _httpClient.SendAsync(httpRequest);
         var responseBody = await response.Content.ReadAsStringAsync();
