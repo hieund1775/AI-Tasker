@@ -18,11 +18,17 @@ public class GeminiUtil
     {
         _httpClient = httpClient;
 
-        _apiKey = (configuration["Gemini:ApiKey"]
-            ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
-            ?? throw new InvalidOperationException(
-                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey) hoac bien moi truong GEMINI_API_KEY."))
-            .Trim(' ', '"', '\'', '\r', '\n');
+        var envKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
+        var configKey = configuration["Gemini:ApiKey"];
+        var rawKey = !string.IsNullOrWhiteSpace(envKey) ? envKey : configKey;
+
+        if (string.IsNullOrWhiteSpace(rawKey))
+        {
+            throw new InvalidOperationException(
+                "Chua cau hinh Gemini API Key. Hay them bien moi truong GEMINI_API_KEY tren Railway hoac appsettings.json (Gemini:ApiKey).");
+        }
+
+        _apiKey = rawKey.Trim(' ', '"', '\'', '\r', '\n');
     }
 
     public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
