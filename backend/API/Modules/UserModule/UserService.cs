@@ -482,4 +482,91 @@ public class UserService : IUserService
 
         return result;
     }
+
+    /// <summary>
+    /// [NEW] Làm mới token: lấy lại UserDto + token mới dựa trên userId.
+    /// Token ở đây là mock, nên "refresh" chỉ đơn giản là trả về token mới cùng dạng.
+    /// </summary>
+    public async Task<(DTOs.UserDto? User, string? Token, string? Error)> RefreshTokenAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var guid))
+            return (null, null, "UserId không hợp lệ.");
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
+        if (user == null)
+            return (null, null, "Không tìm thấy người dùng.");
+
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            return (null, null, "Tài khoản không còn hoạt động.");
+
+        var userDto = new DTOs.UserDto
+        {
+            Id = user.Id.ToString(),
+            Email = user.Email,
+            FullName = user.FullName,
+            Role = user.Role,
+            Status = user.Status,
+            AvatarUrl = user.AvatarUrl,
+            CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber
+        };
+
+        var token = $"mock-jwt-token-for-{user.Id}";
+        return (userDto, token, null);
+    }
+
+    /// <summary>
+    /// [NEW] Quên mật khẩu: tạo reset token ngẫu nhiên (15 phút) và lưu vào DB.
+    /// Trong môi trường thực tế, token này sẽ được gửi qua email.
+    /// </summary>
+    public async Task<(bool Success, string? ResetToken, string? Error)> ForgotPasswordAsync(string email)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+
+        if (user == null)
+            return (false, null, "Không tìm thấy tài khoản với email này.");
+
+        if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
+            return (false, null, "Tài khoản không còn hoạt động.");
+
+        // Tạo token ngẫu nhiên 32 ký tự hex
+        var resetToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+        user.PasswordResetToken = resetToken;
+        user.PasswordResetExpiry = DateTime.UtcNow.AddMinutes(15);
+
+        await _context.SaveChangesAsync();
+
+        // TODO: Gửi email cho user chứa link reset password với resetToken
+        // Trong dev mode, trả về token để test trực tiếp
+        return (true, resetToken, null);
+    }
+
+    /// <summary>
+    /// [NEW] Đặt lại mật khẩu: xác thực reset token và cập nhật mật khẩu mới.
+    /// </summary>
+    public async Task<(bool Success, string? Error)> ResetPasswordAsync(string resetToken, string newPassword)
+    {
+        if (string.IsNullOrWhiteSpace(resetToken) || string.IsNullOrWhiteSpace(newPassword))
+            return (false, "Token và mật khẩu mới không được để trống.");
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.PasswordResetToken == resetToken);
+
+        if (user == null)
+            return (false, "Token không hợp lệ hoặc không tồn tại.");
+
+        if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
+            return (false, "Token đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+
+        if (newPassword.Length < 6)
+            return (false, "Mật khẩu mới phải có ít nhất 6 ký tự.");
+
+        user.PasswordHash = HashPassword(newPassword);
+        user.PasswordResetToken = null;    // Xóa token sau khi dùng (one-time use)
+        user.PasswordResetExpiry = null;
+
+        await _context.SaveChangesAsync();
+        return (true, null);
+    }
 }
