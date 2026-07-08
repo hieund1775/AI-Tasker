@@ -117,11 +117,12 @@ namespace AITasker_Modular.Modules.ProposalModule
             var hasActiveProposal = await _context.Proposals
                 .AnyAsync(x => x.JobPostId == dto.JobPostId 
                             && x.ExpertId == dto.ExpertId 
-                            && x.Status.ToLower() != "rejected");
+                            && x.Status.ToLower() != "rejected"
+                            && x.Status.ToLower() != "declined");
 
             if (hasActiveProposal)
             {
-                throw new InvalidOperationException("Mỗi chuyên gia chỉ có thể có một hồ sơ (proposal) hoạt động cho một công việc. Bạn phải đợi hồ sơ trước đó bị từ chối (Rejected) mới có thể gửi lại hồ sơ mới.");
+                throw new InvalidOperationException("Mỗi chuyên gia chỉ có thể có một hồ sơ (proposal) hoạt động cho một công việc. Bạn phải đợi hồ sơ trước đó bị từ chối (Rejected hoặc Declined) mới có thể gửi lại hồ sơ mới.");
             }
 
             var proposal = new Proposal

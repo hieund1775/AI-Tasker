@@ -78,46 +78,6 @@ namespace AITasker_Modular.Modules.ProjectModule;
 
         task.Status = status;
 
-        if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
-        {
-            var project = await _context.Projects.FindAsync(task.ProjectId);
-            if (project != null && project.Status != "Completed")
-            {
-                project.Status = "Completed"; 
-                decimal totalBudget = project.EscrowBalance;
-
-                decimal platformFee = totalBudget * 0.05m; 
-                decimal expertNetPay = totalBudget - platformFee;
-
-                var expertWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ExpertId);
-                if (expertWallet != null)
-                {
-                    expertWallet.Balance += expertNetPay;
-                }
-
-                var systemWallet = await _context.SystemWallets
-                    .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
-                if (systemWallet != null)
-                {
-                    systemWallet.TotalBalance += platformFee;
-                    systemWallet.UpdatedAt = DateTime.UtcNow;
-                }
-
-                var log = new SystemTransactionLog
-                {
-                    Id = Guid.NewGuid(),
-                    ProjectId = project.Id,
-                    Amount = platformFee,
-                    Type = "PlatformFee",
-                    Description = $"Thu phÃ­ dá»‹ch vá»¥ sÃ n 5% tá»« dá»± Ã¡n {project.Id} hoÃ n thÃ nh.",
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.SystemTransactionLogs.Add(log);
-
-                project.EscrowBalance = 0; 
-            }
-        }
-
         await _context.SaveChangesAsync();
         return task;
     }
@@ -267,17 +227,17 @@ namespace AITasker_Modular.Modules.ProjectModule;
             ClientId = proposal.JobPost?.ClientId ?? Guid.Empty,
             ExpertId = proposal.ExpertId,
             EscrowBalance = proposal.BidAmount,
-            Status = "In Progress",
+            Status = "Pending Escrow",
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddDays(proposal.EstimatedDuration)
         };
 
         _context.Projects.Add(project);
 
-        // [FIX 2.2] Tu dong doi trang thai JobPost sang In Progress de FE an khoi danh sach tuyen
+        // [FIX 2.2] Tu dong doi trang thai JobPost sang Pending Escrow de FE an khoi danh sach tuyen
         if (proposal.JobPost != null)
         {
-            proposal.JobPost.Status = "In Progress";
+            proposal.JobPost.Status = "Pending Escrow";
         }
 
         // Copy WBS items (ProposalTasks and ProposalMiniTasks) to ProjectTasks and MiniTasks

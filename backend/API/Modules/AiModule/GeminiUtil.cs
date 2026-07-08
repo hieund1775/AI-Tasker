@@ -14,9 +14,9 @@ public class GeminiUtil
     private const string GeminiBaseUrl =
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
-    public GeminiUtil(IConfiguration configuration)
+    public GeminiUtil(HttpClient httpClient, IConfiguration configuration)
     {
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
         var envKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         var configKey = configuration["Gemini:ApiKey"];
         var rawKey = !string.IsNullOrWhiteSpace(envKey) ? envKey : configKey;
@@ -28,6 +28,7 @@ public class GeminiUtil
         }
 
         _apiKey = rawKey.Trim(' ', '"', '\'', '\r', '\n');
+    }
 
 
     public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
