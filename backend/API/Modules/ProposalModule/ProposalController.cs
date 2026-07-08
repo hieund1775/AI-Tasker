@@ -122,13 +122,6 @@ namespace AITasker_Modular.Modules.JobModule
             return Ok(new { FileUrl = fileUrl });
         }
 
-        [HttpPost("analyze-job-to-usecases/{jobPostId:guid}")]
-        public async Task<IActionResult> AnalyzeJobToUseCases(Guid jobPostId)
-        {
-            var analysisResult = await _proposalService.AnalyzeAndSplitUseCasesAsync(jobPostId);
-            if (analysisResult == null) return NotFound("Không tìm thấy bài đăng tuyển dụng (JobPost) yêu cầu để tiến hành phân tích.");
-            return Ok(analysisResult);
-        }
 
         [HttpPost("expert-ai-chat-session")]
         public async Task<IActionResult> SendExpertAiMessage([FromBody] ExpertAiChatRequest request)

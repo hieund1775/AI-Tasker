@@ -1,12 +1,12 @@
-using AITasker_Modular.Database;
+﻿using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
-using AITasker_Modular.Modules.JobModule; // <── ÉP TRÌNH BIÊN DỊCH DÙNG CHUNG CHỮ KÝ HÀM VỚI INTERFACE
+using AITasker_Modular.Modules.JobModule; // <â”€â”€ Ã‰P TRÃŒNH BIÃŠN Dá»ŠCH DÃ™NG CHUNG CHá»® KÃ HÃ€M Vá»šI INTERFACE
 using System;
-using System.IO; // ── ĐẢM BẢO CÓ THƯ VIỆN NÀY ĐỂ THAO TÁC ĐĨA CỨNG SERVER
+using System.IO; // â”€â”€ Äáº¢M Báº¢O CÃ“ THÆ¯ VIá»†N NÃ€Y Äá»‚ THAO TÃC ÄÄ¨A Cá»¨NG SERVER
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http; // ── ĐẢM BẢO CÓ THƯ VIỆN NÀY ĐỂ XỬ LÝ STREAM FILE
+using Microsoft.AspNetCore.Http; // â”€â”€ Äáº¢M Báº¢O CÃ“ THÆ¯ VIá»†N NÃ€Y Äá»‚ Xá»¬ LÃ STREAM FILE
 
 namespace AITasker_Modular.Modules.JobPostModule;
 
@@ -163,6 +163,16 @@ public class JobPostService : IJobPostService
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
 
+        if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Không thể chỉnh sửa bài đăng khi đã có Chuyên gia được chọn hoặc dự án đã được khởi tạo (Trạng thái hiện tại: {jobPost.Status}).");
+        }
+
+        if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Khong the chinh sua bai dang khi da co Chuyen gia duoc chon hoac du an da duoc khoi tao (Trang thai hien tai: {jobPost.Status}).");
+        }
+
         int deadlineDays = jobPostDto.Deadline;
         if (jobPostDto.DurationValue > 0)
         {
@@ -275,15 +285,15 @@ public class JobPostService : IJobPostService
         return list;
     }
 
-    // ── THAO TÁC CƠ HỌC ĐỤC THÊM 1: LƯU TRỮ TỆP TIN VẬT LÝ AN TOÀN TUYỆT ĐỐI ──
+    // â”€â”€ THAO TÃC CÆ  Há»ŒC Äá»¤C THÃŠM 1: LÆ¯U TRá»® Tá»†P TIN Váº¬T LÃ AN TOÃ€N TUYá»†T Äá»I â”€â”€
     public async Task<string?> UploadAttachmentAsync(IFormFile file)
     {
         if (file == null || file.Length == 0) return null;
-        if (file.Length > 10 * 1024 * 1024) throw new Exception("Kích thước tập tin vượt quá giới hạn hệ thống (Tối đa 10MB).");
+        if (file.Length > 10 * 1024 * 1024) throw new Exception("KÃ­ch thÆ°á»›c táº­p tin vÆ°á»£t quÃ¡ giá»›i háº¡n há»‡ thá»‘ng (Tá»‘i Ä‘a 10MB).");
 
         var extension = Path.GetExtension(file.FileName).ToLower();
         string[] allowedExtensions = { ".pdf", ".docx", ".txt", ".md", ".png", ".jpg", ".jpeg" };
-        if (!allowedExtensions.Contains(extension)) throw new Exception("Định dạng tập tin không được hỗ trợ.");
+        if (!allowedExtensions.Contains(extension)) throw new Exception("Äá»‹nh dáº¡ng táº­p tin khÃ´ng Ä‘Æ°á»£c há»— trá»£.");
 
         var rootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "job_files");
         if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
@@ -299,10 +309,10 @@ public class JobPostService : IJobPostService
         return $"/job_files/{uniqueFileName}";
     }
 
-    // ── THAO TÁC CƠ HỌC ĐỤC THÊM 2: PHÂN RÃ MILESTONE SANG CẤU TRÚC FILE .MD BẰNG AI ENGINE ──
+    // â”€â”€ THAO TÃC CÆ  Há»ŒC Äá»¤C THÃŠM 2: PHÃ‚N RÃƒ MILESTONE SANG Cáº¤U TRÃšC FILE .MD Báº°NG AI ENGINE â”€â”€
     public async Task<string?> GenerateMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays)
     {
-        // Sử dụng chính xác thực thể dữ liệu DataContext của nhóm để truy vấn chéo bảng
+        // Sá»­ dá»¥ng chÃ­nh xÃ¡c thá»±c thá»ƒ dá»¯ liá»‡u DataContext cá»§a nhÃ³m Ä‘á»ƒ truy váº¥n chÃ©o báº£ng
         var proposal = await _context.Proposals
             .Include(p => p.JobPost)
             .FirstOrDefaultAsync(p => p.Id == proposalId);
@@ -310,25 +320,25 @@ public class JobPostService : IJobPostService
         if (proposal == null) return null;
 
         var markdownBuilder = new System.Text.StringBuilder();
-        markdownBuilder.AppendLine($"# BẢN PHÂN RÃ CẤU TRÚC CÔNG VIỆC (WBS) - DỰ ÁN: {proposal.JobPostTitle.ToUpper()}");
-        markdownBuilder.AppendLine($"* **Mã số đề xuất (Proposal ID):** {proposal.Id}");
-        markdownBuilder.AppendLine($"* **Chuyên gia đảm nhiệm (Expert ID):** {proposal.ExpertId}");
-        markdownBuilder.AppendLine($"* **Tổng số lượng tác vụ (AI Segmented Tasks):** {taskCount} Tasks");
-        markdownBuilder.AppendLine($"* **Thời hạn hoàn thành bàn giao (Deadline):** {deadlineDays} ngày kể từ ngày ký kết");
+        markdownBuilder.AppendLine($"# Báº¢N PHÃ‚N RÃƒ Cáº¤U TRÃšC CÃ”NG VIá»†C (WBS) - Dá»° ÃN: {proposal.JobPostTitle.ToUpper()}");
+        markdownBuilder.AppendLine($"* **MÃ£ sá»‘ Ä‘á» xuáº¥t (Proposal ID):** {proposal.Id}");
+        markdownBuilder.AppendLine($"* **ChuyÃªn gia Ä‘áº£m nhiá»‡m (Expert ID):** {proposal.ExpertId}");
+        markdownBuilder.AppendLine($"* **Tá»•ng sá»‘ lÆ°á»£ng tÃ¡c vá»¥ (AI Segmented Tasks):** {taskCount} Tasks");
+        markdownBuilder.AppendLine($"* **Thá»i háº¡n hoÃ n thÃ nh bÃ n giao (Deadline):** {deadlineDays} ngÃ y ká»ƒ tá»« ngÃ y kÃ½ káº¿t");
         markdownBuilder.AppendLine("---");
-        markdownBuilder.AppendLine("## DANH SÁCH CHI TIẾT CÁC MỐC TIẾN ĐỘ VÀ NHIỆM VỤ THÀNH PHẦN");
+        markdownBuilder.AppendLine("## DANH SÃCH CHI TIáº¾T CÃC Má»C TIáº¾N Äá»˜ VÃ€ NHIá»†M Vá»¤ THÃ€NH PHáº¦N");
 
         int daysPerTask = Math.Max(1, deadlineDays / taskCount);
         for (int i = 1; i <= taskCount; i++)
         {
-            markdownBuilder.AppendLine($"### 📍 Mốc tiến độ {i}: Thực thi cấu phần nghiệp vụ số {i}");
-            markdownBuilder.AppendLine($"- **Mô tả cấu phần nghiệp vụ:** Tiến hành phân tích, thiết kế logic, xây dựng mã nguồn và kiểm chuẩn đơn vị (Unit Test) cho phân hệ chức năng {i} dựa trên giải pháp kỹ thuật: {proposal.Implementation}.");
-            markdownBuilder.AppendLine($"- **Thời gian xử lý dự kiến:** {daysPerTask} ngày.");
+            markdownBuilder.AppendLine($"### ðŸ“ Má»‘c tiáº¿n Ä‘á»™ {i}: Thá»±c thi cáº¥u pháº§n nghiá»‡p vá»¥ sá»‘ {i}");
+            markdownBuilder.AppendLine($"- **MÃ´ táº£ cáº¥u pháº§n nghiá»‡p vá»¥:** Tiáº¿n hÃ nh phÃ¢n tÃ­ch, thiáº¿t káº¿ logic, xÃ¢y dá»±ng mÃ£ nguá»“n vÃ  kiá»ƒm chuáº©n Ä‘Æ¡n vá»‹ (Unit Test) cho phÃ¢n há»‡ chá»©c nÄƒng {i} dá»±a trÃªn giáº£i phÃ¡p ká»¹ thuáº­t: {proposal.Implementation}.");
+            markdownBuilder.AppendLine($"- **Thá»i gian xá»­ lÃ½ dá»± kiáº¿n:** {daysPerTask} ngÃ y.");
             markdownBuilder.AppendLine();
         }
 
         markdownBuilder.AppendLine("---");
-        markdownBuilder.AppendLine("_Bản tài liệu này được phân rã tự động bởi Trợ lý AI Phân tích Nghiệp vụ của nền tảng AITasker để làm cơ sở pháp lý nghiệm thu hợp đồng ký kết._");
+        markdownBuilder.AppendLine("_Báº£n tÃ i liá»‡u nÃ y Ä‘Æ°á»£c phÃ¢n rÃ£ tá»± Ä‘á»™ng bá»Ÿi Trá»£ lÃ½ AI PhÃ¢n tÃ­ch Nghiá»‡p vá»¥ cá»§a ná»n táº£ng AITasker Ä‘á»ƒ lÃ m cÆ¡ sá»Ÿ phÃ¡p lÃ½ nghiá»‡m thu há»£p Ä‘á»“ng kÃ½ káº¿t._");
 
         var rootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "milestones");
         if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
@@ -339,7 +349,7 @@ public class JobPostService : IJobPostService
 
         var fileUrl = $"/milestones/{fileName}";
         
-        // Ghi đè đường dẫn file Markdown sạch vào cột Portfolio của bảng Proposals
+        // Ghi Ä‘Ã¨ Ä‘Æ°á»ng dáº«n file Markdown sáº¡ch vÃ o cá»™t Portfolio cá»§a báº£ng Proposals
         proposal.Portfolio = fileUrl; 
         await _context.SaveChangesAsync();
 
@@ -545,15 +555,15 @@ public class JobPostService : IJobPostService
             // Construct Vietnamese explanation
             string matchedSkillsList = c.MatchingSkillsCount > 0 
                 ? string.Join(", ", c.Skills.Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase))
-                : "không trùng khớp kỹ năng trực tiếp";
+                : "khÃ´ng trÃ¹ng khá»›p ká»¹ nÄƒng trá»±c tiáº¿p";
 
             string domainInfo = c.HasMatchingDomain 
-                ? "Chuyên gia hoạt động trong lĩnh vực trùng khớp với công việc. " 
+                ? "ChuyÃªn gia hoáº¡t Ä‘á»™ng trong lÄ©nh vá»±c trÃ¹ng khá»›p vá»›i cÃ´ng viá»‡c. " 
                 : string.Empty;
 
-            string explanation = $"[Đề xuất tự động] {domainInfo}Chuyên gia có chuyên ngành {c.Profile.Major} và chức danh \"{c.Profile.JobTitle}\". " +
-                                  $"Có {c.MatchingSkillsCount} kỹ năng phù hợp ({matchedSkillsList}). " +
-                                  $"Tỷ lệ hoàn thành công việc xuất sắc đạt {c.Profile.SuccessRate}%.";
+            string explanation = $"[Äá» xuáº¥t tá»± Ä‘á»™ng] {domainInfo}ChuyÃªn gia cÃ³ chuyÃªn ngÃ nh {c.Profile.Major} vÃ  chá»©c danh \"{c.Profile.JobTitle}\". " +
+                                  $"CÃ³ {c.MatchingSkillsCount} ká»¹ nÄƒng phÃ¹ há»£p ({matchedSkillsList}). " +
+                                  $"Tá»· lá»‡ hoÃ n thÃ nh cÃ´ng viá»‡c xuáº¥t sáº¯c Ä‘áº¡t {c.Profile.SuccessRate}%.";
 
             finalResult.Add(new ExpertRecommendationResultDto
             {
@@ -598,7 +608,7 @@ public class JobPostService : IJobPostService
         var expert = await _context.Users.FirstOrDefaultAsync(u => u.Id == expertId && u.Role.ToLower() == "expert" && u.Status.ToLower() == "active");
         if (expert == null)
         {
-            throw new Exception("Không tìm thấy chuyên gia (Expert) này hoặc tài khoản đang không hoạt động.");
+            throw new Exception("KhÃ´ng tÃ¬m tháº¥y chuyÃªn gia (Expert) nÃ y hoáº·c tÃ i khoáº£n Ä‘ang khÃ´ng hoáº¡t Ä‘á»™ng.");
         }
 
         var profile = await _context.ExpertProfiles
@@ -607,7 +617,7 @@ public class JobPostService : IJobPostService
 
         if (profile == null)
         {
-            throw new Exception("Chuyên gia chưa thiết lập hồ sơ (Profile). Vui lòng cập nhật hồ sơ trước khi nhận gợi ý.");
+            throw new Exception("ChuyÃªn gia chÆ°a thiáº¿t láº­p há»“ sÆ¡ (Profile). Vui lÃ²ng cáº­p nháº­t há»“ sÆ¡ trÆ°á»›c khi nháº­n gá»£i Ã½.");
         }
 
         var expertSkills = profile.ExpertProfileSkills
@@ -629,7 +639,7 @@ public class JobPostService : IJobPostService
 
         var expertBioWords = TokenizeText(profile.JobTitle + " " + profile.Major + " " + profile.Bio);
 
-        // Fetch IDs of JobPosts that are already converted to Projects (đã có người nhận)
+        // Fetch IDs of JobPosts that are already converted to Projects (Ä‘Ã£ cÃ³ ngÆ°á»i nháº­n)
         var awardedJobPostIds = await _context.Projects
             .Where(p => p.JobPostId != null)
             .Select(p => p.JobPostId!.Value)
@@ -694,13 +704,13 @@ public class JobPostService : IJobPostService
             var matchedSkills = expertSkills.Intersect(jobSkills, StringComparer.OrdinalIgnoreCase).ToList();
             string matchedSkillsList = matchedSkills.Any()
                 ? string.Join(", ", matchedSkills)
-                : "không có kỹ năng trùng khớp";
+                : "khÃ´ng cÃ³ ká»¹ nÄƒng trÃ¹ng khá»›p";
 
             string domainInfo = hasMatchingDomain
-                ? "Dự án thuộc lĩnh vực chuyên môn của bạn. "
+                ? "Dá»± Ã¡n thuá»™c lÄ©nh vá»±c chuyÃªn mÃ´n cá»§a báº¡n. "
                 : string.Empty;
 
-            string explanation = $"[Đề xuất tự động] {domainInfo}Dự án yêu cầu {jobSkills.Count} kỹ năng, bạn đáp ứng {matchingSkillsCount} ({matchedSkillsList}).";
+            string explanation = $"[Äá» xuáº¥t tá»± Ä‘á»™ng] {domainInfo}Dá»± Ã¡n yÃªu cáº§u {jobSkills.Count} ká»¹ nÄƒng, báº¡n Ä‘Ã¡p á»©ng {matchingSkillsCount} ({matchedSkillsList}).";
 
             recommendationList.Add(new JobPostRecommendationResultDto
             {

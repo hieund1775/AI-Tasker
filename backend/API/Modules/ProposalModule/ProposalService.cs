@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Collections.Generic;
@@ -117,7 +117,8 @@ namespace AITasker_Modular.Modules.ProposalModule
             var hasActiveProposal = await _context.Proposals
                 .AnyAsync(x => x.JobPostId == dto.JobPostId 
                             && x.ExpertId == dto.ExpertId 
-                            && x.Status.ToLower() != "rejected");
+                            && x.Status.ToLower() != "rejected"
+                            && x.Status.ToLower() != "declined");
 
             if (hasActiveProposal)
             {
@@ -171,7 +172,7 @@ namespace AITasker_Modular.Modules.ProposalModule
                 }
                 else
                 {
-                    proposal.Implementation = string.Empty; // Ẩn giải pháp kỹ thuật đối với Client nếu chưa Accepted
+                    proposal.Implementation = string.Empty; // ÃƒÂ¡Ã‚ÂºÃ‚Â¨n giÃƒÂ¡Ã‚ÂºÃ‚Â£i phÃƒÆ’Ã‚Â¡p kÃƒÂ¡Ã‚Â»Ã‚Â¹ thuÃƒÂ¡Ã‚ÂºÃ‚Â­t Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœi vÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºi Client nÃƒÂ¡Ã‚ÂºÃ‚Â¿u chÃƒâ€ Ã‚Â°a Accepted
                 }
             }
 
@@ -190,7 +191,7 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             foreach (var proposal in proposals)
             {
-                proposal.Implementation = GetProposalWbsJson(proposal); // Expert luôn được xem giải pháp của mình
+                proposal.Implementation = GetProposalWbsJson(proposal); // Expert luÃƒÆ’Ã‚Â´n Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c xem giÃƒÂ¡Ã‚ÂºÃ‚Â£i phÃƒÆ’Ã‚Â¡p cÃƒÂ¡Ã‚Â»Ã‚Â§a mÃƒÆ’Ã‚Â¬nh
             }
 
             return proposals;
@@ -212,8 +213,21 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             if (newStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase))
             {
+                // [FIX Data Consistency] Tu dong tu choi cac Proposal khac dang Pending cho cung JobPost
+                var otherPendingProposals = await _context.Proposals
+                    .Where(p => p.JobPostId == proposal.JobPostId && p.Id != proposalId && p.Status.ToLower() == "pending")
+                    .ToListAsync();
+                foreach (var op in otherPendingProposals)
+                {
+                    op.Status = "Rejected";
+                }
+                if (otherPendingProposals.Any())
+                {
+                    await _context.SaveChangesAsync();
+                }
+
                 await _projectService.CreateProjectFromProposalAsync(proposalId);
-                // Tải lại để lấy thông tin cập nhật
+                // TÃƒÂ¡Ã‚ÂºÃ‚Â£i lÃƒÂ¡Ã‚ÂºÃ‚Â¡i Ãƒâ€žÃ¢â‚¬ËœÃƒÂ¡Ã‚Â»Ã†â€™ lÃƒÂ¡Ã‚ÂºÃ‚Â¥y thÃƒÆ’Ã‚Â´ng tin cÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t
                 proposal = await _context.Proposals
                     .Include(p => p.JobPost)
                     .Include(p => p.Expert)
@@ -257,7 +271,7 @@ namespace AITasker_Modular.Modules.ProposalModule
                 
             if (!string.IsNullOrWhiteSpace(dto.Implementation))
             {
-                // Xóa WBS cũ
+                // XÃƒÆ’Ã‚Â³a WBS cÃƒâ€¦Ã‚Â©
                 var oldTasks = await _context.ProposalTasks.Where(t => t.ProposalId == proposalId).ToListAsync();
                 _context.ProposalTasks.RemoveRange(oldTasks);
 
@@ -285,7 +299,6 @@ namespace AITasker_Modular.Modules.ProposalModule
             }
             return result;
         }
-
         public async Task<string?> GenerateProposalMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays)
         {
             var proposal = await _context.Proposals
@@ -293,30 +306,31 @@ namespace AITasker_Modular.Modules.ProposalModule
                 .Include(p => p.ProposalTasks)
                 .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstOrDefaultAsync(p => p.Id == proposalId);
-                
-            if (proposal == null) return null;
 
+            if (proposal == null) return null;
             proposal.Implementation = GetProposalWbsJson(proposal);
+
             var markdownBuilder = new StringBuilder();
-            markdownBuilder.AppendLine($"# BẢN PHÂN RÃ TIẾN ĐỘ ĐỀ XUẤT (WBS) - DỰ ÁN: {proposal.JobPostTitle.ToUpper()}");
-            markdownBuilder.AppendLine($"* **Mã số Proposal:** {proposal.Id}");
-            markdownBuilder.AppendLine($"* **Chuyên gia thực hiện:** {proposal.ExpertName}");
-            markdownBuilder.AppendLine($"* **Số lượng Task nhỏ được rã bởi AI:** {taskCount} Tasks");
-            markdownBuilder.AppendLine($"* **Thời gian cam kết hoàn thành:** {deadlineDays} ngày");
+            markdownBuilder.AppendLine($"# Báº¢N PHÃ‚N RÃƒ TIáº¾N Äá»˜ Äá»€ XUáº¤T (WBS) - Dá»° ÃN: {proposal.JobPostTitle.ToUpper()}");
+            markdownBuilder.AppendLine($"* **MÃ£ sá»‘ Proposal:** {proposal.Id}");
+            markdownBuilder.AppendLine($"* **ChuyÃªn gia thá»±c hiá»‡n:** {proposal.ExpertName}");
+            markdownBuilder.AppendLine($"* **Sá»‘ lÆ°á»£ng Task nhá» Ä‘Æ°á»£c rÃ£ bá»Ÿi AI:** {taskCount} Tasks");
+            markdownBuilder.AppendLine($"* **Thá»i háº¡n cam káº¿t hoÃ n thÃ nh (Expert dá»± kiáº¿n):** {deadlineDays} ngÃ y ká»ƒ tá»« ngÃ y kÃ½ káº¿t");
             markdownBuilder.AppendLine("---");
-            markdownBuilder.AppendLine("## CHI TIẾT CÁC MILESTONES NGHIỆM THU TÀI CHÍNH");
+            markdownBuilder.AppendLine("## DANH SÃCH MILESTONES NGHIá»†M THU TÃ€I CHÃNH");
+            markdownBuilder.AppendLine();
 
             int daysPerTask = Math.Max(1, deadlineDays / taskCount);
             for (int i = 1; i <= taskCount; i++)
             {
-                markdownBuilder.AppendLine($"### 📍 Milestone {i}: Hoàn thiện cấu phần kỹ thuật mẫu {i}");
-                markdownBuilder.AppendLine($"- **Nhiệm vụ chi tiết:** Thực thi logic giải pháp dựa trên đặc tả cấu trúc: {proposal.Implementation}.");
-                markdownBuilder.AppendLine($"- **Thời hạn xử lý:** Trong vòng {daysPerTask} ngày.");
+                markdownBuilder.AppendLine($"### ðŸ“ Milestone {i}: HoÃ n thiá»‡n cáº¥u pháº§n ká»¹ thuáº­t máº«u {i}");
+                markdownBuilder.AppendLine($"- **Nhiá»‡m vá»¥ chi tiáº¿t:** Thá»±c thi logic giáº£i phÃ¡p dá»±a trÃªn Ä‘áº·c táº£ cáº¥u trÃºc: {proposal.Implementation}.");
+                markdownBuilder.AppendLine($"- **Thá»i gian xá»­ lÃ½ dá»± kiáº¿n:** {daysPerTask} ngÃ y.");
                 markdownBuilder.AppendLine();
             }
 
             markdownBuilder.AppendLine("---");
-            markdownBuilder.AppendLine("_Tài liệu cấu trúc này phục vụ mục đích ký kết hợp đồng ký quỹ bảo mật trên hệ thống AITasker._");
+            markdownBuilder.AppendLine("_TÃ i liá»‡u cáº¥u trÃºc nÃ y phá»¥c vá»¥ má»¥c Ä‘Ã­ch kÃ½ káº¿t há»£p Ä‘á»“ng kÃ½ quá»¹ báº£o máº­t trÃªn há»‡ thá»‘ng AITasker._");
 
             var rootPath = Path.Combine(AppContext.BaseDirectory, "wwwroot", "milestones");
             if (!Directory.Exists(rootPath)) Directory.CreateDirectory(rootPath);
@@ -325,51 +339,12 @@ namespace AITasker_Modular.Modules.ProposalModule
             await File.WriteAllTextAsync(Path.Combine(rootPath, fileName), markdownBuilder.ToString(), Encoding.UTF8);
 
             var fileUrl = $"/milestones/{fileName}";
-            
+
             proposal.Portfolio = fileUrl;
             await _context.SaveChangesAsync();
 
             return fileUrl;
         }
 
-        public async Task<object?> AnalyzeAndSplitUseCasesAsync(Guid jobPostId)
-        {
-            var job = await _context.JobPosts
-                .Include(j => j.JobPostTasks)
-                .FirstOrDefaultAsync(x => x.Id == jobPostId);
-
-            if (job == null) return null;
-
-            var useCases = new List<object>();
-
-            if (job.JobPostTasks != null && job.JobPostTasks.Any())
-            {
-                foreach (var req in job.JobPostTasks)
-                {
-                    useCases.Add(new {
-                        UseCase = req.Title,
-                        Description = string.Empty,
-                        Complexity = "Medium",
-                        EstimatedHours = req.Duration
-                    });
-                }
-            }
-            else
-            {
-                useCases.Add(new { UseCase = $"Phân tích yêu cầu nghiệp vụ cho: {job.Title}", Description = "Khảo sát hạ tầng, thiết kế cơ sở dữ liệu logic.", Complexity = "Low", EstimatedHours = 8 });
-                useCases.Add(new { UseCase = "Xây dựng lõi API Core", Description = "Hiện thực hóa các cổng kết nối dữ liệu bảo mật.", Complexity = "High", EstimatedHours = 24 });
-                useCases.Add(new { UseCase = "Kiểm chuẩn đơn vị (Unit Test)", Description = "Rà soát lỗ hổng bảo mật nghiêm trọng.", Complexity = "Medium", EstimatedHours = 10 });
-            }
-
-            return new
-            {
-                JobPostId = job.Id,
-                SuggestedTitle = $"Giải pháp toàn diện cho dự án: {job.Title}",
-                SuggestedTechnical = $"Kiến trúc Microservices / Modular Monolith, tích hợp AI Engine, bảo mật Token mã hóa dữ liệu.",
-                SuggestedImplementation = $"Chia làm {useCases.Count} giai đoạn chính độc lập để nghiệm thu cuốn chiếu.",
-                SuggestedDependencies = "Yêu cầu Server Node chạy Docker, MySQL Server 8.0+, SSL Endpoint sạch.",
-                SplitUseCases = useCases
-            };
-        }
     }
 }

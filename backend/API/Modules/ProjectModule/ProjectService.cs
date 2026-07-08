@@ -44,7 +44,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             miniTask.FeedbackContent = feedbackContent;
         }
         
-        // Cáº­p nháº­t deadline náº¿u sá»‘ ngÃ y Ä‘Æ°á»£c truyá»n vÃ o
+        // CÃƒÂ¡Ã‚ÂºÃ‚Â­p nhÃƒÂ¡Ã‚ÂºÃ‚Â­t deadline nÃƒÂ¡Ã‚ÂºÃ‚Â¿u sÃƒÂ¡Ã‚Â»Ã¢â‚¬Ëœ ngÃƒÆ’Ã‚Â y Ãƒâ€žÃ¢â‚¬ËœÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã‚Â£c truyÃƒÂ¡Ã‚Â»Ã‚Ân vÃƒÆ’Ã‚Â o
         if (deadlineDays.HasValue)
         {
             miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
@@ -72,51 +72,15 @@ namespace AITasker_Modular.Modules.ProjectModule;
             var hasUncompleted = await _context.MiniTasks.AnyAsync(mt => mt.TaskId == taskId && !mt.IsCompleted);
             if (hasUncompleted)
             {
-                throw new InvalidOperationException("Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ cÃ¡c mini-task trÆ°á»›c khi gá»­i duyá»‡t.");
+                throw new InvalidOperationException("Vui lÃƒÆ’Ã‚Â²ng hoÃƒÆ’Ã‚Â n thÃƒÆ’Ã‚Â nh tÃƒÂ¡Ã‚ÂºÃ‚Â¥t cÃƒÂ¡Ã‚ÂºÃ‚Â£ cÃƒÆ’Ã‚Â¡c mini-task trÃƒâ€ Ã‚Â°ÃƒÂ¡Ã‚Â»Ã¢â‚¬Âºc khi gÃƒÂ¡Ã‚Â»Ã‚Â­i duyÃƒÂ¡Ã‚Â»Ã¢â‚¬Â¡t.");
             }
         }
 
         task.Status = status;
 
-        if (status.Equals("Completed", StringComparison.OrdinalIgnoreCase))
-        {
-            var project = await _context.Projects.FindAsync(task.ProjectId);
-            if (project != null && project.Status != "Completed")
-            {
-                project.Status = "Completed"; 
-                decimal totalBudget = project.EscrowBalance;
-
-                decimal platformFee = totalBudget * 0.05m; 
-                decimal expertNetPay = totalBudget - platformFee;
-
-                var expertWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ExpertId);
-                if (expertWallet != null)
-                {
-                    expertWallet.Balance += expertNetPay;
-                }
-
-                var systemWallet = await _context.SystemWallets
-                    .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
-                if (systemWallet != null)
-                {
-                    systemWallet.TotalBalance += platformFee;
-                    systemWallet.UpdatedAt = DateTime.UtcNow;
-                }
-
-                var log = new SystemTransactionLog
-                {
-                    Id = Guid.NewGuid(),
-                    ProjectId = project.Id,
-                    Amount = platformFee,
-                    Type = "PlatformFee",
-                    Description = $"Thu phÃ­ dá»‹ch vá»¥ sÃ n 5% tá»« dá»± Ã¡n {project.Id} hoÃ n thÃ nh.",
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.SystemTransactionLogs.Add(log);
-
-                project.EscrowBalance = 0; 
-            }
-        }
+        // [FIX Premature Completion] Da xoa logic tu dong Completed Project + giai ngan tien khoi day.
+        // Viec dong Project va giai ngan CHI duoc thuc hien qua endpoint rieng: POST /api/Projects/{id}/release-payment
+        // sau khi Client chu dong duyet Final Work, khong duoc gop chung voi viec duyet tung Task/MiniTask nho le.
 
         await _context.SaveChangesAsync();
         return task;
@@ -164,7 +128,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
     }
 
     // ===================================================================================
-    // KHá»šP Ná»I CHÃNH XÃC KIá»‚U TRáº¢ Vá»€ Cá»¦A INTERFACE Äá»‚ BUILD THÃ€NH CÃ”NG THáº¦N Tá»C
+    // KHÃƒÂ¡Ã‚Â»Ã…Â¡P NÃƒÂ¡Ã‚Â»Ã‚ÂI CHÃƒÆ’Ã‚ÂNH XÃƒÆ’Ã‚ÂC KIÃƒÂ¡Ã‚Â»Ã¢â‚¬Å¡U TRÃƒÂ¡Ã‚ÂºÃ‚Â¢ VÃƒÂ¡Ã‚Â»Ã¢â€šÂ¬ CÃƒÂ¡Ã‚Â»Ã‚Â¦A INTERFACE Ãƒâ€žÃ‚ÂÃƒÂ¡Ã‚Â»Ã¢â‚¬Å¡ BUILD THÃƒÆ’Ã¢â€šÂ¬NH CÃƒÆ’Ã¢â‚¬ÂNG THÃƒÂ¡Ã‚ÂºÃ‚Â¦N TÃƒÂ¡Ã‚Â»Ã‚ÂC
     // ===================================================================================
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects
         .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
@@ -267,7 +231,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             ClientId = proposal.JobPost?.ClientId ?? Guid.Empty,
             ExpertId = proposal.ExpertId,
             EscrowBalance = proposal.BidAmount,
-            Status = "In Progress",
+            Status = "Pending Escrow",
             StartDate = DateTime.UtcNow,
             EndDate = DateTime.UtcNow.AddDays(proposal.EstimatedDuration)
         };
@@ -277,7 +241,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
         // [FIX 2.2] Tu dong doi trang thai JobPost sang In Progress de FE an khoi danh sach tuyen
         if (proposal.JobPost != null)
         {
-            proposal.JobPost.Status = "In Progress";
+            proposal.JobPost.Status = "Pending Escrow";
         }
 
         // Copy WBS items (ProposalTasks and ProposalMiniTasks) to ProjectTasks and MiniTasks
