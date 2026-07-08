@@ -172,7 +172,7 @@ namespace AITasker_Modular.Modules.ProposalModule
                 }
                 else
                 {
-                    proposal.Implementation = string.Empty; // Ẩn giải pháp kỹ thuật đối với Client nếu chưa Accepted
+                    proposal.Implementation = string.Empty; // ẩn giải pháp kỹ thuật đối với Client nếu chưa Accepted
                 }
             }
 
@@ -213,6 +213,19 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             if (newStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase))
             {
+                // [FIX Data Consistency] Tu dong tu choi cac Proposal khac dang Pending cho cung JobPost
+                var otherPendingProposals = await _context.Proposals
+                    .Where(p => p.JobPostId == proposal.JobPostId && p.Id != proposalId && p.Status.ToLower() == "pending")
+                    .ToListAsync();
+                foreach (var op in otherPendingProposals)
+                {
+                    op.Status = "Rejected";
+                }
+                if (otherPendingProposals.Any())
+                {
+                    await _context.SaveChangesAsync();
+                }
+
                 await _projectService.CreateProjectFromProposalAsync(proposalId);
                 // Tải lại để lấy thông tin cập nhật
                 proposal = await _context.Proposals
@@ -286,7 +299,6 @@ namespace AITasker_Modular.Modules.ProposalModule
             }
             return result;
         }
-
         public async Task<string?> GenerateProposalMilestoneMarkdownAsync(Guid proposalId, int taskCount, int deadlineDays)
         {
             var proposal = await _context.Proposals
@@ -294,25 +306,26 @@ namespace AITasker_Modular.Modules.ProposalModule
                 .Include(p => p.ProposalTasks)
                 .ThenInclude(t => t.ProposalMiniTasks)
                 .FirstOrDefaultAsync(p => p.Id == proposalId);
-                
-            if (proposal == null) return null;
 
+            if (proposal == null) return null;
             proposal.Implementation = GetProposalWbsJson(proposal);
+
             var markdownBuilder = new StringBuilder();
             markdownBuilder.AppendLine($"# BẢN PHÂN RÃ TIẾN ĐỘ ĐỀ XUẤT (WBS) - DỰ ÁN: {proposal.JobPostTitle.ToUpper()}");
             markdownBuilder.AppendLine($"* **Mã số Proposal:** {proposal.Id}");
             markdownBuilder.AppendLine($"* **Chuyên gia thực hiện:** {proposal.ExpertName}");
             markdownBuilder.AppendLine($"* **Số lượng Task nhỏ được rã bởi AI:** {taskCount} Tasks");
-            markdownBuilder.AppendLine($"* **Thời gian cam kết hoàn thành:** {deadlineDays} ngày");
+            markdownBuilder.AppendLine($"* **Thời hạn cam kết hoàn thành (Expert dự kiến):** {deadlineDays} ngày kể từ ngày ký kết");
             markdownBuilder.AppendLine("---");
-            markdownBuilder.AppendLine("## CHI TIẾT CÁC MILESTONES NGHIỆM THU TÀI CHÍNH");
+            markdownBuilder.AppendLine("## DANH SÁCH MILESTONES NGHIỆM THU TÀI CHÍNH");
+            markdownBuilder.AppendLine();
 
             int daysPerTask = Math.Max(1, deadlineDays / taskCount);
             for (int i = 1; i <= taskCount; i++)
             {
-                markdownBuilder.AppendLine($"### 📍 Milestone {i}: Hoàn thiện cấu phần kỹ thuật mẫu {i}");
+                markdownBuilder.AppendLine($"### 📌 Milestone {i}: Hoàn thiện cấu phần kỹ thuật mẫu {i}");
                 markdownBuilder.AppendLine($"- **Nhiệm vụ chi tiết:** Thực thi logic giải pháp dựa trên đặc tả cấu trúc: {proposal.Implementation}.");
-                markdownBuilder.AppendLine($"- **Thời hạn xử lý:** Trong vòng {daysPerTask} ngày.");
+                markdownBuilder.AppendLine($"- **Thời gian xử lý dự kiến:** {daysPerTask} ngày.");
                 markdownBuilder.AppendLine();
             }
 
@@ -326,51 +339,12 @@ namespace AITasker_Modular.Modules.ProposalModule
             await File.WriteAllTextAsync(Path.Combine(rootPath, fileName), markdownBuilder.ToString(), Encoding.UTF8);
 
             var fileUrl = $"/milestones/{fileName}";
-            
+
             proposal.Portfolio = fileUrl;
             await _context.SaveChangesAsync();
 
             return fileUrl;
         }
 
-        public async Task<object?> AnalyzeAndSplitUseCasesAsync(Guid jobPostId)
-        {
-            var job = await _context.JobPosts
-                .Include(j => j.JobPostTasks)
-                .FirstOrDefaultAsync(x => x.Id == jobPostId);
-
-            if (job == null) return null;
-
-            var useCases = new List<object>();
-
-            if (job.JobPostTasks != null && job.JobPostTasks.Any())
-            {
-                foreach (var req in job.JobPostTasks)
-                {
-                    useCases.Add(new {
-                        UseCase = req.Title,
-                        Description = string.Empty,
-                        Complexity = "Medium",
-                        EstimatedHours = req.Duration
-                    });
-                }
-            }
-            else
-            {
-                useCases.Add(new { UseCase = $"Phân tích yêu cầu nghiệp vụ cho: {job.Title}", Description = "Khảo sát hạ tầng, thiết kế cơ sở dữ liệu logic.", Complexity = "Low", EstimatedHours = 8 });
-                useCases.Add(new { UseCase = "Xây dựng lõi API Core", Description = "Hiện thực hóa các cổng kết nối dữ liệu bảo mật.", Complexity = "High", EstimatedHours = 24 });
-                useCases.Add(new { UseCase = "Kiểm chuẩn đơn vị (Unit Test)", Description = "Rà soát lỗ hổng bảo mật nghiêm trọng.", Complexity = "Medium", EstimatedHours = 10 });
-            }
-
-            return new
-            {
-                JobPostId = job.Id,
-                SuggestedTitle = $"Giải pháp toàn diện cho dự án: {job.Title}",
-                SuggestedTechnical = $"Kiến trúc Microservices / Modular Monolith, tích hợp AI Engine, bảo mật Token mã hóa dữ liệu.",
-                SuggestedImplementation = $"Chia làm {useCases.Count} giai đoạn chính độc lập để nghiệm thu cuốn chiếu.",
-                SuggestedDependencies = "Yêu cầu Server Node chạy Docker, MySQL Server 8.0+, SSL Endpoint sạch.",
-                SplitUseCases = useCases
-            };
-        }
     }
 }

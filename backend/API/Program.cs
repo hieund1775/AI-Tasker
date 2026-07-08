@@ -232,7 +232,7 @@ using (var scope = app.Services.CreateScope())
                 Id = clientId,
                 Email = "client@test.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
-                FullName = "NguyÃ¡Â»â€¦n VÃ„Æ’n Client",
+                FullName = "Nguyễn Văn Client",
                 Role = "Client",
                 Status = "Active",
                 CreatedAt = DateTime.UtcNow
@@ -248,7 +248,7 @@ using (var scope = app.Services.CreateScope())
                 Id = expertId,
                 Email = "expert@test.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
-                FullName = "LÃƒÂª VÃ„Æ’n Expert",
+                FullName = "Lê Văn Expert",
                 Role = "Expert",
                 Status = "Active",
                 CreatedAt = DateTime.UtcNow
@@ -258,9 +258,9 @@ using (var scope = app.Services.CreateScope())
             db.ExpertProfiles.Add(new ExpertProfile
             {
                 UserId = expertId,
-                JobTitle = "ChuyÃƒÂªn gia TrÃƒÂ­ tuÃ¡Â»â€¡ NhÃƒÂ¢n tÃ¡ÂºÂ¡o (AI Expert)",
-                Major = "Khoa hÃ¡Â»Âc MÃƒÂ¡y tÃƒÂ­nh",
-                Bio = "TÃƒÂ´i lÃƒÂ  chuyÃƒÂªn gia AI vÃ¡Â»â€ºi 5 nÃ„Æ’m kinh nghiÃ¡Â»â€¡m phÃƒÂ¡t triÃ¡Â»Æ’n cÃƒÂ¡c giÃ¡ÂºÂ£i phÃƒÂ¡p NLP, Generative AI vÃƒÂ  RAG.",
+                JobTitle = "Chuyên gia Trí tuệ Nhân tạo (AI Expert)",
+                Major = "Khoa học Máy tính",
+                Bio = "Tôi là chuyên gia AI với 5 năm kinh nghiệm phát triển các giải pháp NLP, Generative AI và RAG.",
                 ReputationCredit = 5.0m,
                 SuccessRate = 1.0
             });
@@ -277,8 +277,8 @@ using (var scope = app.Services.CreateScope())
             {
                 Id = jobId,
                 ClientId = clientId,
-                Title = "XÃƒÂ¢y dÃ¡Â»Â±ng Chatbot AI tÃƒÂ­ch hÃ¡Â»Â£p RAG",
-                Description = "DÃ¡Â»Â± ÃƒÂ¡n xÃƒÂ¢y dÃ¡Â»Â±ng chatbot hÃ¡Â»â€” trÃ¡Â»Â£ hÃ¡Â»Âi Ã„â€˜ÃƒÂ¡p dÃ¡Â»Â±a trÃƒÂªn tÃƒÂ i liÃ¡Â»â€¡u nÃ¡Â»â„¢i bÃ¡Â»â„¢ sÃ¡Â»Â­ dÃ¡Â»Â¥ng LangChain vÃƒÂ  GPT-4o.",
+                Title = "Xây dựng Chatbot AI tích hợp RAG",
+                Description = "Dự án xây dựng chatbot hỗ trợ hỏi đáp dựa trên tài liệu nội bộ sử dụng LangChain và GPT-4o.",
                 Budget = 1500m,
                 Deadline = 15,
                 Status = "Pending",
@@ -287,20 +287,20 @@ using (var scope = app.Services.CreateScope())
                 SpecializationId = chatbotSpec?.Id,
                 DurationValue = 15,
                 DurationUnit = "Days",
-                Implementation = "[{\"Title\":\"ThiÃ¡ÂºÂ¿t lÃ¡ÂºÂ­p cÃ†Â¡ sÃ¡Â»Å¸ dÃ¡Â»Â¯ liÃ¡Â»â€¡u Vector (ChromaDB)\",\"MiniTasks\":[{\"Title\":\"CÃ¡ÂºÂ¥u hÃƒÂ¬nh DB vector Ã„â€˜Ã¡Â»Æ’ indexing tÃƒÂ i liÃ¡Â»â€¡u.\",\"Duration\":5}]},{\"Title\":\"TÃƒÂ­ch hÃ¡Â»Â£p mÃƒÂ´ hÃƒÂ¬nh ngÃƒÂ´n ngÃ¡Â»Â¯ lÃ¡Â»â€ºn (GPT-4o)\",\"MiniTasks\":[{\"Title\":\"XÃ¡Â»Â­ lÃƒÂ½ prompt template vÃƒÂ  kÃ¡ÂºÂ¿t nÃ¡Â»â€˜i LLM API.\",\"Duration\":7}]},{\"Title\":\"XÃƒÂ¢y dÃ¡Â»Â±ng API Endpoint hÃ¡Â»Âi Ã„â€˜ÃƒÂ¡p\",\"MiniTasks\":[{\"Title\":\"TÃ¡ÂºÂ¡o RESTful endpoint kÃ¡ÂºÂ¿t nÃ¡Â»â€˜i frontend.\",\"Duration\":3}]}]"
+                Implementation = "[{\"Title\":\"Thiết lập cơ sở dữ liệu Vector (ChromaDB)\",\"MiniTasks\":[{\"Title\":\"Cấu hình DB vector để indexing tài liệu.\",\"Duration\":5}]},{\"Title\":\"Tích hợp mô hình ngôn ngữ lớn (GPT-4o)\",\"MiniTasks\":[{\"Title\":\"Xử lý prompt template và kết nối LLM API.\",\"Duration\":7}]},{\"Title\":\"Xây dựng API Endpoint hỏi đáp\",\"MiniTasks\":[{\"Title\":\"Tạo RESTful endpoint kết nối frontend.\",\"Duration\":3}]}]"
             };
             db.JobPosts.Add(testJob);
 
-            var task1 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "ThiÃ¡ÂºÂ¿t lÃ¡ÂºÂ­p cÃ†Â¡ sÃ¡Â»Å¸ dÃ¡Â»Â¯ liÃ¡Â»â€¡u Vector (ChromaDB)" };
-            task1.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task1.Id, Title = "CÃ¡ÂºÂ¥u hÃƒÂ¬nh DB vector Ã„â€˜Ã¡Â»Æ’ indexing tÃƒÂ i liÃ¡Â»â€¡u.", Duration = 5 });
+            var task1 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Thiết lập cơ sở dữ liệu Vector (ChromaDB)" };
+            task1.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task1.Id, Title = "Cấu hình DB vector để indexing tài liệu.", Duration = 5 });
             db.JobPostTasks.Add(task1);
 
-            var task2 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "TÃƒÂ­ch hÃ¡Â»Â£p mÃƒÂ´ hÃƒÂ¬nh ngÃƒÂ´n ngÃ¡Â»Â¯ lÃ¡Â»â€ºn (GPT-4o)" };
-            task2.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task2.Id, Title = "XÃ¡Â»Â­ lÃƒÂ½ prompt template vÃƒÂ  kÃ¡ÂºÂ¿t nÃ¡Â»â€˜i LLM API.", Duration = 7 });
+            var task2 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Tích hợp mô hình ngôn ngữ lớn (GPT-4o)" };
+            task2.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task2.Id, Title = "Xử lý prompt template và kết nối LLM API.", Duration = 7 });
             db.JobPostTasks.Add(task2);
 
-            var task3 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "XÃƒÂ¢y dÃ¡Â»Â±ng API Endpoint hÃ¡Â»Âi Ã„â€˜ÃƒÂ¡p" };
-            task3.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task3.Id, Title = "TÃ¡ÂºÂ¡o RESTful endpoint kÃ¡ÂºÂ¿t nÃ¡Â»â€˜i frontend.", Duration = 3 });
+            var task3 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Xây dựng API Endpoint hỏi đáp" };
+            task3.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task3.Id, Title = "Tạo RESTful endpoint kết nối frontend.", Duration = 3 });
             db.JobPostTasks.Add(task3);
         }
 
@@ -315,7 +315,7 @@ using (var scope = app.Services.CreateScope())
                 ExpertId = expertId,
                 BidAmount = 1200m,
                 EstimatedDuration = 12,
-                Introduction = "ChÃƒÂ o anh/chÃ¡Â»â€¹, tÃƒÂ´i lÃƒÂ  chuyÃƒÂªn gia AI vÃ¡Â»â€ºi 3 nÃ„Æ’m kinh nghiÃ¡Â»â€¡m phÃƒÂ¡t triÃ¡Â»Æ’n cÃƒÂ¡c hÃ¡Â»â€¡ thÃ¡Â»â€˜ng RAG vÃƒÂ  LLM.",
+                Introduction = "Chào anh/chị, tôi là chuyên gia AI với 3 năm kinh nghiệm phát triển các hệ thống RAG và LLM.",
                 Status = "Pending",
                 CreatedAt = DateTime.UtcNow
             };
@@ -324,14 +324,14 @@ using (var scope = app.Services.CreateScope())
 
         if (!await db.ProposalTasks.AnyAsync(t => t.ProposalId == proposalId))
         {
-            var task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "ThiÃ¡ÂºÂ¿t lÃ¡ÂºÂ­p Vector DB vÃƒÂ  tiÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ data" };
-            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "CÃ¡ÂºÂ¥u hÃƒÂ¬nh ChromaDB", Duration = 10 });
-            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "TiÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ data", Duration = 14 });
+            var task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "Thiết lập Vector DB và tiền xử lý data" };
+            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "Cấu hình ChromaDB", Duration = 10 });
+            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "Tiền xử lý data", Duration = 14 });
             db.ProposalTasks.Add(task1);
 
-            var task2 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "TÃƒÂ­ch hÃ¡Â»Â£p LLM vÃƒÂ  hoÃƒÂ n thiÃ¡Â»â€¡n API" };
-            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "TÃƒÂ­ch hÃ¡Â»Â£p LLM", Duration = 8 });
-            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "HoÃƒÂ n thiÃ¡Â»â€¡n API", Duration = 12 });
+            var task2 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "Tích hợp LLM và hoàn thiện API" };
+            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "Tích hợp LLM", Duration = 8 });
+            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "Hoàn thiện API", Duration = 12 });
             db.ProposalTasks.Add(task2);
         }
 
@@ -344,8 +344,8 @@ using (var scope = app.Services.CreateScope())
             {
                 Id = acceptedJobId,
                 ClientId = clientId,
-                Title = "XÃƒÂ¢y dÃ¡Â»Â±ng HÃ¡Â»â€¡ thÃ¡Â»â€˜ng GÃ¡Â»Â£i ÃƒÂ½ SÃ¡ÂºÂ£n phÃ¡ÂºÂ©m",
-                Description = "HÃ¡Â»â€¡ thÃ¡Â»â€˜ng gÃ¡Â»Â£i ÃƒÂ½ sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m cho trang e-commerce sÃ¡Â»Â­ dÃ¡Â»Â¥ng collaborative filtering.",
+                Title = "Xây dựng Hệ thống Gợi ý Sản phẩm",
+                Description = "Hệ thống gợi ý sản phẩm cho trang e-commerce sử dụng collaborative filtering.",
                 Budget = 2000m,
                 Deadline = 30,
                 Status = "In Progress",
@@ -367,7 +367,7 @@ using (var scope = app.Services.CreateScope())
                 ExpertId = expertId,
                 BidAmount = 1800m,
                 EstimatedDuration = 25,
-                Introduction = "TÃƒÂ´i cÃƒÂ³ nhiÃ¡Â»Âu kinh nghiÃ¡Â»â€¡m lÃƒÂ m Recommendation System.",
+                Introduction = "Tôi có nhiều kinh nghiệm làm Recommendation System.",
                 Status = "Accepted",
                 CreatedAt = DateTime.UtcNow
             };
@@ -376,8 +376,8 @@ using (var scope = app.Services.CreateScope())
 
         if (!await db.ProposalTasks.AnyAsync(t => t.ProposalId == acceptedProposalId))
         {
-            var p2task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = acceptedProposalId, Title = "HuÃ¡ÂºÂ¥n luyÃ¡Â»â€¡n mÃƒÂ´ hÃƒÂ¬nh vÃƒÂ  deploy lÃƒÂªn AWS" };
-            p2task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = p2task1.Id, Title = "HuÃ¡ÂºÂ¥n luyÃ¡Â»â€¡n Recommendation System", Duration = 20 });
+            var p2task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = acceptedProposalId, Title = "Huấn luyện mô hình và deploy lên AWS" };
+            p2task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = p2task1.Id, Title = "Huấn luyện Recommendation System", Duration = 20 });
             p2task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = p2task1.Id, Title = "Deploy AWS ECS", Duration = 15 });
             db.ProposalTasks.Add(p2task1);
         }
@@ -417,7 +417,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Id = task1Id,
                 ProjectId = testProjectId,
-                Title = "Thu thÃ¡ÂºÂ­p vÃƒÂ  tiÃ¡Â»Ân xÃ¡Â»Â­ lÃƒÂ½ dÃ¡Â»Â¯ liÃ¡Â»â€¡u hÃƒÂ nh vi ngÃ†Â°Ã¡Â»Âi dÃƒÂ¹ng",
+                Title = "Thu thập và tiền xử lý dữ liệu hành vi người dùng",
                 Status = "In Progress",
                 UpdatedAt = DateTime.UtcNow
             };
@@ -431,7 +431,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Id = task2Id,
                 ProjectId = testProjectId,
-                Title = "XÃƒÂ¢y dÃ¡Â»Â±ng vÃƒÂ  huÃ¡ÂºÂ¥n luyÃ¡Â»â€¡n mÃƒÂ´ hÃƒÂ¬nh Matrix Factorization",
+                Title = "Xây dựng và huấn luyện mô hình Matrix Factorization",
                 Status = "In Progress",
                 UpdatedAt = DateTime.UtcNow
             };
@@ -445,7 +445,7 @@ using (var scope = app.Services.CreateScope())
             {
                 Id = miniTaskId,
                 TaskId = task1Id,
-                Title = "ViÃ¡ÂºÂ¿t script python cÃƒÂ o log click",
+                Title = "Viết script python cào log click",
                 IsCompleted = false,
                 CreatedAt = DateTime.UtcNow,
                 Deadline = DateTime.UtcNow.AddDays(7)
@@ -457,7 +457,7 @@ using (var scope = app.Services.CreateScope())
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "LÃ¡Â»â€”i hÃ¡Â»â€¡ thÃ¡Â»â€˜ng tÃ¡Â»Â± Ã„â€˜Ã¡Â»â„¢ng cÃ¡ÂºÂ­p nhÃ¡ÂºÂ­t cÃ¡ÂºÂ¥u trÃƒÂºc Database.");
+        logger.LogError(ex, "Lỗi hệ thống tự động cập nhật cấu trúc Database.");
     }
 }
 
@@ -468,7 +468,7 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty;
 });
 
-// Ãƒâ€°p chÃ¡ÂºÂ¡y chÃƒÂ­nh sÃƒÂ¡ch AllowAllTest Ã„â€˜Ã¡Â»Æ’ chÃ¡ÂºÂ¥p nhÃ¡ÂºÂ­n request tÃ¡Â»Â« mÃ¡Â»Âi nguÃ¡Â»â€œn port khÃƒÂ´ng bÃ¡Â»â€¹ chÃ¡ÂºÂ·n CORS
+// Ép chạy chính sách AllowAllTest để chấp nhận request từ mọi nguồn port không bị chặn CORS
 app.UseCors("AllowAllTest");
 
 app.UseStaticFiles();

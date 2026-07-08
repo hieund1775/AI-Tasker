@@ -44,7 +44,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             miniTask.FeedbackContent = feedbackContent;
         }
         
-        // Cáº­p nháº­t deadline náº¿u sá»‘ ngÃ y Ä‘Æ°á»£c truyá»n vÃ o
+        // Cập nhật deadline nếu số ngày được truyền vào
         if (deadlineDays.HasValue)
         {
             miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
@@ -72,11 +72,15 @@ namespace AITasker_Modular.Modules.ProjectModule;
             var hasUncompleted = await _context.MiniTasks.AnyAsync(mt => mt.TaskId == taskId && !mt.IsCompleted);
             if (hasUncompleted)
             {
-                throw new InvalidOperationException("Vui lÃ²ng hoÃ n thÃ nh táº¥t cáº£ cÃ¡c mini-task trÆ°á»›c khi gá»­i duyá»‡t.");
+                throw new InvalidOperationException("Vui lòng hoàn thành tất cả các mini-task trước khi gửi duyệt.");
             }
         }
 
         task.Status = status;
+
+        // [FIX Premature Completion] Da xoa logic tu dong Completed Project + giai ngan tien khoi day.
+        // Viec dong Project va giai ngan CHI duoc thuc hien qua endpoint rieng: POST /api/Projects/{id}/release-payment
+        // sau khi Client chu dong duyet Final Work, khong duoc gop chung voi viec duyet tung Task/MiniTask nho le.
 
         await _context.SaveChangesAsync();
         return task;
@@ -124,7 +128,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
     }
 
     // ===================================================================================
-    // KHá»šP Ná»I CHÃNH XÃC KIá»‚U TRáº¢ Vá»€ Cá»¦A INTERFACE Äá»‚ BUILD THÃ€NH CÃ”NG THáº¦N Tá»C
+    // KHỚP NỐI CHÍNH XÁC KIỂU TRẢ VỀ CỦA INTERFACE ĐỂ BUILD THÀNH CÔNG THẦN TỐC
     // ===================================================================================
     public async Task<System.Collections.Generic.IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId) => await _context.Projects
         .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
