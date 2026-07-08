@@ -12,16 +12,16 @@ public class GeminiUtil
     private readonly string _apiKey;
 
     private const string GeminiBaseUrl =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
-    public GeminiUtil(HttpClient httpClient, IConfiguration configuration)
+    public GeminiUtil(IConfiguration configuration)
     {
-        _httpClient = httpClient;
+        _httpClient = new HttpClient();
 
         _apiKey = configuration["Gemini:ApiKey"]
             ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY")
             ?? throw new InvalidOperationException(
-                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey) hoac bien moi truong GEMINI_API_KEY.");
+                "Chua cau hinh Gemini API Key. Hay them vao appsettings.json (Gemini:ApiKey).");
     }
 
     public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
