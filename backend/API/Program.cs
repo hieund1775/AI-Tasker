@@ -1,4 +1,4 @@
-﻿using AITasker_Modular.Database;
+using AITasker_Modular.Database;
 using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
@@ -23,6 +23,11 @@ using Microsoft.Extensions.Logging;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddMemoryCache();
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -110,6 +115,7 @@ builder.Services.AddSingleton<GeminiUtil>();
 builder.Services.AddScoped<AiChatService>(); 
 
 var app = builder.Build();
+app.UseResponseCompression();
 
 // --- TÃ¡Â»Â° Ã„ Ã¡Â»ËœNG KHÃ¡Â»Å¾I CHÃ¡ÂºÂ Y VÃƒâ‚¬ MIGRATION DATABASE TOÃƒâ‚¬N CÃ¡Â»Â¤C ---
 using (var scope = app.Services.CreateScope())

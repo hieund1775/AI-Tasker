@@ -120,22 +120,39 @@ public class JobPostService : IJobPostService
         return (await GetJobPostByIdAsync(jobPost.Id))!;
     }
 
-    public async Task<IReadOnlyList<JobPost>> GetJobsAsync()
+    public async Task<PagedResult<JobPost>> GetJobsAsync(int page, int pageSize)
     {
-        var list = await _context.JobPosts
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+
+        var query = _context.JobPosts
                              .Include(jp => jp.ClientUser)
                              .Include(jp => jp.Domain) 
                              .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .Include(jp => jp.JobPostTasks)
-                                 .ThenInclude(t => t.JobPostMiniTasks)
-                             .ToListAsync();
+                                 .ThenInclude(t => t.JobPostMiniTasks);
+
+        var totalCount = await query.CountAsync();
+        
+        var list = await query.OrderByDescending(x => x.CreatedAt)
+                              .Skip((page - 1) * pageSize)
+                              .Take(pageSize)
+                              .ToListAsync();
+
         foreach (var jp in list)
         {
             jp.Implementation = GetJobPostWbsJson(jp);
         }
-        return list;
+
+        return new PagedResult<JobPost>
+        {
+            Data = list,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<JobPost?> GetJobPostByIdAsync(Guid id)
@@ -215,7 +232,7 @@ public class JobPostService : IJobPostService
         return await GetJobPostByIdAsync(id);
     }
 
-    public async Task<IEnumerable<JobPost>> GetFilteredJobsAsync(string? search, decimal? minBudget, decimal? maxBudget, string? status, Guid? categoryDomainId)
+    public async Task<PagedResult<JobPost>> GetFilteredJobsAsync(string? search, decimal? minBudget, decimal? maxBudget, string? status, Guid? categoryDomainId, int page, int pageSize)
     {
         var query = _context.JobPosts
                             .Include(jp => jp.ClientUser)
@@ -247,12 +264,25 @@ public class JobPostService : IJobPostService
             query = query.Where(x => x.DomainId == categoryDomainId.Value);
         }
 
-        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var totalCount = await query.CountAsync();
+
+        var list = await query.OrderByDescending(x => x.CreatedAt)
+                              .Skip((page - 1) * pageSize)
+                              .Take(pageSize)
+                              .ToListAsync();
+
         foreach (var jp in list)
         {
             jp.Implementation = GetJobPostWbsJson(jp);
         }
-        return list;
+
+        return new PagedResult<JobPost>
+        {
+            Data = list,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IEnumerable<JobPost>> GetJobPostsByClientIdAsync(Guid clientId)
