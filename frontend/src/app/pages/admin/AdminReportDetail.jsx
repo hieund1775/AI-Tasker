@@ -664,8 +664,6 @@ export function AdminReportDetail() {
     }
   }, [id, rejectReason, fetchReport, showToast]);
 
-
-
   // -----------------------------------------------------------------------
   // Reject Report
   // -----------------------------------------------------------------------
@@ -1094,8 +1092,6 @@ export function AdminReportDetail() {
   const responderDesiredResolution = isReporterClient ? report.expertExplanationDesiredResolution : report.clientExplanationDesiredResolution;
   const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
   const hasResponderResponded = !!responderExplanation;
-
-
 
   // -----------------------------------------------------------------------
   // Render
@@ -2033,7 +2029,7 @@ export function AdminReportDetail() {
                 })()}
               </>
             )}
-            
+
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
             {(isResolved || isRejected) && (
               <div className="p-4 bg-gray-50 rounded-lg text-center border border-gray-150">

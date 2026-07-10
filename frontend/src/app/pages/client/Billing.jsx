@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   Wallet,
@@ -82,42 +82,6 @@ export function Billing() {
   const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const [showWalletDepositForm, setShowWalletDepositForm] = useState(false);
-  const [walletDepositAmount, setWalletDepositAmount] = useState(0);
-
-  const fetchData = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const [wallet, transactions, clientProjects] = await Promise.all([
-        api.payments.getWallet(user.id).catch(() => null),
-        api.payments.getTransactions().catch(() => []),
-        api.projects.getByClient(user.id).catch(() => []),
-      ]);
-
-      const activeProjects = Array.isArray(clientProjects)
-        ? clientProjects.map((p) => ({
-            id: p.id,
-            title: p.jobPost?.title || "Active Project",
-            escrowAmount: p.escrowBalance || 0,
-          }))
-        : [];
-
-      setData({
-        wallet: wallet || { balance: 0, escrowBalance: 0 },
-        transactions: Array.isArray(transactions) ? transactions : [],
-        activeProjects,
-      });
-    } catch (err) {
-      console.error("Failed to load billing data:", err);
-      setData({
-        wallet: { balance: 0, escrowBalance: 0 },
-        transactions: [],
-        activeProjects: [],
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -533,13 +497,6 @@ export function Billing() {
                 <Send className="w-3.5 h-3.5" /> Rút tiền
               </button>
             </div>
-            <button
-              onClick={() => setShowWalletDepositForm(true)}
-              className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-semibold text-xs transition-colors cursor-pointer inline-flex items-center gap-1.5"
-            >
-              <PlusCircle className="w-3.5 h-3.5" />
-              Nạp tiền
-            </button>
           </div>
         </div>
 
@@ -557,51 +514,6 @@ export function Billing() {
           </div>
         </div>
       </div>
-
-      {/* Nạp tiền vào ví */}
-      {showWalletDepositForm && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
-          <div className="p-6 border-b border-border flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Nạp tiền vào ví</h2>
-            <button onClick={() => setShowWalletDepositForm(false)} className="text-muted-foreground hover:text-foreground text-sm font-semibold cursor-pointer">
-              Đóng
-            </button>
-          </div>
-          <div className="p-6">
-            <form onSubmit={handleWalletDeposit} className="space-y-4 max-w-md">
-              <div>
-                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền muốn nạp ($)</label>
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={walletDepositAmount || ""}
-                  onChange={(e) => setWalletDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                  className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium bg-card text-foreground"
-                  placeholder="500"
-                  required
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={submitting || !walletDepositAmount || walletDepositAmount <= 0}
-                  className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  {submitting ? "Processing..." : "Xác nhận nạp tiền"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowWalletDepositForm(false)}
-                  className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-colors cursor-pointer"
-                >
-                  Huỷ
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Active projects with escrow */}
       {data?.activeProjects?.length > 0 && (
@@ -818,11 +730,8 @@ export function Billing() {
                           {displayStatus}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right font-mono">
-                        <div className="flex flex-col items-end">
-                          <span className="font-semibold text-foreground text-sm">{dateStr}</span>
-                          <span className="text-xs text-muted-foreground mt-0.5 font-normal">{timeStr}</span>
-                        </div>
+                      <td className="px-6 py-4 text-right text-sm text-muted-foreground">
+                        {new Date(tx.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   );

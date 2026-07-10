@@ -308,7 +308,6 @@ export default function ClientProjectDetail() {
         reportType: "cancellation",
         disputeType: "cancellation",
       });
-      toast.success("Đã phản hồi và gửi lại đơn hủy hợp đồng mới lên Admin.");
       setShowCancelModal(false);
       setShowSendConfirmDialog(false);
       setCancelReason("");
