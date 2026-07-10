@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
+import { useEffect } from "react";
 import { Header } from "./Header.jsx";
 import { Footer } from "./Footer.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -14,6 +15,25 @@ import { useAuth } from "../../hooks/useAuth.js";
 export function RootLayout() {
   const location = useLocation();
   const { role, isAuthenticated } = useAuth();
+
+  // Tự động đồng bộ giữa các tab khi localStorage thay đổi (status đè, audit logs, ký quỹ) không cần F5
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (!e.key) return;
+      if (
+        e.key.startsWith("project_status_") ||
+        e.key === "aitasker_audit_logs" ||
+        e.key === "escrow_releases" ||
+        e.key === "aitasker_wallet_updated"
+      ) {
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
 
   // Hide header/footer on standalone auth pages
   const hideHeaderFooter = ["/login", "/signup"].includes(location.pathname);

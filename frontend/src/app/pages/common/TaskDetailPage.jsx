@@ -14,6 +14,8 @@ import {
   RotateCcw,
   X,
   Check,
+  MessageSquare,
+  Download,
   ExternalLink,
   FileText,
 } from "lucide-react";
@@ -29,7 +31,7 @@ import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
-import { updateTask } from "../../../data/mockDatabase.js";
+import { api } from "../../../services/api.js";
 import {
   notifyTaskSubmittedForReview,
   notifyTaskApproved,
@@ -39,6 +41,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 
 // =============================================================================
 // TaskDetailPage — dedicated task detail page for both client and expert.
@@ -94,7 +97,7 @@ export default function TaskDetailPage() {
 
   // Revision modal state (3-step flow)
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [revisionStep, setRevisionStep] = useState("select-type"); // "select-type" | "select-tasks" | "write-reason"
+  const [revisionStep, setRevisionStep] = useState("write-reason"); // "select-type" | "select-tasks" | "write-reason"
   const [revisionType, setRevisionType] = useState("entire"); // "entire" | "mini"
   const [selectedMiniTaskIds, setSelectedMiniTaskIds] = useState(new Set());
   const [revisionFeedback, setRevisionFeedback] = useState("");
@@ -104,7 +107,7 @@ export default function TaskDetailPage() {
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
-  
+
   // Client view product modal state
   const [showViewProductModalClient, setShowViewProductModalClient] = useState(false);
 
@@ -126,12 +129,16 @@ export default function TaskDetailPage() {
   const handleEvidenceSubmit = useCallback(async () => {
     setEvidenceSubmitting(true);
     try {
-      handleSubmitHandoverEvidence(taskId, {
+      const success = await handleSubmitHandoverEvidence(taskId, {
         gitSha: "",
         reportLink: "",
         explanation: "Handover evidence submitted by Expert.",
       });
-      toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+      if (success) {
+        toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+      } else {
+        toast.error("Failed to submit evidence.");
+      }
       setShowEvidenceModal(false);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
@@ -150,18 +157,22 @@ export default function TaskDetailPage() {
     }
     setProductSubmitLoading(true);
     try {
-      await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
-      toast.success("Sản phẩm đã được nộp thành công!");
-      setShowProductModal(false);
-      
-      notifyTaskSubmittedForReview({
-        clientUserId: project?.clientId,
-        expertName: expert?.fullName || "Expert",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => {});
-      
+      const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
+      if (success) {
+        toast.success("Sản phẩm đã được nộp thành công!");
+        setShowProductModal(false);
+
+        notifyTaskSubmittedForReview({
+          clientUserId: project?.clientId || project?.ClientId || client?.id,
+          expertName: expert?.fullName || "Expert",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+      } else {
+        toast.error("Không thể nộp sản phẩm.");
+      }
+
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể nộp sản phẩm.");
@@ -173,20 +184,24 @@ export default function TaskDetailPage() {
   const handleDoneClick = useCallback(async () => {
     setSubmitLoading(true);
     try {
-      handleSubmitForReview(taskId);
-      toast.success("Task submitted for client review!");
-      // Notify client
-      notifyTaskSubmittedForReview({
-        clientUserId: project?.clientId,
-        expertName: expert?.fullName || "Expert",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => {});
-      // Redirect back to project progress
-      navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
-        replace: true,
-      });
+      const success = await handleSubmitForReview(taskId);
+      if (success) {
+        toast.success("Task submitted for client review!");
+        // Notify client
+        notifyTaskSubmittedForReview({
+          clientUserId: project?.clientId || project?.ClientId || client?.id,
+          expertName: expert?.fullName || "Expert",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+        // Redirect back to project progress
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
+          replace: true,
+        });
+      } else {
+        toast.error("Failed to submit task for review.");
+      }
     } catch (err) {
       toast.error("Failed to submit task for review.");
     } finally {
@@ -197,16 +212,21 @@ export default function TaskDetailPage() {
   const handleApproveClick = useCallback(async () => {
     setApproveLoading(true);
     try {
-      handleApproveTask(taskId);
-      toast.success("Task approved!");
-      // Notify expert
-      notifyTaskApproved({
-        expertUserId: project?.assignedExpertId,
-        clientName: client?.fullName || "Client",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => {});
+      const success = await handleApproveTask(taskId);
+      if (success) {
+        toast.success("Task approved!");
+        // Notify expert
+        notifyTaskApproved({
+          expertUserId: project?.expertId || project?.ExpertId || project?.assignedExpertId,
+          clientName: client?.fullName || "Client",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      } else {
+        toast.error("Failed to approve task.");
+      }
     } catch (err) {
       toast.error("Failed to approve task.");
     } finally {
@@ -223,7 +243,7 @@ export default function TaskDetailPage() {
     try {
       if (revisionType === "mini") {
         const miniTaskIdsArr = Array.from(selectedMiniTaskIds);
-        handleRequestMiniTaskRevision(taskId, miniTaskIdsArr, revisionFeedback.trim());
+        await handleRequestMiniTaskRevision(taskId, miniTaskIdsArr, revisionFeedback.trim());
         // Get mini task titles for notification
         const selectedTitles = miniTasks
           .filter((mt) => selectedMiniTaskIds.has(mt.id))
@@ -236,18 +256,18 @@ export default function TaskDetailPage() {
           feedback: revisionFeedback.trim(),
           projectId,
           taskId,
-        }).catch(() => {});
+        }).catch(() => { });
         toast.success("Revision requested for selected mini tasks. Expert can now edit them.");
       } else {
-        handleRequestRevision(taskId, revisionFeedback.trim());
+        await handleRequestRevision(taskId, revisionFeedback.trim());
         notifyTaskRevisionRequested({
-          expertUserId: project?.assignedExpertId,
+          expertUserId: project?.expertId || project?.ExpertId || project?.assignedExpertId,
           clientName: client?.fullName || "Client",
           taskTitle: task?.title,
           feedback: revisionFeedback.trim(),
           projectId,
           taskId,
-        }).catch(() => {});
+        }).catch(() => { });
         toast.success("Revision requested. Expert can now edit.");
       }
       // Reset modal state
@@ -262,12 +282,12 @@ export default function TaskDetailPage() {
       setRevisionLoading(false);
     }
   }, [taskId, projectId, revisionFeedback, revisionType, selectedMiniTaskIds, miniTasks,
-      handleRequestRevision, handleRequestMiniTaskRevision, project, client, task]);
+    handleRequestRevision, handleRequestMiniTaskRevision, project, client, task]);
 
   const handleReopenClick = useCallback(async () => {
     setReopenLoading(true);
     try {
-      handleRequestReopen(taskId);
+      await handleRequestReopen(taskId);
       toast.success("Reopen requested. Expert can now edit mini tasks.");
     } catch (err) {
       toast.error("Failed to request reopen.");
@@ -279,7 +299,7 @@ export default function TaskDetailPage() {
   const handleUrgentClick = useCallback(async () => {
     setUrgentLoading(true);
     try {
-      handleRequestUrgentSubmission(taskId);
+      await handleRequestUrgentSubmission(taskId);
       toast.success("Urgent submission requested. The expert has been notified.");
       // Notify expert
       notifyUrgentSubmissionRequested({
@@ -288,7 +308,7 @@ export default function TaskDetailPage() {
         taskTitle: task?.title,
         projectId,
         taskId,
-      }).catch(() => {});
+      }).catch(() => { });
       setShowUrgentModal(false);
     } catch (err) {
       toast.error("Failed to send urgent request.");
@@ -316,10 +336,17 @@ export default function TaskDetailPage() {
 
   const displayStatus = task ? deriveTaskDisplayStatus(task) : "Not Started";
   const isDone = displayStatus === "Done";
-  const isWaitingForApproval = task?.status === "waiting_for_approval" || task?.status === "Waiting For Approval" || task?.status === "pending_review" || task?.status === "Pending Review" || task?.status === "pending review";
-  const hasMainProduct = task ? !!(task.productLink || task.productFile) : false;
+  const isWaitingForApproval = 
+    task?.status?.toLowerCase() === "pending approval" ||
+    task?.status?.toLowerCase() === "pending_approval" ||
+    task?.status?.toLowerCase() === "waiting_for_approval" ||
+    task?.status?.toLowerCase() === "waiting for approval" ||
+    task?.status?.toLowerCase() === "pending_review" ||
+    task?.status?.toLowerCase() === "pending review" ||
+    displayStatus === "Waiting For Approval";
+  const hasMainProduct = task ? !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile)) : false;
   const isReopenRequested = task?.status === "reopen_requested" || task?.status === "Reopen Requested" || task?.status === "reopen requested";
-  const isNeedsRevision = (displayStatus === "Decline" || displayStatus === "Waiting for Expert Product" || task?.status === "waiting_expert_product") && !!task?.declineReason;
+  const isNeedsRevision = !isDone && !isWaitingForApproval && !!task?.declineReason;
   const isNotStarted = displayStatus === "Not Started";
   const isInProgress = displayStatus === "In Progress";
   const isDisputed = project?.status?.toLowerCase() === "disputed";
@@ -405,23 +432,9 @@ export default function TaskDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <button
-          onClick={() => navigate(`/${role}/projects/${projectId}`)}
-          className="hover:text-accent transition-colors font-medium"
-        >
-          Projects
-        </button>
-        <span>/</span>
-        <span className="text-muted-foreground truncate max-w-[200px]">
-          {project?.title || "Project"}
-        </span>
-        <span>/</span>
-        <span className="text-foreground font-semibold truncate max-w-[200px]">
-          {task.title}
-        </span>
-      </div>
+      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
+        Quay lại dự án
+      </BackButton>
 
       <PageHeader
         title={task.title}
@@ -523,9 +536,19 @@ export default function TaskDetailPage() {
             {task.productFile && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">File đính kèm</span>
-                <span className="text-xs text-foreground/80 font-mono mt-1 truncate">
-                  {task.productFile}
-                </span>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <span className="text-xs text-foreground/80 font-mono truncate">
+                    {task.productFile}
+                  </span>
+                  <a
+                    href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
+                    download
+                    className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                    title="Download file"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
             )}
           </div>
@@ -616,207 +639,54 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Revision request modal (3-step flow) */}
+      {/* Revision request modal (Provide Revision Reason directly) */}
       {showRevisionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            {/* Step 1: Revision Type Selection */}
-            {revisionStep === "select-type" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  What would you like to revise?
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Choose whether to reopen the entire task or only specific mini tasks.
-                </p>
-                <div className="space-y-3 mb-6">
-                  <label
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-                      revisionType === "entire"
-                        ? "border-primary bg-primary-light"
-                        : "border-border hover:border-primary/20"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="revisionType"
-                      value="entire"
-                      checked={revisionType === "entire"}
-                      onChange={() => setRevisionType("entire")}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div>
-                      <p className="font-semibold text-foreground">Entire Task</p>
-                      <p className="text-xs text-muted-foreground">Reopen all mini tasks for revision</p>
-                    </div>
-                  </label>
-                  <label
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-                      revisionType === "mini"
-                        ? "border-primary bg-primary-light"
-                        : "border-border hover:border-primary/20"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="revisionType"
-                      value="mini"
-                      checked={revisionType === "mini"}
-                      onChange={() => setRevisionType("mini")}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div>
-                       <p className="font-semibold text-foreground">Specific Tasks</p>
-                      <p className="text-xs text-muted-foreground">Select which tasks need revision</p>
-                    </div>
-                  </label>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRevisionModal(false);
-                      setRevisionStep("select-type");
-                      setRevisionType("entire");
-                      setSelectedMiniTaskIds(new Set());
-                      setRevisionFeedback("");
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (revisionType === "mini") {
-                        setRevisionStep("select-tasks");
-                      } else {
-                        setRevisionStep("write-reason");
-                      }
-                    }}
-                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover text-sm font-medium"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Step 2: Select Mini Tasks (only for mini task revision) */}
-            {revisionStep === "select-tasks" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  Select Tasks to Revise
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Check the tasks you want the expert to revise.
-                </p>
-                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-                  {miniTasks.map((mt) => {
-                    const isSelected = selectedMiniTaskIds.has(mt.id);
-                    return (
-                      <label
-                        key={mt.id}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                          isSelected
-                            ? "border-primary bg-primary-light"
-                            : "border-border hover:border-border/80"
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {
-                            const next = new Set(selectedMiniTaskIds);
-                            if (isSelected) next.delete(mt.id);
-                            else next.add(mt.id);
-                            setSelectedMiniTaskIds(next);
-                          }}
-                          className="w-4 h-4 text-primary rounded"
-                        />
-                        <span className="text-sm font-medium text-foreground">{mt.title}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRevisionStep("select-type");
-                      setSelectedMiniTaskIds(new Set());
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRevisionStep("write-reason")}
-                    disabled={selectedMiniTaskIds.size === 0}
-                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Step 3: Revision Reason */}
-            {revisionStep === "write-reason" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  Provide Revision Reason
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Describe what needs to be changed. This will be shown to the expert.
-                </p>
-                <textarea
-                  value={revisionFeedback}
-                  onChange={(e) => setRevisionFeedback(e.target.value)}
-                  placeholder="Describe what needs to be changed..."
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring/50 focus:border-ring mb-6 resize-none bg-input-background"
-                  rows={4}
-                  autoFocus
-                />
-                <div className="flex justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRevisionModal(false);
-                      setRevisionStep("select-type");
-                      setRevisionType("entire");
-                      setSelectedMiniTaskIds(new Set());
-                      setRevisionFeedback("");
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRevisionClick}
-                    disabled={revisionLoading || !revisionFeedback.trim()}
-                    className="h-9 px-4 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center gap-2 transition-colors"
-                  >
-                    {revisionLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        Submit Revision Request
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Provide Revision Reason
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Describe what needs to be changed. This will be shown to the expert.
+            </p>
+            <textarea
+              value={revisionFeedback}
+              onChange={(e) => setRevisionFeedback(e.target.value)}
+              placeholder="Describe what needs to be changed..."
+              className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring/50 focus:border-ring mb-6 resize-none bg-input-background"
+              rows={4}
+              autoFocus
+            />
+            <div className="flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRevisionModal(false);
+                  setRevisionFeedback("");
+                }}
+                className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRevisionClick}
+                disabled={revisionLoading || !revisionFeedback.trim()}
+                className="h-9 px-4 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center gap-2 transition-colors"
+              >
+                {revisionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Submit Revision Request
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -868,20 +738,21 @@ export default function TaskDetailPage() {
             {isExpert && !isDone && (
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {task?.urgentRequest === true || task?.productRequested === true || task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product" ? (
+                  {task?.urgentRequest === true || task?.productRequested === true || task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product" || isNeedsRevision || !!(task?.productLink || task?.productFile) ? (
                     <Button
                       variant="default"
                       size="default"
                       fullWidth
+                      disabled={isWaitingForApproval}
                       onClick={() => {
                         setProductLinkInput(task.productLink || "");
                         setProductFileInput(task.productFile || "");
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
+                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
-                      Submit Product (Nộp sản phẩm)
+                      {isWaitingForApproval ? "Đang chờ Client duyệt sản phẩm" : "Submit Product (Nộp sản phẩm)"}
                     </Button>
                   ) : (
                     <Button
@@ -918,20 +789,24 @@ export default function TaskDetailPage() {
             {/* Client actions: Quick Accept, Request Product, View Product */}
             {isClient && (
               <div className="space-y-3">
-                {/* 1. Checklist Completed: Render Quick Accept & Request Product */}
-                {(task.displayStatus === "Checklist Completed") && !task.productRequested && (
+                {/* 1. Checklist Completed or Pending Approval without product: Render Quick Accept & Request Product */}
+                {(isWaitingForApproval || displayStatus === "Checklist Completed") && !task.productRequested && !hasMainProduct && (
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="success"
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={() => {
+                      onClick={async () => {
                         setApproveLoading(true);
                         try {
-                          handleQuickAccept(taskId);
-                          toast.success("Task accepted! (Quick Accept)");
-                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          const success = await handleQuickAccept(taskId);
+                          if (success) {
+                            toast.success("Task accepted! (Quick Accept)");
+                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          } else {
+                            toast.error("Failed to accept task.");
+                          }
                         } catch (err) {
                           toast.error("Failed to accept task.");
                         } finally {
@@ -948,12 +823,16 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       loading={urgentLoading}
-                      onClick={() => {
+                      onClick={async () => {
                         setUrgentLoading(true);
                         try {
-                          handleRequestProduct(taskId);
-                          toast.success("Product requested from expert!");
-                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          const success = await handleRequestProduct(taskId);
+                          if (success) {
+                            toast.success("Product requested from expert!");
+                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          } else {
+                            toast.error("Failed to request product.");
+                          }
                         } catch (err) {
                           toast.error("Failed to request product.");
                         } finally {
@@ -1109,7 +988,7 @@ export default function TaskDetailPage() {
                 size="default"
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
-                disabled={!productLinkInput.trim() && !productFileInput.trim()}
+                disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileInput.trim())}
                 className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
               >
                 {productSubmitLoading ? "Đang gửi..." : "Gửi sản phẩm"}
@@ -1140,30 +1019,96 @@ export default function TaskDetailPage() {
             {/* Modal Content */}
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto font-sans">
               <div className="space-y-4">
-                {!task?.productLink && !task?.productFile ? (
+                {!task?.productLink && !task?.productFile && !task?.miniTasks?.some(mt => mt.productLink || mt.productFile) ? (
                   <p className="text-sm text-muted-foreground italic text-center">Chuyên gia chưa upload sản phẩm nào.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {task?.productLink && (
-                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
-                        <a
-                          href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-brand-primary font-medium mt-1 truncate hover:underline flex items-center gap-1 font-sans"
-                        >
-                          {task.productLink}
-                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                        </a>
+                  <div className="space-y-4">
+                    {(task?.productLink || task?.productFile) && (
+                      <div className="p-4 bg-muted/40 rounded-xl border border-border/80 text-left space-y-3">
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Sản phẩm Task chính</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {task?.productLink && (
+                            <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
+                              <a
+                                href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-brand-primary font-medium mt-1 truncate hover:underline flex items-center gap-1 font-sans"
+                              >
+                                {task.productLink}
+                                <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                              </a>
+                            </div>
+                          )}
+                          {task?.productFile && (
+                            <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Tên file sản phẩm</span>
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                <span className="text-sm text-foreground/80 font-medium font-mono truncate">
+                                  {task.productFile}
+                                </span>
+                                <a
+                                  href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
+                                  download
+                                  className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                  title="Download file"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {task?.productFile && (
-                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Tên file sản phẩm</span>
-                        <span className="text-sm text-foreground/80 font-medium mt-1 font-mono truncate">
-                          {task.productFile}
-                        </span>
+
+                    {task?.miniTasks?.some(mt => mt.productLink || mt.productFile) && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Sản phẩm từ các Mini-Task</h4>
+                        <div className="space-y-2">
+                          {task.miniTasks
+                            .filter(mt => mt.productLink || mt.productFile)
+                            .map((mt, idx) => (
+                              <div key={mt.id || idx} className="p-3.5 bg-muted/40 rounded-xl border border-border/80 text-left space-y-2">
+                                <p className="text-xs font-bold text-foreground">{mt.title}</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {mt.productLink && (
+                                    <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm</span>
+                                      <a
+                                        href={mt.productLink.startsWith("http") ? mt.productLink : `https://${mt.productLink}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-brand-primary font-medium mt-0.5 truncate hover:underline flex items-center gap-1 font-sans"
+                                      >
+                                        {mt.productLink}
+                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                      </a>
+                                    </div>
+                                  )}
+                                  {mt.productFile && (
+                                    <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Tên file</span>
+                                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                                        <span className="text-xs text-foreground/80 font-medium font-mono truncate">
+                                          {mt.productFile}
+                                        </span>
+                                        <a
+                                          href={mt.productFile.startsWith("http") ? mt.productFile : `https://${mt.productFile}`}
+                                          download
+                                          className="p-1 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                          title="Download file"
+                                        >
+                                          <Download className="w-3 h-3" />
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1287,9 +1232,8 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                  step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
-                }`}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                  }`}
               >
                 {step.done ? "✓" : i + 1}
               </div>

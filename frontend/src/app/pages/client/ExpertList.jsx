@@ -29,7 +29,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
                 type="checkbox"
                 checked={checked}
                 onChange={() => onToggle(opt.value)}
-                className="w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50 accent-brand-primary"
+                className="w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50 accent-brand-primary flex-shrink-0"
               />
               <span className="text-sm text-foreground/80 group-hover:text-foreground">
                 {opt.label}
@@ -62,29 +62,74 @@ export function ExpertList() {
 
   const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [skillsList, setSkillsList] = useState([]);
 
   useEffect(() => {
     async function loadExperts() {
       try {
         setLoading(true);
-        const res = await api.experts.list();
-        // Filter out experts (even if they don't have a complete profile)
+        const [res, cats, skills] = await Promise.all([
+          api.experts.list().catch(() => []),
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+        
+        setCategoriesList(cats || []);
+        setSkillsList(skills || []);
+
         const expertsOnly = (res || [])
           .filter((u) => u.role?.toLowerCase() === "expert")
           .map((u) => {
             const profile = u.expertProfile || {};
+            
+            // Giải mã Category Name của Expert
+            let resolvedCatName = profile.category || u.category || "";
+            const matchedCat = (cats || []).find(c => c.id === resolvedCatName);
+            if (matchedCat) {
+              resolvedCatName = matchedCat.name;
+            }
+
+            // Giải mã Specialization Name của Expert
+            let resolvedSpecName = profile.specialization || profile.major || u.specialization || "";
+            let foundSpec = false;
+            for (const cat of (cats || [])) {
+              const matchedSpec = cat.specializations?.find(s => s.id === resolvedSpecName);
+              if (matchedSpec) {
+                resolvedSpecName = matchedSpec.name;
+                foundSpec = true;
+                break;
+              }
+            }
+            if (!foundSpec && resolvedSpecName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedSpecName = "AI Specialist";
+            }
+
+            if (resolvedCatName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedCatName = "AI & Computing";
+            }
+
+            // Giải mã Skills của Expert
+            const resolvedExpertSkills = (profile.skills || []).map(sk => {
+              if (typeof sk === "string" && sk.startsWith("skill-")) {
+                const match = (skills || []).find(s => s.id === sk);
+                return match ? match.name : sk;
+              }
+              return typeof sk === "string" ? sk : sk?.name || "";
+            });
+
             return {
               id: u.id,
               name: u.fullName,
-              title: profile.jobTitle || profile.major || u.specialization || "AI Specialist",
-              specialization: profile.major || u.specialization || "AI Specialist",
-              category: profile.category || u.category || "AI & Computing",
+              title: profile.jobTitle || resolvedSpecName || "AI Specialist",
+              specialization: resolvedSpecName || "AI Specialist",
+              category: resolvedCatName || "AI & Computing",
               location: profile.location || "N/A",
               bio: profile.bio || u.bio || "No biography provided.",
               rating: 4.8,
               completedProjects: profile.completedProjects || 0,
               hourlyRate: profile.hourlyRate || 50,
-              skills: profile.skills || [],
+              skills: resolvedExpertSkills,
               avatar: null,
             };
           });
@@ -100,44 +145,62 @@ export function ExpertList() {
 
   // ---- Filter options derived from expert data -----------------------------
 
-  // Category options: unique category items
+  // Category options: lấy đầy đủ từ API danh mục của Backend (Lọc trùng lặp)
   const categoryOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => {
-      if (e.category) items.add(e.category);
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (cat.name && !list.some(item => item.value === cat.name)) {
+        list.push({
+          value: cat.name,
+          label: cat.name,
+          count: experts.filter((e) => e.category === cat.name).length,
+        });
+      }
     });
-    return [...items].sort().map((cat) => ({
-      value: cat,
-      label: cat,
-      count: experts.filter((e) => e.category === cat).length,
-    }));
-  }, [experts]);
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
 
-  // Domain expertise: unique items from expert specializations (split by comma)
+  // Domain expertise: lấy đầy đủ specialization từ danh mục API của Backend
+  // Chỉ lấy những specialization chính thức thuộc các danh mục của Backend
   const domainOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => {
-      e.specialization.split(/,\s*/).forEach((s) => {
-        if (s.trim()) items.add(s.trim());
-      });
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (Array.isArray(cat.specializations)) {
+        cat.specializations.forEach((spec) => {
+          if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
+            // Đếm số expert thực tế trùng khớp
+            const count = experts.filter((e) => e.specialization === spec.name).length;
+            
+            if (!list.some(item => item.value === spec.name)) {
+              list.push({
+                value: spec.name,
+                label: spec.name,
+                count: count,
+              });
+            }
+          }
+        });
+      }
     });
-    return [...items].sort().map((domain) => ({
-      value: domain,
-      label: domain,
-      count: experts.filter((e) => e.specialization.includes(domain)).length,
-    }));
-  }, [experts]);
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
 
-  // Core technology: unique skills across all experts
+  // Core technology (Skills): Lấy danh sách đầy đủ từ API skills của Backend (Lọc trùng lặp)
   const techOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => e.skills.forEach((s) => items.add(s)));
-    return [...items].sort().map((skill) => ({
-      value: skill,
-      label: skill,
-      count: experts.filter((e) => e.skills.includes(skill)).length,
-    }));
-  }, [experts]);
+    const list = [];
+    skillsList.forEach((skill) => {
+      if (skill.name && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) { // Chỉ lấy tên skill thật
+        if (!list.some(item => item.value === skill.name)) {
+          list.push({
+            value: skill.name,
+            label: skill.name,
+            count: experts.filter((e) => e.skills.includes(skill.name)).length,
+          });
+        }
+      }
+    });
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [skillsList, experts]);
 
   // Rating tiers derived from actual expert ratings
   const ratingOptions = useMemo(() => {
@@ -248,11 +311,10 @@ export function ExpertList() {
         <button
           type="button"
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-            showFilters || hasActiveFilters
+          className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${showFilters || hasActiveFilters
               ? "border-primary bg-primary-light text-primary"
               : "border-border text-foreground hover:bg-secondary"
-          }`}
+            }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           Filters

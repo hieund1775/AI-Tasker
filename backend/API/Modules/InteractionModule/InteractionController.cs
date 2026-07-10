@@ -21,9 +21,8 @@ namespace AITasker_Modular.Modules.InteractionModule
         [HttpGet]
         public async Task<IActionResult> Get()
         {
-            // Đã loại bỏ bộ lọc ValidateStaffOrOwnerAsync cứng để Client và Expert 
-            // có thể gọi API lấy lịch sử giao dịch ví vật lý từ DB Railway mượt mà
-            var logs = await _service.GetAllTransactionLogsAsync();
+            // [FIX] Trả về danh sách giao dịch kèm theo ProjectTitle để Frontend không cần load thêm
+            var logs = await _service.GetAllTransactionLogsWithTitleAsync();
             return Ok(logs);
         }
 

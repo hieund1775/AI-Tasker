@@ -15,14 +15,6 @@ import api from "./api.js";
 // Replace with real backend endpoints when available.
 // ---------------------------------------------------------------------------
 
-const REPORT_ENDPOINTS = {
-  create: "/reports",          // POST   — Expert submits a dispute report
-  list: "/reports",            // GET    — Admin/Owner fetches report list
-  detail: "/reports/{id}",     // GET    — Admin/Owner fetches single report detail
-  accept: "/reports/{id}",     // PUT    — Admin accepts a report
-  reject: "/reports/{id}",     // PUT    — Admin rejects a report (reason required)
-};
-
 // ---------------------------------------------------------------------------
 // createReport(payload)
 // ---------------------------------------------------------------------------
@@ -45,7 +37,41 @@ const REPORT_ENDPOINTS = {
  * @returns {Promise<object>} created report
  */
 export async function createReport(payload) {
-  return api.post(REPORT_ENDPOINTS.create, payload);
+  // Try to get reporterId from localStorage
+  let reporterId = payload.reporterId;
+  if (!reporterId) {
+    try {
+      const authData = JSON.parse(
+        sessionStorage.getItem("aitasker_user_info") ||
+          localStorage.getItem("aitasker_user_info") ||
+          "{}",
+      );
+      reporterId = authData?.id;
+    } catch (e) {}
+  }
+
+  const fullPayload = {
+    projectId: payload.projectId,
+    reporterId: reporterId,
+    reporterRole: payload.reporterRole || "client",
+    reportType: payload.reportType || "cancellation",
+    reason: payload.reason || "No reason provided",
+    description: payload.description,
+    disputeType: payload.disputeType,
+    desiredResolution: payload.desiredResolution,
+    evidenceUrl: payload.evidenceUrl || (Array.isArray(payload.evidence) && payload.evidence.length > 0 
+      ? (typeof payload.evidence[0].file === "string" ? payload.evidence[0].file : (payload.evidence[0].name || "Uploaded file"))
+      : (typeof payload.evidence === "string" ? payload.evidence : null)),
+  };
+
+  if (fullPayload.reportType === "cancellation") {
+    return api.reports.create(fullPayload);
+  }
+
+  return api.disputes.submitReport(fullPayload).catch(err => {
+    console.warn("Failed to create report:", err);
+    throw err;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +85,69 @@ export async function createReport(payload) {
  * @returns {Promise<object>} { data: Report[], total: number, page: number }
  */
 export async function getReports(params = {}) {
-  return api.get(REPORT_ENDPOINTS.list, { params });
+  try {
+    const res = await api.reports.getAll();
+    const list = Array.isArray(res) ? res : (res?.data || []);
+    
+    // Parallel enrichment of project details and user details
+    const enrichedList = await Promise.all(
+      list.map(async (r) => {
+        const enriched = {
+          ...r,
+          projectTitle: r.projectTitle || r.ProjectTitle || r.reason || r.Reason || "",
+          clientName: r.clientName || r.ClientName || "",
+          expertName: r.expertName || r.ExpertName || "",
+          escrowAmount: r.escrowAmount || r.EscrowAmount || r.amount || r.Amount || 0,
+        };
+        try {
+          const projId = r.projectId || r.ProjectId;
+          if (projId) {
+            const project = await api.projects.getById(projId);
+            if (project) {
+              enriched.projectTitle = project.Title || project.title || project.ProjectTitle || project.projectTitle || enriched.projectTitle;
+              enriched.projectStartDate = project.StartDate || project.startDate || project.createdAt || project.CreatedAt;
+              enriched.projectEndDate = project.EndDate || project.endDate || project.deadline || project.Deadline;
+              const pAmount = project.EscrowBalance || project.escrowBalance || project.Budget || project.budget || project.escrowAmount || project.EscrowAmount || 0;
+              enriched.amount = pAmount;
+              enriched.escrowAmount = pAmount;
+              
+              const clientId = project.ClientId || project.clientId;
+              if (clientId) {
+                const client = await api.users.getById(clientId);
+                if (client) {
+                  enriched.clientName = client.fullName || client.name || client.FullName || client.Name || enriched.clientName;
+                  enriched.clientEmail = client.email || client.Email;
+                }
+              }
+              const expId = project.AssignedExpertId || project.assignedExpertId || project.ExpertId || project.expertId;
+              if (expId) {
+                const expert = await api.users.getById(expId);
+                if (expert) {
+                  enriched.expertName = expert.fullName || expert.name || expert.FullName || expert.Name || enriched.expertName;
+                  enriched.expertEmail = expert.email || expert.Email;
+                }
+              }
+            }
+          }
+          const repId = r.reporterId || r.ReporterId;
+          if (repId) {
+            const reporter = await api.users.getById(repId);
+            if (reporter) {
+              enriched.reporterName = reporter.fullName || reporter.name || reporter.FullName || reporter.Name;
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to enrich individual report:", r.id || r.Id, e);
+        }
+        return enriched;
+      })
+    );
+
+    return { data: enrichedList, total: enrichedList.length, page: 1 };
+  } catch (err) {
+    console.warn("Failed to load reports queue from /Reports:", err);
+    return { data: [], total: 0, page: 1 };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +161,69 @@ export async function getReports(params = {}) {
  * @returns {Promise<object>} report detail
  */
 export async function getReportDetail(reportId) {
-  return api.get(REPORT_ENDPOINTS.detail.replace("{id}", reportId));
+  try {
+    const r = await api.reports.getById(reportId);
+    if (r) {
+      const enriched = {
+        ...r,
+        projectTitle: r.projectTitle || r.ProjectTitle || r.reason || r.Reason || "",
+        clientName: r.clientName || r.ClientName || "",
+        expertName: r.expertName || r.ExpertName || "",
+        escrowAmount: r.escrowAmount || r.EscrowAmount || r.amount || r.Amount || 0,
+      };
+      
+      const projId = r.projectId || r.ProjectId;
+      if (projId) {
+        try {
+          const project = await api.projects.getById(projId);
+          if (project) {
+            enriched.projectTitle = project.Title || project.title || project.ProjectTitle || project.projectTitle || enriched.projectTitle;
+            enriched.projectStartDate = project.StartDate || project.startDate || project.createdAt || project.CreatedAt;
+            enriched.projectEndDate = project.EndDate || project.endDate || project.deadline || project.Deadline;
+            
+            const pAmount = project.EscrowBalance || project.escrowBalance || project.Budget || project.budget || project.escrowAmount || project.EscrowAmount || 0;
+            enriched.amount = pAmount;
+            enriched.escrowAmount = pAmount;
+            
+            const clientId = project.ClientId || project.clientId;
+            if (clientId) {
+              const client = await api.users.getById(clientId);
+              if (client) {
+                enriched.clientName = client.fullName || client.name || client.FullName || client.Name || enriched.clientName;
+                enriched.clientEmail = client.email || client.Email;
+              }
+            }
+            const expId = project.AssignedExpertId || project.assignedExpertId || project.ExpertId || project.expertId;
+            if (expId) {
+              const expert = await api.users.getById(expId);
+              if (expert) {
+                enriched.expertName = expert.fullName || expert.name || expert.FullName || expert.Name || enriched.expertName;
+                enriched.expertEmail = expert.email || expert.Email;
+              }
+            }
+          }
+        } catch (pe) {
+          console.warn("Failed to enrich project details for report detail view:", pe);
+        }
+      }
+      
+      const repId = r.reporterId || r.ReporterId;
+      if (repId) {
+        try {
+          const reporter = await api.users.getById(repId);
+          if (reporter) {
+            enriched.reporterName = reporter.fullName || reporter.name || reporter.FullName || reporter.Name;
+          }
+        } catch (re) {}
+      }
+      
+      return enriched;
+    }
+    return r;
+  } catch (e) {
+    console.error("Failed to query report detail:", e);
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -85,11 +235,17 @@ export async function getReportDetail(reportId) {
  * After acceptance the project status changes to "Disputed".
  *
  * @param {string} reportId
- * @param {object} payload — { adminNote?: string }
+ * @param {object} payload — { adminNote?: string, reportType?: string }
  * @returns {Promise<object>}
  */
 export async function acceptReport(reportId, payload = {}) {
-  return api.put(REPORT_ENDPOINTS.accept.replace("{id}", reportId), payload);
+  const type = payload.reportType || payload.reportName || "";
+  if (type.toLowerCase() === "cancellation" || payload.disputeType === "cancellation") {
+    return api.reports.adminApproveCancel(reportId);
+  }
+  return api.reports.adminAcceptReport(reportId, {
+    adminNote: payload.adminNote || ""
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -101,11 +257,19 @@ export async function acceptReport(reportId, payload = {}) {
  * Rejection reason is REQUIRED. A notification is sent to the Expert.
  *
  * @param {string} reportId
- * @param {object} payload — { reason: string (required) }
+ * @param {object} payload — { reason: string (required), reportType?: string }
  * @returns {Promise<object>}
  */
 export async function rejectReport(reportId, payload) {
-  return api.put(REPORT_ENDPOINTS.reject.replace("{id}", reportId), payload);
+  const type = payload.reportType || payload.reportName || "";
+  if (type.toLowerCase() === "cancellation" || payload.disputeType === "cancellation") {
+    return api.reports.adminRejectCancel(reportId, {
+      adminNote: payload.reason
+    });
+  }
+  return api.reports.adminRejectReport(reportId, {
+    reason: payload.reason
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle, X, Sun, Moon, Monitor } from
 import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
+import { forgotPassword } from "../../../services/authService";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -20,6 +21,7 @@ export function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSubmitted, setResetSubmitted] = useState(false);
   const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ export function LoginPage() {
         const dashboardPath =
           user.role === "owner"
             ? "/owner/dashboard"
-            : user.role === "admin"
+            : (user.role === "admin" || user.role === "staff")
               ? "/admin/dashboard"
               : user.role === "expert"
                 ? "/expert/dashboard"
@@ -54,7 +56,7 @@ export function LoginPage() {
     }
   };
 
-  const handleResetSubmit = (e) => {
+  const handleResetSubmit = async (e) => {
     e.preventDefault();
     setResetError("");
     if (!resetEmail.trim()) {
@@ -65,7 +67,15 @@ export function LoginPage() {
       setResetError("Please enter a valid email address.");
       return;
     }
-    setResetSubmitted(true);
+    setResetLoading(true);
+    try {
+      await forgotPassword(resetEmail.trim());
+      setResetSubmitted(true);
+    } catch (err) {
+      setResetError(err.message || "Failed to send reset link. Please try again.");
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   return (
@@ -189,9 +199,10 @@ export function LoginPage() {
                   </div>
                   <button
                     type="submit"
-                    className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors"
+                    disabled={resetLoading}
+                    className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors flex items-center justify-center disabled:opacity-50"
                   >
-                    Send Reset Link
+                    {resetLoading ? "Sending..." : "Send Reset Link"}
                   </button>
                   <div className="text-center">
                     <button

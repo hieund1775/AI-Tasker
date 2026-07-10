@@ -14,4 +14,9 @@ public interface IUserService
     Task<bool> IsOwnerAsync(string userId);
     Task<bool> SetUserActiveStatusAsync(string userId, bool isActive);
     Task<System.Collections.Generic.List<DTOs.UserDetailDto>> GetPublicExpertsAsync();
+
+    // [NEW] Auth management endpoints
+    Task<(DTOs.UserDto? User, string? Token, string? Error)> RefreshTokenAsync(string userId);
+    Task<(bool Success, string? ResetToken, string? Error)> ForgotPasswordAsync(string email);
+    Task<(bool Success, string? Error)> ResetPasswordAsync(string resetToken, string newPassword);
 }

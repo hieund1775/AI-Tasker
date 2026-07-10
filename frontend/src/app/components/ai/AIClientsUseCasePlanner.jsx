@@ -7,78 +7,93 @@ import {
   X,
 } from "lucide-react";
 import { AIFileUploadZone } from "./AIFileUploadZone.jsx";
+import api from "../../../services/api.js";
 
-// ponytail: mock AI use case generator — maps user message keywords to preset category/skills/use cases
-function generateClientUseCases(userMessage, fileNames) {
-  const msg = (userMessage || "").toLowerCase();
-  const hasFiles = fileNames.length > 0;
-  const fileContext = hasFiles ? fileNames.join(", ") : "";
-
-  let category = "Artificial Intelligence";
-  let specialization = "Natural Language Processing";
-  let skills = ["Hugging Face Transformers", "Semantic Search", "Python", "BERT"];
-  let useCases = [
-    { title: "Thiết lập cơ sở dữ liệu & Xác thực người dùng", description: "Cài đặt JWT Auth, lưu trữ phiên trò chuyện và thiết kế cơ sở dữ liệu lịch sử chat.", originalDurationDays: 5 },
-    { title: "Phân tách & Nhúng tài liệu (Document Embedding)", description: "Xây dựng cổng upload tài liệu PDF/TXT, triển khai thuật toán phân tách câu và lưu vector embeddings.", originalDurationDays: 7 },
-    { title: "Cấu hình LLM & Prompt RAG API", description: "Tích hợp thư viện LangChain để gọi LLM và triển khai hệ thống kiểm duyệt câu trả lời (guardrails).", originalDurationDays: 6 },
-    { title: "Giao diện Chatbot Real-time & Stream Response", description: "Thiết kế giao diện chat responsive, hiệu ứng typing indicator, stream text từ API và định dạng markdown.", originalDurationDays: 6 }
+function parseUseCasesFromText(text) {
+  if (!text) return [];
+  const lines = text.split("\n");
+  const useCases = [];
+  
+  const regexPatterns = [
+    /^\s*[-*•]?\s*\d+[\.\)]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*•]?\s*\d+[\.\)]\s*([^:\-]+)[:\-]\s*(.*)$/,
+    /^\s*[-*•]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*•]\s*([^:\-]+)[:\-]\s*(.*)$/,
   ];
 
-  if (msg.includes("medical") || msg.includes("imaging") || msg.includes("lung") || msg.includes("scan") || msg.includes("x-ray")) {
-    category = "Artificial Intelligence";
-    specialization = "Computer Vision";
-    skills = ["OpenCV Library", "YOLO Object Detection", "Image Segmentation", "PyTorch Vision"];
-    useCases = [
-      { title: "Đọc & Chuẩn hóa ảnh DICOM", description: "Phát triển bộ đọc tệp tin y tế DICOM, trích xuất metadata và lưu trữ thông tin ảnh vào cơ sở dữ liệu.", originalDurationDays: 5 },
-      { title: "Huấn luyện & Đánh giá Model PyTorch", description: "Huấn luyện mô hình phân loại tổn thương phổi trên PyTorch, tối ưu hóa độ nhạy đạt tối thiểu 94%.", originalDurationDays: 12 },
-      { title: "Giao diện vẽ Box & Đánh dấu cho bác sĩ", description: "Thiết kế canvas vẽ bounding box và vùng phân đoạn ảnh trực quan trên giao diện web.", originalDurationDays: 8 },
-      { title: "Tự động xuất báo cáo chẩn đoán PDF", description: "Hệ thống tự động tổng hợp kết quả của AI và tạo tệp tin PDF báo cáo y tế chuẩn hóa.", originalDurationDays: 5 }
-    ];
-  } else if (msg.includes("fraud") || msg.includes("transaction") || msg.includes("payment") || msg.includes("risk")) {
-    category = "Artificial Intelligence";
-    specialization = "Machine Learning";
-    skills = ["Python", "Scikit-Learn", "Regression Models", "Classification & Clustering"];
-    useCases = [
-      { title: "Pipeline thu thập giao dịch thời gian thực", description: "Thiết lập consumer Kafka xử lý dữ liệu giao dịch đầu vào với tốc độ 50K events/giây.", originalDurationDays: 8 },
-      { title: "Huấn luyện Model phát hiện gian lận", description: "Xây dựng và tối ưu hóa mô hình phân lớp XGBoost/LightGBM dựa trên các đặc trưng hành vi giao dịch.", originalDurationDays: 10 },
-      { title: "Dashboard giải thích quyết định của AI (XAI)", description: "Hiển thị giá trị đóng góp SHAP/LIME để giải thích lý do giao dịch bị đánh dấu gian lận cho nhân viên kiểm duyệt.", originalDurationDays: 8 },
-      { title: "Hệ thống cảnh báo & Tự động khóa thẻ", description: "Kích hoạt cảnh báo thời gian thực qua SMS/Email và tự động gửi lệnh khóa tài khoản/thẻ có dấu hiệu rủi ro cao.", originalDurationDays: 4 }
-    ];
-  } else if (msg.includes("recommend") || msg.includes("suggest") || msg.includes("recommender") || msg.includes("movie") || msg.includes("e-commerce")) {
-    category = "Artificial Intelligence";
-    specialization = "Generative AI";
-    skills = ["OpenAI API Integration", "LangChain Framework", "Vector Databases (Pinecone/Chroma)", "Prompt Engineering"];
-    useCases = [
-      { title: "Thu thập hành vi tương tác của người dùng", description: "Ghi nhận lượt xem sản phẩm, đánh giá và lịch sử mua sắm theo thời gian thực.", originalDurationDays: 6 },
-      { title: "Huấn luyện mô hình Collaborative Filtering", description: "Xây dựng mô hình Matrix Factorization hoặc Two-Tower Neural Network để dự đoán sản phẩm gợi ý.", originalDurationDays: 8 },
-      { title: "Triển khai hạ tầng A/B Testing", description: "Phân luồng người dùng thử nghiệm và đo lường sự thay đổi của tỷ lệ chuyển đổi đơn hàng.", originalDurationDays: 6 },
-      { title: "API gợi ý sản phẩm độ trễ thấp (<100ms)", description: "Xây dựng hệ thống cache Redis để phục vụ danh sách gợi ý sản phẩm ngay khi tải trang.", originalDurationDays: 5 }
-    ];
-  } else if (msg.includes("game") || msg.includes("npc") || msg.includes("unreal") || msg.includes("reinforcement")) {
-    category = "Artificial Intelligence";
-    specialization = "AI Agent Development";
-    skills = ["Python", "AI Agent Tooling", "Deep Neural Networks", "PyTorch Library", "CNN/RNN Architectures"];
-    useCases = [
-      { title: "RL Environment & Wrapper", description: "Expose NPC states, actions, rewards into a Python training script wrapper.", originalDurationDays: 10 },
-      { title: "Multi-Agent Policy Training", description: "Train agents using PPO/SAC with attention models for social behaviors.", originalDurationDays: 14 },
-      { title: "UE5 PyTorch C++ Plugin", description: "Create plugin wrapping PyTorch lib to load models and query actions at 60 FPS.", originalDurationDays: 10 }
-    ];
-  } else if (!msg.includes("chatbot") && !msg.includes("nlp") && !msg.includes("assistant")) {
-    category = "Mobile Phones & Computing";
-    specialization = "Software Engineering";
-    skills = ["Python", "System Design", "Algorithms"];
-    useCases = [
-      { title: "Phân tích yêu cầu & Thiết kế kiến trúc", description: "Vẽ sơ đồ luồng nghiệp vụ, đặc tả cơ sở dữ liệu ERD và định nghĩa các tài liệu thiết kế.", originalDurationDays: 4 },
-      { title: "Triển khai Cơ sở dữ liệu & Viết Backend API", description: "Viết migrations, cấu hình database và hoàn thiện các API Endpoint CRUD cơ bản.", originalDurationDays: 8 },
-      { title: "Tích hợp giao diện Frontend", description: "Tạo các trang màn hình, kết nối form dữ liệu với API và quản lý state tập trung.", originalDurationDays: 8 },
-      { title: "Kiểm thử hệ thống & Bàn giao", description: "Chạy các bài kiểm thử tích hợp (Integration Tests) và deploy dự án lên môi trường staging để nghiệm thu.", originalDurationDays: 5 }
-    ];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    
+    let matched = false;
+    for (const regex of regexPatterns) {
+      const match = trimmed.match(regex);
+      if (match) {
+        let title = match[1].trim();
+        let description = match[2] ? match[2].trim() : "";
+        
+        title = title.replace(/[\*_`\[\]]/g, "").trim();
+        description = description.replace(/[\*_`\[\]]/g, "").trim();
+        
+        if (title.length > 2) {
+          useCases.push({
+            title: title,
+            description: description || `Đặc tả: ${title}`,
+            originalDurationDays: 5
+          });
+          matched = true;
+          break;
+        }
+      }
+    }
+    
+    if (!matched && (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•") || /^\d+[\.\)]/.test(trimmed))) {
+      const cleaned = trimmed.replace(/^[-*•\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+      if (cleaned.length > 10) {
+        const parts = cleaned.split(/[:\-]/);
+        const title = parts[0].trim();
+        const description = parts.slice(1).join(":").trim();
+        if (title.length > 2) {
+          useCases.push({
+            title: title.slice(0, 60),
+            description: description || cleaned,
+            originalDurationDays: 5
+          });
+        }
+      }
+    }
   }
+  
+  if (useCases.length === 0 && text.trim().length > 15 && text.trim().length < 100) {
+    useCases.push({
+      title: text.trim().slice(0, 50),
+      description: text.trim(),
+      originalDurationDays: 5
+    });
+  }
+  
+  return useCases;
+}
 
-  const fileText = hasFiles ? ` (Dựa trên tài liệu: ${fileContext})` : "";
-  const introText = `Chào bạn! Tôi đã phân tích yêu cầu từ tin nhắn của bạn${fileText}. Dưới đây là đề xuất danh sách các **Project Use Cases** chuẩn hóa kèm theo thời gian thực hiện đề xuất để bạn đưa vào bài tuyển dụng:`;
-
-  return { category, specialization, skills, useCases, introText };
+function parseUseCasesFromPayload(payload) {
+  if (!Array.isArray(payload)) return [];
+  return payload.map((task, idx) => {
+    const title = task.Title || task.title || `Use Case ${idx + 1}`;
+    const description = Array.isArray(task.MiniTasks || task.miniTasks)
+      ? (task.MiniTasks || task.miniTasks)
+          .map(mt => `- ${mt.Title || mt.title} (Duration: ${mt.Duration || mt.duration || 1} days)`)
+          .join("\n")
+      : "";
+    const originalDurationDays = Array.isArray(task.MiniTasks || task.miniTasks)
+      ? (task.MiniTasks || task.miniTasks).reduce((sum, mt) => sum + (Number(mt.Duration || mt.duration) || 1), 0)
+      : 5;
+    return {
+      id: `uc-ai-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
+      title,
+      description,
+      originalDurationDays: Math.max(1, originalDurationDays)
+    };
+  });
 }
 
 export function AIClientsUseCasePlanner({
@@ -94,6 +109,7 @@ export function AIClientsUseCasePlanner({
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [contextSummary, setContextSummary] = useState("");
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -103,7 +119,7 @@ export function AIClientsUseCasePlanner({
 
     const welcomeMsg = {
       role: "ai",
-      text: `Chào bạn! Tôi là trợ lý lập kế hoạch Use Case bằng AI.\n\nHãy tải lên tài liệu mô tả yêu cầu (BRD/SRS) của bạn ở trên, hoặc mô tả ý tưởng dự án của bạn tại đây (ví dụ: "Tôi muốn làm một chatbot bán hàng tích hợp RAG").\n\nTập lệnh AI của tôi sẽ tiến hành phân tách và chuẩn hóa các Project Use Cases cùng timeline tối đa gốc cụ thể để bạn áp dụng vào form tuyển dụng!`,
+      text: `Chào bạn! Tôi là trợ lý lập kế hoạch User Stories bằng AI.\n\nHãy tải lên tài liệu mô tả yêu cầu (BRD/SRS) của bạn ở trên, hoặc mô tả ý tưởng dự án của bạn tại đây (ví dụ: "Tôi muốn làm một chatbot bán hàng tích hợp RAG").\n\nTập lệnh AI của tôi sẽ tiến hành phân tách và chuẩn hóa các Project User Stories cùng timeline tối đa gốc cụ thể để bạn áp dụng vào form tuyển dụng!`,
       timestamp: Date.now()
     };
     setMessages([welcomeMsg]);
@@ -113,33 +129,91 @@ export function AIClientsUseCasePlanner({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedPlan]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed && files.length === 0) return;
     if (loading) return;
 
-    const userMsgText = trimmed || `Hãy phân tích tài liệu đính kèm để sinh Use Cases: ${files.map(f => f.name).join(", ")}`;
+    const userMsgText = trimmed || `Hãy phân tích tài liệu đính kèm để sinh User Stories: ${files.map(f => f.name).join(", ")}`;
     const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
-      const fileNames = files.map((f) => f.name);
-      const result = generateClientUseCases(userMsgText, fileNames);
-      setGeneratedPlan(result);
+    try {
+      let uploadedFilePath = null;
+      if (files.length > 0) {
+        try {
+          const uploadRes = await api.ai.uploadChatFile(files[0]);
+          uploadedFilePath = uploadRes?.file_path || uploadRes?.filePath || null;
+        } catch (uploadErr) {
+          console.warn("File upload failed, sending without file...", uploadErr);
+        }
+      }
+
+      // Build message history payload matching C# AIMessageDto
+      const historyPayload = messages.map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text
+      }));
+      historyPayload.push({ role: "user", content: userMsgText });
+
+      // Call general backend AiChat endpoint matching C# AIChatRequest
+      const response = await api.ai.sendSession({
+        messages_history: historyPayload,
+        context_summary: contextSummary || "",
+        file_path: uploadedFilePath || "",
+        current_draft: {
+          title: initialTitle || "",
+          description: initialDescription || ""
+        }
+      });
+      setFiles([]);
+
+      // Map backend structured response to our planner format
+      let plan = null;
+      const chatMessage = response?.chat_message || response?.ChatMessage || "";
+      const payload = response?.payload || response?.Payload;
+      const newContextSummary = response?.context_summary || response?.ContextSummary || "";
+
+      // Save context_summary to maintain chat memory
+      setContextSummary(newContextSummary);
+
+      if (payload && Array.isArray(payload)) {
+        const stories = parseUseCasesFromPayload(payload);
+        plan = {
+          category: "Software Development",
+          specialization: "Full Stack Development",
+          skills: [],
+          useCases: stories,
+          introText: chatMessage || "Dưới đây là đề xuất User Stories dựa trên phân tích của AI:"
+        };
+      }
+
+      const replyText = chatMessage || (plan ? "Dưới đây là đề xuất User Stories dựa trên phân tích của AI:" : "Tôi chưa thu thập đủ thông tin để đề xuất User Stories. Hãy mô tả chi tiết hơn về dự án của bạn nhé.");
+
+      setGeneratedPlan(plan);
       setApplied(false);
 
       const aiMsg = {
         role: "ai",
-        text: result.introText,
-        plan: result,
+        text: replyText,
+        plan: plan,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("Backend AI chat failed:", err);
+      const aiMsg = {
+        role: "ai",
+        text: "Xin lỗi, đã có lỗi xảy ra khi kết nối với AI Backend. (Mã lỗi: " + (err.message || "Unknown") + ")",
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setLoading(false);
-    }, 1200 + Math.random() * 800);
-  }, [input, loading, files]);
+    }
+  }, [input, loading, files, messages, contextSummary, initialTitle, initialDescription]);
 
   const handleApply = useCallback(() => {
     if (generatedPlan) {
@@ -164,9 +238,9 @@ export function AIClientsUseCasePlanner({
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-secondary/50">
         <div>
-          <h2 className="text-sm font-bold text-foreground">🤖 AI Use Case Planner</h2>
+          <h2 className="text-sm font-bold text-foreground">🤖 AI User Story Planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-            Lập kế hoạch Use Cases từ tài liệu & trò chuyện
+            Lập kế hoạch User Stories từ tài liệu & trò chuyện
           </p>
         </div>
         <button
@@ -200,16 +274,15 @@ export function AIClientsUseCasePlanner({
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                  msg.role === "user"
+                className={`max-w-[85%] w-fit px-4 py-2.5 rounded-xl text-sm leading-relaxed ${msg.role === "user"
                     ? "bg-brand-primary text-brand-primary-foreground rounded-br-md shadow-sm"
                     : "bg-card text-foreground rounded-bl-md border border-border shadow-sm"
-                }`}
+                  }`}
               >
                 <p className="whitespace-pre-wrap font-medium">{msg.text}</p>
 
                 {msg.role === "ai" && msg.plan && (
-                  <div className="mt-4 space-y-3 border-t border-border pt-3">
+                  <div className="mt-4 space-y-3 border-t border-border pt-3 w-full">
                     <div className="bg-accent/10 border border-accent/20 rounded-lg p-2.5">
                       <p className="text-[11px] font-bold text-accent uppercase tracking-wider">
                         Phân loại dự đoán:
@@ -259,11 +332,10 @@ export function AIClientsUseCasePlanner({
             type="button"
             onClick={handleApply}
             disabled={applied}
-            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${
-              applied
+            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${applied
                 ? "bg-success/10 text-success border border-success/20 cursor-default"
                 : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover"
-            }`}
+              }`}
           >
             <Sparkles className="w-4 h-4" />
             {applied ? "✓ Đã áp dụng Use Cases vào Form" : "Áp dụng Use Cases này"}

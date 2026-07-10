@@ -17,7 +17,7 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -63,26 +63,10 @@ export function ProposalDetail() {
       .then(async (list) => {
         const found = list.find((p) => p.id === id);
         if (found) {
-          let parsedCoverLetter = {};
-          try {
-            parsedCoverLetter = JSON.parse(found.coverLetter);
-          } catch (e) {
-            parsedCoverLetter = {
-              coverLetter: found.coverLetter,
-              professionalIntro: found.coverLetter,
-            };
-          }
-
+          const parsedProposal = parseProposalWbs(found.implementation || found.coverLetter, found);
           const enrichedProposal = {
             ...found,
-            proposalTitle: parsedCoverLetter.proposalTitle || "Proposal",
-            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
-            technicalApproach: parsedCoverLetter.technicalApproach || "",
-            timelineMilestones: parsedCoverLetter.timelineMilestones || "",
-            dependencies: parsedCoverLetter.dependencies || "",
-            durationDays: parsedCoverLetter.durationDays || found.estimatedDays || 0,
-            attachments: parsedCoverLetter.attachments || [],
-            tasks: parsedCoverLetter.tasks || [],
+            ...parsedProposal,
           };
           setProposal(enrichedProposal);
           if (found.isSubmitted === false) {
@@ -156,7 +140,29 @@ export function ProposalDetail() {
   const convId = getConversationId();
   const isSessionProposal = proposal.id?.startsWith("session-prop-");
   const hasFullFields = isSessionProposal || !!proposal.proposalTitle;
-  const attachments = proposal.attachments || [];
+  
+  // Tổng hợp file đính kèm từ database phẳng của BE (portfolio và attachmentUrl)
+  const attachments = [...(proposal.attachments || [])];
+  if (proposal.portfolio) {
+    const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
+    attachments.push({
+      id: "portfolio-file",
+      name: proposal.portfolio.split("/").pop() || "Portfolio Document",
+      type: isImg ? "image/png" : "document",
+      fileType: isImg ? "image/png" : "document",
+      url: enrichFileUrl(proposal.portfolio)
+    });
+  }
+  if (proposal.attachmentUrl) {
+    const isImg = proposal.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
+    attachments.push({
+      id: "attachment-file",
+      name: proposal.attachmentUrl.split("/").pop() || "Attached Document",
+      type: isImg ? "image/png" : "document",
+      fileType: isImg ? "image/png" : "document",
+      url: enrichFileUrl(proposal.attachmentUrl)
+    });
+  }
 
   const canEdit = proposal.status?.toLowerCase() !== "accepted" &&
                   proposal.status?.toLowerCase() !== "pending_pay" &&
@@ -305,7 +311,7 @@ export function ProposalDetail() {
                             {/* ── Tasks ── */}
                             <div className="p-4 space-y-4">
                               {ucTasks.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this use case.</p>
+                                <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this user story.</p>
                               ) : (
                                 ucTasks.map((task, idx) => (
                                   <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
@@ -419,29 +425,35 @@ export function ProposalDetail() {
                   <p className="text-sm text-muted-foreground">No attachments included.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {attachments.map((att, idx) => (
-                      <div
-                        key={att.id || idx}
-                        className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3"
-                      >
-                        {att.type === "image/png" || att.fileType === "image/png" ? (
-                          <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
-                        ) : att.type === "folder" ? (
-                          <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                        ) : (
-                          <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground/80 truncate">
-                            {att.name || att.fileName || "Attachment"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {att.type || att.fileType || "file"}
-                            {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                    {attachments.map((att, idx) => {
+                      const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
+                      return (
+                        <a
+                          key={att.id || idx}
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3 hover:bg-secondary transition-colors cursor-pointer text-left"
+                        >
+                          {att.type === "image/png" || att.fileType === "image/png" ? (
+                            <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
+                          ) : att.type === "folder" ? (
+                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                          ) : (
+                            <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground/80 truncate">
+                              {att.name || att.fileName || "Attachment"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {att.type || att.fileType || "file"}
+                              {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                            </p>
+                          </div>
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </DetailSection>
@@ -463,7 +475,7 @@ export function ProposalDetail() {
             </Link>
           ) : (
             <Link
-              to="/messenger"
+              to={client ? `/messenger/${client.id || client.Id}` : "/messenger"}
               className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />

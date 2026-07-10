@@ -13,6 +13,7 @@ import {
   FileText,
   Wallet,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
@@ -30,10 +31,13 @@ import api from "../../../services/api.js";
 import {
   getProjectProgress,
   deriveProjectStatusKey,
+  getOverallProgress,
+} from "../../lib/projectTimelineStore.js";
+import {
   getStatusLabel,
   getStatusBadgeClass,
   getClientButtonConfig,
-} from "../../lib/projectTimelineStore.js";
+} from "../../lib/projectStatusConfig.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,6 +54,43 @@ const formatDate = (dateStr) => {
     day: "numeric",
   }, String(dateStr || "N/A"));
 };
+
+export function getNormalizedStatus(project) {
+  const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+  const projId = project.projectId || project.id || project.Id;
+  const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
+  
+  const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
+  const dbStatus = (project.status || project.Status || "").toLowerCase();
+  const status = (localStatus || dbStatus).toLowerCase();
+
+  let label = "In Progress";
+  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+
+  if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
+    label = "Completed";
+    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+  } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
+    label = "Cancel";
+    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+  } else if (status === "disputed") {
+    label = "Disputed";
+    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+  } else {
+    const hasProjectRecord = !!project.projectId;
+    const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
+
+    const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
+    const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+
+    if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
+      label = "Open";
+      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+    }
+  }
+
+  return { label, badgeClass };
+}
 
 const getDeadlineDate = (createdAt, deadline) => {
   if (!deadline) return "N/A";
@@ -92,11 +133,19 @@ export function ClientDashboard() {
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitting, setReportSubmitting] = useState(false);
 
+  const [activeReports, setActiveReports] = useState([]);
+  const [explainingReport, setExplainingReport] = useState(null);
+  const [showExplanationForm, setShowExplanationForm] = useState(false);
+  const [explanationText, setExplanationText] = useState("");
+  const [explanationEvidence, setExplanationEvidence] = useState("");
+  const [explanationSubmitting, setExplanationSubmitting] = useState(false);
+
   const handleSubmitReport = async (reportData) => {
     setReportSubmitting(true);
     try {
       await createReport({
         ...reportData,
+        reporterId: user?.id || user?.Id,
         reporterRole: "client",
         reportType: "type1"
       });
@@ -111,17 +160,111 @@ export function ClientDashboard() {
     }
   };
 
+  const handleSubmitExplanation = async (formData) => {
+    setExplanationSubmitting(true);
+    try {
+      await api.put(`/reports/${explainingReport.id}/partner-reject-cancel`, {
+        partnerRejectionReason: formData.reason || formData.description || "Từ chối yêu cầu hủy hợp đồng",
+      });
+      setShowExplanationForm(false);
+      setExplainingReport(null);
+      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    } catch (err) {
+      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+    } finally {
+      setExplanationSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     async function loadDashboardData() {
       if (!user?.id) return;
       setLoading(true);
 
       try {
-        const [userRes, walletRes] = await Promise.all([
+        const [userRes, walletRes, reportsRes, clientJobs, activeProjectsList, transactionsList] = await Promise.all([
           api.users.getById(user.id),
           api.payments.getWallet(user.id).catch(() => ({ balance: 0 })),
+          api.get("/reports").catch(() => ({ data: [] })),
+          api.jobPosts.getByClientId(user.id).catch(() => []),
+          api.projects.getByClient(user.id).catch(() => []),
+          api.payments.getTransactions(user.id).catch(() => []),
         ]);
-        setClientProjects(userRes?.projects || []);
+        setActiveReports(reportsRes?.data || []);
+
+        try {
+          const depositedProjectIds = (transactionsList || [])
+            .filter(tx => tx.type === "EscrowDeposit")
+            .map(tx => String(tx.projectId || tx.ProjectId).toLowerCase());
+          localStorage.setItem("deposited_project_ids", JSON.stringify(depositedProjectIds));
+        } catch (e) {}
+
+        const enrichedJobs = (await Promise.all(
+          (clientJobs || []).map(async (job) => {
+            const matchingProject = (activeProjectsList || []).find(
+              proj => (proj.jobPostId === job.id || proj.JobPostId === job.id)
+            );
+
+            // Only include jobs that have a real Project record
+            // (i.e. went through: post → expert apply → accept proposal → create project)
+            if (!matchingProject) return null;
+
+            let overallProgress = 0;
+            try {
+              const fullProj = await api.projects.getById(matchingProject.id || matchingProject.Id);
+              if (fullProj && fullProj.tasks) {
+                overallProgress = getOverallProgress(fullProj.tasks);
+              }
+            } catch (err) {
+              console.warn("Failed to load full project detail for dashboard progress mapping:", err);
+            }
+
+            const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+            const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === String(matchingProject.id || matchingProject.Id).toLowerCase());
+            const localStatus = localStorage.getItem(`project_status_${matchingProject.id || matchingProject.Id}`);
+
+            let actualStatus = localStatus || matchingProject.status || matchingProject.Status || job.status || "";
+            if (isReleasedLocally || localStatus === "completed") {
+              actualStatus = "Completed";
+            }
+
+            try {
+              const proposals = await api.proposals.getByJob(job.id);
+              const acceptedProposal = proposals.find(p =>
+                ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+              );
+              const acceptedExpertName = acceptedProposal ? (acceptedProposal.expertName || acceptedProposal.ExpertName || acceptedProposal.expert || "") : "";
+
+              return {
+                ...job,
+                status: actualStatus,
+                isAcceptedProject: true,
+                acceptedExpertName,
+                expertName: acceptedExpertName || matchingProject.expertName || "",
+                expertId: matchingProject.expertId || matchingProject.ExpertId || null,
+                projectId: matchingProject.id || matchingProject.Id,
+                progress: overallProgress,
+                escrowBalance: matchingProject.escrowBalance ?? matchingProject.EscrowBalance ?? 0,
+              };
+            } catch {
+              return {
+                ...job,
+                status: actualStatus,
+                isAcceptedProject: true,
+                acceptedExpertName: "",
+                expertName: matchingProject.expertName || "",
+                expertId: matchingProject.expertId || matchingProject.ExpertId || null,
+                projectId: matchingProject.id || matchingProject.Id,
+                progress: overallProgress,
+                escrowBalance: matchingProject.escrowBalance ?? matchingProject.EscrowBalance ?? 0,
+              };
+            }
+          })
+        )).filter(Boolean); // remove null (jobs with no project yet)
+
+        setClientProjects(enrichedJobs);
+
         if (walletRes) {
           setWalletBalance(walletRes.balance || 0);
         }
@@ -145,15 +288,15 @@ export function ClientDashboard() {
   // ---- Stats ---------------------------------------------------------------
   const getProjectsByStatus = (statusList) => {
     return clientProjects.filter((p) => {
-      const statusLower = p.status?.toLowerCase() || "";
-      return statusList.some((s) => statusLower === s.toLowerCase());
+      const norm = getNormalizedStatus(p);
+      return statusList.includes(norm.label);
     }).length;
   };
 
   const dashboardStats = [
     {
       label: "Active Projects",
-      value: getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review"]),
+      value: getProjectsByStatus(["In Progress", "Disputed", "Under Review"]),
       icon: Briefcase,
       color: "text-primary bg-primary-light",
     },
@@ -165,13 +308,13 @@ export function ClientDashboard() {
     },
     {
       label: "Completed",
-      value: getProjectsByStatus(["completed", "complete"]),
+      value: getProjectsByStatus(["Completed"]),
       icon: CheckCircle2,
       color: "text-success bg-success-light",
     },
     {
       label: "Cancelled",
-      value: getProjectsByStatus(["cancelled", "cancel"]),
+      value: getProjectsByStatus(["Cancel"]),
       icon: Clock,
       color: "text-destructive bg-destructive-light",
     },
@@ -231,15 +374,15 @@ export function ClientDashboard() {
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <h2 className="section-header">My Projects</h2>
           <span className="text-xs text-muted-foreground">
-            {getProjectsByStatus(["in_progress", "in progress", "active", "disputed", "under_review", "under review"])} active
+            {getProjectsByStatus(["In Progress", "Disputed", "Under Review"])} active
           </span>
         </div>
 
         <div className="p-6">
           {(() => {
             const activeProjects = clientProjects.filter((p) => {
-              const s = p.status?.toLowerCase() || "";
-              return s === "active" || s === "in_progress" || s === "in progress" || s === "disputed" || s === "under_review" || s === "under review";
+              const norm = getNormalizedStatus(p);
+              return ["In Progress", "Completed", "Cancel", "Disputed", "Under Review"].includes(norm.label);
             });
 
             if (loading) {
@@ -275,18 +418,22 @@ export function ClientDashboard() {
             return (
               <div className="space-y-4">
                 {activeProjects.map((p) => {
-                  const assignedExpert = p.assignedExpert;
-                  const progress = getProjectProgress(p.id);
-                  const statusKey = deriveProjectStatusKey(p, { proposalCount: 0 });
-                  const displayStatus = getStatusLabel(statusKey);
-                  const badgeClass = getStatusBadgeClass(statusKey);
+                  const expertName = p.expert || p.assignedExpert?.fullName || p.expertName || p.acceptedExpertName;
+                  const progress = p.progress ?? 0;
+                  const norm = getNormalizedStatus(p);
+                  const displayStatus = norm.label;
+                  const badgeClass = norm.badgeClass;
+
+                  let statusKey = "open";
+                  if (displayStatus === "In Progress") statusKey = "in_progress";
+                  else if (displayStatus === "Completed") statusKey = "completed";
+                  else if (displayStatus === "Cancel") statusKey = "cancelled";
+
                   const btnCfg = getClientButtonConfig(statusKey);
 
-                  const skills = p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
+                  const skills = p.projectSkills?.map((s) => s.skillName) || p.jobPostSkills?.map((s) => s.skill?.name) || p.requiredSkills || [];
                   const postDateText = p.createdAt ? formatDate(p.createdAt) : "N/A";
                   const deadlineDateText = getDeadlineDate(p.createdAt, p.deadline);
-
-                  const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
 
                   return (
                     <div
@@ -295,14 +442,12 @@ export function ClientDashboard() {
                         "bg-card border rounded-xl p-5 hover:shadow-sm transition-all duration-200",
                         "card-reveal",
                         `card-reveal-${((activeProjects.indexOf(p) % 12) + 1)}`,
-                        isDisputed
-                          ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 text-red-100 shadow-lg shadow-red-900/30"
-                          : "border-border hover:border-border/80"
+                        "border-border hover:border-border/80"
                       )}
                     >
                       {/* Top row: title + status badge */}
                       <div className="flex items-start justify-between gap-3 mb-3">
-                        <h3 className={cn("font-semibold text-base leading-snug", isDisputed ? "text-red-100" : "text-foreground")}>
+                        <h3 className="font-semibold text-base leading-snug text-foreground">
                           {p.title}
                         </h3>
                         <span className={`flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${badgeClass}`}>
@@ -311,55 +456,50 @@ export function ClientDashboard() {
                       </div>
 
                       {/* Expert name */}
-                      <p className={cn("text-sm mb-3", isDisputed ? "text-red-200/70" : "text-muted-foreground")}>
-                        {assignedExpert ? (
+                      <p className="text-sm mb-3 text-muted-foreground">
+                        {expertName ? (
                           <>
                             Expert:{" "}
-                            <span className={cn("font-medium", isDisputed ? "text-red-100" : "text-foreground")}>
-                              {assignedExpert.fullName}
+                            <span className="font-medium text-foreground">
+                              {expertName}
                             </span>
                           </>
                         ) : (
-                          <span className={cn("italic", isDisputed ? "text-red-300/60" : "text-muted-foreground/60")}>
+                          <span className="italic text-muted-foreground/60">
                             No expert assigned yet
                           </span>
                         )}
                       </p>
 
                       {/* Category & Specialization */}
-                      {(p.aiCategoryDomain?.name || p.category || p.specialization) && (
+                      {(p.category || p.domain?.name || p.specialization) && (
                         <div className="flex flex-wrap gap-2 mb-3">
-                          {(p.aiCategoryDomain?.name || p.category) && (
+                          {(p.category || p.domain?.name) && (
                             <span className="px-2.5 py-0.5 bg-secondary text-muted-foreground rounded-md text-xs font-medium">
-                              {p.aiCategoryDomain?.name || p.category}
+                              {p.category || p.domain?.name}
                             </span>
                           )}
                           {p.specialization && (
                             <span className="px-2.5 py-0.5 bg-accent-light text-accent rounded-md text-xs font-medium">
-                              {p.specialization}
+                              {p.specialization?.name || p.specialization}
                             </span>
                           )}
                         </div>
                       )}
 
                       {/* Dates & Money info */}
-                      <div className={cn(
-                        "grid grid-cols-3 gap-3 mb-4 rounded-lg p-3 border",
-                        isDisputed
-                          ? "bg-red-900/40 border-red-700/50"
-                          : "bg-secondary/40 border-border/60"
-                      )}>
+                      <div className="grid grid-cols-3 gap-3 mb-4 rounded-lg p-3 border bg-secondary/40 border-border/60">
                         <div>
-                          <span className={cn("block text-[11px] uppercase font-semibold tracking-[0.04em]", isDisputed ? "text-red-300/70" : "text-muted-foreground")}>Posted</span>
-                          <span className={cn("font-medium text-sm", isDisputed ? "text-red-100" : "text-foreground")}>{postDateText}</span>
+                          <span className="block text-[11px] uppercase font-semibold tracking-[0.04em] text-muted-foreground">Posted</span>
+                          <span className="font-medium text-sm text-foreground">{postDateText}</span>
                         </div>
                         <div>
-                          <span className={cn("block text-[11px] uppercase font-semibold tracking-[0.04em]", isDisputed ? "text-red-300/70" : "text-muted-foreground")}>Deadline</span>
-                          <span className={cn("font-medium text-sm", isDisputed ? "text-red-100" : "text-foreground")}>{deadlineDateText}</span>
+                          <span className="block text-[11px] uppercase font-semibold tracking-[0.04em] text-muted-foreground">Deadline</span>
+                          <span className="font-medium text-sm text-foreground">{deadlineDateText}</span>
                         </div>
                         <div>
-                          <span className={cn("block text-[11px] uppercase font-semibold tracking-[0.04em]", isDisputed ? "text-red-300/70" : "text-muted-foreground")}>Budget</span>
-                          <span className={cn("font-bold text-sm", isDisputed ? "text-red-200" : "text-success")}>
+                          <span className="block text-[11px] uppercase font-semibold tracking-[0.04em] text-muted-foreground">Budget</span>
+                          <span className="font-bold text-sm text-success">
                             <MoneyDisplay amount={p.budget} />
                           </span>
                         </div>
@@ -395,21 +535,53 @@ export function ClientDashboard() {
 
                       {/* Bottom row: actions */}
                       <div className="flex items-center justify-end pt-1 gap-3">
-                        {!["disputed", "under_review", "under review"].includes(p.status?.toLowerCase()) && (
-                          <button
-                            onClick={() => {
-                              setReportingProject(p);
-                              setShowReportForm(true);
-                            }}
-                            className="h-9 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5" /> Report
-                          </button>
-                        )}
+                        {(() => {
+                          const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
+                          if (!isDisputed) {
+                            // Chống spam: kiểm tra xem project đã có report pending chưa
+                            const existingActiveReport = activeReports.find(r =>
+                              (r.projectId === p.projectId || r.projectId === p.id) &&
+                              !["Rejected", "Resolved"].includes(r.status)
+                            );
+                            if (existingActiveReport) {
+                              return (
+                                <span className="h-9 px-4 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Đã có report đang xử lý
+                                </span>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => {
+                                  setReportingProject(p);
+                                  setShowReportForm(true);
+                                }}
+                                className="h-9 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive/10 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" /> Report
+                              </button>
+                            );
+                          }
+                          const reportForProject = activeReports.find(r => r.projectId === p.id && r.status === "Awaiting Client");
+                          if (reportForProject) {
+                            return (
+                              <button
+                                onClick={() => {
+                                  setExplainingReport(reportForProject);
+                                  setShowExplanationForm(true);
+                                }}
+                                className="h-9 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" /> Gửi phản hồi
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                         <Link
-                          to={btnCfg.linkTo?.(p) || `/client/projects/${p.id}`}
+                          to={p.projectId ? `/client/projects/${p.projectId}` : (btnCfg.linkTo?.(p) || `/client/projects/${p.id}`)}
                           state={{ from: location.pathname }}
-                          className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                          className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className || "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover"}`}
                         >
                           {btnCfg.label}
                         </Link>
@@ -441,6 +613,40 @@ export function ClientDashboard() {
               }}
               loading={reportSubmitting}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* EXPLANATION FORM DIALOG */}
+      <Dialog open={showExplanationForm} onOpenChange={setShowExplanationForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">
+              Gửi phản hồi báo cáo vi phạm
+            </DialogTitle>
+          </DialogHeader>
+          {explainingReport && (
+            <div className="space-y-6">
+              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
+                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
+                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+              </div>
+
+              <ReportForm
+                project={clientProjects.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                onSubmit={handleSubmitExplanation}
+                onCancel={() => {
+                  setShowExplanationForm(false);
+                  setExplainingReport(null);
+                }}
+                loading={explanationSubmitting}
+                submitLabel="Gửi phản hồi"
+                role="client"
+                isResponse={true}
+                initialDisputeType={explainingReport?.disputeType}
+              />
+            </div>
           )}
         </DialogContent>
       </Dialog>

@@ -14,24 +14,45 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
+import { notifyEscrowFunded } from "../../../services/notificationHelper.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 const typeLabels = {
-  escrow_deposit: "Escrow Deposit",
-  escrow_release: "Escrow Release",
-  escrow_refund: "Escrow Refund",
-  deposit: "Wallet Deposit",
-  withdrawal: "Withdrawal",
+  deposit: "nạp tiền",
+  manualdeposit: "nạp tiền",
+  withdrawal: "rút tiền",
+  escrow_deposit: "ký quỹ",
+  escrowdeposit: "ký quỹ",
+  escrow_release: "giải ngân",
+  escrowrelease: "giải ngân",
+  releasepayment: "giải ngân",
+  escrow_refund: "tố cáo",
+  escrowrefund: "tố cáo",
+  refund: "tố cáo",
+  dispute: "tố cáo",
+  platformfee: "phí hệ thống",
+  platform_fee: "phí hệ thống",
+  cancel: "hủy dự án",
 };
 
 const typeIcons = {
   escrow_deposit: Shield,
+  escrowdeposit: Shield,
   escrow_release: ArrowUpCircle,
+  escrowrelease: ArrowUpCircle,
+  releasepayment: ArrowUpCircle,
   escrow_refund: ArrowDownCircle,
+  escrowrefund: ArrowDownCircle,
+  refund: ArrowDownCircle,
+  dispute: ArrowDownCircle,
+  platformfee: Shield,
+  platform_fee: Shield,
+  cancel: ArrowDownCircle,
   deposit: PlusCircle,
+  manualdeposit: PlusCircle,
   withdrawal: Send,
 };
 
@@ -62,30 +83,159 @@ export function Billing() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
+  // Deposit via ZaloPay
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [walletDepositAmount, setWalletDepositAmount] = useState("");
+  const [depositLoading, setDepositLoading] = useState(false);
+
+  // Withdrawal
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+
   useEffect(() => {
-    if (!user?.id) return;
+    const currentUserId = user?.id || user?.Id;
+    if (!currentUserId) return;
     let cancelled = false;
 
     async function fetchData() {
       try {
         const [wallet, transactions, clientProjects] = await Promise.all([
-          api.payments.getWallet(user.id).catch(() => null),
-          api.payments.getTransactions().catch(() => []),
-          api.projects.getByClient(user.id).catch(() => []),
+          api.payments.getWallet(currentUserId).catch(() => null),
+          api.payments.getTransactions(currentUserId).catch(() => []),
+          api.projects.getByClient(currentUserId).catch(() => []),
         ]);
 
         if (!cancelled) {
-          const activeProjects = Array.isArray(clientProjects)
-            ? clientProjects.map((p) => ({
-                id: p.id,
-                title: p.jobPost?.title || "Active Project",
-                escrowAmount: p.escrowBalance || 0,
-              }))
-            : [];
+          const rawProjects = Array.isArray(clientProjects)
+            ? clientProjects
+            : (clientProjects?.value || clientProjects?.data || []);
+
+          const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+          const clientReleases = localReleases.filter(r => String(r.clientId).toLowerCase() === String(currentUserId).toLowerCase());
+
+          const myTransactions = [];
+          if (Array.isArray(transactions)) {
+            transactions.forEach(t => {
+              const lType = (t.type ?? t.Type ?? "").toLowerCase();
+              if (
+                lType !== "releasepayment" &&
+                lType !== "escrow_release" &&
+                lType !== "escrowrelease"
+              ) {
+                myTransactions.push({
+                  id: t.id || t.Id,
+                  projectId: t.projectId || t.ProjectId,
+                  amount: t.amount ?? t.Amount,
+                  type: t.type ?? t.Type,
+                  createdAt: t.createdAt ?? t.CreatedAt,
+                  projectTitle: t.projectTitle || t.ProjectTitle || null,
+                });
+              }
+            });
+          }
+
+          const transactionProjectIds = new Set(
+            myTransactions
+              .filter(t => {
+                const lType = t.type?.toLowerCase();
+                return lType === "escrow_release" || lType === "escrowrelease" || lType === "releasepayment";
+              })
+              .filter(t => t.projectId)
+              .map(t => String(t.projectId).toLowerCase())
+          );
+
+          const localDeposits = JSON.parse(localStorage.getItem("zalopay_deposits") || "[]");
+          const userDeposits = localDeposits.filter(d => String(d.userId).toLowerCase() === String(currentUserId).toLowerCase());
+
+          const dbDeposits = myTransactions.filter(t => {
+            const lType = t.type?.toLowerCase();
+            return lType === "deposit" || lType === "manualdeposit";
+          });
+
+          let adjustedBalance = wallet?.balance ?? 0;
+
+          // Helper: parse DB date string correctly as UTC
+          const parseDbDate = (str) => {
+            if (!str) return 0;
+            // DB returns dates without timezone (UTC stored as bare ISO) - check if no Z or +/- at END (not the - in date part)
+            const hasTimezone = /[Z]$|[+-]\d{2}:\d{2}$/.test(str);
+            return new Date(hasTimezone ? str : str + "Z").getTime();
+          };
+
+          userDeposits.forEach(d => {
+            const ackKey = `zalopay_ack_${d.id}`;
+            const isAcked = localStorage.getItem(ackKey) === "1";
+
+            if (isAcked) {
+              // DB already processed this deposit - wallet.balance already includes it - don't add again
+              return;
+            }
+
+            // Try to find matching DB transaction to confirm this deposit was processed
+            const dTime = new Date(d.createdAt).getTime();
+            const match = dbDeposits.find(dbTx => {
+              const dbTime = parseDbDate(dbTx.createdAt);
+              const isTimeClose = Math.abs(dbTime - dTime) <= 60 * 60 * 1000; // within 1 hour
+              const isAmountMatch = Math.abs(Number(dbTx.amount) - Number(d.amount)) < 0.01;
+              return isAmountMatch && isTimeClose;
+            });
+
+            if (match) {
+              // DB confirmed this deposit - mark as acked so we won't double-count next time
+              try { localStorage.setItem(ackKey, "1"); } catch(e) {}
+              // wallet.balance already has this amount - don't add
+            } else {
+              // Webhook not yet processed by DB - add manually for immediate feedback
+              adjustedBalance += d.amount;
+              myTransactions.unshift({
+                id: d.id || crypto.randomUUID(),
+                projectId: null,
+                amount: d.amount,
+                type: "deposit",
+                createdAt: d.createdAt || new Date().toISOString(),
+                projectTitle: null,
+              });
+            }
+          });
+
+          let adjustedEscrowBalance = 0;
+
+          const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
+          const activeProjects = rawProjects
+            .filter((p) => {
+              const projId = p.id || p.Id;
+              const localStatus = localStorage.getItem(`project_status_${projId}`) || p.status;
+              const isCompleted = 
+                localStatus?.toLowerCase() === "completed" || 
+                localStatus?.toLowerCase() === "closed" || 
+                localStatus?.toLowerCase() === "resolved" ||
+                localStatus?.toLowerCase() === "cancelled";
+              const isReleasedLocally = clientReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
+
+              const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+
+              if (isDeposited && !isCompleted && !isReleasedLocally) {
+                const pEscrow = p.escrowBalance || p.escrowAmount || p.budget || p.Budget || 0;
+                adjustedEscrowBalance += pEscrow;
+              }
+
+              return !isCompleted && !isReleasedLocally && isDeposited;
+            })
+            .map((p) => ({
+              id: p.id,
+              title: p.jobPost?.title || p.title || p.jobPostTitle || "Active Project",
+              escrowAmount: p.escrowBalance || p.escrowAmount || 0,
+            }));
+
+
 
           setData({
-            wallet: wallet || { balance: 0, escrowBalance: 0 },
-            transactions: Array.isArray(transactions) ? transactions : [],
+            wallet: {
+              balance: adjustedBalance,
+              escrowBalance: adjustedEscrowBalance,
+            },
+            transactions: myTransactions,
             activeProjects,
           });
         }
@@ -104,8 +254,106 @@ export function Billing() {
     }
 
     fetchData();
-    return () => { cancelled = true; };
-  }, [user?.id]);
+
+    const handleUpdate = () => {
+      fetchData();
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
+  }, [user?.id, user?.Id]);
+
+  const handleWalletDeposit = async (e) => {
+    e.preventDefault();
+    const amount = Number(walletDepositAmount);
+    if (!amount || amount < 1000) return;
+
+    setDepositLoading(true);
+    setFeedback(null);
+    try {
+      const resolvedUserId = user?.id || user?.Id;
+      const res = await api.payments.createPaymentOrder(resolvedUserId, amount);
+      if (res && res.orderUrl) {
+        setFeedback({ type: "success", message: "Đang chuyển hướng sang cổng thanh toán ZaloPay..." });
+        sessionStorage.setItem("payment_return_url", window.location.pathname + window.location.search);
+        setTimeout(() => {
+          window.location.href = res.orderUrl;
+        }, 1000);
+      } else {
+        throw new Error("Không lấy được link thanh toán từ ZaloPay.");
+      }
+    } catch (err) {
+      console.error("Wallet deposit via ZaloPay failed:", err);
+      setFeedback({
+        type: "error",
+        message: err?.message || "Tạo đơn hàng nạp tiền thất bại. Vui lòng thử lại sau."
+      });
+      setShowDepositModal(false);
+      setWalletDepositAmount("");
+    } finally {
+      setDepositLoading(false);
+    }
+  };
+
+  const handleWalletWithdraw = async (e) => {
+    e.preventDefault();
+    const amount = Number(withdrawAmount);
+    if (!amount || amount <= 0 || amount > (data?.wallet?.balance || 0)) return;
+
+    setWithdrawLoading(true);
+    setFeedback(null);
+    try {
+      const resolvedUserId = user?.id || user?.Id;
+      const res = await api.payments.withdraw(resolvedUserId, amount);
+      
+      setFeedback({ type: "success", message: res?.message || "Rút tiền thành công!" });
+      setShowWithdrawModal(false);
+      setWithdrawAmount("");
+      
+      try {
+        localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
+      } catch (e) {}
+      
+      const [wallet, transactions] = await Promise.all([
+        api.payments.getWallet(resolvedUserId).catch(() => null),
+        api.payments.getTransactions(resolvedUserId).catch(() => []),
+      ]);
+
+      const myTransactions = Array.isArray(transactions)
+        ? transactions.map(t => ({
+            id: t.id || t.Id,
+            projectId: t.projectId || t.ProjectId,
+            amount: t.amount ?? t.Amount,
+            type: t.type ?? t.Type,
+            createdAt: t.createdAt ?? t.CreatedAt,
+            projectTitle: t.projectTitle || t.ProjectTitle || null,
+          }))
+        : [];
+
+      setData(prev => ({
+        ...prev,
+        wallet: {
+          balance: wallet?.balance ?? (prev.wallet.balance - amount),
+          escrowBalance: wallet?.escrowBalance ?? prev.wallet.escrowBalance,
+        },
+        transactions: myTransactions,
+      }));
+
+    } catch (err) {
+      console.error("Withdraw failed:", err);
+      setFeedback({
+        type: "error",
+        message: err?.message || "Rút tiền thất bại. Vui lòng thử lại sau."
+      });
+      setShowWithdrawModal(false);
+      setWithdrawAmount("");
+    } finally {
+      setWithdrawLoading(false);
+    }
+  };
 
   const handleDeposit = async (e) => {
     e.preventDefault();
@@ -125,77 +373,53 @@ export function Billing() {
     try {
       await api.payments.depositEscrow({
         projectId: selectedProject,
+        clientId: user.id,
         amount: Number(depositAmount),
       });
 
-      if (isEscrowRedirect) {
-        // Update project status to "in_progress" (active)
-        await api.jobPosts.update(selectedProject, { status: "in_progress" });
-        // Update proposal status to "accepted"
-        const proposalId = location.state.proposalId;
-        if (proposalId) {
-          await api.proposals.updateStatus(proposalId, "accepted");
+      // Add to deposited_project_ids in localStorage
+      try {
+        const deposited = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
+        const projectIdStr = String(selectedProject).toLowerCase();
+        if (!deposited.map(id => String(id).toLowerCase()).includes(projectIdStr)) {
+          deposited.push(projectIdStr);
+          localStorage.setItem("deposited_project_ids", JSON.stringify(deposited));
         }
-      }
+      } catch (e) {}
 
       setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Kích Hoạt (Active)." });
       setShowDepositForm(false);
       setDepositAmount(0);
       setSelectedProject("");
 
-      // Update local wallet state
-      setData((prev) => ({
-        ...prev,
-        wallet: {
-          ...prev.wallet,
-          balance: prev.wallet.balance - Number(depositAmount),
-          escrowBalance: (prev.wallet.escrowBalance || 0) + Number(depositAmount),
-        },
-      }));
+      try {
+        localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
+      } catch (e) {}
 
-      setTimeout(() => {
-        navigate("/client/my-projects");
-      }, 2000);
-
-    } catch {
-      // Demo fallback — update locally
-      if (isEscrowRedirect) {
-        await api.jobPosts.update(selectedProject, { status: "in_progress" });
-        const proposalId = location.state.proposalId;
-        if (proposalId) {
-          await api.proposals.updateStatus(proposalId, "accepted");
-        }
+      // Notify expert that escrow has been funded and project started
+      const proposalId = location.state?.proposalId;
+      const expertId = location.state?.expertId;
+      const jobTitle = location.state?.projectTitle || "Dự án";
+      if (expertId) {
+        notifyEscrowFunded({
+          expertUserId: expertId,
+          clientName: user?.fullName || user?.name || "Khách hàng",
+          jobTitle,
+          proposalId: proposalId || "",
+        }).catch(() => {});
       }
 
-      setData((prev) => ({
-        ...prev,
-        wallet: {
-          ...prev.wallet,
-          balance: prev.wallet.balance - Number(depositAmount),
-          escrowBalance: (prev.wallet.escrowBalance || 0) + Number(depositAmount),
-          pendingBalance: (prev.wallet.pendingBalance || 0) + Number(depositAmount),
-        },
-        transactions: [
-          {
-            id: `tx-${Date.now()}`,
-            type: "escrow_deposit",
-            amount: Number(depositAmount),
-            description: `Escrow deposit for project`,
-            projectTitle: isEscrowRedirect ? location.state.projectTitle : selectedProject,
-            status: "completed",
-            createdAt: new Date().toISOString(),
-          },
-          ...prev.transactions,
-        ],
-      }));
-      setFeedback({ type: "success", message: "Ký quỹ thành công! Dự án của bạn hiện đã được Kích Hoạt (Active)." });
-      setShowDepositForm(false);
-      setDepositAmount(0);
-      setSelectedProject("");
-
+      // Update wallet values directly from backend on navigation
       setTimeout(() => {
         navigate("/client/my-projects");
       }, 2000);
+
+    } catch (err) {
+      console.error("Escrow deposit failed:", err);
+      setFeedback({
+        type: "error",
+        message: err?.message || "Ký quỹ không thành công. Vui lòng thử lại sau."
+      });
     } finally {
       setSubmitting(false);
     }
@@ -245,15 +469,33 @@ export function Billing() {
       {/* Wallet cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-primary" />
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary-light rounded-xl flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Available Balance</p>
+                <p className="text-2xl font-bold text-foreground">
+                  <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-2xl font-bold text-foreground">
-                <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
-              </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDepositModal(true)}
+                className="px-3.5 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <PlusCircle className="w-3.5 h-3.5" /> Nạp tiền
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowWithdrawModal(true)}
+                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <Send className="w-3.5 h-3.5" /> Rút tiền
+              </button>
             </div>
           </div>
         </div>
@@ -310,8 +552,19 @@ export function Billing() {
                   <label className="block text-sm font-semibold text-muted-foreground mb-2">Project</label>
                   <select
                     value={selectedProject}
-                    onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedProject(val);
+                      if (val) {
+                        const proj = data?.activeProjects?.find(p => p.id === val);
+                        if (proj) {
+                          setDepositAmount(proj.escrowAmount || proj.budget || 0);
+                        }
+                      } else {
+                        setDepositAmount(0);
+                      }
+                    }}
+                    className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
                     required
                     disabled={isEscrowRedirect}
                   >
@@ -335,7 +588,7 @@ export function Billing() {
                     step="1"
                     value={depositAmount || ""}
                     onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-muted cursor-not-allowed text-muted-foreground font-medium"
+                    className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
                     placeholder="500"
                     required
                     disabled={isEscrowRedirect}
@@ -392,22 +645,89 @@ export function Billing() {
               </thead>
               <tbody className="divide-y divide-border/50">
                 {data.transactions.map((tx) => {
-                  const Icon = typeIcons[tx.type] || Clock;
+                  const projId = tx.projectId;
+                  const localStatus = projId ? (localStorage.getItem(`project_status_${projId}`) || "").toLowerCase() : "";
+
+                  let lowerType = tx.type?.toLowerCase();
+                  const isEscrowDeposit = lowerType === "escrow_deposit" || lowerType === "escrowdeposit";
+
+                  let displayStatus = tx.status || "completed";
+                  let displayAmount = tx.amount ?? tx.Amount ?? 0;
+
+                  if (isEscrowDeposit) {
+                    if (localStatus === "completed" || localStatus === "done") {
+                      lowerType = "escrow_release";
+                      displayStatus = "done";
+                      displayAmount = -Math.abs(displayAmount);
+                    } else if (localStatus === "resolved" || localStatus === "disputed") {
+                      lowerType = "escrow_refund";
+                      displayStatus = "REPORT";
+                      displayAmount = Math.abs(displayAmount) * 0.95;
+                    } else if (localStatus === "cancelled" || localStatus === "stopped") {
+                      lowerType = "cancel";
+                      displayStatus = "CANCEL";
+                      displayAmount = Math.abs(displayAmount) * 0.95;
+                    } else {
+                      displayStatus = "in progress";
+                      displayAmount = -Math.abs(displayAmount);
+                    }
+                  } else {
+                    displayStatus = "done";
+                  }
+
+                  const Icon = typeIcons[lowerType] || typeIcons[tx.type?.toLowerCase()] || Clock;
+                  const dateObj = new Date(tx.createdAt);
+                  const dateStr = dateObj.toLocaleDateString("vi-VN", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric"
+                  });
+                  const hours = dateObj.getHours();
+                  const mins = String(dateObj.getMinutes()).padStart(2, "0");
+                  const secs = String(dateObj.getSeconds()).padStart(2, "0");
+                  const ampm = hours >= 12 ? "PM" : "AM";
+                  const displayHours = hours % 12 || 12;
+                  const timeStr = `${String(displayHours).padStart(2, "0")}:${mins}:${secs} ${ampm}`;
+
+                  let badgeClass = "bg-success/10 text-success border border-success/20";
+                  if (displayStatus === "in progress") {
+                    badgeClass = "bg-warning/10 text-warning border border-warning/20";
+                  } else if (displayStatus === "REPORT") {
+                    badgeClass = "bg-destructive/10 text-destructive border border-destructive/20";
+                  } else if (displayStatus === "CANCEL") {
+                    badgeClass = "bg-secondary text-muted-foreground border border-border";
+                  }
+
+                  // Xử lý description hiển thị theo yêu cầu đại ca
+                  let displayDesc = tx.description;
+                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "nạp tiền";
+                  else if (lowerType === "withdrawal") displayDesc = "rút tiền";
+                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType)) {
+                    displayDesc = tx.projectTitle ? `Dự án: ${tx.projectTitle}` : (tx.description || "Dự án: AI-Tasker");
+                  }
+
+                  // Tố cáo/bồi thường: nếu ko bồi thường được (amount <= 0) thì hiển thị "-"
+                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute"].includes(lowerType) && Number(displayAmount || 0) <= 0;
+
                   return (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <Icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">{typeLabels[tx.type] || tx.type}</span>
+                          <span className="text-sm text-foreground font-medium">{typeLabels[lowerType] || tx.type}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{tx.description}</td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        <div className="flex flex-col">
+                          <span>{displayDesc}</span>
+                        </div>
+                      </td>
                       <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                        <MoneyDisplay amount={tx.amount} />
+                        {isNoCompensation ? "-" : <MoneyDisplay amount={displayAmount} />}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${statusColors[tx.status] || "bg-secondary text-muted-foreground"}`}>
-                          {tx.status}
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium uppercase ${badgeClass}`}>
+                          {displayStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right text-sm text-muted-foreground">
@@ -421,6 +741,103 @@ export function Billing() {
           </div>
         )}
       </div>
+
+      {/* Deposit Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-success" /> Nạp tiền vào ví
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Nhập số tiền bạn muốn nạp vào ví thông qua cổng thanh toán ZaloPay (tối thiểu 1,000 VND).
+            </p>
+            <form onSubmit={handleWalletDeposit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền (VND)</label>
+                <input
+                  type="number"
+                  min="1000"
+                  step="1000"
+                  value={walletDepositAmount}
+                  onChange={(e) => setWalletDepositAmount(e.target.value)}
+                  placeholder="Ví dụ: 50000"
+                  className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
+                  className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                >
+                  {depositLoading ? "Đang xử lý..." : "Nạp tiền qua ZaloPay"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDepositModal(false);
+                    setWalletDepositAmount("");
+                  }}
+                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Withdraw Modal */}
+      {showWithdrawModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Send className="w-5 h-5 text-primary" /> Rút tiền khỏi ví
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Nhập số tiền muốn rút từ ví khả dụng (Số dư khả dụng hiện tại: <span className="font-semibold text-foreground"><MoneyDisplay amount={data?.wallet?.balance ?? 0} /></span>).
+            </p>
+            <form onSubmit={handleWalletWithdraw} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền rút (VND)</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  max={data?.wallet?.balance || 0}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Ví dụ: 20000"
+                  className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
+                  required
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
+                  className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                >
+                  {withdrawLoading ? "Đang xử lý..." : "Rút tiền"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWithdrawModal(false);
+                    setWithdrawAmount("");
+                  }}
+                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                >
+                  Hủy
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

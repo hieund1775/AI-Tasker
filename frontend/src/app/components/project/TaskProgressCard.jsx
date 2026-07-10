@@ -11,6 +11,7 @@ import {
   Check,
   Send,
   RotateCcw,
+  Download,
 } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { Button } from "../ui/button.jsx";
@@ -20,7 +21,8 @@ import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { useState } from "react";
 import { toast } from "sonner";
-import { requestTaskRevision, approveTaskSubmission, requestUrgentSubmission } from "../../../data/mockDatabase.js";
+import { api } from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 import { notifyTaskRevisionRequested, notifyTaskApproved, notifyUrgentSubmissionRequested } from "../../../services/notificationHelper.js";
 
 // =============================================================================
@@ -44,6 +46,7 @@ export function TaskProgressCard({
   onToggleMiniTask,
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -54,15 +57,15 @@ export function TaskProgressCard({
   const handleApproveTask = async () => {
     try {
       const clientName = "Client";
-      approveTaskSubmission(task.id, clientName);
-      
+      await api.projects.reviewTask(task.id, { approve: true, feedbackContent: "", feedbackSenderId: user?.id || "00000000-0000-0000-0000-000000000000" });
+
       notifyTaskApproved({
         expertUserId: task.assignedTo,
         clientName: clientName,
         taskTitle: task.title,
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Milestone đã được phê duyệt thành công!");
       setShowViewProductModal(false);
@@ -71,19 +74,19 @@ export function TaskProgressCard({
       toast.error("Không thể phê duyệt milestone.");
     }
   };
-  
+
   const handleRequestProduct = async () => {
     try {
       const clientName = "Client";
-      requestUrgentSubmission(task.id, clientName);
-      
+      await api.projects.updateTaskStatus(task.id, "waiting_expert_product");
+
       notifyUrgentSubmissionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
         taskTitle: task.title,
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -103,8 +106,8 @@ export function TaskProgressCard({
     if (!declineReason.trim()) return;
     try {
       const clientName = "Client";
-      requestTaskRevision(task.id, clientName, declineReason.trim());
-      
+      await api.projects.reviewTask(task.id, { approve: false, feedbackContent: declineReason.trim(), feedbackSenderId: user?.id || "00000000-0000-0000-0000-000000000000" });
+
       notifyTaskRevisionRequested({
         expertUserId: task.assignedTo,
         clientName: clientName,
@@ -112,13 +115,13 @@ export function TaskProgressCard({
         feedback: declineReason.trim(),
         projectId,
         taskId: task.id,
-      }).catch(() => {});
+      }).catch(() => { });
 
       toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
-      
+
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Không thể gửi phản hồi từ chối.");
@@ -143,16 +146,16 @@ export function TaskProgressCard({
 
   const deadlineText = task.deadline
     ? (() => {
-        try {
-          return new Date(task.deadline).toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          });
-        } catch {
-          return String(task.deadline);
-        }
-      })()
+      try {
+        return new Date(task.deadline).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return String(task.deadline);
+      }
+    })()
     : null;
 
   const deadlineInfo = task.deadline ? getDeadlineInfo(task.deadline) : null;
@@ -160,11 +163,18 @@ export function TaskProgressCard({
   const isUrgent = task?.urgentRequest === true;
   const isDone = task.displayStatus === "Done";
 
-  const isWaitingForApproval = task.status === "waiting_for_approval" || task.status === "Waiting For Approval" || task.status === "pending_review" || task.status === "Pending Review" || task.status === "pending review";
+  const isWaitingForApproval =
+    task.status?.toLowerCase() === "pending approval" ||
+    task.status?.toLowerCase() === "pending_approval" ||
+    task.status?.toLowerCase() === "waiting_for_approval" ||
+    task.status?.toLowerCase() === "waiting for approval" ||
+    task.status?.toLowerCase() === "pending_review" ||
+    task.status?.toLowerCase() === "pending review" ||
+    task.displayStatus === "Waiting For Approval";
   const isChecklistCompleted = task.displayStatus === "Checklist Completed" || task.status === "checklist_completed";
   const isRework = task.displayStatus === "Rework" || task.status === "rework";
   const isWaitingForExpertProduct = task.displayStatus === "Waiting for Expert Product" || task.status === "waiting_expert_product";
-  const hasMainProduct = !!(task.productLink || task.productFile);
+  const hasMainProduct = !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile));
   const hasEvidence = !!task.handoverEvidence;
   const allMinisDone = task.completedMiniTasks === task.totalMiniTasks && task.totalMiniTasks > 0;
   const productRequested = task?.urgentRequest === true || task?.productRequested === true;
@@ -182,9 +192,8 @@ export function TaskProgressCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-left">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-            <h3 className={`font-semibold text-base ${
-              task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
-            }`}>
+            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
+              }`}>
               {task.title}
             </h3>
             <StatusBadge
@@ -241,8 +250,8 @@ export function TaskProgressCard({
           className={cn(
             "h-full rounded-full transition-all duration-700",
             task.progress >= 100 ? "bg-gradient-to-r from-success to-success" :
-            task.progress > 0 ? "bg-gradient-to-r from-accent to-accent-hover" :
-            "bg-muted"
+              task.progress > 0 ? "bg-gradient-to-r from-accent to-accent-hover" :
+                "bg-muted"
           )}
           style={{ width: `${task.progress}%` }}
         />
@@ -267,101 +276,80 @@ export function TaskProgressCard({
       {/* Client vs Expert Actions */}
       <div className="pt-3 border-t border-border">
         {role === "expert" ? (
-          <div className="space-y-2">
-            {/* Expert: Not all mini tasks done → View Details only */}
-            {!allMinisDone && !isRework && (
-              <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Always render View Details button for Expert */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
+              }
+              className="cursor-pointer border-border hover:bg-secondary flex items-center gap-1.5"
+            >
+              <ArrowRight className="w-4 h-4" />
+              View Details
+            </Button>
+
+            <div className="flex items-center gap-2">
+              {/* Expert: Evidence submitted → Checklist Completed static */}
+              {isChecklistCompleted && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-700">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Evidence Submitted ✓
+                </div>
+              )}
+
+              {/* Expert: Product requested → Submit Product */}
+              {productRequested && !isWaitingForApproval && !isDone && (
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  View Details
-                </Button>
-              </div>
-            )}
-
-            {/* Expert: All minis done, no evidence, no product request → Submit Evidence */}
-            {allMinisDone && !hasEvidence && !productRequested && !isRework && !isWaitingForApproval && !isDone && (
-              <div className="flex justify-end">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() =>
-                    navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
-                  }
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  View Details
-                </Button>
-              </div>
-            )}
-
-            {/* Expert: Evidence submitted → Checklist Completed static */}
-            {isChecklistCompleted && (
-              <div className="flex items-center justify-end gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm font-medium text-amber-700">
-                <CheckCircle2 className="w-4 h-4" />
-                Evidence Submitted ✓
-              </div>
-            )}
-
-            {/* Expert: Product requested → Submit Product */}
-            {productRequested && !isWaitingForApproval && !isDone && (
-              <div className="flex justify-end">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() =>
-                    navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
-                  }
-                  className="bg-amber-500 text-white hover:bg-amber-600"
+                  className="bg-amber-500 text-white hover:bg-amber-600 cursor-pointer flex items-center gap-1.5"
                 >
                   <Send className="w-4 h-4" />
                   Submit Product
                 </Button>
-              </div>
-            )}
+              )}
 
-            {/* Expert: Rework → Resubmit Product */}
-            {isRework && (
-              <div className="flex justify-end">
+              {/* Expert: Rework → Resubmit Product */}
+              {isRework && (
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                  className="bg-orange-500 text-white hover:bg-orange-600"
+                  className="bg-orange-500 text-white hover:bg-orange-600 cursor-pointer flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Resubmit Product
                 </Button>
-              </div>
-            )}
+              )}
 
-            {/* Expert: Waiting for Approval → static */}
-            {isWaitingForApproval && (
-              <div className="flex items-center justify-end gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm font-medium text-purple-700">
-                <Clock3 className="w-4 h-4" />
-                Waiting for Client Approval
-              </div>
-            )}
+              {/* Expert: Waiting for Approval → static */}
+              {isWaitingForApproval && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-xs font-medium text-purple-700">
+                  <Clock3 className="w-4 h-4" />
+                  Waiting for Client Approval
+                </div>
+              )}
 
-            {/* Expert: Done → completed */}
-            {isDone && (
-              <div className="flex items-center justify-end gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm font-medium text-green-700">
-                <CheckCircle2 className="w-4 h-4" />
-                Task Completed
-              </div>
-            )}
+              {/* Expert: Done → completed */}
+              {isDone && (
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg text-xs font-medium text-green-700">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Task Completed
+                </div>
+              )}
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Client: Checklist Completed & product NOT requested → Quick Accept + Request Product */}
-            {isChecklistCompleted && !productRequested && (
+            {/* Client: Checklist Completed or Pending Approval without product → Quick Accept + Request Product */}
+            {(isChecklistCompleted || (isWaitingForApproval && !hasMainProduct)) && !productRequested && (
               <div className="flex items-center justify-end gap-3">
                 <button
                   type="button"
@@ -515,9 +503,19 @@ export function TaskProgressCard({
                     {task.productFile && (
                       <div className="flex flex-col p-3 bg-secondary rounded-lg border border-border text-left">
                         <span className="text-xs font-semibold text-muted-foreground uppercase">Tên file sản phẩm</span>
-                        <span className="text-sm text-foreground font-medium mt-1 font-mono truncate">
-                          {task.productFile}
-                        </span>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <span className="text-sm text-foreground font-medium font-mono truncate">
+                            {task.productFile}
+                          </span>
+                          <a
+                            href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
+                            download
+                            className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                            title="Download file"
+                          >
+                            <Download className="w-4 h-4" />
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>

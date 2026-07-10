@@ -11,16 +11,56 @@ import {
   X,
   MessageSquare,
   Clock,
+  Paperclip,
+  File,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { toast } from "sonner";
-import api from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import { notifyProposalDecision } from "../../../services/notificationHelper.js";
 
-import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass } from "../../lib/projectTimelineStore.js";
+import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getOverallProgress } from "../../lib/projectTimelineStore.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
+
+export function getNormalizedStatus(project) {
+  const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+  const projId = project.projectId || project.id || project.Id;
+  const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
+  
+  const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
+  const dbStatus = (project.status || project.Status || "").toLowerCase();
+  const status = (localStatus || dbStatus).toLowerCase();
+
+  let label = "In Progress";
+  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+
+  if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
+    label = "Completed";
+    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+  } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
+    label = "Cancel";
+    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+  } else if (status === "disputed") {
+    label = "Disputed";
+    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+  } else {
+    const hasProjectRecord = !!project.projectId;
+    const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
+
+    const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
+    const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+
+    if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
+      label = "Open";
+      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+    }
+  }
+
+  return { label, badgeClass };
+}
 
 export function MyProjectsList() {
   const { user } = useAuth();
@@ -29,6 +69,9 @@ export function MyProjectsList() {
 
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Sub-view page states: "list" | "details" | "proposals"
   const [view, setView] = useState("list");
@@ -43,24 +86,102 @@ export function MyProjectsList() {
   const [showEscrowConfirm, setShowEscrowConfirm] = useState(false);
 
   const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
+  const [invitedExpertName, setInvitedExpertName] = useState("");
 
   async function loadProjects() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const userRes = await api.users.getById(user.id);
+      let rawProjects = [];
+      let activeProjectsList = [];
+      try {
+        const [jobsRes, projectsRes, transactionsList] = await Promise.all([
+          api.jobPosts.getByClientId(user.id).catch(() => []),
+          api.projects.getByClient(user.id).catch(() => []),
+          api.payments.getTransactions(user.id).catch(() => [])
+        ]);
+        rawProjects = jobsRes;
+        activeProjectsList = projectsRes;
+
+        try {
+          const depositedProjectIds = (transactionsList || [])
+            .filter(tx => tx.type === "EscrowDeposit")
+            .map(tx => String(tx.projectId || tx.ProjectId).toLowerCase());
+          localStorage.setItem("deposited_project_ids", JSON.stringify(depositedProjectIds));
+        } catch (e) {}
+      } catch (err) {
+        console.warn("Failed to fetch client jobs or active projects", err);
+      }
       
-      const rawProjects = userRes?.jobPosts || [];
       const projectsWithCounts = await Promise.all(
         rawProjects.map(async (project) => {
+          const matchingProject = (activeProjectsList || []).find(
+            proj => (proj.jobPostId === project.id || proj.JobPostId === project.id)
+          );
+          
+          const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+          const clientReleases = localReleases.filter(r => r.clientId === user.id);
+          let isReleasedLocally = false;
+          if (matchingProject) {
+            isReleasedLocally = clientReleases.some(r => r.projectId === (matchingProject.id || matchingProject.Id));
+            const localStatus = localStorage.getItem(`project_status_${matchingProject.id || matchingProject.Id}`);
+            if (isReleasedLocally || localStatus === "completed") {
+              matchingProject.status = "Completed";
+              matchingProject.Status = "Completed";
+            }
+          }
+
+          let overallProgress = 0;
+          if (matchingProject) {
+            try {
+              const fullProj = await api.projects.getById(matchingProject.id || matchingProject.Id);
+              if (fullProj && fullProj.tasks) {
+                overallProgress = getOverallProgress(fullProj.tasks);
+              }
+            } catch (err) {
+              console.warn("Failed to load full project detail in MyProjectsPage for progress mapping:", err);
+            }
+          }
+
+          const hasOverriddenCompleted = isReleasedLocally || (matchingProject && localStorage.getItem(`project_status_${matchingProject.id || matchingProject.Id}`) === "completed");
+          
+          let actualStatus = project.status || "";
+          if (matchingProject) {
+            actualStatus = matchingProject.status || matchingProject.Status || project.status || "";
+            if (hasOverriddenCompleted) {
+              actualStatus = "Completed";
+            }
+          }
+
           try {
             const proposals = await api.proposals.getByJob(project.id);
+            const acceptedProp = proposals.find(p => 
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+            );
+            const hasAcceptedProposal = !!acceptedProp;
+            const acceptedExpertName = acceptedProp ? (acceptedProp.expertName || acceptedProp.ExpertName || acceptedProp.expert || "") : "";
+            
             return {
               ...project,
+              status: actualStatus,
+              projectId: matchingProject ? (matchingProject.id || matchingProject.Id) : null,
+              escrowBalance: matchingProject ? (matchingProject.escrowBalance ?? matchingProject.EscrowBalance) : 0,
               proposalCount: proposals.length,
+              isAcceptedProject: hasAcceptedProposal,
+              acceptedExpertName: acceptedExpertName,
+              progress: overallProgress,
             };
           } catch {
-            return { ...project, proposalCount: 0 };
+            return { 
+              ...project, 
+              status: actualStatus,
+              projectId: matchingProject ? (matchingProject.id || matchingProject.Id) : null,
+              escrowBalance: matchingProject ? (matchingProject.escrowBalance ?? matchingProject.EscrowBalance) : 0,
+              proposalCount: 0, 
+              isAcceptedProject: false, 
+              acceptedExpertName: "",
+              progress: overallProgress,
+            };
           }
         })
       );
@@ -98,7 +219,17 @@ export function MyProjectsList() {
     }
   }, [projects]);
 
-  // Handle deep-linking from notifications
+  // Sync state to URL parameters (for preserving active view on F5)
+  useEffect(() => {
+    if (selectedProject?.id && view !== "list") {
+      const currentParams = new URLSearchParams(location.search);
+      currentParams.set("projectId", selectedProject.id);
+      currentParams.set("view", view);
+      navigate(`?${currentParams.toString()}`, { replace: true });
+    }
+  }, [selectedProject?.id, view]);
+
+  // Handle deep-linking from notifications or URL reload (F5)
   useEffect(() => {
     if (projects.length === 0) return;
     const params = new URLSearchParams(location.search);
@@ -111,15 +242,17 @@ export function MyProjectsList() {
         setView(vType);
       }
     }
-  }, [projects, location.search]);
+  }, [projects]);
 
   // Check for successful invite parameter
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("inviteSuccess") === "true") {
       setShowInviteSuccessBanner(true);
+      setInvitedExpertName(params.get("expertName") || "");
     } else {
       setShowInviteSuccessBanner(false);
+      setInvitedExpertName("");
     }
   }, [location.search]);
 
@@ -155,26 +288,48 @@ export function MyProjectsList() {
               console.error("Failed to load expert info:", err);
             }
 
-            let parsed = {};
-            try {
-              parsed = JSON.parse(targetProp.coverLetter);
-            } catch (e) {
-              parsed = {
-                coverLetter: targetProp.coverLetter,
-                professionalIntro: targetProp.coverLetter,
-              };
+            const parsed = parseProposalWbs(targetProp.implementation || targetProp.coverLetter, targetProp);
+
+            const attachments = [];
+            if (targetProp.portfolio) {
+              const isImg = targetProp.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
+              attachments.push({
+                id: "portfolio-file",
+                name: targetProp.portfolio.split("/").pop() || "Portfolio Document",
+                type: isImg ? "image/png" : "document",
+                fileType: isImg ? "image/png" : "document",
+                url: enrichFileUrl(targetProp.portfolio)
+              });
             }
+            if (targetProp.attachmentUrl) {
+              const isImg = targetProp.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
+              attachments.push({
+                id: "attachment-file",
+                name: targetProp.attachmentUrl.split("/").pop() || "Attached Document",
+                type: isImg ? "image/png" : "document",
+                fileType: isImg ? "image/png" : "document",
+                url: enrichFileUrl(targetProp.attachmentUrl)
+              });
+            }
+
+            // Dynamically construct useCaseBreakdown if project has useCases
+            const useCases = selectedProject?.useCases || [];
+            const useCaseBreakdown = useCases.map(uc => {
+              const ucTasks = parsed.tasks.filter(t => t.useCaseId === uc.id);
+              return {
+                useCaseId: uc.id,
+                useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+                originalDuration: uc.originalDurationDays || 1,
+                tasks: ucTasks
+              };
+            });
 
             return {
               ...targetProp,
-              proposalTitle: parsed.proposalTitle || "Proposal",
-              coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
-              technicalApproach: parsed.technicalApproach || "",
-              timelineMilestones: parsed.timelineMilestones || "",
-              dependencies: parsed.dependencies || "",
-              durationDays: parsed.durationDays || targetProp.estimatedDays || 0,
-              tasks: parsed.tasks || [],
-              attachments: parsed.attachments || [],
+              ...parsed,
+              useCaseBreakdown,
+              coverLetter: parsed.professionalIntro || targetProp.introduction || "",
+              attachments,
               expertName: expUser?.fullName || "AI Expert",
               expertTitle: expUser?.expertProfile?.jobTitle || "AI Expert",
             };
@@ -188,7 +343,17 @@ export function MyProjectsList() {
           } else {
             setProposal(null);
           }
-          setProposalsList(enrichedList);
+          const filteredList = enrichedList.filter(
+            (p) => p.status?.toLowerCase() !== "declined" && !(p.status?.toLowerCase() === "pending" && (Number(p.bidAmount) || 0) === 0)
+          );
+          setProposalsList(filteredList);
+
+          // Đồng bộ hóa viewedProposal với dữ liệu mới cập nhật từ DB
+          setViewedProposal(prev => {
+            if (!prev) return null;
+            const updated = enrichedList.find(p => p.id === prev.id);
+            return updated || prev;
+          });
         }
       } catch (err) {
         console.error("Failed to fetch proposals:", err);
@@ -221,11 +386,16 @@ export function MyProjectsList() {
   const handleDeclineProposal = async (proposalId) => {
     setActionLoading(true);
     try {
-      await api.proposals.delete(proposalId);
-      toast.success("Proposal has been declined and deleted successfully!");
+      await api.proposals.updateStatus(proposalId, "Declined");
+      toast.success("Proposal has been declined successfully!");
+      
+      // Cập nhật state local ngay lập tức
+      setProposalsList((prev) => prev.filter((p) => p.id !== proposalId));
       if (viewedProposal?.id === proposalId) {
         setViewedProposal(null);
       }
+      setProposal(null);
+
       await loadProjects();
       setDbUpdateVersion(prev => prev + 1);
     } catch (err) {
@@ -238,17 +408,58 @@ export function MyProjectsList() {
   const handleAcceptProposal = async (p) => {
     setActionLoading(true);
     try {
-      // Update project status to "pending_pay"
-      await api.jobPosts.update(selectedProject.id, { status: "pending_pay" });
-      // Update proposal status to "pending_pay"
+      // 1. Cập nhật Proposal status sang pending_pay trên Backend
       await api.proposals.updateStatus(p.id, "pending_pay");
+
+      // 2. Tạo dự án từ proposal trên Backend để sinh ra projectId thực tế
+      try {
+        await api.projects.createFromProposal(p.id);
+      } catch (projErr) {
+        console.warn("Failed to create project from proposal, continuing anyway:", projErr);
+      }
+
+      try {
+        const skillsList = selectedProject.jobPostSkills || selectedProject.JobPostSkills || [];
+        const skillIds = skillsList.map(s => s.skillsId || s.SkillsId || s.skillId || s.skill?.id || s.skill?.Id || s.Skill?.id || s.Skill?.Id).filter(Boolean);
+
+        await api.jobPosts.update(selectedProject.id, {
+          title: selectedProject.title,
+          description: selectedProject.description || "Project description",
+          budget: selectedProject.budget || 100,
+          deadline: selectedProject.deadline || 14,
+          domainId: selectedProject.domainId || selectedProject.domain?.id || selectedProject.Domain?.Id || null,
+          specializationId: selectedProject.specializationId || selectedProject.specialization?.id || selectedProject.Specialization?.Id || null,
+          durationValue: selectedProject.durationValue || 0,
+          durationUnit: selectedProject.durationUnit || "Days",
+          skillIds: skillIds.length > 0 ? skillIds : (selectedProject.skillIds || selectedProject.SkillIds || [])
+        });
+      } catch (jobUpdateErr) {
+        console.warn("Failed to update job post metadata, continuing anyway:", jobUpdateErr);
+      }
       
-      toast.success("Proposal has been accepted successfully!");
-      setViewedProposal(null);
+      toast.success("Proposal has been accepted successfully! Please set up escrow to start the project.");
+
+      // Notify selected expert + reject others
+      const otherProposals = proposalsList.filter(prop => prop.id !== p.id);
+      notifyProposalDecision({
+        selectedExpertId: p.expertId,
+        clientName: user?.fullName || user?.name || "Khách hàng",
+        jobTitle: selectedProject?.title || "Dự án",
+        proposalId: p.id,
+        otherProposals: otherProposals.map(op => ({ id: op.id, expertId: op.expertId })),
+      }).catch(() => {});
+
+      // 3. Cập nhật local state sang pending_pay để hiển thị nút ký quỹ
+      const acceptedProposal = { ...p, status: "pending_pay" };
+      setProposal(acceptedProposal);
+      setViewedProposal(acceptedProposal);
+      setProposalsList(prev => prev.map(item => item.id === p.id ? acceptedProposal : item));
+
       setShowEscrowConfirm(false);
       await loadProjects();
       setDbUpdateVersion(prev => prev + 1);
     } catch (err) {
+      console.error("Failed to accept proposal:", err);
       toast.error(err.message || "Failed to accept proposal.");
     } finally {
       setActionLoading(false);
@@ -278,7 +489,7 @@ export function MyProjectsList() {
   // VIEW: DETAILS
   // =========================================================================
   if (view === "details" && selectedProject) {
-    const skills = selectedProject.jobPostSkills?.map((s) => s.skill?.name) || selectedProject.requiredSkills || [];
+    const skills = selectedProject.jobPostSkills?.map((s) => s.skill?.name || s.skillName || s.skill?.Name).filter(Boolean) || selectedProject.requiredSkills || [];
     const deadlineText = (() => {
       if (!selectedProject.deadline) return "N/A";
       const num = Number(selectedProject.deadline);
@@ -302,7 +513,9 @@ export function MyProjectsList() {
 
         {showInviteSuccessBanner && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
-            <span className="font-semibold text-sm">bạn đã thêm chuyên gia mới thành công</span>
+            <span className="font-semibold text-sm">
+              Bạn đã mời chuyên gia {invitedExpertName ? `"${invitedExpertName}" ` : ""}thành công
+            </span>
             <button
               onClick={() => setShowInviteSuccessBanner(false)}
               className="text-green-650 hover:text-green-800 transition-colors"
@@ -357,12 +570,12 @@ export function MyProjectsList() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Category</h4>
-              <p className="text-base text-foreground font-medium">{selectedProject.aiCategoryDomain?.name || selectedProject.category || "N/A"}</p>
+              <p className="text-base text-foreground font-medium">{selectedProject.domain?.name || selectedProject.category || "N/A"}</p>
             </div>
-            {selectedProject.specialization && (
+            {(selectedProject.specialization || selectedProject.specializationName) && (
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Specialization / Area of expertise</h4>
-                <p className="text-base text-foreground font-medium">{selectedProject.specialization}</p>
+                <p className="text-base text-foreground font-medium">{selectedProject.specialization?.name || selectedProject.specializationName || selectedProject.specialization}</p>
               </div>
             )}
           </div>
@@ -407,7 +620,11 @@ export function MyProjectsList() {
 
           <div className="border-t border-border/60 pt-6">
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expert</h4>
-            <p className="text-base text-foreground font-semibold">{selectedProject.assignedExpert ? selectedProject.assignedExpert.fullName : ""}</p>
+            <p className="text-base text-foreground font-semibold">
+              {selectedProject.assignedExpert 
+                ? selectedProject.assignedExpert.fullName 
+                : (selectedProject.acceptedExpertName || (invitedExpertName ? `${invitedExpertName} (Invited)` : "Not Assigned"))}
+            </p>
           </div>
         </div>
       </div>
@@ -606,6 +823,30 @@ export function MyProjectsList() {
                     </p>
                   </div>
                 )}
+
+                {/* Attached Assets for Client (Single Accepted Proposal Detail) */}
+                {proposal.attachments && proposal.attachments.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {proposal.attachments.map((att, idx) => {
+                        const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
+                        return (
+                          <a
+                            key={att.id || idx}
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
+                          >
+                            <File className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>{att.name || "Attached File"}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Escrow payment direct button for single accepted proposal */}
@@ -636,10 +877,11 @@ export function MyProjectsList() {
                       navigate("/client/billing", {
                         state: {
                           escrowRedirect: true,
-                          projectId: selectedProject.id,
+                          projectId: selectedProject.projectId || selectedProject.id,
                           projectTitle: selectedProject.title,
                           amount: proposal.bidAmount,
-                          proposalId: proposal.id
+                          proposalId: proposal.id,
+                          expertId: proposal.expertId
                         }
                       });
                     }}
@@ -651,10 +893,16 @@ export function MyProjectsList() {
               )}
               
               {proposal.status?.toLowerCase() === "accepted" && (
-                <div className="pt-6 border-t border-border/60 flex items-center justify-end">
+                <div className="pt-6 border-t border-border/60 flex items-center justify-end gap-3">
                   <Link
-                    to="/messenger"
-                    className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    to={`/client/projects/${selectedProject.projectId || selectedProject.id}`}
+                    className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                  >
+                    <Briefcase className="w-4 h-4" /> Quản lý tiến độ dự án
+                  </Link>
+                  <Link
+                    to={`/messenger/${proposal.expertId}`}
+                    className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" /> Contact Expert
                   </Link>
@@ -875,6 +1123,30 @@ export function MyProjectsList() {
                     </p>
                   </div>
                 )}
+
+                {/* Attached Assets for Client (ViewedProposal Detail) */}
+                {viewedProposal.attachments && viewedProposal.attachments.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {viewedProposal.attachments.map((att, idx) => {
+                        const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
+                        return (
+                          <a
+                            key={att.id || idx}
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
+                          >
+                            <File className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>{att.name || "Attached File"}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Actions Footer */}
@@ -904,28 +1176,56 @@ export function MyProjectsList() {
   // =========================================================================
   // VIEW: LIST
   // =========================================================================
+  const STATUS_OPTIONS = [
+    { value: "", label: "Tất cả trạng thái" },
+    { value: "Open", label: "Open" },
+    { value: "In Progress", label: "In Progress" },
+    { value: "Completed", label: "Complete" },
+    { value: "Disputed", label: "Disputed" },
+    { value: "Cancel", label: "Cancel" },
+  ];
+
   const filteredProjects = projects.filter((project) => {
-    const proposalCount = project.proposalCount || 0;
-    const statusKey = deriveProjectStatusKey(project, { proposalCount });
-    const s = project.status?.toLowerCase() || "";
-    const isActive = (statusKey === "in_progress" || s === "in_progress" || s === "in progress" || s === "active" || s === "hired" || s === "closed") && s !== "open";
-    return !isActive;
+    const norm = getNormalizedStatus(project);
+    if (statusFilter) {
+      return norm.label === statusFilter;
+    }
+    return true;
   });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-foreground">All Projects</h1>
           <p className="text-muted-foreground mt-1">Manage your posted projects</p>
         </div>
-        <Link
-          to="/client/post-project"
-          className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
-        >
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Link
+            to="/client/post-project"
+            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
+          >
           <PlusCircle className="w-4 h-4" /> Post New Project
         </Link>
       </div>
+    </div>
 
       {loading ? (
         <div className="py-8">
@@ -950,16 +1250,13 @@ export function MyProjectsList() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredProjects.map((project) => {
-            const proposalCount = project.proposalCount || 0;
-            const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = getStatusLabel(statusKey);
-            const badgeClass = getStatusBadgeClass(statusKey);
-            const progress = getProjectProgress(project.id);
-            const category = project.aiCategoryDomain;
+        <div className="space-y-6">
+          <div className="space-y-4">
+            {filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project) => {
+            const { label: displayStatus, badgeClass } = getNormalizedStatus(project);
+            const category = project.category || project.domain?.name;
             
-            const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
+            const skills = project.projectSkills?.map((s) => s.skillName) || project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
               const num = Number(project.deadline);
@@ -976,27 +1273,27 @@ export function MyProjectsList() {
                 key={project.id}
                 className={cn(
                   "bg-card rounded-xl border p-6 hover:shadow-md transition-all duration-200",
-                  ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase())
+                  displayStatus === "Disputed"
                     ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 shadow-lg shadow-red-900/30"
                     : "border-border hover:border-border/80"
                 )}
               >
-                {/* ── Top row: title + status badge + health ── */}
+                {/* ── Top row: title + status badge ── */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className={cn(
                         "font-semibold text-lg leading-snug",
-                        ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase()) ? "text-red-100" : "text-foreground"
+                        displayStatus === "Disputed" ? "text-red-100" : "text-foreground"
                       )}>
                         {project.title}
                       </h3>
                     </div>
                     <p className={cn(
                       "text-sm",
-                      ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase()) ? "text-red-200/70" : "text-muted-foreground"
+                      displayStatus === "Disputed" ? "text-red-200/70" : "text-muted-foreground"
                     )}>
-                      {project.aiCategoryDomain?.name || project.category || "Artificial Intelligence"}
+                      {project.domain?.name || "Artificial Intelligence"}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -1005,32 +1302,9 @@ export function MyProjectsList() {
                     >
                       {displayStatus}
                     </span>
-                    {/* Project health badge */}
-                    {(() => {
-                      if (!project.deadline) return null;
-                      const dl = Number(project.deadline);
-                      const days = Number.isNaN(dl) ? null : (dl < 1000 ? dl : null);
-                      if (days === null) return null;
-                      if (days <= 3) return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />At Risk</span>;
-                      if (days <= 7) return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning border border-warning/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />Needs Attention</span>;
-                      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />On Track</span>;
-                    })()}
                   </div>
                 </div>
 
-                {/* ── Progress bar ── */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
-                    <span className="text-xs font-bold text-foreground">{progress}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-accent to-accent-hover rounded-full transition-all duration-700"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
 
                 {/* ── Metadata grid ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-secondary/40 rounded-lg p-3 border border-border/60">
@@ -1055,7 +1329,7 @@ export function MyProjectsList() {
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Expert</span>
                     <span className="font-medium text-foreground text-sm">
-                      {project.assignedExpert ? project.assignedExpert.fullName : "—"}
+                      {project.assignedExpert ? project.assignedExpert.fullName : "Not Assigned"}
                     </span>
                   </div>
                 </div>
@@ -1088,6 +1362,47 @@ export function MyProjectsList() {
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {Math.ceil(filteredProjects.length / itemsPerPage) > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t border-border mt-6">
+            <span className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredProjects.length)} of {filteredProjects.length} projects
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.ceil(filteredProjects.length / itemsPerPage) }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === i + 1
+                        ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProjects.length / itemsPerPage), p + 1))}
+                disabled={currentPage === Math.ceil(filteredProjects.length / itemsPerPage)}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
       )}
     </div>
   );

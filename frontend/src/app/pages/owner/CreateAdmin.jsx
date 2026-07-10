@@ -22,6 +22,7 @@ export function CreateAdmin() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -38,9 +39,12 @@ export function CreateAdmin() {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = "Please enter full name.";
     if (!formData.email.trim()) {
-      errs.email = "Please enter email.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errs.email = "Invalid email format.";
+      errs.email = "Please enter email/username.";
+    }
+    if (!formData.phoneNumber.trim()) {
+      errs.phoneNumber = "Please enter phone number.";
+    } else if (!/^0[0-9]{9}$/.test(formData.phoneNumber)) {
+      errs.phoneNumber = "Invalid format (10 digits, starting with 0).";
     }
     if (!formData.password) {
       errs.password = "Please enter a password.";
@@ -67,12 +71,13 @@ export function CreateAdmin() {
       try {
         const result = await createAdminAccount({
           fullName: formData.fullName.trim(),
-          email: formData.email.trim(),
+          username: formData.email.trim(),
+          phoneNumber: formData.phoneNumber.trim(),
           password: formData.password,
         });
         setCreatedAdmin(result);
         setFeedback("Admin account created successfully!");
-        setFormData({ fullName: "", email: "", password: "", confirmPassword: "" });
+        setFormData({ fullName: "", email: "", phoneNumber: "", password: "", confirmPassword: "" });
       } catch (err) {
         setFeedback(err.message || "Error creating Admin account.");
       } finally {
@@ -94,7 +99,7 @@ export function CreateAdmin() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-lg mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-2xl mx-auto w-full space-y-6">
       {/* Back button */}
       <button
         type="button"
@@ -177,6 +182,26 @@ export function CreateAdmin() {
             />
             {errors.email && (
               <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label className="block text-sm font-medium text-foreground/80 mb-1">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.phoneNumber}
+              onChange={(e) => updateField("phoneNumber", e.target.value)}
+              placeholder="0912345678"
+              className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
+                errors.phoneNumber ? "border-red-300" : "border-input"
+              }`}
+              disabled={loading}
+            />
+            {errors.phoneNumber && (
+              <p className="mt-1 text-xs text-red-500">{errors.phoneNumber}</p>
             )}
           </div>
 

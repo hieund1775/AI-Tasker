@@ -5,6 +5,9 @@ import {
   XCircle,
   Clock,
   GitBranch,
+  Paperclip,
+  File,
+  Download,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 
@@ -24,6 +27,7 @@ export function ProposalCard({
   proposal,
   isAccepted,
   isDeclined,
+  isPendingInvite,
   hasBeenActed,
   onAccept,
   onDecline,
@@ -71,6 +75,11 @@ export function ProposalCard({
                   <XCircle className="w-3 h-3" /> Declined
                 </span>
               )}
+              {isPendingInvite && (
+                <span className="px-2.5 py-0.5 bg-brand-primary/10 text-brand-primary rounded-full text-xs font-medium inline-flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> Pending Expert Response
+                </span>
+              )}
             </div>
 
             {/* Title */}
@@ -103,6 +112,46 @@ export function ProposalCard({
                     +{proposal.expert.skills.length - 5} more
                   </span>
                 )}
+              </div>
+            )}
+
+            {/* Attached Assets for Client */}
+            {proposal.attachments && proposal.attachments.length > 0 && (
+              <div className="mb-3 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                  <Paperclip className="w-3.5 h-3.5" /> Attached Assets ({proposal.attachments.length})
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {proposal.attachments.map((att, idx) => {
+                    const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
+                    const fileName = att.name || "Attached File";
+                    return (
+                      <div key={att.id || idx} className="inline-flex items-center gap-0 rounded-lg border border-border overflow-hidden">
+                        {/* Xem file */}
+                        <a
+                          href={fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
+                          title="Xem file"
+                        >
+                          <File className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="max-w-[160px] truncate">{fileName}</span>
+                        </a>
+                        {/* Nút tải về */}
+                        <a
+                          href={fileUrl}
+                          download={fileName}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-semibold transition-colors"
+                          title="Tải về"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Tải về
+                        </a>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -250,7 +299,7 @@ export function ProposalCard({
           {!hasBeenActed && (
             <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Link
-                to="/messenger"
+                to={`/messenger/${proposal.expertId || ""}`}
                 className="min-w-[140px] justify-center h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
                 title="Message expert"
               >
@@ -268,21 +317,23 @@ export function ProposalCard({
                 className="min-w-[140px] justify-center h-11 px-5 border border-destructive/20 text-destructive rounded-xl hover:bg-destructive-light text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
               >
                 <XCircle className="w-4 h-4" />
-                Decline
+                {isPendingInvite ? "Revoke Invite" : "Decline"}
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  onAccept(
-                    proposal.id,
-                    proposal.expert?.name,
-                  )
-                }
-                className="min-w-[140px] justify-center h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Accept
-              </button>
+              {!isPendingInvite && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onAccept(
+                      proposal.id,
+                      proposal.expert?.name,
+                    )
+                  }
+                  className="min-w-[140px] justify-center h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Accept
+                </button>
+              )}
             </div>
           )}
         </div>

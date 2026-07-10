@@ -34,7 +34,7 @@ export function ProtectedRoute({ role, roles, children }) {
   }
 
   // Resolve allowed roles: if `role` is "admin", also allow "owner"
-  const allowedRoles = roles
+  let allowedRoles = roles
     ? roles
     : role
       ? role === "admin"
@@ -42,8 +42,16 @@ export function ProtectedRoute({ role, roles, children }) {
         : [role]
       : null;
 
+  // EXCEPTION: Owner has all Admin permissions, so if "admin" is allowed, allow "owner" too
+  if (allowedRoles && allowedRoles.map(r => r.toLowerCase()).includes("admin")) {
+    if (!allowedRoles.map(r => r.toLowerCase()).includes("owner")) {
+      allowedRoles = [...allowedRoles, "owner"];
+    }
+  }
+
   // Role check — normalize to lowercase for case-insensitive comparison
   if (allowedRoles && !allowedRoles.map(r => r.toLowerCase()).includes(userRole?.toLowerCase())) {
+
     return <Navigate to="/unauthorized" replace />;
   }
 

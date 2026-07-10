@@ -18,6 +18,8 @@ public class UserDto
 public class UserWalletDto
 {
     public decimal Balance { get; set; }
+    public decimal EscrowBalance { get; set; }
+    public decimal TotalEarned { get; set; }
 }
 
 public class UserExpertProfileDto

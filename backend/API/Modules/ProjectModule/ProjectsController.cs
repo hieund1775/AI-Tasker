@@ -3,7 +3,10 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProjectModule.DTOs;
+using AITasker_Modular.Modules.InteractionModule;
+using AITasker_Modular.Database;
 
 namespace AITasker_Modular.Modules.ProjectModule
 {
@@ -12,10 +15,12 @@ namespace AITasker_Modular.Modules.ProjectModule
     public class ProjectsController : ControllerBase
     {
         private readonly IProjectService _projectService;
+        private readonly DataContext _context;
 
-        public ProjectsController(IProjectService projectService)
+        public ProjectsController(IProjectService projectService, DataContext context)
         {
             _projectService = projectService;
+            _context = context;
         }
 
         #region Project Endpoints
@@ -80,6 +85,168 @@ namespace AITasker_Modular.Modules.ProjectModule
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        /// <summary>
+        /// [FIX] Ký quỹ: Client trả tiền escrow cho dự án.
+        /// - Trừ Balance của Client.
+        /// - Cộng vào EscrowBalance của ví Client.
+        /// - Tự động cập nhật trạng thái Project, JobPost, Proposal.
+        /// </summary>
+        [HttpPost("{id:guid}/escrow-deposit")]
+        public async Task<IActionResult> EscrowDeposit(Guid id, [FromBody] EscrowDepositDto dto)
+        {
+            if (dto == null || dto.ClientId == Guid.Empty)
+                return BadRequest("Dữ liệu ký quỹ không hợp lệ.");
+
+            var project = await _context.Projects
+                .Include(p => p.JobPost)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null) return NotFound("Không tìm thấy dự án.");
+
+            var amount = dto.Amount > 0 ? dto.Amount : project.EscrowBalance;
+            if (amount <= 0)
+                return BadRequest("Số tiền ký quỹ phải lớn hơn 0.");
+
+            var clientWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == dto.ClientId);
+            if (clientWallet == null) return NotFound("Không tìm thấy ví của Client.");
+
+            if (clientWallet.Balance < amount)
+                return BadRequest($"Số dư không đủ. Cần {amount:N0} VND nhưng chỉ có {clientWallet.Balance:N0} VND.");
+
+            // Trừ tiền khả dụng và cộng vào escrow của ví Client
+            clientWallet.Balance -= amount;
+            clientWallet.EscrowBalance += amount;
+
+            // Cập nhật trạng thái đồng bộ
+            project.Status = "In Progress";
+            project.EscrowBalance = amount;
+
+            if (project.JobPostId.HasValue)
+            {
+                var jobPost = await _context.JobPosts.FindAsync(project.JobPostId.Value);
+                if (jobPost != null) jobPost.Status = "In Progress";
+
+                // Đánh dấu Proposal được chấp nhận
+                var proposal = await _context.Proposals
+                    .FirstOrDefaultAsync(p => p.JobPostId == project.JobPostId.Value && p.ExpertId == project.ExpertId);
+                if (proposal != null) proposal.Status = "Accepted";
+            }
+
+            // Ghi lịch sử giao dịch
+            _context.TransactionLogs.Add(new TransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                SourceWalletId = clientWallet.UserId,
+                DestinationWalletId = null, // Giữ trong escrow
+                Amount = amount,
+                Type = "EscrowDeposit",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Ký quỹ thành công.",
+                ProjectId = project.Id,
+                Amount = amount,
+                ClientBalance = clientWallet.Balance,
+                ClientEscrowBalance = clientWallet.EscrowBalance,
+                ProjectStatus = project.Status
+            });
+        }
+
+        /// <summary>
+        /// [FIX] Giải ngân: Client xác nhận nghiệm thu, chuyển tiền escrow cho Expert.
+        /// - Trừ EscrowBalance của Project.
+        /// - Trừ EscrowBalance của ví Client.
+        /// - Cộng tiền (sau khi trừ phí 5%) vào Balance + TotalEarned của ví Expert.
+        /// </summary>
+        [HttpPost("{id:guid}/release-payment")]
+        public async Task<IActionResult> ReleasePayment(Guid id)
+        {
+            var project = await _context.Projects
+                .Include(p => p.JobPost)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            if (project == null) return NotFound("Không tìm thấy dự án.");
+
+            if (project.EscrowBalance <= 0)
+                return BadRequest("Dự án không có số dư escrow để giải ngân.");
+
+            var clientWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ClientId);
+            var expertWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ExpertId);
+
+            if (clientWallet == null) return NotFound("Không tìm thấy ví Client.");
+            if (expertWallet == null) return NotFound("Không tìm thấy ví Expert.");
+
+            decimal totalBudget = project.EscrowBalance;
+            decimal platformFee = Math.Round(totalBudget * 0.05m, 2); // 5% phí sàn
+            decimal expertNetPay = totalBudget - platformFee;
+
+            // Trừ escrow của ví Client
+            clientWallet.EscrowBalance = Math.Max(0, clientWallet.EscrowBalance - totalBudget);
+
+            // Cộng vào ví Expert
+            expertWallet.Balance += expertNetPay;
+            expertWallet.TotalEarned += expertNetPay;
+
+            // Thu phí sàn vào SystemWallet
+            var systemWallet = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
+            if (systemWallet != null)
+            {
+                systemWallet.TotalBalance += platformFee;
+                systemWallet.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // Cập nhật dự án
+            project.EscrowBalance = 0;
+            project.Status = "Completed";
+
+            if (project.JobPostId.HasValue)
+            {
+                var jobPost = await _context.JobPosts.FindAsync(project.JobPostId.Value);
+                if (jobPost != null) jobPost.Status = "Completed";
+            }
+
+            // Ghi lịch sử giao dịch
+            _context.TransactionLogs.Add(new TransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                SourceWalletId = clientWallet.UserId,
+                DestinationWalletId = expertWallet.UserId,
+                Amount = expertNetPay,
+                Type = "ReleasePayment",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            // Ghi phí sàn vào SystemTransactionLogs
+            _context.SystemTransactionLogs.Add(new SystemTransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                Amount = platformFee,
+                Type = "PlatformFee",
+                Description = $"Thu phí dịch vụ sàn 5% từ dự án {project.Id} - giải ngân.",
+                CreatedAt = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = "Giải ngân thành công.",
+                ProjectId = project.Id,
+                TotalBudget = totalBudget,
+                PlatformFee = platformFee,
+                ExpertNetPay = expertNetPay,
+                ExpertBalance = expertWallet.Balance,
+                ExpertTotalEarned = expertWallet.TotalEarned,
+                ProjectStatus = project.Status
+            });
         }
 
         [HttpGet("{projectId:guid}/tasks")]

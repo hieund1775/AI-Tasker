@@ -19,26 +19,24 @@ import api from "./api.js";
  */
 export async function sendNotification({ userId, title, message, type = "system", linkTo = "" }) {
   try {
-    // Gọi API của hệ thống mock (hoặc thực tế) để lưu thông báo
+    // Gọi API thực tế để lưu thông báo
     const newNotif = await api.post("/notifications", {
       userId,
       title,
-      message,
-      type,
-      isRead: false,
-      linkTo,
-      createdAt: new Date().toISOString(),
+      content: message,
+      link: linkTo,
     });
     
-    // Phát sự kiện cập nhật giao diện ngay lập tức
+    // Phát sự kiện cập nhật giao diện
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     }
     
     return newNotif;
   } catch (err) {
-    console.error("[NotificationService] Gửi thông báo thất bại:", err);
-    throw err;
+    console.warn("[NotificationService] Gửi thông báo thất bại (Có thể do BE chưa có API POST /notifications):", err);
+    // Trả về null thay vì throw lỗi để không làm sập các luồng xử lý chính (ví dụ: chấp nhận proposal, nạp thông báo...)
+    return null;
   }
 }
 
@@ -112,6 +110,48 @@ export async function notifyEscrowFunded({ expertUserId, clientName, jobTitle, p
     message: `Khách hàng ${clientName} đã nạp tiền ký quỹ thành công. Dự án chính thức bắt đầu!`,
     type: "payment",
     linkTo: `/expert/proposals/${proposalId}`
+  });
+}
+
+/**
+ * TRIGGER 2.3: Client invites an Expert to a newly created project
+ * Only the invited Expert receives the notification.
+ */
+export async function notifyExpertInvited({ expertUserId, clientName, jobTitle, jobPostId, proposalId }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Lời mời dự án mới: ${jobTitle}`,
+    message: `Khách hàng ${clientName} vừa gửi lời mời bạn tham gia dự án "${jobTitle}". Vui lòng kiểm tra và phản hồi.`,
+    type: "proposal",
+    linkTo: jobPostId ? `/expert/jobs/${jobPostId}` : `/expert/dashboard`
+  });
+}
+
+/**
+ * TRIGGER 2.4: Expert declines a project invitation
+ * Only the Client receives the notification.
+ */
+export async function notifyInviteDeclined({ clientUserId, expertName, jobTitle, jobPostId }) {
+  return sendNotification({
+    userId: clientUserId,
+    title: `Chuyên gia từ chối lời mời: ${jobTitle}`,
+    message: `Chuyên gia ${expertName} đã từ chối lời mời tham gia dự án "${jobTitle}".`,
+    type: "proposal",
+    linkTo: `/client/projects/${jobPostId}/proposals`
+  });
+}
+
+/**
+ * TRIGGER: Client declines a proposal
+ * The expert is notified that their proposal was rejected.
+ */
+export async function notifyProposalDeclined({ expertUserId, clientName, jobTitle }) {
+  return sendNotification({
+    userId: expertUserId,
+    title: `Đề xuất bị từ chối: ${jobTitle}`,
+    message: `Khách hàng ${clientName} đã từ chối đề xuất của bạn cho dự án "${jobTitle}".`,
+    type: "proposal",
+    linkTo: `/expert/proposals`
   });
 }
 
@@ -272,13 +312,14 @@ export async function notifyPaymentReleased({ expertUserId, clientName, projectT
  * A dispute report is filed and accepted by Admin.
  * The accused party receives notification with 48h deadline.
  */
-export async function notifyDisputeFiled({ accusedUserId, reporterName, projectTitle, deadline, projectId, reportId }) {
+export async function notifyDisputeFiled({ accusedUserId, accusedRole, reporterName, projectTitle, deadline, projectId, reportId }) {
+  const baseRoute = accusedRole?.toLowerCase() === "client" ? "client" : "expert";
   return sendNotification({
     userId: accusedUserId,
     title: `Dispute filed against you: ${projectTitle}`,
     message: `${reporterName} has filed a dispute regarding "${projectTitle}". You have 48 hours to submit your explanation. Admin will review the case.`,
     type: "dispute",
-    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+    linkTo: projectId ? `/${baseRoute}/projects/${projectId}` : "",
   });
 }
 
@@ -286,13 +327,14 @@ export async function notifyDisputeFiled({ accusedUserId, reporterName, projectT
  * Dispute resolved by Admin.
  * Both parties receive notification.
  */
-export async function notifyDisputeResolved({ userId, projectTitle, resolution, projectId }) {
+export async function notifyDisputeResolved({ userId, userRole, projectTitle, resolution, projectId }) {
+  const baseRoute = userRole?.toLowerCase() === "client" ? "client" : "expert";
   return sendNotification({
     userId,
     title: `Dispute resolved: ${projectTitle}`,
     message: `The dispute for "${projectTitle}" has been resolved. Resolution: ${resolution}.`,
     type: "dispute",
-    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+    linkTo: projectId ? `/${baseRoute}/projects/${projectId}` : "",
   });
 }
 
@@ -300,19 +342,34 @@ export async function notifyDisputeResolved({ userId, projectTitle, resolution, 
  * Admin requests more evidence, extending 48h deadline.
  * The accused party receives notification.
  */
-export async function notifyMoreEvidenceRequested({ userId, projectTitle, adminNote, projectId }) {
+export async function notifyMoreEvidenceRequested({ userId, userRole, projectTitle, adminNote, projectId }) {
+  const baseRoute = userRole?.toLowerCase() === "client" ? "client" : "expert";
   return sendNotification({
     userId,
     title: `More evidence requested: ${projectTitle}`,
     message: `Admin has requested additional evidence for the dispute "${projectTitle}". You have 48 more hours to respond.${adminNote ? ` Note: "${adminNote}"` : ""}`,
     type: "dispute",
-    linkTo: projectId ? `/expert/projects/${projectId}` : "",
+    linkTo: projectId ? `/${baseRoute}/projects/${projectId}` : "",
   });
 }
 
 // =============================================================================
 // CONTRACT CANCELLATION NOTIFICATIONS
 // =============================================================================
+
+/**
+ * A user requests to cancel the contract. Partner is notified to accept/reject.
+ */
+export async function notifyCancelRequestSubmitted({ partnerUserId, projectTitle, requesterName, projectId }) {
+  if (!partnerUserId) return;
+  return sendNotification({
+    userId: partnerUserId,
+    title: `Cancel Request: ${projectTitle}`,
+    message: `${requesterName} has requested to cancel the contract for "${projectTitle}". Please review and respond in your Project Management dashboard.`,
+    type: "info",
+    linkTo: `/projects/${projectId}`, // Notification routing will handle the /client or /expert prefix based on role
+  });
+}
 
 /**
  * Client cancels contract. Expert receives payout notification.
@@ -342,6 +399,9 @@ export async function notifyContractCancelledClient({ clientUserId, projectTitle
 
 export const notificationService = {
   sendNotification,
+  notifyExpertInvited,
+  notifyInviteDeclined,
+  notifyProposalDeclined,
   notifyNewProposal,
   notifyUpdatedProposal,
   notifyProposalDecision,
@@ -362,6 +422,7 @@ export const notificationService = {
   notifyDisputeResolved,
   notifyMoreEvidenceRequested,
   // Contract cancellation
+  notifyCancelRequestSubmitted,
   notifyContractCancelledExpert,
   notifyContractCancelledClient,
 };

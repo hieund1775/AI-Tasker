@@ -80,30 +80,11 @@ export async function payProjectToEscrow(payload) {
  * Client confirms satisfaction and releases the full escrow amount to Expert.
  * Only Client can perform this action.
  *
- * Expected payload:
- *   {
- *     projectId: string,
- *     amount: number,
- *     expertId: string,
- *     transactionType: "release_payment",
- *   }
- *
  * @param {object} payload
- * @returns {Promise<object>} { success, transactionId, newExpertBalance? }
+ * @returns {Promise<object>}
  */
 export async function releaseProjectMoneyToExpert(payload) {
-  const endpoint = ESCROW_ENDPOINTS.releaseProjectMoneyToExpert;
-  if (!endpoint) {
-    // TODO: add API endpoint here
-    console.warn("[EscrowService] releaseProjectMoneyToExpert — endpoint not configured");
-    return { success: true, projectId: payload.projectId };
-  }
-  return api.post(endpoint, {
-    ...payload,
-    type: "release_payment",
-    transactionType: "release_payment",
-    description: `Release escrow payment to Expert for project ${payload.projectId}`,
-  });
+  return api.payments.releaseEscrow({ projectId: payload.projectId });
 }
 
 // ---------------------------------------------------------------------------

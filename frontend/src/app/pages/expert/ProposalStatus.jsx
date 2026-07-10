@@ -52,6 +52,7 @@ export function ProposalStatus() {
   const { user } = useAuth();
 
   const [proposals, setProposals] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -108,12 +109,51 @@ export function ProposalStatus() {
     };
   }, [user?.id]);
 
+  const STATUS_OPTIONS = [
+    { value: "", label: "Tất cả trạng thái" },
+    { value: "pending", label: "Đang chờ (Pending)" },
+    { value: "under_review", label: "Đang xem xét (Under Review)" },
+    { value: "pending_escrow", label: "Chờ ký quỹ (Pending Payment)" },
+    { value: "accepted", label: "Được chấp nhận (Accepted)" },
+    { value: "declined", label: "Từ chối (Declined)" },
+    { value: "withdrawn", label: "Đã rút (Withdrawn)" },
+    { value: "expired", label: "Đã quá hạn (Expired)" },
+  ];
+
+  const filteredProposals = proposals.filter((proposal) => {
+    if (!statusFilter) return true;
+    const status = (proposal.status || "").toLowerCase();
+    if (statusFilter === "under_review" && (status === "under_review" || status === "under review")) return true;
+    if (statusFilter === "pending_escrow" && (status === "pending_escrow" || status === "pending_pay" || status === "pending escrow" || status === "pending pay")) return true;
+    if (statusFilter === "declined" && (status === "declined" || status === "rejected")) return true;
+    return status === statusFilter;
+  });
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <PageHeader
-        title="My Proposals"
-        subtitle="Track your submitted proposals and their status"
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <PageHeader
+          title="My Proposals"
+          subtitle="Track your submitted proposals and their status"
+          className="mb-0"
+        />
+        {proposals.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       {/* Empty state */}
       {proposals.length === 0 ? (
@@ -135,9 +175,16 @@ export function ProposalStatus() {
             Find Jobs
           </Link>
         </div>
+      ) : filteredProposals.length === 0 ? (
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">Không tìm thấy đề xuất</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
+            Không có đề xuất nào có trạng thái phù hợp với bộ lọc đã chọn.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
-          {proposals.map((proposal, i) => {
+          {filteredProposals.map((proposal, i) => {
             const statusCfg = getStatusConfig(proposal.status);
             const StatusIcon = statusCfg.icon;
             const convId = findConversationId(proposal.projectId, user?.id || "current-user");

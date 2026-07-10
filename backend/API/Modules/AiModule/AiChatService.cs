@@ -87,10 +87,29 @@ public class AiChatService
         {
             if (_cachedSystemPrompt != null) return _cachedSystemPrompt;
 
-            var promptPath = Path.Combine(_env.ContentRootPath, "Modules", "AiModule", "Prompts", "ai-system-prompt.md");
+            var pathsToTry = new[]
+            {
+                Path.Combine(_env.ContentRootPath, "Modules", "AiModule", "Prompts", "ai-system-prompt.md"),
+                Path.Combine(AppContext.BaseDirectory, "Modules", "AiModule", "Prompts", "ai-system-prompt.md"),
+                Path.Combine(Directory.GetCurrentDirectory(), "Modules", "AiModule", "Prompts", "ai-system-prompt.md"),
+                Path.Combine(Directory.GetCurrentDirectory(), "API", "Modules", "AiModule", "Prompts", "ai-system-prompt.md"),
+                "Modules/AiModule/Prompts/ai-system-prompt.md"
+            };
 
-            if (!File.Exists(promptPath))
-                throw new FileNotFoundException($"Khong tim thay file system prompt tai: {promptPath}");
+            string? promptPath = null;
+            foreach (var path in pathsToTry)
+            {
+                if (File.Exists(path))
+                {
+                    promptPath = path;
+                    break;
+                }
+            }
+
+            if (promptPath == null)
+            {
+                throw new FileNotFoundException($"Khong tim thay file system prompt tai cac duong dan da thu:\n- " + string.Join("\n- ", pathsToTry));
+            }
 
             _cachedSystemPrompt = File.ReadAllText(promptPath, Encoding.UTF8);
             return _cachedSystemPrompt;

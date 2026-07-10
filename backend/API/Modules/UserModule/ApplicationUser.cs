@@ -23,4 +23,6 @@ public class ApplicationUser
     public DateTime? AppointedAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? PhoneNumber { get; set; }
+    public string? PasswordResetToken { get; set; }     // Token dùng để reset mật khẩu
+    public DateTime? PasswordResetExpiry { get; set; } // Hạn sử dụng của token (15 phút)
 }

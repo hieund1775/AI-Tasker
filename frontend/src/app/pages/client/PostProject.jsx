@@ -9,6 +9,8 @@ import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePla
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 // ── Timeline unit conversion helpers ──
 const unitToDays = (value, unit) => {
@@ -32,250 +34,7 @@ const unitLabel = (value, unit) => {
   return `${value} day${value !== 1 ? "s" : ""}`;
 };
 
-const CATEGORY_DATA = {
-  "Engineering & Science": {
-    specializations: [
-      "Aerospace Engineering",
-      "Chemical Engineering",
-      "Civil Engineering",
-      "Electrical Engineering",
-      "Mechanical Engineering",
-      "Environmental Science",
-      "Biotechnology",
-      "Physics"
-    ],
-    skills: {
-      "Aerospace Engineering": ["Aerodynamics", "Propulsion", "CAD/CAM", "MATLAB"],
-      "Chemical Engineering": ["Process Simulation", "ASPEN Plus", "Thermodynamics", "Chemical Synthesis"],
-      "Civil Engineering": ["AutoCAD", "Structural Analysis", "Revit", "GIS Mapping"],
-      "Electrical Engineering": ["Circuit Design", "FPGA Programming", "Verilog", "Altium Designer"],
-      "Mechanical Engineering": ["SolidWorks", "Finite Element Analysis (FEA)", "Thermodynamics", "Robotics"],
-      "Environmental Science": ["Environmental Impact Assessment", "GIS Mapping", "Water Quality Analysis", "Ecology"],
-      "Biotechnology": ["CRISPR Gene Editing", "Bioinformatics", "Cell Culture", "PCR Analysis"],
-      "Physics": ["Quantum Mechanics", "Computational Physics", "Data Analysis", "LaTeX Documenting"]
-    }
-  },
-  "Sales & Marketing": {
-    specializations: [
-      "Digital Marketing",
-      "Search Engine Optimization (SEO)",
-      "Social Media Management",
-      "Content Marketing",
-      "Email Marketing",
-      "Sales Strategy",
-      "Brand Management",
-      "Market Research"
-    ],
-    skills: {
-      "Digital Marketing": ["Google Ads", "Facebook Ads Manager", "Google Analytics", "PPC Campaigns"],
-      "Search Engine Optimization (SEO)": ["Keyword Research", "On-Page SEO", "Link Building", "SEMrush/Ahrefs"],
-      "Social Media Management": ["Content Scheduling", "Copywriting", "Canva Designing", "Community Management"],
-      "Content Marketing": ["SEO Writing", "Blogging", "Content Strategy", "Copywriting"],
-      "Email Marketing": ["Mailchimp", "HubSpot", "Email Copywriting", "A/B Testing Campaigns"],
-      "Sales Strategy": ["Lead Generation", "Cold Calling", "CRM (Salesforce)", "Sales Pitch Negotiation"],
-      "Brand Management": ["Brand Identity", "Public Relations", "Market Trend Analysis", "Visual Brand Book"],
-      "Market Research": ["Data Collection", "Survey Design", "Competitive Analysis", "SPSS Statistics"]
-    }
-  },
-  "Business, Accounting, Human Resources & Legal": {
-    specializations: [
-      "Financial Accounting",
-      "Auditing",
-      "Corporate Law",
-      "Intellectual Property",
-      "Recruitment & Talent Acquisition",
-      "Employee Relations",
-      "Business Strategy",
-      "Project Management"
-    ],
-    skills: {
-      "Financial Accounting": ["Quickbooks", "GAAP Compliance", "Financial Reporting", "Tax Preparation"],
-      "Auditing": ["Internal Audit", "Risk Assessment", "SOX Compliance", "Financial Analysis"],
-      "Corporate Law": ["Contract Drafting", "Due Diligence", "Mergers & Acquisitions", "Corporate Governance"],
-      "Intellectual Property": ["Patent Filing", "Trademark Law", "Copyrights Law", "IP Strategy"],
-      "Recruitment & Talent Acquisition": ["ATS Systems", "Candidate Sourcing", "Interviewing Techniques", "Executive Search"],
-      "Employee Relations": ["Conflict Resolution", "HR Policy Design", "Onboarding Programs", "Performance Management"],
-      "Business Strategy": ["Market Entry Strategy", "SWOT Analysis", "Financial Modeling", "Management Consulting"],
-      "Project Management": ["Scrum Framework", "Agile Methodologies", "Jira/Asana Management", "PMP Standards"]
-    }
-  },
-  "Product Sourcing & Manufacturing": {
-    specializations: [
-      "Supply Chain Management",
-      "Logistics",
-      "Product Design",
-      "Quality Control",
-      "Manufacturing Engineering",
-      "Vendor Relations",
-      "Inventory Management"
-    ],
-    skills: {
-      "Supply Chain Management": ["ERP Systems", "Sales & Operations Planning (S&OP)", "Procurement", "Strategic Sourcing"],
-      "Logistics": ["Freight Coordination", "Route Planning", "Third-Party Logistics (3PL)", "Warehouse Management"],
-      "Product Design": ["CAD Prototyping", "Ergonomics Study", "Material Selection", "DFM (Design for Manufacturing)"],
-      "Quality Control": ["Six Sigma", "Lean Manufacturing", "ISO 9001 Auditing", "QA Inspections"],
-      "Manufacturing Engineering": ["CNC Programming", "Automation Systems", "PLC Programming", "Assembly Line Layout"],
-      "Vendor Relations": ["Contract Negotiation", "Supplier Audit", "Global Sourcing", "Cost Estimation"],
-      "Inventory Management": ["FIFO/LIFO Operations", "Demand Forecasting", "WMS Software", "Cycle Counting"]
-    }
-  },
-  "Mobile Phones & Computing": {
-    specializations: [
-      "Software Engineering",
-      "Mobile App Development",
-      "UI/UX Design",
-      "Cloud Computing",
-      "Cyber Security",
-      "Database Administration",
-      "Devops",
-      "Computer Networks"
-    ],
-    skills: {
-      "Software Engineering": ["Java", "C++", "Python", "Go", "Rust", "System Design", "Algorithms"],
-      "Mobile App Development": ["Swift (iOS)", "Kotlin (Android)", "React Native", "Flutter", "Mobile SDKs"],
-      "UI/UX Design": ["Figma", "Wireframing", "User Research", "Interactive Prototyping", "Adobe XD"],
-      "Cloud Computing": ["AWS", "Google Cloud Platform (GCP)", "Microsoft Azure", "Cloud Architecture"],
-      "Cyber Security": ["Penetration Testing", "Network Security", "Cryptography", "CISSP Standards", "Firewall Auditing"],
-      "Database Administration": ["PostgreSQL", "MongoDB", "MySQL", "Query Performance Tuning", "Database Schema Design"],
-      "Devops": ["Docker Containers", "CI/CD Pipelines", "Kubernetes Orchestration", "Terraform IaC", "Ansible Automation"],
-      "Computer Networks": ["TCP/IP Protocols", "Cisco CCNA", "Virtual Private Networks (VPN)", "Network Troubleshooting"]
-    }
-  },
-  "Translation & Languages": {
-    specializations: [
-      "English Translation",
-      "Spanish Translation",
-      "French Translation",
-      "Chinese Translation",
-      "Interpretation",
-      "Localization",
-      "Proofreading & Editing"
-    ],
-    skills: {
-      "English Translation": ["English Grammar", "English-to-Vietnamese Translation", "Proofreading", "Localization Strategy"],
-      "Spanish Translation": ["Spanish Grammar", "Spanish-to-English Translation", "Spanish Subtitling", "Localization"],
-      "French Translation": ["French Grammar", "French-to-English Translation", "French Localization"],
-      "Chinese Translation": ["Mandarin/Cantonese Translation", "Chinese-to-English Translation", "Document Translation"],
-      "Interpretation": ["Consecutive Interpretation", "Simultaneous Interpretation", "Active Listening", "Medical/Legal Interpretation"],
-      "Localization": ["CAT Tools (Trados)", "Software UI Localization", "Cultural Adaptation Strategy"],
-      "Proofreading & Editing": ["Copy Editing", "Grammar & Syntax Correction", "Style Guide Compliance (APA/MLA)"]
-    }
-  },
-  "Trades & Services": {
-    specializations: [
-      "Electrical Work",
-      "Plumbing",
-      "Carpentry",
-      "HVAC Services",
-      "Auto Repair",
-      "Cleaning Services",
-      "Landscaping"
-    ],
-    skills: {
-      "Electrical Work": ["Electrical Wiring", "Circuit Troubleshooting", "Reading Blueprints", "Safety Compliance (NEC)"],
-      "Plumbing": ["Pipe Fitting", "Drain Cleaning", "Leak Detection", "Commercial Piping Blueprints"],
-      "Carpentry": ["Fine Woodworking", "Framing", "Cabinetry", "Power Tools Operation"],
-      "HVAC Services": ["Air Conditioning Installation", "Heating Systems Repair", "Refrigerant Management", "HVAC Diagnostics"],
-      "Auto Repair": ["Engine Diagnostics", "Brake Systems Repair", "Suspension Tuning", "Automotive Electrical Systems"],
-      "Cleaning Services": ["Commercial Cleaning", "Deep Cleaning", "Sanitization Standards", "Eco-friendly Cleaning Products"],
-      "Landscaping": ["Lawn Care", "Garden Design", "Irrigation Systems Setup", "Horticulture Expertise"]
-    }
-  },
-  "Freight, Shipping & Transportation": {
-    specializations: [
-      "Freight Forwarding",
-      "Fleet Management",
-      "Customs Brokerage",
-      "Warehouse Management",
-      "Route Optimization",
-      "Courier Services"
-    ],
-    skills: {
-      "Freight Forwarding": ["Customs Regulations", "Bill of Lading Drafting", "International Shipping Compliance", "Carrier Booking"],
-      "Fleet Management": ["GPS Tracking Systems", "Vehicle Maintenance Scheduling", "Driver Scheduling", "Fuel Management"],
-      "Customs Brokerage": ["Import/Export Documentation", "Tariff Classification (HS Code)", "Regulatory Compliance"],
-      "Warehouse Management": ["OSHA Safety Standards", "Material Handling", "Inventory Audits", "Forklift Operations"],
-      "Route Optimization": ["Route Planning Software", "Last-Mile Delivery Logistics", "Cost Management"],
-      "Courier Services": ["Local Delivery Management", "Time Management", "Customer Service Excellence"]
-    }
-  },
-  "Telecommunications": {
-    specializations: [
-      "Network Engineering",
-      "Wireless Communications",
-      "Telephony Systems",
-      "Fiber Optics",
-      "Satellite Communications",
-      "RF Engineering"
-    ],
-    skills: {
-      "Network Engineering": ["VoIP", "SIP Protocols", "Cisco IOS", "Telecom Network Design"],
-      "Wireless Communications": ["5G/4G Network Deployment", "LTE Architecture", "WiFi Protocols", "Antenna Engineering"],
-      "Telephony Systems": ["PBX Systems Configuration", "Unified Communications (UCaaS)", "Call Center Routing"],
-      "Fiber Optics": ["Optical Fiber Splicing", "OTDR Testing", "FTTH Installation"],
-      "Satellite Communications": ["VSAT Systems Installation", "Link Budgets Calculation", "RF Systems Calibration"],
-      "RF Engineering": ["RF Simulation", "Spectrum Analysis", "Microwave Link Systems"]
-    }
-  },
-  "Education": {
-    specializations: [
-      "Curriculum Development",
-      "Online Tutoring",
-      "Special Education",
-      "Language Instruction",
-      "Instructional Design",
-      "Educational Consulting"
-    ],
-    skills: {
-      "Curriculum Development": ["Lesson Planning", "Learning Objectives Definition", "Educational Standards Alignment"],
-      "Online Tutoring": ["Zoom Classroom Management", "Interactive Whiteboards", "Subject Matter Tutoring (Math/Science)"],
-      "Special Education": ["IEP (Individualized Education Program) Development", "Behavioral Intervention", "Differentiated Instruction"],
-      "Language Instruction": ["ESL/EFL Teaching", "Language Pedagogy", "Pronunciation Coaching"],
-      "Instructional Design": ["E-Learning Development", "Articulate Storyline", "LMS Administration (Moodle/Canvas)"],
-      "Educational Consulting": ["Academic Advising", "College Admissions Counseling", "Educational Technology Assessment"]
-    }
-  },
-  "Health & Medicine": {
-    specializations: [
-      "General Medicine",
-      "Nursing",
-      "Physical Therapy",
-      "Medical Writing",
-      "Healthcare Administration",
-      "Clinical Research",
-      "Nutrition & Dietetics"
-    ],
-    skills: {
-      "General Medicine": ["Medical Diagnostics", "Patient Care Protocols", "Medical Terminology"],
-      "Nursing": ["Patient Monitoring", "IV Administration", "Wound Care", "Electronic Medical Records (EMR)"],
-      "Physical Therapy": ["Physical Rehabilitation", "Therapeutic Exercise", "Patient Mobility Assessment"],
-      "Medical Writing": ["Clinical Trial Reports", "Medical Copyediting", "Regulatory Document Prep", "AMA Style Compliance"],
-      "Healthcare Administration": ["HIPAA Compliance", "Medical Billing & Coding", "Clinic Operations Management"],
-      "Clinical Research": ["GCP Guidelines", "Protocol Design", "Data Collection", "Clinical Trials Management"],
-      "Nutrition & Dietetics": ["Meal Planning", "Dietary Assessment", "Clinical Nutrition Programs"]
-    }
-  },
-  "Artificial Intelligence": {
-    specializations: [
-      "Machine Learning",
-      "Natural Language Processing",
-      "Computer Vision",
-      "Deep Learning",
-      "Generative AI",
-      "MLOps",
-      "AI Agent Development"
-    ],
-    skills: {
-      "Machine Learning": ["Python", "Scikit-Learn", "Regression Models", "Classification & Clustering"],
-      "Natural Language Processing": ["Hugging Face Transformers", "BERT", "Text Tokenization", "Semantic Search"],
-      "Computer Vision": ["OpenCV Library", "YOLO Object Detection", "Image Segmentation", "PyTorch Vision"],
-      "Deep Learning": ["Deep Neural Networks", "TensorFlow Framework", "Keras API", "PyTorch Library", "CNN/RNN Architectures"],
-      "Generative AI": ["OpenAI API Integration", "LangChain Framework", "RAG Systems Setup", "Vector Databases (Pinecone/Chroma)", "Prompt Engineering"],
-      "MLOps": ["MLflow Experiment Tracking", "DVC (Data Version Control)", "AWS SageMaker", "Dockerizing ML Models"],
-      "AI Agent Development": ["Semantic Kernel Framework", "AutoGen", "CrewAI Orchestration", "LangGraph", "AI Agent Tooling"]
-    }
-  }
-};
+// API Category Data will be fetched via hooks below
 
 export function PostProject() {
   const navigate = useNavigate();
@@ -302,6 +61,25 @@ export function PostProject() {
     durationUnit: "Days", // "Days" | "Months" | "Years"
   });
 
+  const [apiCategories, setApiCategories] = useState([]);
+  const [apiSkills, setApiSkills] = useState([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [cats, skills] = await Promise.all([
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+        setApiCategories(cats || []);
+        setApiSkills(skills || []);
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    }
+    loadData();
+  }, []);
+
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [useCases, setUseCases] = useState([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
   const [attachments, setAttachments] = useState([]);
@@ -312,13 +90,10 @@ export function PostProject() {
 
   const handleApplyAIPlan = (result) => {
     if (!result) return;
-    // Update category/specialization/skills
-    if (result.category) updateField("category", result.category);
-    // Need to set specialization after category loads — defer via microtask
-    setTimeout(() => {
-      if (result.specialization) updateField("specialization", result.specialization);
-      if (result.skills) setSelectedSkills(result.skills);
-    }, 100);
+    
+    // Tắt ghi đè Category/Specialization/Skills từ AI vì AI sinh ra dạng Text (VD: "Machine Learning")
+    // trong khi hệ thống hiện tại yêu cầu chọn Mã ID (UUID). Việc ghi đè Text sẽ làm lỗi dropdown và xóa dữ liệu đã chọn.
+    
     // Map AI use cases to current normalized shape
     if (result.useCases) {
       const mapped = result.useCases.map((uc, i) => ({
@@ -407,19 +182,37 @@ export function PostProject() {
       createdAt: uc.createdAt || new Date().toISOString(),
     }));
 
+    // Map to backend DTO format for Implementation
+    const implementationPayload = normalizedUseCases.map(uc => {
+      const reqs = uc.requirements || [];
+      const miniTasksPayload = reqs.length > 0
+        ? reqs.map(req => ({
+            Title: typeof req === "string" ? req : req.title || "",
+            Duration: Number(req.durationDays) || 0
+          }))
+        : [{
+            Title: `Cấu phần của ${uc.title}`,
+            Duration: Number(uc.originalDurationDays) || 1
+          }];
+      
+      return {
+        Title: uc.title,
+        Duration: Number(uc.originalDurationDays) || 1,
+        MiniTasks: miniTasksPayload
+      };
+    });
+
     const payload = {
       title: formData.title.trim(),
       description: formData.description.trim(),
       budget: Number(formData.budget) || 0,
       deadline: deadlineDays,
-      aiCategoryDomainId: formData.category || null,
-      aiCategoryDomain: formData.category ? { id: formData.category, name: formData.category } : null,
-      specialization: formData.specialization || null,
+      domainId: formData.category || null,
+      specializationId: formData.specialization || null,
       clientId: user?.id,
       skillIds: selectedSkills,
-      jobPostSkills: selectedSkills.map((name) => ({ skill: { name } })),
       requiredSkills: selectedSkills,
-      useCases: normalizedUseCases,
+      implementation: implementationPayload,
       originalTotalDurationDays: totalUseCaseDuration,
       originalBudget: Number(formData.budget) || 0,
       attachments: attachments.map((f) => ({ name: f.name, size: f.size, type: f.type })),
@@ -440,16 +233,30 @@ export function PostProject() {
           durationDays: deadlineDays,
           attachments: [],
         };
-        await api.proposals.create({
+        const createdProposal = await api.proposals.create({
           jobPostId: createdJob.id,
           expertId: invitedExpert.id,
           bidAmount: 0,
+          estimatedDays: deadlineDays,
+          introduction: "Tôi muốn mời bạn tham gia dự án này.",
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: false,
         });
+
+        await notificationService.notifyExpertInvited({
+          expertUserId: invitedExpert.id,
+          clientName: user?.fullName || "Client",
+          jobTitle: createdJob.title || formData.title,
+          jobPostId: createdJob.id,
+          proposalId: createdProposal?.id || createdProposal?.Id
+        });
       }
 
-      alert("Đăng dự án thành công!");
+      if (invitedExpert) {
+        alert("Đã gửi lời mời dự án tới chuyên gia thành công!");
+      } else {
+        alert("Đăng dự án thành công!");
+      }
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
@@ -466,54 +273,38 @@ export function PostProject() {
     setVisibleCount(3);
     try {
       const res = await api.experts.list();
-      const expertsOnly = (res || [])
-        .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-        .map((u) => ({
-          id: u.id,
-          name: u.fullName,
-          title: u.expertProfile.jobTitle || u.expertProfile.specialization || u.expertProfile.major || "AI Specialist",
-          specialization: u.expertProfile.specialization || u.expertProfile.major || u.specialization || "AI Specialist",
-          category: u.expertProfile.category || u.category || "AI & Computing",
-          location: u.expertProfile.location || "N/A",
-          bio: u.expertProfile.bio || u.bio || "No biography provided.",
-          rating: u.rating || 4.8,
-          completedProjects: u.expertProfile.completedProjects || 8,
-          hourlyRate: u.expertProfile.hourlyRate || 65,
-          skills: u.expertProfile.skills || ["Python", "Semantic Kernel"],
-          email: u.email || "",
-          phone: u.expertProfile.phone || "",
-          portfolio: u.portfolio || [],
-          clientReviews: (u.clientReviews || []).map((r) => ({
-            clientName: r.clientName || r.name || "Client",
-            rating: r.rating || 5,
-            comment: r.comment || r.review || "Great work!",
-            date: r.date,
-          })),
-        }));
+      const rawExperts = (res || []).filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile);
 
-      // Sort experts based on category, specialization, skills match, and completedProjects <= 3
-      const getScore = (exp) => {
-        let score = 0;
-        
-        // category/specialization match
-        const hasSpec = formData.specialization && exp.specialization?.toLowerCase().includes(formData.specialization.toLowerCase());
-        if (hasSpec) {
-          score += 10;
-        }
-        
-        // skills match count
-        const matchSkills = selectedSkills.filter(s => exp.skills?.some(es => es.toLowerCase() === s.toLowerCase())).length;
-        score += matchSkills * 2;
-
-        // "ưu tiên nào có từ 3 trở xuống" completedProjects priority
-        if (exp.completedProjects <= 3) {
-          score += 15; // Give significant priority boost
-        }
-        
-        return score;
+      const projectData = {
+        category: formData.category,
+        specialization: formData.specialization,
+        requiredSkills: selectedSkills
       };
 
-      const sortedExperts = [...expertsOnly].sort((a, b) => getScore(b) - getScore(a));
+      const sortedRawExperts = getRecommendedExperts(projectData, rawExperts, apiSkills, apiCategories);
+
+      const sortedExperts = sortedRawExperts.map((u) => ({
+        id: u.id,
+        name: u.fullName,
+        title: u.expertProfile.jobTitle || u.resolvedSpecName || "AI Specialist",
+        specialization: u.specialization || "AI Specialist",
+        category: u.category || "AI & Computing",
+        location: u.expertProfile.location || "N/A",
+        bio: u.expertProfile.bio || u.bio || "No biography provided.",
+        rating: u.rating || 4.8,
+        completedProjects: u.expertProfile.completedProjects || 8,
+        hourlyRate: u.expertProfile.hourlyRate || 65,
+        skills: u.resolvedSkills || ["Python", "Semantic Kernel"],
+        email: u.email || "",
+        phone: u.expertProfile.phone || "",
+        portfolio: u.portfolio || [],
+        clientReviews: (u.clientReviews || []).map((r) => ({
+          clientName: r.clientName || r.name || "Client",
+          rating: r.rating || 5,
+          comment: r.comment || r.review || "Great work!",
+          date: r.date,
+        })),
+      }));
       setRecommendedExperts(sortedExperts);
       
       // Scroll to recommendations container
@@ -528,21 +319,49 @@ export function PostProject() {
     }
   };
 
-  const categoriesList = Object.keys(CATEGORY_DATA);
-  const specializationsList = formData.category
-    ? CATEGORY_DATA[formData.category].specializations
-    : [];
-  const skillsList = formData.category && formData.specialization
-    ? CATEGORY_DATA[formData.category].skills[formData.specialization] || []
-    : [];
 
   // Computed timeline validation (totalUseCaseDays defined above with useEffect)
   const configuredDeadlineDays = useMemo(() => {
     return unitToDays(formData.durationValue, formData.durationUnit);
   }, [formData.durationValue, formData.durationUnit]);
 
-  const isDeadlineValid = configuredDeadlineDays >= totalUseCaseDays;
 
+  // Danh sách categories và specializations từ API
+  const categoriesList = useMemo(() => {
+    const list = [];
+    apiCategories.forEach(cat => {
+      if (cat.name && !list.some(c => c.name === cat.name)) {
+        list.push(cat);
+      }
+    });
+    return list;
+  }, [apiCategories]);
+
+  const selectedCatObj = categoriesList.find(c => c.id === formData.category || c.name === formData.category);
+  
+  const specializationsList = useMemo(() => {
+    const specs = selectedCatObj?.specializations || [];
+    const list = [];
+    specs.forEach(spec => {
+      if (spec.name && !list.some(s => s.name === spec.name)) {
+        list.push(spec);
+      }
+    });
+    return list;
+  }, [selectedCatObj]);
+
+  // Skills List
+  const skillsList = useMemo(() => {
+    const list = [];
+    apiSkills.forEach(skill => {
+      if (skill.name && !list.some(s => s.name === skill.name) && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) {
+        list.push(skill);
+      }
+    });
+    return list;
+  }, [apiSkills]);
+
+  const isDeadlineValid = configuredDeadlineDays >= totalUseCaseDays;
   const isFormValid =
     formData.title.trim() !== "" &&
     formData.description.trim() !== "" &&
@@ -558,7 +377,7 @@ export function PostProject() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
         title="Post a New AI Project"
-        subtitle="Define your business use cases, timeline, and budget before matching with an expert."
+        subtitle="Define your user stories, timeline, and budget before matching with an expert."
         illustration={
           <svg width="240" height="160" viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="120" cy="80" r="70" stroke="currentColor" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.3" />
@@ -632,9 +451,9 @@ export function PostProject() {
                       required
                     >
                       <option value="" disabled>Select a category...</option>
-                      {categoriesList.map((catName) => (
-                        <option key={catName} value={catName}>{catName}</option>
-                      ))}
+                      {categoriesList.map((catObj) => (
+                          <option key={catObj.id || catObj.name} value={catObj.id || catObj.name}>{catObj.name}</option>
+                        ))}
                     </select>
                   </div>
                   <div>
@@ -650,9 +469,9 @@ export function PostProject() {
                       <option value="" disabled>
                         {formData.category ? "Select a specialization..." : "Please select a category first"}
                       </option>
-                      {specializationsList.map((specName) => (
-                        <option key={specName} value={specName}>{specName}</option>
-                      ))}
+                        {specializationsList.map((specObj) => (
+                          <option key={specObj.id || specObj.name} value={specObj.id || specObj.name}>{specObj.name}</option>
+                        ))}
                     </select>
                   </div>
                 </div>
@@ -664,20 +483,20 @@ export function PostProject() {
                     <p className="text-sm text-muted-foreground">No specialized skills listed for this area.</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {skillsList.map((skillName) => (
-                        <button
-                          key={skillName}
-                          type="button"
-                          onClick={() => toggleSkill(skillName)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            selectedSkills.includes(skillName)
-                              ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
-                              : "bg-secondary text-foreground/70 hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {skillName}
-                        </button>
-                      ))}
+                      {skillsList.map((skillObj) => (
+                          <button
+                            key={skillObj.id || skillObj.name}
+                            type="button"
+                            onClick={() => toggleSkill(skillObj.id)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                              selectedSkills.includes(skillObj.id)
+                                ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                                : "bg-secondary text-foreground/70 hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {skillObj.name}
+                          </button>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -687,7 +506,7 @@ export function PostProject() {
 
           <AnimatedReveal delay={2}>
             <SectionCard
-              title="Project Use Cases"
+              title="Project User Stories"
               icon={Layers}
               padding="lg"
               actions={
@@ -710,7 +529,7 @@ export function PostProject() {
                     onClick={() => setUseCases([...useCases, { id: `uc-${Date.now()}-${useCases.length + 1}`, title: "", description: "", originalDurationDays: 1 }])}
                     className="h-9 px-3 bg-secondary hover:bg-muted text-brand-primary rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
                   >
-                    + Add Use Case
+                    + Add User Story
                   </button>
                 </div>
               }
@@ -718,8 +537,8 @@ export function PostProject() {
               {useCases.length === 0 ? (
                 <div className="py-8 text-center">
                   <Layers className="w-10 h-10 text-muted-foreground/25 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground font-medium">No use cases yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Add a use case or use AI to parse them automatically.</p>
+                  <p className="text-sm text-muted-foreground font-medium">No user stories yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Add a user story or use AI to parse them automatically.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -736,7 +555,7 @@ export function PostProject() {
                       )}
                       <div>
                         <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Use Case Title <span className="text-red-500">*</span>
+                          User Story Title <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -754,7 +573,7 @@ export function PostProject() {
                         <textarea
                           value={uc.description}
                           onChange={(e) => { const updated = [...useCases]; updated[index].description = e.target.value; setUseCases(updated); }}
-                          placeholder="Detailed description of this use case..."
+                          placeholder="Detailed description of this user story..."
                           rows={2}
                           className="w-full px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card resize-y"
                           required
@@ -790,7 +609,7 @@ export function PostProject() {
               Timeline Summary
             </div>
             <p className="mt-1">
-              Total Use Case Duration: <strong>{totalUseCaseDays} days</strong>
+              Total User Story Duration: <strong>{totalUseCaseDays} days</strong>
               {" · "}
               Project Timeline: <strong>
                 {formData.durationUnit === "Days"
@@ -800,8 +619,8 @@ export function PostProject() {
             </p>
             <span className="block mt-1 font-medium text-xs opacity-80">
               {isDeadlineValid
-                ? "✓ Timeline is valid. You can increase the project timeline but not reduce it below the total use case duration."
-                : "✗ Project timeline must be at least the total use case duration. Increase the timeline or reduce use case durations."}
+                ? "✓ Timeline is valid. You can increase the project timeline but not reduce it below the total user story duration."
+                : "✗ Project timeline must be at least the total user story duration. Increase the timeline or reduce user story durations."}
             </span>
           </div>
 
@@ -863,7 +682,7 @@ export function PostProject() {
                         <option value="Years">Years</option>
                       </select>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Must be ≥ total use case duration</p>
+                    <p className="text-xs text-muted-foreground mt-1">Must be ≥ total user story duration</p>
                   </div>
                 </div>
 
@@ -906,7 +725,7 @@ export function PostProject() {
               }`}
             >
               <Bot className="w-4 h-4" />
-              AI Recommend
+              Recommend Expert
             </button>
           </div>
         </form>
@@ -918,7 +737,6 @@ export function PostProject() {
           <div
             id="ai-assistant-sidebar"
             className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col min-h-0"
-            style={{ height: formHeight ? `${formHeight}px` : "100%" }}
           >
             <AIClientsUseCasePlanner
               onClose={() => setRightPanelMode(null)}

@@ -102,7 +102,7 @@ namespace AITasker_Modular.Migrations
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             TotalBalance = 0m,
-                            UpdatedAt = new DateTime(2026, 7, 5, 18, 19, 10, 945, DateTimeKind.Utc).AddTicks(623)
+                            UpdatedAt = new DateTime(2026, 7, 7, 11, 2, 25, 148, DateTimeKind.Utc).AddTicks(5467)
                         });
                 });
 
@@ -904,6 +904,12 @@ namespace AITasker_Modular.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<DateTime?>("PasswordResetExpiry")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PasswordResetToken")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("longtext");
 
@@ -966,6 +972,12 @@ namespace AITasker_Modular.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<decimal>("Balance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("EscrowBalance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TotalEarned")
                         .HasColumnType("decimal(18,2)");
 
                     b.HasKey("UserId");

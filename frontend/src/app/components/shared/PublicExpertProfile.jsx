@@ -14,6 +14,7 @@ import {
 import { api } from "../../../services/api.js";
 import { safeArray, safeNumberFormat } from "../../lib/safety.js";
 import { useAuth } from "../../hooks/useAuth.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 /**
  * PublicExpertProfile — unified expert profile component.
@@ -42,6 +43,14 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   const [showInvitePanel, setShowInvitePanel] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
 
+  // Helper to read local profile cache as backup for fields not supported by BE DTO yet
+  const getLocalProfile = (userId) => {
+    try {
+      const raw = localStorage.getItem(`aitasker_expert_profile_${userId}`);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  };
+
   // Load expert profile
   useEffect(() => {
     let cancelled = false;
@@ -51,21 +60,22 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
         if (resolvedId) {
           const apiExpert = await api.experts.getById(resolvedId);
           if (!cancelled && apiExpert) {
+            const localCache = getLocalProfile(resolvedId);
             setExpert({
               id: apiExpert.id || resolvedId,
               name: apiExpert.fullName || apiExpert.name,
               title: apiExpert.expertProfile?.jobTitle || apiExpert.specialization || "AI Expert",
-              category: apiExpert.expertProfile?.category || apiExpert.category || "",
-              specialization: apiExpert.expertProfile?.specialization || apiExpert.expertProfile?.major || apiExpert.specialization || "",
+              category: apiExpert.expertProfile?.category || apiExpert.category || localCache.category || "",
+              specialization: apiExpert.expertProfile?.specialization || apiExpert.expertProfile?.major || apiExpert.specialization || localCache.specialization || "",
               location: apiExpert.expertProfile?.location || apiExpert.location || "Chưa cập nhật",
               rating: apiExpert.rating || 5.0,
               reviews: apiExpert.reviews || apiExpert.reviewCount || 0,
               completedProjects: apiExpert.completedProjects || 0,
-              hourlyRate: apiExpert.expertProfile?.hourlyRate || apiExpert.hourlyRate,
+              hourlyRate: apiExpert.expertProfile?.hourlyRate || apiExpert.hourlyRate || localCache.hourlyRate,
               bio: apiExpert.expertProfile?.bio || apiExpert.bio || "",
-              skills: apiExpert.expertProfile?.skills || apiExpert.skills || [],
+              skills: apiExpert.expertProfile?.skills?.length ? apiExpert.expertProfile.skills : (apiExpert.skills?.length ? apiExpert.skills : (localCache.skills || [])),
               email: apiExpert.email || "",
-              phone: apiExpert.expertProfile?.phone || apiExpert.phone || apiExpert.status || "",
+              phone: apiExpert.phoneNumber || apiExpert.phone || apiExpert.expertProfile?.phone || "Chưa cập nhật",
               portfolio: apiExpert.portfolio || [],
               clientReviews: (apiExpert.clientReviews || []).map((r) => ({
                 clientName: r.clientName || r.name || "Client",
@@ -88,13 +98,17 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
     return () => { cancelled = true; };
   }, [resolvedId]);
 
-  // Load skills list to resolve IDs
+  const [categoriesList, setCategoriesList] = useState([]);
+
+  // Load skills & categories list to resolve IDs
   useEffect(() => {
-    api.get("/category-tags/skills")
-      .then(res => {
-        if (Array.isArray(res)) setSkillsList(res);
-      })
-      .catch(err => console.error("Failed to load skills list:", err));
+    Promise.all([
+      api.categoryTags.getSkills().catch(() => []),
+      api.categoryTags.getCategories().catch(() => []),
+    ]).then(([skills, categories]) => {
+      if (Array.isArray(skills)) setSkillsList(skills);
+      if (Array.isArray(categories)) setCategoriesList(categories);
+    }).catch(err => console.error("Failed to load skills/categories list:", err));
   }, []);
 
   // Load open client job posts
@@ -128,31 +142,38 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
     try {
       setInviteLoading(true);
 
-      // 1. Assign expert to the job post directly in the database
-      await api.jobPosts.update(project.id, {
-        assignedExpertId: resolvedId,
-      });
+      // 1. No need to update JobPost directly since AssignedExpertId doesn't exist on backend.
+      // We rely solely on the dummy proposal.
 
-      // 2. Create proposal with isSubmitted: false to invoke client invitation flow
-      const coverLetterObj = {
-        proposalTitle: `Invitation to ${expert.name}`,
-        professionalIntro: `Hi ${expert.name}, I would like to invite you to collaborate on my project: ${project.title}.`,
-        technicalApproach: "Client invitation",
-        timelineMilestones: "",
-        dependencies: "",
-        durationDays: 30,
-        attachments: [],
-      };
-      await api.proposals.create({
+      // 2. Create proposal as a direct invitation (bidAmount = 0)
+      const wbsData = project.useCases ? project.useCases.map(uc => ({
+        Title: uc.title,
+        Duration: uc.originalDurationDays || 1,
+        MiniTasks: (uc.requirements || []).map(req => ({
+          Title: req.title || "",
+          Duration: Number(req.durationDays) || 1
+        }))
+      })) : [];
+
+      const createdProposal = await api.proposals.create({
         jobPostId: project.id,
         expertId: resolvedId,
         bidAmount: 0,
-        coverLetter: JSON.stringify(coverLetterObj),
-        isSubmitted: false,
+        estimatedDays: project.deadline || 14,
+        introduction: `Hi ${expert.name}, I would like to invite you to collaborate on my project: ${project.title}.`,
+        coverLetter: JSON.stringify(wbsData)
+      });
+
+      await notificationService.notifyExpertInvited({
+        expertUserId: resolvedId,
+        clientName: authUser?.fullName || authUser?.name || "Khách hàng",
+        jobTitle: project.title,
+        jobPostId: project.id,
+        proposalId: createdProposal?.id || createdProposal?.Id
       });
 
       // 3. Navigate to client/my-projects details view with inviteSuccess=true
-      navigate(`/client/my-projects?projectId=${project.id}&view=details&inviteSuccess=true`);
+      navigate(`/client/my-projects?projectId=${project.id}&view=details&inviteSuccess=true&expertName=${encodeURIComponent(expert.name || "Expert")}`);
     } catch (err) {
       console.error("Failed to send invitation:", err);
       alert(err.message || "Failed to send invitation. Please try again.");
@@ -294,38 +315,59 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             </div>
 
             {/* Meta details */}
-            <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border/60">
-              {expert.location && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  {expert.location}
-                </span>
-              )}
-              {expert.category && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Briefcase className="w-4 h-4 text-muted-foreground" />
-                  Category: {expert.category}
-                </span>
-              )}
-              {expert.specialization && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
-                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
-                  Specialization: {expert.specialization}
-                </span>
-              )}
-              {expert.rating != null && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  {expert.rating} ({expert.reviews || 0} reviews)
-                </span>
-              )}
-              {expert.hourlyRate != null && (
-                <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  ${expert.hourlyRate}/hr
-                </span>
-              )}
-            </div>
+            {(() => {
+              // Phân giải tên Category
+              let resolvedCat = expert.category;
+              const matchedCat = categoriesList.find(c => c.id === expert.category);
+              if (matchedCat) {
+                resolvedCat = matchedCat.name;
+              }
+
+              // Phân giải tên Specialization
+              let resolvedSpec = expert.specialization;
+              for (const cat of categoriesList) {
+                const matchedSpec = cat.specializations?.find(s => s.id === expert.specialization);
+                if (matchedSpec) {
+                  resolvedSpec = matchedSpec.name;
+                  break;
+                }
+              }
+
+              return (
+                <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border/60">
+                  {expert.location && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      {expert.location}
+                    </span>
+                  )}
+                  {expert.category && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Briefcase className="w-4 h-4 text-muted-foreground" />
+                      Category: {resolvedCat}
+                    </span>
+                  )}
+                  {expert.specialization && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground font-medium">
+                      <CheckCircle className="w-4 h-4 text-muted-foreground" />
+                      Specialization: {resolvedSpec}
+                    </span>
+                  )}
+                  {expert.rating != null && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      {expert.rating} ({expert.reviews || 0} reviews)
+                    </span>
+                  )}
+                  {expert.hourlyRate != null && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      ${expert.hourlyRate}/hr
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Contact details */}
             {(expert.email || expert.phone) && (

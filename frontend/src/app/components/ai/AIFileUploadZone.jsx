@@ -196,16 +196,39 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
                   )}
                 </div>
               </div>
-              {!disabled && (
+              <div className="flex items-center gap-1.5 flex-shrink-0 ml-1.5">
                 <button
                   type="button"
-                  onClick={() => removeFile(index)}
-                  className="w-6 h-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center flex-shrink-0 ml-1.5"
-                  title="Remove file"
+                  onClick={() => {
+                    try {
+                      const url = URL.createObjectURL(file);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = file.name || "downloaded-file";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    } catch (e) {
+                      console.error("Failed to download file:", e);
+                    }
+                  }}
+                  className="w-6 h-6 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors inline-flex items-center justify-center"
+                  title="Download file"
                 >
-                  <X className="w-3 h-3" />
+                  <Upload className="w-3 h-3 rotate-180" />
                 </button>
-              )}
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => removeFile(index)}
+                    className="w-6 h-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center"
+                    title="Remove file"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>

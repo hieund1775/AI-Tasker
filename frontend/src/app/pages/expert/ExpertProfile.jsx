@@ -19,6 +19,8 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
+import { getLocalExpertProfile } from "./EditExpertProfile.jsx";
+
 export function ExpertProfile() {
   const { user: authUser } = useAuth();
 
@@ -41,32 +43,56 @@ export function ExpertProfile() {
         setLoading(true);
         const apiUser = await api.users.getById(authUser.id);
         if (!cancelled && apiUser) {
+          // Tải toàn bộ danh mục để phân giải GUID thành Tên hiển thị
+          let allCats = [];
+          try {
+            allCats = await api.categoryTags.getCategories();
+          } catch (e) {
+            console.error("Failed to load categories for name resolution:", e);
+          }
+
           const profile = apiUser.expertProfile || {};
-          
+          const localProfile = getLocalExpertProfile(authUser.id);
+
+          const rawCategory = profile.category || localProfile.category || "";
+          const rawSpecialization = profile.specialization || profile.major || localProfile.specialization || "";
+
+          // Tìm name tương ứng với GUID
+          const matchedCategoryObj = allCats.find(c => c.id === rawCategory);
+          const categoryName = matchedCategoryObj ? matchedCategoryObj.name : rawCategory;
+
+          let specializationName = rawSpecialization;
+          if (matchedCategoryObj && matchedCategoryObj.specializations) {
+            const matchedSpecObj = matchedCategoryObj.specializations.find(s => s.id === rawSpecialization);
+            if (matchedSpecObj) {
+              specializationName = matchedSpecObj.name;
+            }
+          }
+
           setExpert({
             fullName: apiUser.fullName || apiUser.name || "Expert",
             email: apiUser.email || "",
             createdAt: apiUser.createdAt,
             profile: {
-              category: profile.category || "",
-              specialization: profile.specialization || profile.major || "",
-              skills: profile.skills || [],
-              phone: profile.phone || apiUser.status || "",
+              category: categoryName,
+              specialization: specializationName,
+              skills: (profile.skills && profile.skills.length > 0) ? profile.skills : (localProfile.skills || []),
+              phone: profile.phone || apiUser.phoneNumber || apiUser.status || "",
               location: profile.location || "",
-              website: profile.website || "",
-              industry: profile.industry || "",
+              website: profile.website || localProfile.website || "",
+              industry: profile.industry || localProfile.industry || "",
               bio: profile.bio || "",
               jobTitle: profile.jobTitle || "AI Expert",
-              hourlyRate: profile.hourlyRate || 0,
+              hourlyRate: profile.hourlyRate || localProfile.hourlyRate || 0,
             }
           });
 
-          const allProjects = apiUser.projects || [];
+          const allProjects = apiUser.projects || apiUser.Projects || [];
           const active = allProjects.filter(
-            (p) => p.status?.toLowerCase() === "in_progress" || p.status?.toLowerCase() === "in progress"
+            (p) => ["in_progress", "in progress", "inprogress", "active", "disputed", "awaiting_cancellation"].includes((p.status || p.Status || "").toLowerCase())
           ).length;
           const completed = allProjects.filter(
-            (p) => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "complete"
+            (p) => ["completed", "complete", "cancel_done"].includes((p.status || p.Status || "").toLowerCase())
           ).length;
           
           const totalAssigned = active + completed;

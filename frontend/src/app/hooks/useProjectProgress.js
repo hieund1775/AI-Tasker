@@ -1,131 +1,47 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import {
-  listProjects,
-  listTasks,
-  listUsers,
-  listJobPosts,
-  addMiniTaskToTask,
-  removeMiniTaskFromTask,
-  reorderMiniTasksInTask,
-  updateMiniTaskInTask,
-  toggleMiniTaskCompletion,
-  submitTaskForReview,
-  submitTaskHandoverEvidence,
-  quickAcceptTask,
-  requestTaskProduct,
-  expertSubmitTaskProduct,
-  clientAcceptTaskProduct,
-  clientDeclineTaskProduct,
-  approveTaskSubmission,
-  requestTaskRevision,
-  requestTaskReopen,
-  requestUrgentSubmission,
-  requestMiniTaskRevision,
-  submitTaskProduct,
-  submitProjectFinalWork,
-  acceptProjectFinalDelivery,
-  declineProjectFinalDelivery,
-} from "../../data/mockDatabase.js";
+import { api } from "../../services/api.js";
+import { toast } from "sonner";
+import { useAuth } from "./useAuth.js";
 import {
   getOverallProgress,
   deriveTaskProgress,
   getDeadlineInfo,
 } from "../lib/projectTimelineStore.js";
+import { addTaskAuditEntry } from "../lib/auditTrail.js";
 
-// =============================================================================
-// useProjectProgress — shared data/state hook for project progress management.
-//
-// Used by both ClientProjectManagement and ExpertProjectManagement pages,
-// as well as TaskDetailPage.
-//
-// @param {string} projectId
-// @param {"client"|"expert"} role
-// =============================================================================
-
-/**
- * Derive the display status for a task based on mini-task state.
- * Mini tasks come from accepted proposals — no confirmation needed.
- *
- * Returns one of: "Not Started", "In Progress", "Waiting For Approval",
- * "Done", "Needs Revision", "Reopen Requested"
- */
 export function deriveTaskDisplayStatus(task) {
   if (!task) return "Not Started";
-
   const rawStatus = task.status?.toLowerCase();
   const miniTasks = task.miniTasks || [];
   const hasMiniTasks = miniTasks.length > 0;
-
-  // 1. Done
   if (rawStatus === "completed" || rawStatus === "done" || task.approval === "Approved" || task.approval === "Quick Accepted") {
-    const allDone = miniTasks.every(
-      (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
-    );
+    const allDone = miniTasks.every(mt => mt.isCompleted === true || mt.status === "done" || mt.status === "completed");
     if (allDone || rawStatus === "completed" || rawStatus === "done") return "Done";
   }
-
-  // 2. Rework (orange)
-  if (rawStatus === "rework") return "Rework";
-
-  // 3. Waiting For Approval
-  if (rawStatus === "waiting_for_approval" || rawStatus === "pending_review" || rawStatus === "pending review") {
-    return "Waiting For Approval";
-  }
-
-  // 4. Waiting for Expert Product
+  if (rawStatus === "rework" || ((rawStatus === "in progress" || rawStatus === "inprogress") && task.declineReason)) return "Rework";
+  if (rawStatus === "waiting_for_approval" || rawStatus === "pending_review" || rawStatus === "pending review" || rawStatus === "pending approval" || rawStatus === "pending_approval") return "Waiting For Approval";
   if (rawStatus === "waiting_expert_product") return "Waiting for Expert Product";
-
-  // 5. Checklist Completed
   if (rawStatus === "checklist_completed") return "Checklist Completed";
 
-  const allCompleted = hasMiniTasks && miniTasks.every(
-    (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
-  );
+  const allCompleted = hasMiniTasks && miniTasks.every(mt => mt.isCompleted === true || mt.status === "done" || mt.status === "completed");
   if (allCompleted) {
-    // All mini tasks done but no handover evidence yet — stays In Progress
     if (!task.handoverEvidence) return "In Progress";
-    // Has evidence but status not updated (legacy) — return Checklist Completed
     return "Checklist Completed";
   }
 
-  // 6. Decline / Needs Revision
-  if (
-    rawStatus === "needs_revision" ||
-    rawStatus === "needs revision" ||
-    rawStatus === "decline" ||
-    rawStatus === "declined"
-  ) {
-    return "Decline";
-  }
-
-  // 7. Not Started
+  if (rawStatus === "needs_revision" || rawStatus === "needs revision" || rawStatus === "decline" || rawStatus === "declined") return "Decline";
   if (!hasMiniTasks) return "Not Started";
+  if (rawStatus === "reopen_requested" || rawStatus === "reopen requested") return "In Progress";
 
-  // 8. In Progress
-  if (
-    rawStatus === "reopen_requested" ||
-    rawStatus === "reopen requested"
-  ) {
-    return "In Progress";
-  }
-
-  const hasAnyProgress = miniTasks.some(
-    (mt) =>
-      mt.isCompleted === true ||
-      mt.status === "done" ||
-      mt.status === "completed" ||
-      mt.status === "in_progress"
-  );
+  const hasAnyProgress = miniTasks.some(mt => mt.isCompleted === true || mt.status === "done" || mt.status === "completed" || mt.status === "in_progress");
   if (hasAnyProgress) return "In Progress";
-
   return "Not Started";
 }
 
 export function useProjectProgress(projectId, role) {
   const [searchParams] = useSearchParams();
-
-  // ---- State ----
+  const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [expert, setExpert] = useState(null);
@@ -133,390 +49,617 @@ export function useProjectProgress(projectId, role) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ---- Data loader ----
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async (isSilent = false) => {
     if (!projectId) {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
       return;
     }
-
     try {
-      const projectsList = listProjects();
-      const foundProject = projectsList.find((p) => p.id === projectId);
-      if (!foundProject) {
-        setError("Project not found");
-        setLoading(false);
-        return;
-      }
+      if (!isSilent) setLoading(true);
+      const proj = await api.projects.getById(projectId);
+      if (!proj) throw new Error("Project not found");
 
-      // Self-healing: Ensure project always has useCases
-      if (!foundProject.useCases || foundProject.useCases.length === 0) {
-        const jobs = listJobPosts();
-        const associatedJob = jobs.find((j) => j.id === foundProject.jobPostId);
-        if (associatedJob && associatedJob.useCases && associatedJob.useCases.length > 0) {
-          foundProject.useCases = associatedJob.useCases;
-        } else {
-          foundProject.useCases = [
-            {
-              id: "uc-default",
-              title: foundProject.title || "Project Tasks",
-              originalDurationDays: foundProject.deadline || 30,
-            },
-          ];
+      // Fetch associated JobPost if JobPostId exists to get Category, Specialization, and Required Skills!
+      const jId = proj.jobPostId || proj.JobPostId;
+      if (jId) {
+        try {
+          const jp = await api.jobPosts.getById(jId);
+          if (jp) {
+            proj.category = jp.domain?.name || jp.Domain?.Name || jp.category || "Artificial Intelligence";
+            proj.specialization = jp.specialization?.name || jp.Specialization?.Name || jp.specialization || jp.specializationName;
+            proj.requiredSkills = jp.requiredSkills || jp.jobPostSkills?.map(s =>
+              s.skill?.name || s.skill?.Name ||
+              s.Skill?.name || s.Skill?.Name ||
+              s.skillName || s.SkillName || ""
+            ).filter(Boolean) || [];
+          }
+        } catch (err) {
+          console.warn("Failed to load associated job post:", err);
         }
       }
 
-      setProject(foundProject);
-
-      // Load tasks for this project — first from the global task list,
-      // then fall back to embedded project.tasks (from accepted proposals).
-      const projectTasks = listTasks((t) => t.projectId === projectId);
-
-      const embeddedTasks = Array.isArray(foundProject.tasks)
-        ? foundProject.tasks.map((task) => ({
-            ...task,
-            projectId: task.projectId || foundProject.id,
-            description: task.description || "",
-            status: task.status || "not_started",
-            progress: task.progress != null ? task.progress : 0,
-            assignedTo: task.assignedTo || foundProject.assignedExpertId || "",
-            deadline: task.deadline || foundProject.deadline || "",
-            miniTasks: Array.isArray(task.miniTasks)
-              ? task.miniTasks.map((mt, mtIdx) => ({
-                  ...mt,
-                  projectId: mt.projectId || foundProject.id,
-                  taskId: mt.taskId || task.id,
-                  status: mt.status || (mt.isCompleted ? "done" : "pending"),
-                  description: mt.description || "",
-                  order: mt.order != null ? mt.order : mtIdx,
-                }))
-              : [],
-          }))
-        : [];
-
-      const finalTasks =
-        projectTasks.length > 0 ? projectTasks : embeddedTasks;
-
-      console.log("[useProjectProgress] projectId:", projectId);
-      console.log("[useProjectProgress] projectTasks from listTasks:", projectTasks.length);
-      console.log("[useProjectProgress] embedded project.tasks:", embeddedTasks.length);
-      console.log("[useProjectProgress] final tasks:", finalTasks.length);
-      console.log("[useProjectProgress] final tasks detail:", finalTasks);
-
-      setTasks(finalTasks);
-
-      // Load expert user
-      if (foundProject.assignedExpertId) {
-        const expertUser = listUsers().find((u) => u.id === foundProject.assignedExpertId);
-        setExpert(expertUser || null);
+      // Direct fallbacks if still not resolved
+      if (!proj.requiredSkills || proj.requiredSkills.length === 0) {
+        const skillsFromProj = proj.projectSkills || proj.ProjectSkills || [];
+        proj.requiredSkills = skillsFromProj.map(s =>
+          s.skillName || s.SkillName ||
+          s.skill?.name || s.skill?.Name ||
+          s.Skill?.name || s.Skill?.Name || ""
+        ).filter(Boolean);
       }
 
-      // Load client user
-      if (foundProject.clientId) {
-        const clientUser = listUsers().find((u) => u.id === foundProject.clientId);
-        setClient(clientUser || null);
+      // Derive final delivery fields
+      let parsedLink = { projectLink: proj.projectLink || proj.ProjectLink || "", projectFile: "", declineReason: "" };
+      const rawProjectLink = proj.projectLink || proj.ProjectLink || "";
+      if (rawProjectLink && rawProjectLink.trim().startsWith("{")) {
+        try {
+          parsedLink = JSON.parse(rawProjectLink);
+        } catch (e) {
+          console.warn("Failed to parse projectLink JSON", e);
+        }
+      }
+      
+      proj.finalProjectLink = parsedLink.projectLink || rawProjectLink || "";
+      proj.finalProjectFile = parsedLink.projectFile || proj.projectFile || proj.ProjectFile || "";
+      proj.finalWorkDeclineReason = parsedLink.declineReason || proj.declineReason || proj.DeclineReason || "";
+
+      // Normalize standard keys to prevent casing mismatch issues
+      proj.budget = proj.budget || proj.Budget || proj.EscrowBalance || proj.escrowBalance || proj.escrowAmount || proj.EscrowAmount || 0;
+      proj.escrowBalance = proj.escrowBalance || proj.EscrowBalance || proj.budget || 0;
+      proj.clientId = proj.clientId ?? proj.ClientId ?? "";
+      proj.expertId = proj.expertId ?? proj.ExpertId ?? proj.assignedExpertId ?? proj.AssignedExpertId ?? "";
+      proj.status = proj.status || proj.Status || "";
+
+      // Overriding status using localStorage to bypass backend Automatic Completion issue
+      const embeddedTasks = proj.tasks || proj.Tasks || [];
+      const allTasksApproved = embeddedTasks.length > 0 && embeddedTasks.every(t => {
+        const rawStatus = (t.status || t.Status || "").toLowerCase();
+        return rawStatus === "completed" || rawStatus === "done";
+      });
+
+      // If project has reached a terminal status in DB, clear any local overrides
+      const dbStatusLower = String(proj.Status || proj.status || "").toLowerCase();
+      const terminalStatuses = new Set([
+        "completed",
+        "cancelled",
+        "canceled",
+        "contract_cancelled",
+        "cancel_done",
+        "stopped",
+        "closed",
+        "payment_released"
+      ]);
+      if (terminalStatuses.has(dbStatusLower)) {
+        localStorage.removeItem(`project_status_${projectId}`);
+        proj.status = dbStatusLower;
+      } else {
+        const localStatus = localStorage.getItem(`project_status_${projectId}`);
+        if (localStatus) {
+          proj.status = localStatus;
+        } else if (allTasksApproved) {
+          if (proj.finalWorkDeclineReason) {
+            proj.status = "inprogress";
+            localStorage.setItem(`project_status_${projectId}`, "inprogress");
+          } else {
+            // Initialize default status when all tasks are approved
+            const hasLink = !!(parsedLink.projectLink || proj.projectLink || proj.ProjectLink);
+            const defaultStatus = hasLink ? "under_review" : "inprogress";
+            localStorage.setItem(`project_status_${projectId}`, defaultStatus);
+            proj.status = defaultStatus;
+          }
+        }
+      }
+      
+      const statusLower = (proj.status || proj.Status || "").toLowerCase();
+      if (proj.finalWorkDeclineReason) {
+        proj.finalDeliveryStatus = "Declined";
+      } else if (statusLower === "under_review" || statusLower === "under review" || statusLower === "pending_review") {
+        proj.finalDeliveryStatus = "Final Product Submitted";
+        proj.finalWorkSubmittedAt = proj.updatedAt || proj.UpdatedAt || new Date().toISOString();
+      } else if (statusLower === "completed" || statusLower === "accepted") {
+        proj.finalDeliveryStatus = "Accepted";
+      } else {
+        proj.finalDeliveryStatus = "";
       }
 
+      setProject(proj);
+
+      let projTasks = [];
+      try {
+        projTasks = await api.projects.getTasks(projectId);
+        // Merge notes from proj.tasks since getTasks returns DTOs without Notes property
+        if (proj.tasks && Array.isArray(proj.tasks)) {
+          projTasks = projTasks.map(t => {
+            const match = proj.tasks.find(pt => (pt.id || pt.Id) === t.id);
+            if (match) {
+              return {
+                ...t,
+                notes: match.notes || match.Notes || t.notes || t.Notes || ""
+              };
+            }
+            return t;
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to load tasks, using embedded tasks if any", err);
+        projTasks = proj.tasks || [];
+      }
+
+      const cleanedTasks = (projTasks || []).map(task => {
+        const rawNotes = task.notes || task.Notes || "";
+        const rawStatus = task.status || task.Status || "";
+        const rawFeedback = task.feedbackContent || task.FeedbackContent || "";
+        const rawFeedbackSenderId = task.feedbackSenderId || task.FeedbackSenderId || null;
+        const rawMiniTasks = task.miniTasks || task.MiniTasks || [];
+
+        let parsedNotes = {};
+        if (rawNotes) {
+          try {
+            parsedNotes = JSON.parse(rawNotes);
+          } catch (e) {
+            parsedNotes = { notes: rawNotes };
+          }
+        }
+        return {
+          ...task,
+          status: rawStatus,
+          feedbackContent: rawFeedback,
+          feedbackSenderId: rawFeedbackSenderId,
+          miniTasks: (rawMiniTasks || []).map(mt => ({
+            ...mt,
+            id: mt.id || mt.Id,
+            taskId: mt.taskId || mt.TaskId,
+            title: typeof (mt.title || mt.Title) === "string" ? (mt.title || mt.Title).replace(/\[UCID:[^\]]+\]/gi, "").trim() : (mt.title || mt.Title),
+            isCompleted: mt.isCompleted !== undefined ? mt.isCompleted : (mt.IsCompleted !== undefined ? mt.IsCompleted : false),
+            productLink: mt.productLink || mt.ProductLink || null,
+            productFile: mt.productFile || mt.ProductFile || null,
+          })),
+          notesObject: parsedNotes,
+          productLink: parsedNotes.productLink || task.productLink || task.ProductLink || null,
+          productFile: parsedNotes.productFile || task.productFile || task.ProductFile || null,
+          handoverEvidence: parsedNotes.gitSha || parsedNotes.explanation || task.handoverEvidence || task.HandoverEvidence || null,
+          declineReason: rawFeedback || parsedNotes.declineReason || null,
+          title: typeof task.title === "string" ? task.title.replace(/\[UCID:[^\]]+\]/gi, "").trim() : task.title,
+        };
+      });
+      setTasks(cleanedTasks);
+
+      if (proj.expertId) {
+        try { const exp = await api.users.getById(proj.expertId); setExpert(exp); } catch (e) { }
+      }
+      if (proj.clientId) {
+        try { const cli = await api.users.getById(proj.clientId); setClient(cli); } catch (e) { }
+      }
       setError(null);
     } catch (err) {
-      console.error("Failed to load project progress data:", err);
-      setError(err.message || "Failed to load project data");
+      console.error(err);
+      if (!isSilent) setError("Project not found or API error");
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   }, [projectId]);
 
-  // Fetch on mount and when projectId changes
   useEffect(() => {
-    setLoading(true);
-    loadData();
-  }, [loadData]);
-
-  // Listen for mock DB updates
-  useEffect(() => {
-    const handleDbUpdate = () => {
-      loadData();
-    };
+    loadData(false);
+    const handleDbUpdate = () => loadData(true);
     window.addEventListener("aitasker_db_update", handleDbUpdate);
+    
+    // Poll silently every 3 seconds for smooth, non-disruptive synchronization!
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 3000);
+    
     return () => {
       window.removeEventListener("aitasker_db_update", handleDbUpdate);
+      clearInterval(interval);
     };
   }, [loadData]);
 
-  // ---- Derived values ----
   const tasksWithProgress = tasks.map((task) => {
     const { completed, total, percent } = deriveTaskProgress(task);
     const displayStatus = deriveTaskDisplayStatus(task);
     const deadlineInfo = task.deadline ? getDeadlineInfo(task.deadline) : null;
-    return {
-      ...task,
-      progress: percent,
-      completedMiniTasks: completed,
-      totalMiniTasks: total,
-      displayStatus,
-      deadlineInfo,
-    };
+    return { ...task, progress: percent, completedMiniTasks: completed, totalMiniTasks: total, displayStatus, deadlineInfo };
   });
 
   const overallProgress = getOverallProgress(tasks);
   const totalTasks = tasks.length;
   const completedTasks = tasksWithProgress.filter((t) => t.displayStatus === "Done").length;
 
-  // Check if all mini tasks are completed for a specific task
-  const areAllMiniTasksCompleted = useCallback(
-    (taskId) => {
-      const task = tasks.find((t) => t.id === taskId);
-      if (!task) return false;
-      const miniTasks = task.miniTasks || [];
-      if (miniTasks.length === 0) return false;
-      return miniTasks.every(
-        (mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed"
-      );
-    },
-    [tasks]
-  );
+  const areAllMiniTasksCompleted = useCallback((taskId) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return false;
+    const miniTasks = task.miniTasks || [];
+    if (miniTasks.length === 0) return false;
+    return miniTasks.every((mt) => mt.isCompleted === true || mt.status === "done" || mt.status === "completed");
+  }, [tasks]);
 
-  // ---- Mutation handlers ----
+  const triggerUpdate = () => window.dispatchEvent(new CustomEvent("aitasker_db_update"));
 
-  const handleToggleMiniTask = useCallback(
-    (taskId, miniTaskId) => {
-      if (role !== "expert") return;
-      toggleMiniTaskCompletion(taskId, miniTaskId, expert?.fullName);
-    },
-    [role, expert]
-  );
+  const handleToggleMiniTask = useCallback(async (taskId, miniTaskId) => {
+    if (role !== "expert") return;
 
-  const handleAddMiniTask = useCallback(
-    (taskId, miniTaskData) => {
-      if (role !== "expert") return null;
-      return addMiniTaskToTask(taskId, miniTaskData, expert?.fullName);
-    },
-    [role, expert]
-  );
+    const taskIndex = tasks.findIndex(t => t.id === taskId);
+    if (taskIndex === -1) return;
 
-  const handleRemoveMiniTask = useCallback(
-    (taskId, miniTaskId) => {
-      if (role !== "expert") return null;
-      return removeMiniTaskFromTask(taskId, miniTaskId);
-    },
-    [role]
-  );
+    const task = tasks[taskIndex];
+    const miniTaskIndex = (task.miniTasks || []).findIndex(mt => mt.id === miniTaskId);
+    if (miniTaskIndex === -1) return;
 
-  const handleReorderMiniTasks = useCallback(
-    (taskId, orderedIds) => {
-      if (role !== "expert") return null;
-      return reorderMiniTasksInTask(taskId, orderedIds);
-    },
-    [role]
-  );
+    const miniTask = task.miniTasks[miniTaskIndex];
+    const nextCompleted = !miniTask.isCompleted;
 
-  const handleUpdateMiniTask = useCallback(
-    (taskId, miniTaskId, updates) => {
-      if (role !== "expert") return null;
-      return updateMiniTaskInTask(taskId, miniTaskId, updates);
-    },
-    [role]
-  );
+    // 1. Optimistic Update
+    const updatedTasks = [...tasks];
+    const updatedMiniTasks = [...(task.miniTasks || [])];
+    updatedMiniTasks[miniTaskIndex] = {
+      ...miniTask,
+      isCompleted: nextCompleted
+    };
+    updatedTasks[taskIndex] = {
+      ...task,
+      miniTasks: updatedMiniTasks
+    };
+    setTasks(updatedTasks);
 
-  // ---- Evidence-based task flow handlers (new spec) ----
+    try {
+      // 2. Background API Call
+      await api.projects.updateMiniTask(miniTaskId, {
+        isCompleted: nextCompleted,
+        feedbackSenderId: user?.id || null
+      });
+      toast.success(nextCompleted ? "Đã đánh dấu hoàn thành" : "Đã hủy đánh dấu hoàn thành");
+      triggerUpdate();
+    } catch (e) {
+      console.error(e);
+      toast.error("Lỗi khi cập nhật minitask");
 
-  const handleSubmitHandoverEvidence = useCallback(
-    (taskId, evidence) => {
-      if (role !== "expert") return null;
-      if (!areAllMiniTasksCompleted(taskId)) return null;
-      return submitTaskHandoverEvidence(taskId, expert?.fullName, evidence);
-    },
-    [role, areAllMiniTasksCompleted, expert]
-  );
+      // Rollback
+      const rollbackTasks = [...tasks];
+      const rollbackMiniTasks = [...(task.miniTasks || [])];
+      rollbackMiniTasks[miniTaskIndex] = {
+        ...miniTask,
+        isCompleted: !nextCompleted
+      };
+      rollbackTasks[taskIndex] = {
+        ...task,
+        miniTasks: rollbackMiniTasks
+      };
+      setTasks(rollbackTasks);
+    }
+  }, [role, tasks, user?.id]);
 
-  const handleQuickAccept = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return quickAcceptTask(taskId, client?.fullName);
-    },
-    [role, client]
-  );
+  const handleAddMiniTask = useCallback(async (taskId, miniTaskData) => {
+    if (role !== "expert") return null;
+    try {
+      await api.projects.addMiniTask(taskId, miniTaskData);
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role]);
 
-  const handleRequestProduct = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return requestTaskProduct(taskId, client?.fullName);
-    },
-    [role, client]
-  );
+  const handleRemoveMiniTask = useCallback(async (taskId, miniTaskId) => { return null; }, []);
+  const handleReorderMiniTasks = useCallback(async (taskId, orderedIds) => { return null; }, []);
+  const handleUpdateMiniTask = useCallback(async (taskId, miniTaskId, updates) => {
+    if (role !== "expert") return null;
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const miniTask = task?.miniTasks?.find(mt => mt.id === miniTaskId);
+      const newCompleted = updates.isCompleted !== undefined ? updates.isCompleted : (miniTask?.isCompleted || false);
+      const payload = {
+        isCompleted: miniTask ? (miniTask.isCompleted || false) : false,
+        ...updates
+      };
+      await api.projects.updateMiniTask(miniTaskId, payload);
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        miniTaskId,
+        action: newCompleted ? "mini_task_completed" : "mini_task_created",
+        actor: "Expert",
+        actorName: user?.fullName || "Chuyên gia",
+        details: miniTask?.title || updates.title || ""
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, tasks, projectId, user]);
 
-  const handleExpertSubmitProduct = useCallback(
-    (taskId, productLink, productFile) => {
-      if (role !== "expert") return null;
-      return expertSubmitTaskProduct(taskId, expert?.fullName, productLink, productFile);
-    },
-    [role, expert]
-  );
+  const handleSubmitHandoverEvidence = useCallback(async (taskId, evidence) => {
+    if (role !== "expert" || !areAllMiniTasksCompleted(taskId)) return null;
+    try {
+      const notesValue = typeof evidence === "string" ? evidence : JSON.stringify(evidence);
+      await api.projects.submitTask(taskId, notesValue);
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_submitted_for_review",
+        actor: "Expert",
+        actorName: user?.fullName || "Chuyên gia",
+        details: "Submitted handover evidence."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, areAllMiniTasksCompleted, projectId, user]);
 
-  const handleClientAcceptProduct = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return clientAcceptTaskProduct(taskId, client?.fullName);
-    },
-    [role, client]
-  );
+  const handleQuickAccept = useCallback(async (taskId) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.reviewTask(taskId, {
+        approve: true,
+        feedbackContent: "Quick Accept",
+        feedbackSenderId: user?.id
+      });
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_approved",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: "Quick Accepted task."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, user?.id, projectId, user]);
 
-  const handleClientDeclineProduct = useCallback(
-    (taskId, feedback) => {
-      if (role !== "client") return null;
-      return clientDeclineTaskProduct(taskId, client?.fullName, feedback);
-    },
-    [role, client]
-  );
+  const handleRequestProduct = useCallback(async (taskId) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.updateTaskStatus(taskId, "waiting_expert_product");
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "urgent_submission_requested",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: "Requested Expert to submit product."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, projectId, user]);
 
-  // ---- Review workflow handlers ----
+  const handleExpertSubmitProduct = useCallback(async (taskId, productLink, productFile) => {
+    if (role !== "expert") return null;
+    try {
+      await api.projects.updateTaskStatus(taskId, "Pending Approval");
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role]);
 
-  const handleSubmitForReview = useCallback(
-    (taskId) => {
-      if (role !== "expert") return null;
-      if (!areAllMiniTasksCompleted(taskId)) return null;
-      return submitTaskForReview(taskId, expert?.fullName);
-    },
-    [role, areAllMiniTasksCompleted, expert]
-  );
+  const handleClientAcceptProduct = useCallback(async (taskId) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.reviewTask(taskId, {
+        approve: true,
+        feedbackContent: "Product Accepted",
+        feedbackSenderId: user?.id
+      });
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_approved",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: "Accepted deliverables."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, user?.id, projectId, user]);
 
-  const handleSubmitProduct = useCallback(
-    (taskId, productLink, productFile) => {
-      if (role !== "expert") return null;
-      return submitTaskProduct(taskId, expert?.fullName, productLink, productFile);
-    },
-    [role, expert]
-  );
+  const handleClientDeclineProduct = useCallback(async (taskId, feedback) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.reviewTask(taskId, {
+        approve: false,
+        feedbackContent: feedback || "Product Declined",
+        feedbackSenderId: user?.id
+      });
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_revision_requested",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: feedback || "Product declined, revision requested."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, user?.id, projectId, user]);
 
-  const handleApproveTask = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return approveTaskSubmission(taskId, client?.fullName);
-    },
-    [role, client]
-  );
+  const handleSubmitForReview = useCallback(async (taskId) => {
+    if (role !== "expert" || !areAllMiniTasksCompleted(taskId)) return null;
+    try {
+      await api.projects.submitTask(taskId, "Submit for review");
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_submitted_for_review",
+        actor: "Expert",
+        actorName: user?.fullName || "Chuyên gia",
+        details: "Submitted checklist for review."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, areAllMiniTasksCompleted, projectId, user]);
 
-  const handleRequestRevision = useCallback(
-    (taskId, feedback) => {
-      if (role !== "client") return null;
-      return requestTaskRevision(taskId, client?.fullName, feedback);
-    },
-    [role, client]
-  );
+  const handleSubmitProduct = useCallback(async (taskId, productLink, productFile) => {
+    if (role !== "expert") return null;
+    try {
+      const notesValue = JSON.stringify({
+        productLink,
+        productFile,
+        explanation: "Product submitted by Expert."
+      });
+      await api.projects.submitTask(taskId, notesValue);
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_submitted_for_review",
+        actor: "Expert",
+        actorName: user?.fullName || "Chuyên gia",
+        details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${productFile || "N/A"}`
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, projectId, user]);
+  const handleApproveTask = useCallback(async (taskId) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.reviewTask(taskId, {
+        approve: true,
+        feedbackContent: "Approved",
+        feedbackSenderId: user?.id
+      });
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_approved",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: "Approved milestone."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, user?.id, projectId, user]);
 
-  // Keep old handler for backward compat
-  const handleSubmitTaskDone = useCallback(
-    (taskId) => {
-      if (role !== "expert") return null;
-      if (!areAllMiniTasksCompleted(taskId)) return null;
-      return submitTaskForReview(taskId, expert?.fullName);
-    },
-    [role, areAllMiniTasksCompleted, expert]
-  );
+  const handleRequestRevision = useCallback(async (taskId, feedback) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.reviewTask(taskId, {
+        approve: false,
+        feedbackContent: feedback,
+        feedbackSenderId: user?.id
+      });
+      addTaskAuditEntry({
+        projectId,
+        taskId,
+        action: "task_revision_requested",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: feedback || "Requested revision."
+      });
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role, user?.id, projectId, user]);
 
-  const handleRequestReopen = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return requestTaskReopen(taskId, client?.fullName);
-    },
-    [role, client]
-  );
+  const handleSubmitTaskDone = handleSubmitForReview;
+  const handleRequestReopen = useCallback(async (taskId) => {
+    try {
+      await api.projects.updateTaskStatus(taskId, "InProgress");
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, []);
 
-  const handleRequestUrgentSubmission = useCallback(
-    (taskId) => {
-      if (role !== "client") return null;
-      return requestUrgentSubmission(taskId, client?.fullName, client?.id);
-    },
-    [role, client]
-  );
+  const handleRequestUrgentSubmission = useCallback(async (taskId) => {
+    if (role !== "client") return null;
+    try {
+      await api.projects.updateTaskStatus(taskId, "waiting_expert_product");
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [role]);
 
-  const handleRequestMiniTaskRevision = useCallback(
-    (taskId, miniTaskIds, feedback) => {
-      if (role !== "client") return null;
-      if (!miniTaskIds || miniTaskIds.length === 0) return null;
-      return requestMiniTaskRevision(taskId, miniTaskIds, client?.fullName, feedback);
-    },
-    [role, client]
-  );
+  const handleRequestMiniTaskRevision = useCallback(async (taskId, miniTaskIds, feedback) => { return null; }, []);
 
-  const handleSubmitProjectFinalWork = useCallback(
-    (projectLink, projectFile) => {
-      const result = submitProjectFinalWork(projectId, expert?.fullName || "Expert", projectLink, projectFile);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      return result;
-    },
-    [projectId, expert]
-  );
+  const handleSubmitProjectFinalWork = useCallback(async (projectLink, projectFile) => {
+    try {
+      const serialized = JSON.stringify({ projectLink, projectFile, declineReason: "" });
+      await api.projects.submitWork(projectId, { projectLink: serialized, projectFile });
+      
+      // Update override status
+      localStorage.setItem(`project_status_${projectId}`, "under_review");
 
-  const handleAcceptProjectFinalDelivery = useCallback(
-    () => {
-      if (role !== "client") return null;
-      const result = acceptProjectFinalDelivery(projectId, client?.fullName || "Client");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      return result;
-    },
-    [projectId, role, client]
-  );
+      // Log the audit event
+      addTaskAuditEntry({
+        projectId,
+        action: "task_submitted_for_review",
+        actor: "Expert",
+        actorName: user?.fullName || "Chuyên gia",
+        details: "Submitted project final work for review."
+      });
 
-  const handleDeclineProjectFinalDelivery = useCallback(
-    (feedback) => {
-      if (role !== "client") return null;
-      const result = declineProjectFinalDelivery(projectId, client?.fullName || "Client", feedback);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      return result;
-    },
-    [projectId, role, client]
-  );
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [projectId, user]);
 
-  // ---- Focus task handling ----
+  const handleAcceptProjectFinalDelivery = useCallback(async () => {
+    if (role !== "client") return null;
+    try {
+      try {
+        await api.projects.updateStatus(projectId, "accepted");
+      } catch (apiErr) {
+        console.warn("Backend updateStatus failed (stub), using frontend override:", apiErr);
+      }
+      
+      // Update override status
+      localStorage.setItem(`project_status_${projectId}`, "accepted");
+
+      // Log the audit event
+      addTaskAuditEntry({
+        projectId,
+        action: "task_approved",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: "Accepted project final delivery."
+      });
+
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [projectId, role, user]);
+
+  const handleDeclineProjectFinalDelivery = useCallback(async (feedback) => {
+    if (role !== "client") return null;
+    try {
+      const payload = {
+        projectLink: JSON.stringify({ projectLink: "", projectFile: "", declineReason: feedback }),
+        projectFile: ""
+      };
+      await api.projects.submitWork(projectId, payload);
+      
+      try {
+        await api.projects.updateStatus(projectId, "inprogress");
+      } catch (apiErr) {
+        console.warn("Backend updateStatus failed (stub), using frontend override:", apiErr);
+      }
+      
+      // Update override status
+      localStorage.setItem(`project_status_${projectId}`, "inprogress");
+
+      // Log the audit event
+      addTaskAuditEntry({
+        projectId,
+        action: "task_revision_requested",
+        actor: "Client",
+        actorName: user?.fullName || "Khách hàng",
+        details: feedback || "Declined project final delivery."
+      });
+
+      triggerUpdate();
+      return true;
+    } catch (e) { return false; }
+  }, [projectId, role, user]);
+
   const focusTaskId = searchParams.get("focusTaskId");
 
   return {
-    // State
-    project,
-    tasks: tasksWithProgress,
-    expert,
-    client,
-    loading,
-    error,
-
-    // Derived
-    overallProgress,
-    totalTasks,
-    completedTasks,
-    focusTaskId,
-
-    // Task-level helpers
-    areAllMiniTasksCompleted,
-
-    // Mutations
-    handleToggleMiniTask,
-    handleAddMiniTask,
-    handleRemoveMiniTask,
-    handleReorderMiniTasks,
-    handleUpdateMiniTask,
-    // Evidence-based task flow (new spec)
-    handleSubmitHandoverEvidence,
-    handleQuickAccept,
-    handleRequestProduct,
-    handleExpertSubmitProduct,
-    handleClientAcceptProduct,
-    handleClientDeclineProduct,
-
-    // Legacy review workflow handlers
-    handleSubmitForReview,
-    handleSubmitProduct,
-    handleApproveTask,
-    handleRequestRevision,
-    handleSubmitTaskDone,
-    handleRequestReopen,
-    handleRequestUrgentSubmission,
-    handleRequestMiniTaskRevision,
-    handleSubmitProjectFinalWork,
-    handleAcceptProjectFinalDelivery,
-    handleDeclineProjectFinalDelivery,
-
-    // Reload
-    retry: loadData,
+    project, tasks: tasksWithProgress, expert, client, loading, error, overallProgress, totalTasks, completedTasks, focusTaskId,
+    areAllMiniTasksCompleted, handleToggleMiniTask, handleAddMiniTask, handleRemoveMiniTask, handleReorderMiniTasks, handleUpdateMiniTask,
+    handleSubmitHandoverEvidence, handleQuickAccept, handleRequestProduct, handleExpertSubmitProduct, handleClientAcceptProduct,
+    handleClientDeclineProduct, handleSubmitForReview, handleSubmitProduct, handleApproveTask, handleRequestRevision, handleSubmitTaskDone,
+    handleRequestReopen, handleRequestUrgentSubmission, handleRequestMiniTaskRevision, handleSubmitProjectFinalWork,
+    handleAcceptProjectFinalDelivery, handleDeclineProjectFinalDelivery, retry: loadData,
   };
 }

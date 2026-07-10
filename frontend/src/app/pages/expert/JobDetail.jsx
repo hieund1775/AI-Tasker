@@ -17,6 +17,7 @@ import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import api from "../../../services/api.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 export function JobDetail() {
   const { id } = useParams();
@@ -67,12 +68,12 @@ export function JobDetail() {
         let hasSubmittedProp = false;
         if (user && user.role === "expert") {
           try {
-            const proposals = await api.proposals.getByJob(project.id);
-            invitationProposal = proposals.find(
-              (p) => p.expertId === user.id && p.isSubmitted === false && p.status?.toLowerCase() !== "declined"
+            const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
+            invitationProposal = myProposals.find(
+              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) === 0 && p.status?.toLowerCase() === "pending"
             );
-            hasSubmittedProp = proposals.some(
-              (p) => p.expertId === user.id && p.isSubmitted !== false && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
+            hasSubmittedProp = myProposals.some(
+              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
             );
           } catch (e) {
             console.error("Failed to load proposals for job:", e);
@@ -80,6 +81,8 @@ export function JobDetail() {
         }
 
         if (!cancelled) {
+          // api.jobPosts.getById đã chạy mapJobPost() rồi nên useCases, requiredSkills, category
+          // đều đã được map đúng. Chỉ cần gán thêm client info.
           setJob({
             ...project,
             client: clientInfo,
@@ -88,6 +91,7 @@ export function JobDetail() {
           setHasSubmitted(hasSubmittedProp);
         }
       } catch (apiError) {
+        console.error("API error loading job details:", apiError);
         if (!cancelled) setError("Failed to load job details.");
       } finally {
         if (!cancelled) setLoading(false);
@@ -109,12 +113,18 @@ export function JobDetail() {
       // 1. Decline proposal invitation in database
       await api.proposals.updateStatus(invitation.id, "declined");
 
-      // 2. Remove assignedExpertId from the job post
-      await api.jobPosts.update(id, { assignedExpertId: null });
+      // 2. Notify the client
+      if (job?.clientId) {
+        await notificationService.notifyInviteDeclined({
+          clientUserId: job.clientId,
+          expertName: user?.fullName || user?.name || "Một chuyên gia",
+          jobTitle: job.title,
+          jobPostId: job.id
+        });
+      }
 
       alert("Bạn đã từ chối lời mời thành công!");
       setInvitation(null);
-      setJob(prev => prev ? { ...prev, assignedExpertId: null, assignedExpert: null } : null);
     } catch (e) {
       console.error("Failed to decline invite:", e);
       alert("Lỗi khi từ chối lời mời. Vui lòng thử lại!");
@@ -144,7 +154,10 @@ export function JobDetail() {
     );
   }
 
-  const skills = job.jobPostSkills?.map((s) => s.skill?.name) || job.requiredSkills || [];
+  // Dùng requiredSkills đã được map sẵn bởi mapJobPost() trong api.js
+  const skills = (job.requiredSkills && job.requiredSkills.length > 0)
+    ? job.requiredSkills
+    : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
 
   const deadlineText = (() => {
     if (!job.deadline) return null;
@@ -217,17 +230,31 @@ export function JobDetail() {
           </p>
         </SectionCard>
 
-        {/* Use Cases */}
+        {/* User Stories */}
         {safeArray(job.useCases).length > 0 && (
-          <SectionCard title="Project Use Cases" icon={Layers} padding="lg">
+          <SectionCard title="Project User Stories" icon={Layers} padding="lg">
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
-                <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-1.5">
-                  <p className="font-bold text-foreground text-sm">
-                    Use Case #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
-                  </p>
-                  <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
-                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{uc.originalDurationDays || 1} days</span>
+                <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="font-bold text-foreground text-sm">
+                      User Story #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
+                    </p>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{uc.originalDurationDays || uc.durationDays || 1} ngày</span>
+                  </div>
+                  {uc.description ? (
+                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
+                  ) : null}
+                  {safeArray(uc.requirements).length > 0 && (
+                    <ul className="pl-3 border-l-2 border-brand-primary/20 space-y-1 mt-1">
+                      {safeArray(uc.requirements).map((req, j) => (
+                        <li key={j} className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>• {req.title}</span>
+                          <span className="text-xs bg-secondary px-1.5 py-0.5 rounded ml-2 shrink-0">{req.durationDays || 1} ngày</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ))}
             </div>
@@ -239,12 +266,12 @@ export function JobDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
-              <p className="text-sm text-foreground font-medium">{job.aiCategoryDomain?.name || job.category || "—"}</p>
+              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "—"}</p>
             </div>
-            {job.specialization && (
+            {(job.specialization || job.specializationName) && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Specialization</p>
-                <p className="text-sm text-foreground font-medium">{job.specialization}</p>
+                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "—"}</p>
               </div>
             )}
           </div>

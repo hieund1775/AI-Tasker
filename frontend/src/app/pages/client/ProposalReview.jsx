@@ -16,7 +16,9 @@ import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
-import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
+import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 /**
  * ProposalReview — Client views all proposals for a specific project.
@@ -26,6 +28,7 @@ import api from "../../../services/api.js";
 export function ProposalReview() {
   const { projectId, id: legacyId } = useParams();
   const activeProjectId = projectId || legacyId;
+  const { user } = useAuth();
 
   const [project, setProject] = useState(null);
   const [enrichedProposals, setEnrichedProposals] = useState([]);
@@ -56,15 +59,7 @@ export function ProposalReview() {
               console.error("Failed to load expert info for proposal:", err);
             }
 
-            let parsed = {};
-            try {
-              parsed = JSON.parse(proposal.coverLetter);
-            } catch (e) {
-              parsed = {
-                coverLetter: proposal.coverLetter,
-                professionalIntro: proposal.coverLetter,
-              };
-            }
+            const parsed = parseProposalWbs(proposal.implementation || proposal.coverLetter, proposal);
 
             const name = expertDetail?.fullName || "Unknown Expert";
             const initials = name
@@ -74,17 +69,50 @@ export function ProposalReview() {
               .toUpperCase()
               .slice(0, 2);
 
+            // Tổng hợp file đính kèm từ database phẳng của BE (portfolio và attachmentUrl)
+            const attachments = [];
+            if (proposal.portfolio) {
+              const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
+              attachments.push({
+                id: "portfolio-file",
+                name: proposal.portfolio.split("/").pop() || "Portfolio Document",
+                type: isImg ? "image/png" : "document",
+                fileType: isImg ? "image/png" : "document",
+                url: enrichFileUrl(proposal.portfolio)
+              });
+            }
+            if (proposal.attachmentUrl) {
+              const isImg = proposal.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
+              attachments.push({
+                id: "attachment-file",
+                name: proposal.attachmentUrl.split("/").pop() || "Attached Document",
+                type: isImg ? "image/png" : "document",
+                fileType: isImg ? "image/png" : "document",
+                url: enrichFileUrl(proposal.attachmentUrl)
+              });
+            }
+
+            // Dynamically construct useCaseBreakdown if project has useCases
+            const useCases = project?.useCases || [];
+            const useCaseBreakdown = useCases.map(uc => {
+              const ucTasks = parsed.tasks.filter(t => t.useCaseId === uc.id);
+              return {
+                useCaseId: uc.id,
+                useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+                originalDuration: uc.originalDurationDays || 1,
+                tasks: ucTasks
+              };
+            });
+
             return {
               ...proposal,
-              proposalTitle: parsed.proposalTitle || "Proposal",
-              coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
-              durationDays: parsed.durationDays || 0,
+              ...parsed,
+              useCaseBreakdown,
+              coverLetter: parsed.professionalIntro || proposal.introduction || "",
               matchPct: getMatchPercentage(proposal.id),
-              tasks: parsed.tasks || [],
-              proposedTasks: parsed.proposedTasks || [],
-              useCaseBreakdown: parsed.useCaseBreakdown || [],
               totalBidAmount: parsed.totalBidAmount || proposal.bidAmount,
-              totalEstimatedDays: parsed.totalEstimatedDays || parsed.durationDays,
+              totalEstimatedDays: parsed.durationDays || proposal.estimatedDuration || 0,
+              attachments,
               expert: {
                 name,
                 title: expertDetail?.expertProfile?.jobTitle || "AI Expert",
@@ -104,11 +132,11 @@ export function ProposalReview() {
       });
   }, [activeProjectId]);
 
-  const category = project?.aiCategoryDomain ? { label: project.aiCategoryDomain.name } : null;
+  const category = project?.domain ? { label: project.domain.name } : null;
 
-  // Filter out declined proposals (unless already acted on this session)
+  // Show all proposals (including pending direct invites with BidAmount === 0) except declined ones
   const visibleProposals = enrichedProposals.filter(
-    (p) => p.status?.toLowerCase() !== "declined" || actedIds.has(p.id),
+    (p) => p.status?.toLowerCase() !== "declined" || actedIds.has(p.id)
   );
 
   const handleAccept = async (proposalId, expertName) => {
@@ -138,6 +166,16 @@ export function ProposalReview() {
   const handleDecline = async (proposalId, expertName) => {
     try {
       await api.proposals.updateStatus(proposalId, "Declined");
+      
+      const proposal = enrichedProposals.find(p => p.id === proposalId);
+      if (proposal && proposal.expertId) {
+        await notificationService.notifyProposalDeclined({
+          expertUserId: proposal.expertId,
+          clientName: user?.fullName || user?.name || "Khách hàng",
+          jobTitle: project?.title || "Dự án",
+        });
+      }
+
       setActedIds((prev) => new Set([...prev, proposalId]));
       setFeedback({
         type: "info",
@@ -185,7 +223,7 @@ export function ProposalReview() {
         proposedTasks: updateTasks(parsed.proposedTasks),
       };
 
-      // Persist to MockDB
+      // Persist to Backend
       await api.proposals.update(proposalId, {
         coverLetter: JSON.stringify(updatedParsed),
       });
@@ -203,7 +241,7 @@ export function ProposalReview() {
       );
 
       const label = newStatus === "accepted" ? "accepted" : "rejected";
-      setFeedback({ type: "success", message: `Proposed task "${task.title}" ${label}.` });
+      setFeedback({ type: "success", message: `Proposed task ${label}.` });
     } catch (err) {
       setFeedback({ type: "error", message: err.message || "Failed to update task." });
     }
@@ -309,11 +347,15 @@ export function ProposalReview() {
           </div>
 
           {/* Required skills */}
-          {project.requiredSkills?.length > 0 && (
+          {(project.jobPostSkills || project.JobPostSkills)?.length > 0 && (
             <div className="mt-4 pt-4 border-t border-border/60">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Required Skills</h3>
               <div className="flex flex-wrap gap-1.5">
-                {project.requiredSkills.map((skill) => (
+                {((project.jobPostSkills || project.JobPostSkills)?.map(s => 
+                  s.skill?.name || s.skill?.Name || 
+                  s.Skill?.name || s.Skill?.Name || 
+                  s.skillName || s.SkillName || ""
+                ).filter(Boolean) || []).map((skill) => (
                   <span key={skill} className="px-2.5 py-0.5 bg-brand-primary-light text-brand-primary rounded-full text-xs font-medium">
                     {skill}
                   </span>
@@ -341,6 +383,7 @@ export function ProposalReview() {
             {visibleProposals.map((proposal, i) => {
               const isAccepted = proposal.status === "accepted";
               const isDeclined = proposal.status === "declined";
+              const isPendingInvite = proposal.status?.toLowerCase() === "pending" && (Number(proposal.bidAmount) || 0) === 0;
               const hasBeenActed = isAccepted || isDeclined || actedIds.has(proposal.id);
 
               return (
@@ -349,6 +392,7 @@ export function ProposalReview() {
                     proposal={proposal}
                     isAccepted={isAccepted}
                     isDeclined={isDeclined}
+                    isPendingInvite={isPendingInvite}
                     hasBeenActed={hasBeenActed}
                     onAccept={handleAccept}
                     onDecline={handleDecline}

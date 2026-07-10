@@ -64,17 +64,18 @@ export function ProjectHeaderCard({
 
   if (!project) return null;
 
-  const startDate = safeDateFormat(project.createdAt, {
+  const startDate = safeDateFormat(project.startDate || project.StartDate || project.createdAt || project.CreatedAt, {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
 
   const endDate = (() => {
-    if (!project.deadline) return "N/A";
-    const num = Number(project.deadline);
+    const endVal = project.endDate || project.EndDate || project.deadline || project.Deadline;
+    if (!endVal) return "N/A";
+    const num = Number(endVal);
     if (!Number.isNaN(num) && num < 1000) {
-      const d = new Date(project.createdAt || new Date());
+      const d = new Date(project.startDate || project.StartDate || project.createdAt || project.CreatedAt || new Date());
       d.setDate(d.getDate() + num);
       return safeDateFormat(d, {
         year: "numeric",
@@ -82,11 +83,11 @@ export function ProjectHeaderCard({
         day: "numeric",
       });
     }
-    return safeDateFormat(project.deadline, {
+    return safeDateFormat(endVal, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }, String(project.deadline));
+    }, String(endVal));
   })();
 
   const remainingTime = (() => {
@@ -101,14 +102,15 @@ export function ProjectHeaderCard({
     // If active / in progress / disputed
     if (["active", "in_progress", "in progress", "disputed"].includes(status)) {
       let end = null;
-      if (project.deadline) {
-        const num = Number(project.deadline);
+      const endVal = project.endDate || project.EndDate || project.deadline || project.Deadline;
+      if (endVal) {
+        const num = Number(endVal);
         if (!Number.isNaN(num) && num < 1000) {
-          const d = new Date(project.createdAt || new Date());
+          const d = new Date(project.startDate || project.StartDate || project.createdAt || project.CreatedAt || new Date());
           d.setDate(d.getDate() + num);
           end = d;
         } else {
-          end = new Date(project.deadline);
+          end = new Date(endVal);
         }
       }
       if (!end || Number.isNaN(end.getTime())) {
@@ -145,6 +147,10 @@ export function ProjectHeaderCard({
   const otherPerson = role === "client" ? expert : client;
   const otherRoleLabel = role === "client" ? "Expert" : "Client";
 
+  const category = project.category || project.aiCategoryDomain?.name || project.aiCategoryDomain?.Name || project.jobPost?.category || project.jobPost?.domain?.name || project.jobPost?.Domain?.Name;
+  const specialization = project.specialization || project.jobPost?.specialization?.name || project.jobPost?.Specialization?.Name || project.jobPost?.specializationName || project.jobPost?.specialization;
+  const requiredSkills = project.requiredSkills || project.jobPost?.requiredSkills || project.jobPost?.jobPostSkills?.map(s => s.skill?.name || s.skill?.Name || s.Skill?.name || s.Skill?.Name || s.skillName || s.SkillName || "").filter(Boolean) || [];
+
   return (
     <div className="bg-card rounded-xl border border-border p-6 relative overflow-hidden">
       {/* Gradient top accent */}
@@ -171,24 +177,24 @@ export function ProjectHeaderCard({
 
           {/* Category & Specialization */}
           <div className="flex flex-wrap items-center gap-3 mt-2 text-[13px] text-muted-foreground">
-            {(project.category || project.aiCategoryDomain?.name) && (
+            {category && (
               <span className="flex items-center gap-1">
                 <Briefcase className="w-4 h-4" />
-                {project.aiCategoryDomain?.name || project.category}
+                {category}
               </span>
             )}
-            {project.specialization && (
+            {specialization && (
               <span className="flex items-center gap-1">
                 <Tag className="w-4 h-4" />
-                {project.specialization}
+                {specialization}
               </span>
             )}
           </div>
 
           {/* Tags / Skills */}
-          {project.requiredSkills && project.requiredSkills.length > 0 && (
+          {requiredSkills && requiredSkills.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
-              {project.requiredSkills.slice(0, 5).map((skill) => (
+              {requiredSkills.slice(0, 5).map((skill) => (
                 <span
                   key={skill}
                   className="px-2 py-0.5 bg-secondary text-muted-foreground rounded-md text-[13px] font-medium"
@@ -204,14 +210,14 @@ export function ProjectHeaderCard({
         <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
           {/* Message button */}
           {onMessage && (
-            <Button
-              variant="outline"
-              size="default"
+            <button
+              type="button"
               onClick={onMessage}
+              className="h-11 px-5 border border-border bg-card text-foreground hover:bg-secondary rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 text-muted-foreground" />
               Message
-            </Button>
+            </button>
           )}
 
           {/* Slot for role-specific buttons (escrow, submit, etc.) */}
@@ -248,7 +254,7 @@ export function ProjectHeaderCard({
         <div>
           <p className="text-xs text-muted-foreground mb-0.5 uppercase tracking-wide font-medium">Total Budget</p>
           <p className="text-sm font-semibold text-foreground">
-            <MoneyDisplay amount={project.budget || project.escrowAmount || 0} />
+            <MoneyDisplay amount={project.escrowBalance || project.EscrowBalance || project.budget || project.escrowAmount || 0} />
           </p>
         </div>
 

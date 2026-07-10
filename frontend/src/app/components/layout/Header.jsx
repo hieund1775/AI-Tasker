@@ -27,7 +27,7 @@ export function Header() {
   const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
-  const { role, isAuthenticated, logout } = useAuth();
+  const { role, isAuthenticated, logout, user } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
 
   const getThemeIcon = () => {
@@ -48,18 +48,20 @@ export function Header() {
   useEffect(() => {
     if (isAuthenticated) {
       const loadNotifications = () => {
-        api.notifications.getList()
+        api.notifications.getList({ userId: user?.id })
           .then((data) => {
             if (Array.isArray(data)) {
-              const mapped = data.map((n) => ({
-                id: n.id,
-                title: n.title,
-                description: n.message || n.description,
-                time: timeAgo(n.createdAt),
-                isUnread: !n.isRead,
-                linkTo: n.linkTo,
-                type: n.type,
-              }));
+              const mapped = data
+                .filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014")
+                .map((n) => ({
+                  id: n.id,
+                  title: n.title,
+                  description: n.message || n.description || n.content || "",
+                  time: timeAgo(n.createdAt),
+                  isUnread: !n.isRead,
+                  linkTo: n.linkTo || n.linkUrl || n.link || "",
+                  type: n.type,
+                }));
 
               const pathParts = location.pathname.split("/");
               if (pathParts[1] === "messenger" && pathParts[2]) {
@@ -133,12 +135,14 @@ export function Header() {
           {/* Navigation Link Items — desktop only */}
           {isAuthenticated && role && (
             <nav className="hidden md:flex items-center gap-6">
-              <Link
-                to={`/${role}/dashboard`}
-                className={location.pathname === `/${role}/dashboard` ? activeNavClass : navLinkClass}
-              >
-                Dashboard
-              </Link>
+              {role !== "admin" && role !== "owner" && role !== "staff" && (
+                <Link
+                  to={`/${role}/dashboard`}
+                  className={location.pathname === `/${role}/dashboard` ? activeNavClass : navLinkClass}
+                >
+                  Dashboard
+                </Link>
+              )}
               {role === "client" && (
                 <Link
                   to="/client/experts"
@@ -155,12 +159,14 @@ export function Header() {
                   My Proposals
                 </Link>
               )}
-              <Link
-                to="/messenger"
-                className={location.pathname.startsWith("/messenger") ? activeNavClass : navLinkClass}
-              >
-                Messages
-              </Link>
+              {role !== "owner" && role !== "admin" && role !== "staff" && (
+                <Link
+                  to="/messenger"
+                  className={location.pathname.startsWith("/messenger") ? activeNavClass : navLinkClass}
+                >
+                  Messages
+                </Link>
+              )}
             </nav>
           )}
 

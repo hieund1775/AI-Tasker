@@ -295,7 +295,7 @@ export function ExpertProjectDetail() {
             {/* Message Client */}
             {client && !isDisputed && (
               <Link
-                to="/messenger"
+                to={`/messenger/${client.id || client.Id || ""}`}
                 className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
               >
                 <User className="w-4 h-4" /> Message Client

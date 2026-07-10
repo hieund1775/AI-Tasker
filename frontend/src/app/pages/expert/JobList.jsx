@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import {
   Search,
@@ -24,9 +24,9 @@ import { safeNumberFormat } from "../../lib/safety.js";
  */
 function ProjectCard({ job }) {
   const clientName = job.client || "Anonymous Client";
-  const categoryName = job.aiCategoryDomain?.name || job.category || "Uncategorized";
-  const specializationName = job.specialization || "General";
-  const skills = job.requiredSkills || job.jobPostSkills?.map(s => s.skill?.name) || [];
+  const categoryName = job.domain?.name || job.category || "Uncategorized";
+  const specializationName = job.specialization?.name || job.specialization || job.specializationName || "General";
+  const skills = job.requiredSkills || job.jobPostSkills?.map(s => s.skill?.name || s.skillName || s.skill?.Name).filter(Boolean) || [];
 
   const formatDeadline = (deadline, createdAt) => {
     if (!deadline) return "N/A";
@@ -216,25 +216,54 @@ export function JobList() {
     sortBy: "newest",
   });
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const [jobs, setJobs] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
   const [allSkills, setAllSkills] = useState([]);
+  const [myProjects, setMyProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState(null);
+
+  const uniqueCategories = useMemo(() => {
+    const list = [];
+    allCategories.forEach(cat => {
+      if (cat.name && !list.some(c => c.name?.toLowerCase() === cat.name?.toLowerCase())) {
+        list.push(cat);
+      }
+    });
+    return list;
+  }, [allCategories]);
+
+  const uniqueSkills = useMemo(() => {
+    const list = [];
+    allSkills.forEach(skill => {
+      if (skill.name && !list.some(s => s.name?.toLowerCase() === skill.name?.toLowerCase())) {
+        list.push(skill);
+      }
+    });
+    return list;
+  }, [allSkills]);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
-        const [jobsRes, catsRes, skillsRes] = await Promise.all([
+        setApiError(null);
+        const [jobsRes, catsRes, skillsRes, projectsRes] = await Promise.all([
           api.jobPosts.list(),
           categoryTagService.getCategories(),
           categoryTagService.getSkills(),
+          api.projects.getByExpert(user?.id || user?.Id).catch(() => []),
         ]);
         setJobs(jobsRes || []);
         setAllCategories(catsRes || []);
         setAllSkills(skillsRes || []);
+        setMyProjects(projectsRes || []);
       } catch (err) {
         console.error("Failed to load jobs list data:", err);
+        setApiError(err.message || String(err));
       } finally {
         setLoading(false);
       }
@@ -248,11 +277,11 @@ export function JobList() {
     return () => {
       window.removeEventListener("aitasker_db_update", handleUpdate);
     };
-  }, []);
+  }, [user?.id]);
 
   const updateFilter = (key, value) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
-  const clearFilters = () =>
+  const clearFilters = () => {
     setFilters({
       category: "",
       minBudget: 0,
@@ -260,6 +289,12 @@ export function JobList() {
       skill: "",
       sortBy: "newest",
     });
+    setCurrentPage(1);
+  };
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filters]);
 
   const hasActiveFilters =
     filters.category ||
@@ -270,6 +305,12 @@ export function JobList() {
   let filtered = jobs.filter((j) => {
     if (!j) return false;
 
+    // Filter out if this expert already has a project for this job post
+    const hasExistingProject = myProjects.some(
+      (p) => (p.jobPostId === j.id || p.JobPostId === j.id)
+    );
+    if (hasExistingProject) return false;
+
     const statusLower = j.status?.toLowerCase() || "open";
     if (statusLower !== "open" && statusLower !== "published") return false;
 
@@ -279,7 +320,7 @@ export function JobList() {
       !j.description?.toLowerCase().includes(searchTerm.toLowerCase())
     )
       return false;
-    if (filters.category && j.aiCategoryDomainId !== filters.category) return false;
+    if (filters.category && j.domainId !== filters.category) return false;
     const budget = Number(j.budget) || 0;
     if (filters.minBudget > 0 && budget < filters.minBudget) return false;
     if (filters.maxBudget > 0 && budget > filters.maxBudget) return false;
@@ -412,7 +453,7 @@ export function JobList() {
                 className="w-full px-3 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
               >
                 <option value="">All categories</option>
-                {allCategories.map((c) => (
+                {uniqueCategories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
                   </option>
@@ -467,7 +508,7 @@ export function JobList() {
                 className="w-full px-3 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
               >
                 <option value="">Any skill</option>
-                {allSkills.map((s) => (
+                {uniqueSkills.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
                   </option>
@@ -487,8 +528,44 @@ export function JobList() {
         </div>
       )}
 
-      {/* Empty State */}
-      {filtered.length === 0 ? (
+      {/* Loading State */}
+      {loading ? (
+        <div className="space-y-5">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-5 w-20 bg-muted rounded-full" />
+                    <div className="h-4 w-14 bg-muted rounded" />
+                  </div>
+                  <div className="h-6 w-3/4 bg-muted rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-7 w-24 bg-muted rounded-full" />
+                  <div className="h-7 w-20 bg-muted rounded-full" />
+                </div>
+              </div>
+              <div className="h-4 w-full bg-muted/60 rounded mb-2" />
+              <div className="h-4 w-2/3 bg-muted/60 rounded mb-4" />
+              <div className="flex gap-4 mb-4">
+                <div className="h-10 w-28 bg-muted/40 rounded-lg" />
+                <div className="h-10 w-28 bg-muted/40 rounded-lg" />
+                <div className="h-10 w-28 bg-muted/40 rounded-lg" />
+              </div>
+              <div className="flex gap-1.5">
+                <div className="h-6 w-16 bg-muted/50 rounded-md" />
+                <div className="h-6 w-20 bg-muted/50 rounded-md" />
+                <div className="h-6 w-14 bg-muted/50 rounded-md" />
+              </div>
+            </div>
+          ))}
+          <p className="text-center text-sm text-muted-foreground pt-2">
+            Đang tải danh sách việc làm từ server...
+          </p>
+        </div>
+      ) : filtered.length === 0 ? (
+        /* Empty State */
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
           <div className="relative w-20 h-20 mx-auto mb-5">
             <div className="absolute inset-0 rounded-full bg-muted/40 animate-pulse" />
@@ -500,7 +577,9 @@ export function JobList() {
             No jobs found
           </h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-            {searchTerm || hasActiveFilters
+            {apiError
+              ? `Không thể tải danh sách việc làm. Vui lòng thử lại sau.`
+              : searchTerm || hasActiveFilters
               ? "Try adjusting your search terms or clearing the filters."
               : "No jobs are currently available. Check back soon for new opportunities."}
           </p>
@@ -517,10 +596,52 @@ export function JobList() {
           )}
         </div>
       ) : (
-        <div className="space-y-5">
-          {filtered.map((job) => (
-            <ProjectCard key={job.id} job={job} />
-          ))}
+        <div className="space-y-6">
+          <div className="space-y-5">
+            {filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((job) => (
+              <ProjectCard key={job.id} job={job} />
+            ))}
+          </div>
+
+          {/* Pagination Controls */}
+          {Math.ceil(filtered.length / itemsPerPage) > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t border-border mt-6">
+              <span className="text-sm text-muted-foreground">
+                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filtered.length)} of {filtered.length} jobs
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.ceil(filtered.length / itemsPerPage) }).map((_, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setCurrentPage(i + 1)}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                        currentPage === i + 1
+                          ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                          : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {i + 1}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(Math.ceil(filtered.length / itemsPerPage), p + 1))}
+                  disabled={currentPage === Math.ceil(filtered.length / itemsPerPage)}
+                  className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
