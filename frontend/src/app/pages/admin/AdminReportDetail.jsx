@@ -677,28 +677,6 @@ export function AdminReportDetail() {
     }
   }, [id, fetchReport, showToast]);
 
-  const handleAdminRejectCancel = useCallback(async () => {
-    if (!rejectReason.trim()) {
-      setRejectReasonError("Vui lòng nhập lý do từ chối hủy hợp đồng.");
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await api.put(`/reports/${id}/admin-reject-cancel`, {
-        adminNote: rejectReason,
-      });
-      showToast("Đã từ chối đơn hủy hợp đồng. Dự án hoạt động lại bình thường.");
-      setRejectReason("");
-      setRejectReasonError("");
-      setShowRejectModal(false);
-      fetchReport();
-    } catch (err) {
-      showToast(err.message || "Lỗi khi từ chối yêu cầu.");
-    } finally {
-      setActionLoading(false);
-    }
-  }, [id, rejectReason, fetchReport, showToast]);
-
   // -----------------------------------------------------------------------
   // Reject Report
   // -----------------------------------------------------------------------
