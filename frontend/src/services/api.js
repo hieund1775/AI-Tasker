@@ -532,6 +532,9 @@ export const api = {
     partnerSubmitResponse: (id, data) => put(`/Reports/${id}/partner-submit-response`, data),
   },
 
+  categoryTags: {
+    getSkills: () => get("/category-tags/skills"),
+  },
   // ===========================================================================
   // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.
@@ -610,6 +613,34 @@ export const api = {
     getByExpert: (expertId) => get(`/Contracts/expert/${expertId}`).catch(() => []),
     updateStatus: (id, status) =>
       put(`/Contracts/${id}/status?status=${encodeURIComponent(status)}`),
+  },
+
+  contracts: {
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    create: (data) => {
+      // TODO: Connect to real endpoint e.g. post("/Contracts", data)
+      return post("/Contracts", data);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getById: (id) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/${id}`)
+      return get(`/Contracts/${id}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByProject: (projectId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/project/${projectId}`)
+      return get(`/Contracts/project/${projectId}`);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    getByExpert: (expertId) => {
+      // TODO: Connect to real endpoint e.g. get(`/Contracts/expert/${expertId}`)
+      return get(`/Contracts/expert/${expertId}`).catch(() => []);
+    },
+    // TODO: Backend endpoint not yet confirmed — placeholder
+    updateStatus: (id, status) => {
+      // TODO: Connect to real endpoint e.g. put(`/Contracts/${id}/status?status=...`)
+      return put(`/Contracts/${id}/status?status=${encodeURIComponent(status)}`);
+    },
   },
 
   proposals: {

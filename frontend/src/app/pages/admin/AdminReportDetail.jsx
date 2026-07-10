@@ -664,6 +664,41 @@ export function AdminReportDetail() {
     }
   }, [id, rejectReason, fetchReport, showToast]);
 
+  const handleAdminApproveCancel = useCallback(async () => {
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${id}/admin-approve-cancel`);
+      showToast("Đã duyệt yêu cầu hủy hợp đồng và chuyển tiếp cho đối tác.");
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi duyệt yêu cầu.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, fetchReport, showToast]);
+
+  const handleAdminRejectCancel = useCallback(async () => {
+    if (!rejectReason.trim()) {
+      setRejectReasonError("Vui lòng nhập lý do từ chối hủy hợp đồng.");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await api.put(`/reports/${id}/admin-reject-cancel`, {
+        adminNote: rejectReason,
+      });
+      showToast("Đã từ chối đơn hủy hợp đồng. Dự án hoạt động lại bình thường.");
+      setRejectReason("");
+      setRejectReasonError("");
+      setShowRejectModal(false);
+      fetchReport();
+    } catch (err) {
+      showToast(err.message || "Lỗi khi từ chối yêu cầu.");
+    } finally {
+      setActionLoading(false);
+    }
+  }, [id, rejectReason, fetchReport, showToast]);
+
   // -----------------------------------------------------------------------
   // Reject Report
   // -----------------------------------------------------------------------
@@ -1068,6 +1103,33 @@ export function AdminReportDetail() {
 
   // Derived fields for Reporter and Responder
   const isReporterClient = (report.reporterRole || report.ReporterRole || "").toLowerCase() === "client" || report.reportType === "type2";
+  const isReporterTab = activePartyTab === "reporter";
+
+  const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
+  const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
+  const reporterName = isReporterClient
+    ? (report.clientName || report.clientId || "—")
+    : (report.expertName || report.expertId || "—");
+  const responderName = isReporterClient
+    ? (report.expertName || report.expertId || "—")
+    : (report.clientName || report.clientId || "—");
+  const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
+  const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
+
+  // Reporter details
+  const reporterExplanation = isReporterClient ? report.clientExplanation : report.expertExplanation;
+  const reporterEvidence = isReporterClient ? report.clientExplanationEvidence : report.expertExplanationEvidence;
+
+  // Responder details
+  const responderReason = isReporterClient ? report.expertExplanationReason : report.clientExplanationReason;
+  const responderDescription = isReporterClient ? report.expertExplanationDescription : report.clientExplanationDescription;
+  const responderExplanation = isReporterClient ? report.expertExplanation : report.clientExplanation;
+  const responderDesiredResolution = isReporterClient ? report.expertExplanationDesiredResolution : report.clientExplanationDesiredResolution;
+  const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
+  const hasResponderResponded = !!responderExplanation;
+
+  // Derived fields for Reporter and Responder
+  const isReporterClient = report.reporterRole === "client" || report.reportType === "type2";
   const isReporterTab = activePartyTab === "reporter";
 
   const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
@@ -2029,7 +2091,7 @@ export function AdminReportDetail() {
                 })()}
               </>
             )}
-
+            
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
             {(isResolved || isRejected) && (
               <div className="p-4 bg-gray-50 rounded-lg text-center border border-gray-150">
