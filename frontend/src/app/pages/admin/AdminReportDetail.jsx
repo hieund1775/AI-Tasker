@@ -664,18 +664,7 @@ export function AdminReportDetail() {
     }
   }, [id, rejectReason, fetchReport, showToast]);
 
-  const handleAdminApproveCancel = useCallback(async () => {
-    setActionLoading(true);
-    try {
-      await api.put(`/reports/${id}/admin-approve-cancel`);
-      showToast("Đã duyệt yêu cầu hủy hợp đồng và chuyển tiếp cho đối tác.");
-      fetchReport();
-    } catch (err) {
-      showToast(err.message || "Lỗi khi duyệt yêu cầu.");
-    } finally {
-      setActionLoading(false);
-    }
-  }, [id, fetchReport, showToast]);
+
 
   // -----------------------------------------------------------------------
   // Reject Report
