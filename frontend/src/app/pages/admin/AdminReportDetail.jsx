@@ -1095,32 +1095,7 @@ export function AdminReportDetail() {
   const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
   const hasResponderResponded = !!responderExplanation;
 
-  // Derived fields for Reporter and Responder
-  const isReporterClient = report.reporterRole === "client" || report.reportType === "type2";
-  const isReporterTab = activePartyTab === "reporter";
 
-  const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
-  const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
-  const reporterName = isReporterClient
-    ? (report.clientName || report.clientId || "—")
-    : (report.expertName || report.expertId || "—");
-  const responderName = isReporterClient
-    ? (report.expertName || report.expertId || "—")
-    : (report.clientName || report.clientId || "—");
-  const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
-  const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
-
-  // Reporter details
-  const reporterExplanation = isReporterClient ? report.clientExplanation : report.expertExplanation;
-  const reporterEvidence = isReporterClient ? report.clientExplanationEvidence : report.expertExplanationEvidence;
-
-  // Responder details
-  const responderReason = isReporterClient ? report.expertExplanationReason : report.clientExplanationReason;
-  const responderDescription = isReporterClient ? report.expertExplanationDescription : report.clientExplanationDescription;
-  const responderExplanation = isReporterClient ? report.expertExplanation : report.clientExplanation;
-  const responderDesiredResolution = isReporterClient ? report.expertExplanationDesiredResolution : report.clientExplanationDesiredResolution;
-  const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
-  const hasResponderResponded = !!responderExplanation;
 
   // -----------------------------------------------------------------------
   // Render
