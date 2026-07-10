@@ -3,9 +3,22 @@ using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
+using AITasker_Modular.Modules.JobPostModule; 
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
+using AITasker_Modular.Modules.AdminModule; 
 using Microsoft.EntityFrameworkCore;
+using AITasker_Modular.Modules.ProposalModule;
+using AITasker_Modular.Modules.AiModule;
+using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
+using System;
+
+using System.Collections.Generic;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,10 +27,10 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "AITasker Modular API", Version = "v1" });
-    
+
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme. Enter your token (e.g. mock-jwt-token-for-xxxxx) below.",
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token below.",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
@@ -44,8 +57,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// --- Cáº¤U HÃŒNH CORS Äá»’NG Bá»˜: Má»ž Rá»˜NG THÃŠM Cá»”NG 8080 VÃ€ CHO PHÃ‰P WEBHOOK Tá»° DO ---
 builder.Services.AddCors(options =>
 {
+    // Giá»¯ nguyÃªn Policy cÅ© cá»§a nhÃ³m Ä‘á»ƒ khÃ´ng lá»—i code FrontEnd cá»§a cÃ¡c báº¡n
     options.AddPolicy("AllowLocalhost5173",
         policy =>
         {
@@ -54,20 +69,49 @@ builder.Services.AddCors(options =>
                   .AllowAnyMethod()
                   .AllowCredentials();
         });
+
+    // ThÃªm Policy má»Ÿ rá»™ng cho cá»•ng test cá»§a Minh Ä‘á»ƒ thÃ´ng máº¡ch trÃ¬nh duyá»‡t láº­p tá»©c
+    options.AddPolicy("AllowAllTest",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
 });
 
 builder.Services.AddDbContext<DataContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        new MySqlServerVersion(new Version(8, 0, 30)),
+        mySqlOptions => mySqlOptions.EnableRetryOnFailure()
+    ));
 
+// --- ÄÄ‚NG KÃ CÃC Dá»ŠCH Vá»¤ Há»† THá»NG Gá»C (DI) ---
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<IJobService, JobService>();
 builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
+builder.Services.AddScoped<IProposalService, ProposalService>();
+
+// --- TÃ CH Há»¢P Há»† THá» NG QUáº¢N TRá»Š ADMIN Ä á»˜C Láº¬P ---
+builder.Services.AddScoped<IAdminService, AdminService>();
+
+// --- ĐĂNG KÝ DISPUTE MODULE ---
+builder.Services.AddScoped<AITasker_Modular.Modules.DisputeModule.IDisputeService, AITasker_Modular.Modules.DisputeModule.DisputeService>();
+
+// --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
+builder.Services.AddScoped<IJobPostService, JobPostService>(); 
+
+// --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
+builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
+builder.Services.AddHttpClient<GeminiUtil>();
+builder.Services.AddScoped<AiChatService>(); 
 
 var app = builder.Build();
 
+// --- Tá»° Ä á»˜NG KHá»žI CHáº Y VÃ€ MIGRATION DATABASE TOÃ€N Cá»¤C ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -76,7 +120,6 @@ using (var scope = app.Services.CreateScope())
         var db = services.GetRequiredService<DataContext>();
         await db.Database.MigrateAsync();
 
-        // Check and update JobPosts.Deadline column type in DB
         using (var command = db.Database.GetDbConnection().CreateCommand())
         {
             await db.Database.OpenConnectionAsync();
@@ -87,29 +130,51 @@ using (var scope = app.Services.CreateScope())
                 command.CommandText = "ALTER TABLE JobPosts DROP COLUMN Deadline; ALTER TABLE JobPosts ADD Deadline INT NOT NULL DEFAULT 0;";
                 await command.ExecuteNonQueryAsync();
             }
-        }
 
-        if (!await db.AICategoryDomains.AnyAsync())
-        {
-            db.AICategoryDomains.AddRange(new List<AICategoryDomain>
+            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Deadline';";
+            var miniTaskDeadlineCol = (string?)await command.ExecuteScalarAsync();
+            if (miniTaskDeadlineCol == null)
             {
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Natural Language Processing (NLP)" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Computer Vision" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Generative AI" },
-                new AICategoryDomain { Id = Guid.NewGuid(), Name = "Machine Learning Engineering" }
-            });
-        }
+                command.CommandText = "ALTER TABLE MiniTasks ADD Deadline DATETIME NULL;";
+                await command.ExecuteNonQueryAsync();
+            }
 
-        // Seed some new test categories if they don't exist yet
-        var testCategories = new List<string> { "Deep Learning", "Data Science", "Reinforcement Learning" };
-        foreach (var catName in testCategories)
-        {
-            if (!await db.AICategoryDomains.AnyAsync(c => c.Name == catName))
+            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Duration';";
+            var miniTaskDurationCol = (string?)await command.ExecuteScalarAsync();
+            if (miniTaskDurationCol == null)
             {
-                db.AICategoryDomains.Add(new AICategoryDomain { Id = Guid.NewGuid(), Name = catName });
+                command.CommandText = "ALTER TABLE MiniTasks ADD Duration INT NOT NULL DEFAULT 0;";
+                await command.ExecuteNonQueryAsync();
             }
         }
 
+        // Seed Domains
+        if (!await db.Domains.AnyAsync())
+        {
+            var nlp = new Domain { Id = Guid.NewGuid(), Name = "Natural Language Processing (NLP)" };
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Chatbots & Conversational Agents", DomainId = nlp.Id });
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Text Classification & Sentiment Analysis", DomainId = nlp.Id });
+            nlp.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Machine Translation", DomainId = nlp.Id });
+
+            var cv = new Domain { Id = Guid.NewGuid(), Name = "Computer Vision" };
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Object Detection & Tracking", DomainId = cv.Id });
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Image Generation & Editing", DomainId = cv.Id });
+            cv.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Face Recognition", DomainId = cv.Id });
+
+            var genai = new Domain { Id = Guid.NewGuid(), Name = "Generative AI" };
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "LLM Fine-tuning", DomainId = genai.Id });
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Prompt Engineering", DomainId = genai.Id });
+            genai.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Retrieval-Augmented Generation (RAG)", DomainId = genai.Id });
+
+            var mle = new Domain { Id = Guid.NewGuid(), Name = "Machine Learning Engineering" };
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Model Deployment & MLOps", DomainId = mle.Id });
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Recommendation Systems", DomainId = mle.Id });
+            mle.Specializations.Add(new Specialization { Id = Guid.NewGuid(), Name = "Anomaly Detection", DomainId = mle.Id });
+
+            db.Domains.AddRange(new List<Domain> { nlp, cv, genai, mle });
+        }
+
+        // Seed Skills
         if (!await db.Skills.AnyAsync())
         {
             db.Skills.AddRange(new List<Skill>
@@ -124,7 +189,6 @@ using (var scope = app.Services.CreateScope())
             });
         }
 
-        // Seed some new test skills if they don't exist yet
         var testSkills = new List<string> { "React.js", "Vue.js", "Node.js", "LangChain", "Semantic Kernel" };
         foreach (var skillName in testSkills)
         {
@@ -134,12 +198,260 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // Seed Test Users (Client & Expert & Owner)
+        var clientId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var expertId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var ownerId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+
+        if (!await db.Users.AnyAsync(u => u.Id == ownerId))
+        {
+            var testOwner = new ApplicationUser
+            {
+                Id = ownerId,
+                Email = "owner@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "Nguyễn Văn Owner",
+                Role = "Owner",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testOwner);
+            db.Wallets.Add(new Wallet { UserId = ownerId, Balance = 0m });
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Id == clientId))
+        {
+            var testClient = new ApplicationUser
+            {
+                Id = clientId,
+                Email = "client@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "Nguyá»…n VÄƒn Client",
+                Role = "Client",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testClient);
+            db.Wallets.Add(new Wallet { UserId = clientId, Balance = 5000m });
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Id == expertId))
+        {
+            var testExpert = new ApplicationUser
+            {
+                Id = expertId,
+                Email = "expert@test.com",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
+                FullName = "LÃª VÄƒn Expert",
+                Role = "Expert",
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Users.Add(testExpert);
+            db.Wallets.Add(new Wallet { UserId = expertId, Balance = 0m });
+            db.ExpertProfiles.Add(new ExpertProfile
+            {
+                UserId = expertId,
+                JobTitle = "ChuyÃªn gia TrÃ­ tuá»‡ NhÃ¢n táº¡o (AI Expert)",
+                Major = "Khoa há»c MÃ¡y tÃ­nh",
+                Bio = "TÃ´i lÃ  chuyÃªn gia AI vá»›i 5 nÄƒm kinh nghiá»‡m phÃ¡t triá»ƒn cÃ¡c giáº£i phÃ¡p NLP, Generative AI vÃ  RAG.",
+                ReputationCredit = 5.0m,
+                SuccessRate = 1.0
+            });
+        }
+
+        // Seed a Test JobPost
+        var jobId = Guid.Parse("33333333-3333-3333-3333-333333333333");
+        if (!await db.JobPosts.AnyAsync(j => j.Id == jobId))
+        {
+            var nlpDomain = await db.Domains.FirstOrDefaultAsync(d => d.Name.Contains("Natural Language Processing"));
+            var chatbotSpec = await db.Specializations.FirstOrDefaultAsync(s => s.Name.Contains("Chatbots"));
+
+            var testJob = new JobPost
+            {
+                Id = jobId,
+                ClientId = clientId,
+                Title = "XÃ¢y dá»±ng Chatbot AI tÃ­ch há»£p RAG",
+                Description = "Dá»± Ã¡n xÃ¢y dá»±ng chatbot há»— trá»£ há»i Ä‘Ã¡p dá»±a trÃªn tÃ i liá»‡u ná»™i bá»™ sá»­ dá»¥ng LangChain vÃ  GPT-4o.",
+                Budget = 1500m,
+                Deadline = 15,
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow,
+                DomainId = nlpDomain?.Id,
+                SpecializationId = chatbotSpec?.Id,
+                DurationValue = 15,
+                DurationUnit = "Days",
+                Implementation = "[{\"Title\":\"Thiáº¿t láº­p cÆ¡ sá»Ÿ dá»¯ liá»‡u Vector (ChromaDB)\",\"MiniTasks\":[{\"Title\":\"Cáº¥u hÃ¬nh DB vector Ä‘á»ƒ indexing tÃ i liá»‡u.\",\"Duration\":5}]},{\"Title\":\"TÃ­ch há»£p mÃ´ hÃ¬nh ngÃ´n ngá»¯ lá»›n (GPT-4o)\",\"MiniTasks\":[{\"Title\":\"Xá»­ lÃ½ prompt template vÃ  káº¿t ná»‘i LLM API.\",\"Duration\":7}]},{\"Title\":\"XÃ¢y dá»±ng API Endpoint há»i Ä‘Ã¡p\",\"MiniTasks\":[{\"Title\":\"Táº¡o RESTful endpoint káº¿t ná»‘i frontend.\",\"Duration\":3}]}]"
+            };
+            db.JobPosts.Add(testJob);
+
+            var task1 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "Thiáº¿t láº­p cÆ¡ sá»Ÿ dá»¯ liá»‡u Vector (ChromaDB)" };
+            task1.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task1.Id, Title = "Cáº¥u hÃ¬nh DB vector Ä‘á»ƒ indexing tÃ i liá»‡u.", Duration = 5 });
+            db.JobPostTasks.Add(task1);
+
+            var task2 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "TÃ­ch há»£p mÃ´ hÃ¬nh ngÃ´n ngá»¯ lá»›n (GPT-4o)" };
+            task2.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task2.Id, Title = "Xá»­ lÃ½ prompt template vÃ  káº¿t ná»‘i LLM API.", Duration = 7 });
+            db.JobPostTasks.Add(task2);
+
+            var task3 = new JobPostTask { Id = Guid.NewGuid(), JobPostId = jobId, Title = "XÃ¢y dá»±ng API Endpoint há»i Ä‘Ã¡p" };
+            task3.JobPostMiniTasks.Add(new JobPostMiniTask { Id = Guid.NewGuid(), JobPostTaskId = task3.Id, Title = "Táº¡o RESTful endpoint káº¿t ná»‘i frontend.", Duration = 3 });
+            db.JobPostTasks.Add(task3);
+        }
+
+        // Seed a Test Proposal
+        var proposalId = Guid.Parse("55555555-5555-5555-5555-555555555555");
+        if (!await db.Proposals.AnyAsync(p => p.Id == proposalId))
+        {
+            var testProposal = new Proposal
+            {
+                Id = proposalId,
+                JobPostId = jobId,
+                ExpertId = expertId,
+                BidAmount = 1200m,
+                EstimatedDuration = 12,
+                Introduction = "ChÃ o anh/chá»‹, tÃ´i lÃ  chuyÃªn gia AI vá»›i 3 nÄƒm kinh nghiá»‡m phÃ¡t triá»ƒn cÃ¡c há»‡ thá»‘ng RAG vÃ  LLM.",
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Proposals.Add(testProposal);
+        }
+
+        if (!await db.ProposalTasks.AnyAsync(t => t.ProposalId == proposalId))
+        {
+            var task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "Thiáº¿t láº­p Vector DB vÃ  tiá»n xá»­ lÃ½ data" };
+            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "Cáº¥u hÃ¬nh ChromaDB", Duration = 10 });
+            task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task1.Id, Title = "Tiá»n xá»­ lÃ½ data", Duration = 14 });
+            db.ProposalTasks.Add(task1);
+
+            var task2 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = proposalId, Title = "TÃ­ch há»£p LLM vÃ  hoÃ n thiá»‡n API" };
+            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "TÃ­ch há»£p LLM", Duration = 8 });
+            task2.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = task2.Id, Title = "HoÃ n thiá»‡n API", Duration = 12 });
+            db.ProposalTasks.Add(task2);
+        }
+
+        // Seed an Already Accepted Proposal and Active Project for testing
+        var acceptedJobId = Guid.Parse("33333333-3333-3333-3333-333333333334");
+        if (!await db.JobPosts.AnyAsync(j => j.Id == acceptedJobId))
+        {
+            var nlpDomain = await db.Domains.FirstOrDefaultAsync(d => d.Name.Contains("Natural Language Processing"));
+            var testJob2 = new JobPost
+            {
+                Id = acceptedJobId,
+                ClientId = clientId,
+                Title = "XÃ¢y dá»±ng Há»‡ thá»‘ng Gá»£i Ã½ Sáº£n pháº©m",
+                Description = "Há»‡ thá»‘ng gá»£i Ã½ sáº£n pháº©m cho trang e-commerce sá»­ dá»¥ng collaborative filtering.",
+                Budget = 2000m,
+                Deadline = 30,
+                Status = "In Progress",
+                CreatedAt = DateTime.UtcNow,
+                DomainId = nlpDomain?.Id,
+                DurationValue = 30,
+                DurationUnit = "Days"
+            };
+            db.JobPosts.Add(testJob2);
+        }
+
+        var acceptedProposalId = Guid.Parse("55555555-5555-5555-5555-555555555556");
+        if (!await db.Proposals.AnyAsync(p => p.Id == acceptedProposalId))
+        {
+            var testProposal2 = new Proposal
+            {
+                Id = acceptedProposalId,
+                JobPostId = acceptedJobId,
+                ExpertId = expertId,
+                BidAmount = 1800m,
+                EstimatedDuration = 25,
+                Introduction = "TÃ´i cÃ³ nhiá»u kinh nghiá»‡m lÃ m Recommendation System.",
+                Status = "Accepted",
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Proposals.Add(testProposal2);
+        }
+
+        if (!await db.ProposalTasks.AnyAsync(t => t.ProposalId == acceptedProposalId))
+        {
+            var p2task1 = new ProposalTask { Id = Guid.NewGuid(), ProposalId = acceptedProposalId, Title = "Huáº¥n luyá»‡n mÃ´ hÃ¬nh vÃ  deploy lÃªn AWS" };
+            p2task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = p2task1.Id, Title = "Huáº¥n luyá»‡n Recommendation System", Duration = 20 });
+            p2task1.ProposalMiniTasks.Add(new ProposalMiniTask { Id = Guid.NewGuid(), ProposalTaskId = p2task1.Id, Title = "Deploy AWS ECS", Duration = 15 });
+            db.ProposalTasks.Add(p2task1);
+        }
+
+        var testProjectId = Guid.Parse("66666666-6666-6666-6666-666666666666");
+        if (!await db.Projects.AnyAsync(p => p.Id == testProjectId))
+        {
+            var testProject = new Project
+            {
+                Id = testProjectId,
+                JobPostId = acceptedJobId,
+                ClientId = clientId,
+                ExpertId = expertId,
+                EscrowBalance = 1800m,
+                Status = "In Progress",
+                StartDate = DateTime.UtcNow,
+                EndDate = DateTime.UtcNow.AddDays(25)
+            };
+            db.Projects.Add(testProject);
+
+            // Copy a skill to ProjectSkill
+            var pythonSkill = await db.Skills.FirstOrDefaultAsync(s => s.Name == "Python");
+            if (pythonSkill != null)
+            {
+                db.ProjectSkills.Add(new ProjectSkill
+                {
+                    ProjectsId = testProjectId,
+                    SkillsId = pythonSkill.Id
+                });
+            }
+        }
+
+        var task1Id = Guid.Parse("77777777-7777-7777-7777-777777777771");
+        if (!await db.ProjectTasks.AnyAsync(t => t.Id == task1Id))
+        {
+            var task1 = new ProjectTask
+            {
+                Id = task1Id,
+                ProjectId = testProjectId,
+                Title = "Thu tháº­p vÃ  tiá»n xá»­ lÃ½ dá»¯ liá»‡u hÃ nh vi ngÆ°á»i dÃ¹ng",
+                Status = "In Progress",
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ProjectTasks.Add(task1);
+        }
+
+        var task2Id = Guid.Parse("77777777-7777-7777-7777-777777777772");
+        if (!await db.ProjectTasks.AnyAsync(t => t.Id == task2Id))
+        {
+            var task2 = new ProjectTask
+            {
+                Id = task2Id,
+                ProjectId = testProjectId,
+                Title = "XÃ¢y dá»±ng vÃ  huáº¥n luyá»‡n mÃ´ hÃ¬nh Matrix Factorization",
+                Status = "In Progress",
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ProjectTasks.Add(task2);
+        }
+
+        var miniTaskId = Guid.Parse("88888888-8888-8888-8888-888888888881");
+        if (!await db.MiniTasks.AnyAsync(mt => mt.Id == miniTaskId))
+        {
+            db.MiniTasks.Add(new MiniTask
+            {
+                Id = miniTaskId,
+                TaskId = task1Id,
+                Title = "Viáº¿t script python cÃ o log click",
+                IsCompleted = false,
+                CreatedAt = DateTime.UtcNow,
+                Deadline = DateTime.UtcNow.AddDays(7)
+            });
+        }
+
         await db.SaveChangesAsync();
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Lỗi hệ thống tự động cập nhật cấu trúc Database.");
+        logger.LogError(ex, "Lá»—i há»‡ thá»‘ng tá»± Ä‘á»™ng cáº­p nháº­t cáº¥u trÃºc Database.");
     }
 }
 
@@ -148,10 +460,12 @@ app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "AITasker Modular API v1");
     c.RoutePrefix = string.Empty;
-}); 
+});
 
-app.UseCors("AllowLocalhost5173");
+// Ã‰p cháº¡y chÃ­nh sÃ¡ch AllowAllTest Ä‘á»ƒ cháº¥p nháº­n request tá»« má»i nguá»“n port khÃ´ng bá»‹ cháº·n CORS
+app.UseCors("AllowAllTest");
 
+app.UseStaticFiles();
 app.UseAuthorization();
 app.MapControllers();
 

@@ -1,56 +1,30 @@
+import { Link } from "react-router";
+
 export function Footer() {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="bg-white border-t border-gray-200 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Grid — 4 equal columns, all content centered */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    <footer className="border-t border-border bg-card">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Logo + Description */}
-          <div className="text-center">
-            <div className="inline-flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-sm">AI</span>
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-xs">AI</span>
               </div>
-              <span className="text-base font-semibold text-gray-900">Tasker</span>
-            </div>
-            <p className="text-sm text-gray-500 leading-relaxed max-w-[220px] mx-auto">
+              <span className="text-sm font-semibold text-foreground tracking-tight">Tasker</span>
+            </Link>
+            <span className="hidden sm:inline text-xs text-muted-foreground/40">|</span>
+            <p className="text-xs text-muted-foreground">
               Connecting businesses with AI experts worldwide.
             </p>
           </div>
 
-          {/* About */}
-          <div className="text-center">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">About</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Our Story</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Team</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Careers</a></li>
-            </ul>
-          </div>
-
-          {/* Contact */}
-          <div className="text-center">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Contact</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Support</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Help Center</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Contact Us</a></li>
-            </ul>
-          </div>
-
-          {/* Legal */}
-          <div className="text-center">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Legal</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Privacy Policy</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Terms &amp; Conditions</a></li>
-              <li><a href="#" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">Cookie Policy</a></li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Divider + Copyright */}
-        <div className="mt-10 pt-6 border-t border-gray-100 text-center">
-          <p className="text-xs text-gray-400">&copy; 2026 AI Tasker. All rights reserved.</p>
+          {/* Copyright */}
+          <p className="text-xs text-muted-foreground/60">
+            &copy; {year} AI Tasker. All rights reserved.
+          </p>
         </div>
       </div>
     </footer>

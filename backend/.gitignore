@@ -1,3 +1,7 @@
 .vs/ 
 bin/ 
 obj/ 
+
+# Secrets - KHÔNG BAO GIờ push lên git
+API/appsettings.json
+API/appsettings.*.json

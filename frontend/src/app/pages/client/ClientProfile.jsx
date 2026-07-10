@@ -8,7 +8,7 @@ import {
   Briefcase,
   CheckCircle2,
   Clock,
-  DollarSign,
+  BarChart3,
   FileText,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
@@ -100,17 +100,17 @@ export function ClientProfile() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6">
+        <div className="animate-pulse bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-gray-200 rounded-xl" />
+            <div className="w-16 h-16 bg-accent rounded-xl" />
             <div className="space-y-2">
-              <div className="h-6 bg-gray-200 rounded w-48" />
-              <div className="h-4 bg-gray-200 rounded w-32" />
+              <div className="h-6 bg-accent rounded w-48" />
+              <div className="h-4 bg-accent rounded w-32" />
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded-xl" />
+              <div key={i} className="h-20 bg-accent rounded-xl" />
             ))}
           </div>
         </div>
@@ -122,13 +122,13 @@ export function ClientProfile() {
   if (!client) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-12 text-center">
-          <User className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-500 mb-2">Profile not available</h2>
-          <p className="text-base text-gray-400 mb-4">Complete your profile to get started.</p>
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-12 text-center">
+          <User className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-muted-foreground mb-2">Profile not available</h2>
+          <p className="text-base text-muted-foreground mb-4">Complete your profile to get started.</p>
           <Link
             to="/client/profile/edit"
-            className="h-11 px-5 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
+            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
@@ -150,7 +150,7 @@ export function ClientProfile() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* ── Profile header card ── */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
@@ -158,52 +158,52 @@ export function ClientProfile() {
               <span className="text-xl font-bold text-brand-primary">{initials}</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{displayName}</h1>
+              <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
               {client.profile?.company && (
-                <p className="text-gray-700 font-medium">{client.profile.company}</p>
+                <p className="text-secondary-foreground font-medium">{client.profile.company}</p>
               )}
-              <p className="text-gray-500 text-base">{client.email}</p>
+              <p className="text-muted-foreground text-base">{client.email}</p>
             </div>
           </div>
 
           <Link
             to="/client/profile/edit"
-            className="h-11 px-5 border border-gray-300 rounded-xl hover:bg-gray-50 text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+            className="h-11 px-5 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
         </div>
 
         {/* ── Profile Information ── */}
-        <div className="mt-8 pt-8 border-t border-gray-100 space-y-6 text-left">
+        <div className="mt-8 pt-8 border-t border-border-light space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Starred Fields */}
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Company Name *</span>
-              <span className="text-sm text-gray-900 font-semibold">{client.profile?.company || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Company Name *</span>
+              <span className="text-sm text-foreground font-semibold">{client.profile?.company || ""}</span>
             </div>
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Contact Person *</span>
-              <span className="text-sm text-gray-900 font-semibold">{displayName || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contact Person *</span>
+              <span className="text-sm text-foreground font-semibold">{displayName || ""}</span>
             </div>
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Email Address *</span>
-              <span className="text-sm text-gray-900 font-semibold">{client.email || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Email Address *</span>
+              <span className="text-sm text-foreground font-semibold">{client.email || ""}</span>
             </div>
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Phone Number *</span>
-              <span className="text-sm text-gray-900 font-semibold">{client.profile?.phone || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Phone Number *</span>
+              <span className="text-sm text-foreground font-semibold">{client.profile?.phone || ""}</span>
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="border-t border-border-light pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Optional Fields */}
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Location</span>
-              <span className="text-sm text-gray-700 font-medium">{client.profile?.location || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</span>
+              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.location || ""}</span>
             </div>
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Website</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Website</span>
               {client.profile?.website ? (
                 <a
                   href={client.profile.website}
@@ -214,19 +214,19 @@ export function ClientProfile() {
                   {client.profile.website}
                 </a>
               ) : (
-                <span className="text-sm text-gray-700 font-medium"></span>
+                <span className="text-sm text-secondary-foreground font-medium"></span>
               )}
             </div>
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-1">Industry</span>
-              <span className="text-sm text-gray-700 font-medium">{client.profile?.industry || ""}</span>
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Industry</span>
+              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.industry || ""}</span>
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-6">
+          <div className="border-t border-border-light pt-6">
             <div>
-              <span className="block text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Bio / About</span>
-              <p className="text-base text-gray-655 leading-relaxed min-h-[40px] whitespace-pre-wrap">
+              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bio / About</span>
+              <p className="text-base text-foreground leading-relaxed min-h-[40px] whitespace-pre-wrap">
                 {client.profile?.bio || ""}
               </p>
             </div>
@@ -248,40 +248,40 @@ export function ClientProfile() {
               label: "Active Projects",
               value: stats.active,
               icon: Clock,
-              color: "text-amber-600 bg-amber-100",
+              color: "text-warning bg-warning-light",
             },
             {
               label: "Completed",
               value: stats.completed,
               icon: CheckCircle2,
-              color: "text-green-600 bg-green-100",
+              color: "text-success bg-success-light",
             },
             {
               label: "Proposals Received",
               value: stats.proposals,
               icon: FileText,
-              color: "text-purple-600 bg-purple-100",
+              color: "text-chart-4 bg-muted",
             },
             {
               label: "Total Spent",
               value: <MoneyDisplay amount={stats.totalSpent} />,
-              icon: DollarSign,
-              color: "text-emerald-600 bg-emerald-100",
+              icon: BarChart3,
+              color: "text-brand-green bg-success-light",
             },
           ].map((stat, i) => (
             <div
               key={i}
-              className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm"
+              className="bg-card rounded-xl border border-border p-4 shadow-sm"
             >
               <div
                 className={`w-10 h-10 ${stat.color} rounded-lg flex items-center justify-center mb-2.5`}
               >
                 <stat.icon className="w-[18px] h-[18px]" />
               </div>
-              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                 {stat.label}
               </p>
-              <p className="text-xl font-bold text-gray-900 mt-0.5">{stat.value}</p>
+              <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
             </div>
           ))}
         </div>

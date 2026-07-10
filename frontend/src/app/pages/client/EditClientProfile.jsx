@@ -5,15 +5,29 @@ import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
+// Helper: localStorage key cho client profile (tránh đụng cột Status của BE)
+// ---------------------------------------------------------------------------
+export const getClientProfileKey = (userId) => `aitasker_client_profile_${userId}`;
+
+export function getLocalClientProfile(userId) {
+  try {
+    const raw = localStorage.getItem(getClientProfileKey(userId));
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+export function saveLocalClientProfile(userId, data) {
+  localStorage.setItem(getClientProfileKey(userId), JSON.stringify(data));
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export function EditClientProfile() {
   const navigate = useNavigate();
   const { user: authUser } = useAuth();
 
-  const [clientId, setClientId] = useState(null);
   const [formData, setFormData] = useState({
-    companyName: "",
     fullName: "",
     email: "",
     phone: "",
@@ -23,33 +37,31 @@ export function EditClientProfile() {
     bio: "",
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // ---- Load profile from API on mount ----
+  // ---- Load profile: API (fullName, email) + localStorage (phần còn lại) ----
   useEffect(() => {
     if (!authUser?.id) return;
     setLoading(true);
     api.users.getById(authUser.id)
       .then((client) => {
         if (client) {
-          setClientId(client.id);
-          let profile = {};
-          try {
-            profile = JSON.parse(client.status);
-          } catch (e) {
-            profile = {
-              bio: client.status || "",
-            };
-          }
-
-          setFormData({
-            companyName: profile.companyName || "",
+          // Phần an toàn từ API
+          const apiData = {
             fullName: client.fullName || client.name || "",
             email: client.email || "",
-            phone: profile.phone || "",
-            location: profile.location || "",
-            website: profile.website || "",
-            industry: profile.industry || "",
-            bio: profile.bio || "",
+          };
+          // Phần profile từ localStorage (phone, location, ...)
+          const localProfile = getLocalClientProfile(authUser.id);
+
+          setFormData({
+            fullName: apiData.fullName,
+            email: apiData.email,
+            phone: localProfile.phone || "",
+            location: localProfile.location || "",
+            website: localProfile.website || "",
+            industry: localProfile.industry || "",
+            bio: localProfile.bio || "",
           });
         }
       })
@@ -66,30 +78,33 @@ export function EditClientProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!authUser?.id) return;
-    setLoading(true);
+    setSaving(true);
 
     try {
-      const statusPayload = {
-        companyName: formData.companyName.trim(),
+      // 1. Lưu fullName & email lên API (an toàn, không đụng cột Status)
+      await api.users.update(authUser.id, {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
+      });
+
+      // 2. Lưu phần profile còn lại vào localStorage
+      saveLocalClientProfile(authUser.id, {
         phone: formData.phone.trim(),
         location: formData.location.trim(),
         website: formData.website.trim(),
         industry: formData.industry.trim(),
         bio: formData.bio.trim(),
-      };
-
-      await api.users.update(authUser.id, {
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
-        status: JSON.stringify(statusPayload),
       });
 
-      // Update stored user details locally too
-      const storedUser = localStorage.getItem("aitasker_user_info");
+      // 3. Cập nhật fullName trong localStorage auth
+      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.fullName.trim();
-        localStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        if (localStorage.getItem("aitasker_user_info")) {
+          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        }
       }
 
       navigate("/client/profile");
@@ -97,7 +112,7 @@ export function EditClientProfile() {
       console.error("Failed to update profile:", err);
       alert(err.message || "Failed to update profile. Please try again.");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -106,10 +121,10 @@ export function EditClientProfile() {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-4">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="bg-card rounded-2xl border border-border p-8 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
+              <div key={i} className="h-12 bg-muted rounded-lg" />
             ))}
           </div>
         </div>
@@ -121,19 +136,18 @@ export function EditClientProfile() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center gap-4 mb-6">
-        <Link to="/client/profile" className="text-gray-600 hover:text-gray-900">
+        <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold text-gray-900">Edit Profile</h1>
+        <h1 className="text-2xl font-bold text-foreground">Edit Profile</h1>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
+        className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {[
-          { key: "companyName", label: "Company Name", type: "text", required: true },
-          { key: "fullName", label: "Contact Person", type: "text", required: true },
+          { key: "fullName", label: "Full Name", type: "text", required: true },
           { key: "email", label: "Email Address", type: "email", required: true },
           { key: "phone", label: "Phone Number", type: "tel", required: true },
           { key: "location", label: "Location", type: "text" },
@@ -141,7 +155,7 @@ export function EditClientProfile() {
           { key: "industry", label: "Industry", type: "text" },
         ].map(({ key, label, type, required }) => (
           <div key={key}>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground/80 mb-2">
               {label} {required && <span className="text-red-500">*</span>}
             </label>
             <input
@@ -149,33 +163,34 @@ export function EditClientProfile() {
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
               required={required}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-foreground/80 mb-2">
             Bio / About
           </label>
           <textarea
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-white hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center"
+            disabled={saving}
+            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Save className="w-4 h-4" /> Save Changes
+            <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Changes"}
           </button>
           <Link
             to="/client/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-gray-300 hover:bg-gray-50 font-medium inline-flex items-center justify-center"
+            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

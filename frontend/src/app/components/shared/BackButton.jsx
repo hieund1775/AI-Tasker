@@ -35,7 +35,7 @@ export function BackButton({ fallback = "/", className = "", children }) {
     <button
       type="button"
       onClick={handleBack}
-      className={`text-gray-600 hover:text-gray-900 inline-flex items-center gap-1 ${className}`}
+      className={`text-muted-foreground hover:text-foreground inline-flex items-center gap-1 ${className}`}
     >
       <ArrowLeft className="w-4 h-4" /> {children || "Back"}
     </button>

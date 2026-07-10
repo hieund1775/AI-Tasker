@@ -55,18 +55,3 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
-
-# Frontend
-frontend/node_modules/
-frontend/dist/
-
-# Vite
-frontend/.env
-frontend/.env.local
-frontend/.env.production
-
-# IDE
-.vscode/
-
-# Ignore local Doc folder
-Doc/

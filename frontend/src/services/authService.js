@@ -64,15 +64,7 @@ export async function login(email, password) {
  */
 export async function register(data) {
   const response = await api.auth.register(data);
-
-  const token = response.token || response.accessToken || response.access_token;
-  const user = response.user || response.profile || null;
-
-  if (!token) {
-    throw new Error("Server did not return an authentication token.");
-  }
-
-  return { token, user };
+  return response;
 }
 
 // ---------------------------------------------------------------------------

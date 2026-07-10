@@ -47,7 +47,7 @@ function getFileColor(file) {
   )
     return "text-blue-500";
   if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
-  return "text-gray-400";
+  return "text-muted-foreground";
 }
 
 function formatFileSize(bytes) {
@@ -186,7 +186,7 @@ export function FileUploadDropzone({
     <div className="space-y-3">
       {/* Label */}
       {label && (
-        <label className="block text-sm font-semibold text-gray-800">
+        <label className="block text-sm font-semibold text-foreground">
           {label}
         </label>
       )}
@@ -213,19 +213,19 @@ export function FileUploadDropzone({
             ? "border-brand-primary bg-brand-primary-light/30"
             : error
               ? "border-red-300 bg-red-50/20"
-              : "border-gray-300 hover:border-brand-primary/50 hover:bg-gray-50"
+              : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
           }
         `}
       >
         <Upload
           className={`w-8 h-8 mx-auto mb-2 ${
-            isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-gray-300"
+            isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-muted-foreground/60"
           }`}
         />
-        <p className="text-sm font-semibold text-gray-700">
+        <p className="text-sm font-semibold text-foreground/80">
           Drag &amp; Drop files here
         </p>
-        <p className="text-xs text-gray-400 mt-1">or</p>
+        <p className="text-xs text-muted-foreground mt-1">or</p>
         <button
           type="button"
           onClick={(e) => {
@@ -233,7 +233,7 @@ export function FileUploadDropzone({
             handleBrowse();
           }}
           disabled={disabled || !canAddMore}
-          className="mt-2 h-10 min-h-10 px-4 bg-white border border-gray-300 rounded-[14px] text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+          className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-[14px] text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
         >
           <Upload className="w-3.5 h-3.5" />
           Browse Files
@@ -261,7 +261,7 @@ export function FileUploadDropzone({
 
       {/* Helper text */}
       {helperText && !error && (
-        <p className="text-xs text-gray-400">{helperText}</p>
+        <p className="text-xs text-muted-foreground">{helperText}</p>
       )}
 
       {/* File list */}
@@ -270,16 +270,16 @@ export function FileUploadDropzone({
           {files.map((file, index) => (
             <div
               key={`${file.name || "file"}-${file.lastModified || index}-${index}`}
-              className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5"
+              className="flex items-center justify-between bg-secondary/60 border border-border rounded-lg px-3 py-2.5"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <FileIcon file={file} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-700 truncate">
+                  <p className="text-sm font-medium text-foreground/80 truncate">
                     {file.name || "Unknown file"}
                   </p>
                   {file.size > 0 && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-muted-foreground">
                       {formatFileSize(file.size)}
                     </p>
                   )}
@@ -289,7 +289,7 @@ export function FileUploadDropzone({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="w-7 h-7 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
+                  className="w-7 h-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
                   title="Remove file"
                 >
                   <X className="w-3.5 h-3.5" />
@@ -302,7 +302,7 @@ export function FileUploadDropzone({
 
       {/* Max files note */}
       {maxFiles && files.length >= maxFiles && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted-foreground">
           Maximum {maxFiles} file{maxFiles > 1 ? "s" : ""} reached.
         </p>
       )}

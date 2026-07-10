@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { HomePage } from "./pages/public/HomePage.jsx";
 import { LoginPage } from "./pages/public/LoginPage.jsx";
 import { SignUpPage } from "./pages/public/SignUpPage.jsx";
+import { ResetPasswordPage } from "./pages/public/ResetPasswordPage.jsx";
 
 // Client Pages
 import { ClientDashboard } from "./pages/client/ClientDashboard.jsx";
@@ -17,8 +18,6 @@ import { EditClientProfile } from "./pages/client/EditClientProfile.jsx";
 import { MyProjectsList } from "./pages/client/MyProjectsPage.jsx";
 import { PublicExpertProfile } from "./components/shared/PublicExpertProfile.jsx";
 import { Billing } from "./pages/client/Billing.jsx";
-import { CreateContract } from "./pages/client/CreateContract.jsx";
-import { ClientProposalDetail } from "./pages/client/ClientProposalDetail.jsx";
 
 // Expert Pages
 import { ExpertDashboard } from "./pages/expert/ExpertDashboard.jsx";
@@ -31,8 +30,7 @@ import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
 import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
-import { ExpertContractView } from "./pages/expert/ExpertContractView.jsx";
-import { ExpertUseCaseUpdatePage } from "./pages/expert/ExpertUseCaseUpdatePage.jsx";
+import PaymentResult from "./pages/common/PaymentResult";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -40,7 +38,6 @@ import { AdminUsers } from "./pages/admin/AdminUsers.jsx";
 import { AdminDisputes } from "./pages/admin/AdminDisputes.jsx";
 import { AdminRevenue } from "./pages/admin/AdminRevenue.jsx";
 import { AdminProfile } from "./pages/admin/AdminProfile.jsx";
-import { EditAdminProfile } from "./pages/admin/EditAdminProfile.jsx";
 import { AdminReportDetail } from "./pages/admin/AdminReportDetail.jsx";
 import { AdminProjects } from "./pages/admin/AdminProjects.jsx";
 import { AdminReviews } from "./pages/admin/AdminReviews.jsx";
@@ -52,7 +49,10 @@ import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
 import { CreateAdmin } from "./pages/owner/CreateAdmin.jsx";
 import { ManageAdmins } from "./pages/owner/ManageAdmins.jsx";
 import { OwnerProfile } from "./pages/owner/OwnerProfile.jsx";
-import { EditOwnerProfile } from "./pages/owner/EditOwnerProfile.jsx";
+
+// Layouts
+import { AdminLayout } from "./components/layout/AdminLayout.jsx";
+import { OwnerLayout } from "./components/layout/OwnerLayout.jsx";
 import OwnerUsers from "./pages/owner/OwnerUsers.jsx";
 import OwnerProjects from "./pages/owner/OwnerProjects.jsx";
 import OwnerReports from "./pages/owner/OwnerReports.jsx";
@@ -66,6 +66,9 @@ import { TaskUpdatePage } from "./pages/common/TaskUpdatePage.jsx";
 import TaskDetailPage from "./pages/common/TaskDetailPage.jsx";
 import { NotificationsPage } from "./pages/common/NotificationsPage.jsx";
 
+// Public / fallback pages
+import { NotFound } from "./pages/public/NotFound.jsx";
+
 export const router = createBrowserRouter([
   // ================= PUBLIC ROUTES =================
   {
@@ -74,6 +77,7 @@ export const router = createBrowserRouter([
       { index: true, Component: HomePage },
       { path: "login", Component: LoginPage },
       { path: "signup", Component: SignUpPage },
+      { path: "reset-password", Component: ResetPasswordPage },
       { path: "unauthorized", Component: UnauthorizedPage },
     ],
   },
@@ -101,8 +105,6 @@ export const router = createBrowserRouter([
               { path: "client/profile", Component: ClientProfile },
               { path: "client/profile/edit", Component: EditClientProfile },
               { path: "client/billing", Component: Billing },
-              { path: "client/contracts/create", Component: CreateContract },
-              { path: "client/proposals/:id", Component: ClientProposalDetail },
             ],
           },
 
@@ -118,30 +120,32 @@ export const router = createBrowserRouter([
               { path: "expert/proposals", Component: ProposalStatus },
               { path: "expert/proposals/:id", Component: ProposalDetail },
               { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/projects/:id/usecase/:useCaseId", Component: ExpertUseCaseUpdatePage },
               { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
               { path: "expert/profile", Component: ExpertProfile },
               { path: "expert/profile/edit", Component: EditExpertProfile },
               { path: "expert/wallet", Component: ExpertWallet },
-              { path: "expert/contracts/:contractId", Component: ExpertContractView },
             ],
           },
 
           // ----- Admin routes (role=admin only) -----
           {
-            element: <ProtectedRoute role="admin" />,
+            element: <ProtectedRoute roles={["admin", "staff"]} />,
             children: [
-              { path: "admin/dashboard", Component: AdminDashboard },
-              { path: "admin/users", Component: AdminUsers },
-              { path: "admin/disputes", Component: AdminDisputes },
-              { path: "admin/disputes/:id", Component: AdminReportDetail },
-              { path: "admin/projects", Component: AdminProjects },
-              { path: "admin/reviews", Component: AdminReviews },
-              { path: "admin/job-posts", Component: AdminJobPosts },
-              { path: "admin/category-tags", Component: AdminCategoryTags },
-              { path: "admin/revenue", Component: AdminRevenue },
-              { path: "admin/profile", Component: AdminProfile },
-              { path: "admin/profile/edit", Component: EditAdminProfile },
+              {
+                element: <AdminLayout />,
+                children: [
+                  { path: "admin/dashboard", Component: AdminDashboard },
+                  { path: "admin/users", Component: AdminUsers },
+                  { path: "admin/disputes", Component: AdminDisputes },
+                  { path: "admin/disputes/:id", Component: AdminReportDetail },
+                  { path: "admin/projects", Component: AdminProjects },
+                  { path: "admin/reviews", Component: AdminReviews },
+                  { path: "admin/job-posts", Component: AdminJobPosts },
+                  { path: "admin/category-tags", Component: AdminCategoryTags },
+                  { path: "admin/revenue", Component: AdminRevenue },
+                  { path: "admin/profile", Component: AdminProfile },
+                ],
+              }
             ],
           },
 
@@ -149,18 +153,22 @@ export const router = createBrowserRouter([
           {
             element: <ProtectedRoute role="owner" />,
             children: [
-              { path: "owner/dashboard", Component: OwnerDashboard },
-              { path: "owner/create-admin", Component: CreateAdmin },
-              { path: "owner/manage-admins", Component: ManageAdmins },
-              { path: "owner/profile", Component: OwnerProfile },
-              { path: "owner/profile/edit", Component: EditOwnerProfile },
-              // Owner-specific management pages (reuse Admin components)
-              { path: "owner/users", Component: OwnerUsers },
-              { path: "owner/projects", Component: OwnerProjects },
-              { path: "owner/reports", Component: OwnerReports },
-              { path: "owner/reviews", Component: OwnerReviews },
-              { path: "owner/job-posts", Component: OwnerJobPosts },
-              { path: "owner/category-tags", Component: OwnerCategoryTags },
+              {
+                element: <OwnerLayout />,
+                children: [
+                  { path: "owner/dashboard", Component: OwnerDashboard },
+                  { path: "owner/create-admin", Component: CreateAdmin },
+                  { path: "owner/manage-admins", Component: ManageAdmins },
+                  { path: "owner/profile", Component: OwnerProfile },
+                  // Owner-specific management pages (reuse Admin components)
+                  { path: "owner/users", Component: OwnerUsers },
+                  { path: "owner/projects", Component: OwnerProjects },
+                  { path: "owner/reports", Component: OwnerReports },
+                  { path: "owner/reviews", Component: OwnerReviews },
+                  { path: "owner/job-posts", Component: OwnerJobPosts },
+                  { path: "owner/category-tags", Component: OwnerCategoryTags },
+                ],
+              }
             ],
           },
 
@@ -171,11 +179,23 @@ export const router = createBrowserRouter([
           { path: "messenger/:id", Component: Messenger },
           { path: "tasks/:taskId/update", Component: TaskUpdatePage },
 
+          // Payment result redirect from ZaloPay
+          { path: "wallet", Component: PaymentResult },
+
           // ----- Legacy redirect -----
           {
             path: "client/proposals/:id",
             element: <ProposalReviewLegacyRedirect />,
           },
+
+          // ----- Friendly redirects for common navigation paths -----
+          { path: "my-projects", element: <Navigate to="/client/my-projects" replace /> },
+          { path: "messages", element: <Navigate to="/messenger" replace /> },
+          { path: "admin", element: <Navigate to="/admin/dashboard" replace /> },
+          { path: "owner", element: <Navigate to="/owner/dashboard" replace /> },
+
+          // ----- Catch-all 404 -----
+          { path: "*", Component: NotFound },
         ],
       },
     ],
@@ -203,19 +223,19 @@ function LegacyProposalRedirect() {
 
 function UnauthorizedPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
-        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl font-bold text-red-500">!</span>
+    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
+      <div className="max-w-md w-full bg-card rounded-xl shadow-sm border border-border p-8 text-center">
+        <div className="w-16 h-16 bg-destructive-light rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl font-bold text-destructive">!</span>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h1>
-        <p className="text-gray-600 mb-6">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+        <p className="text-muted-foreground mb-6">
           You don&apos;t have permission to view this page. Please switch to an
           account with the appropriate role, or contact support.
         </p>
         <a
           href="/"
-          className="inline-block px-6 py-2.5 bg-brand-primary text-white rounded-lg hover:bg-brand-primary-hover font-medium transition-colors"
+          className="inline-block px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium transition-colors"
         >
           Go to Home
         </a>

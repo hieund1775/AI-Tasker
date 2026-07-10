@@ -11,7 +11,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, ShieldOff, Shield, Filter } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
@@ -46,14 +45,12 @@ const ROLE_FILTER_OPTIONS = [
 
 export function AdminUsers({ excludeRoles = [] }) {
   const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  // Frontend filtering — role exclusion + role filter applied on API results
+  // Frontend filtering — role exclusion
   const filteredUsers = useMemo(() => {
     let result = users;
     // Exclude specified roles (e.g. Owner page excludes admins)
@@ -62,14 +59,8 @@ export function AdminUsers({ excludeRoles = [] }) {
         (u) => !excludeRoles.includes((u.role || "").toLowerCase()),
       );
     }
-    // Apply role filter
-    if (roleFilter) {
-      result = result.filter(
-        (u) => (u.role || "").toLowerCase() === roleFilter.toLowerCase(),
-      );
-    }
     return result;
-  }, [users, roleFilter, excludeRoles]);
+  }, [users, excludeRoles]);
 
   // Modal state
   const [lockModal, setLockModal] = useState(null); // { userId, userName, currentStatus }
@@ -81,9 +72,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (searchTerm) params.search = searchTerm;
-      const result = await api.users.list(params);
+      const result = await api.users.list();
       setUsers(Array.isArray(result) ? result : result?.data || []);
     } catch (err) {
       setError(err.message || "Unable to load user list.");
@@ -91,7 +80,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -143,20 +132,25 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "User",
       render: (val, row) => (
         <div>
-          <p className="text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-foreground">
             {val || row.name || "—"}
           </p>
-          <p className="text-xs text-gray-500">{row.email || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
         </div>
       ),
     },
     {
       key: "role",
       label: "Role",
+      filterOptions: [
+        { label: "Client", value: "client" },
+        { label: "Expert", value: "expert" },
+        { label: "Admin", value: "admin" },
+      ],
       render: (val) => (
         <span
           className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            ROLE_COLORS[val?.toLowerCase()] || "bg-gray-100 text-gray-700"
+            ROLE_COLORS[val?.toLowerCase()] || "bg-secondary text-foreground/80"
           }`}
         >
           {val || "—"}
@@ -166,6 +160,10 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "status",
       label: "Status",
+      filterOptions: [
+        { label: "Active", value: "active" },
+        { label: "Locked", value: "suspended" }, // maps to suspended/locked
+      ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
       ),
@@ -174,7 +172,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       key: "createdAt",
       label: "Joined",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -185,15 +183,13 @@ export function AdminUsers({ excludeRoles = [] }) {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/dashboard" className="mb-4">
-        Back to Dashboard
-      </BackButton>
+    <div className="space-y-6">
+      
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         User Management
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage platform users.
       </p>
 
@@ -209,39 +205,11 @@ export function AdminUsers({ excludeRoles = [] }) {
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
-          >
-            {ROLE_FILTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <DataTable
         columns={columns}
         data={filteredUsers}
         loading={loading}
-        emptyMessage={roleFilter ? `No users found with role "${ROLE_FILTER_OPTIONS.find(o => o.value === roleFilter)?.label || roleFilter}".` : "No users found."}
+        emptyMessage="No users found."
         actions={(row) => {
           // Don't allow locking owner accounts
           if (row.role?.toLowerCase() === "owner") return null;

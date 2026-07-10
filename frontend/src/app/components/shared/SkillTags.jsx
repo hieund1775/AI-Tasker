@@ -24,7 +24,7 @@ export function SkillTags({ skills, maxVisible = 4 }) {
       {visible.map((skill) => (
         <span
           key={skill}
-          className="px-2.5 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
+          className="px-2.5 py-0.5 bg-secondary text-muted-foreground rounded-md text-xs font-medium"
         >
           {skill}
         </span>
@@ -33,7 +33,7 @@ export function SkillTags({ skills, maxVisible = 4 }) {
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="px-2.5 py-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-0.5"
+          className="px-2.5 py-0.5 bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground rounded-md text-xs font-medium transition-colors inline-flex items-center gap-0.5"
           title={`Show ${hiddenCount} more skill${hiddenCount > 1 ? "s" : ""}`}
         >
           +{hiddenCount}
@@ -43,7 +43,7 @@ export function SkillTags({ skills, maxVisible = 4 }) {
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="px-2.5 py-0.5 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 rounded-md text-xs font-medium transition-colors inline-flex items-center gap-0.5"
+          className="px-2.5 py-0.5 bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-foreground rounded-md text-xs font-medium transition-colors inline-flex items-center gap-0.5"
           title="Collapse"
         >
           <ChevronDown className="w-3 h-3" /> Collapse

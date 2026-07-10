@@ -14,44 +14,44 @@ import api from "../../services/api.js";
 
 function decodeJwtPayload(token) {
   try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (!token) return null;
+
+    // Support the backend's mock token format: mock-jwt-token-for-{guid}
+    if (token.startsWith("mock-jwt-token-for-")) {
+      const guid = token.substring("mock-jwt-token-for-".length);
+      return {
+        sub: guid,
+        role: "client", // Fallback role, will be overridden by storedUser if available
+        exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // Mock 30 days
+      };
+    }
+
+    const parts = token?.split(".");
+    if (!parts || parts.length !== 3) {
+      return null;
+    }
     const payload = parts[1];
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = base64.length % 4;
+    const padded = pad ? base64 + "=".repeat(4 - pad) : base64;
+    
+    const binary = atob(padded);
+    const json = decodeURIComponent(escape(binary));
     const decoded = JSON.parse(json);
-    if (decoded.exp && Date.now() >= decoded.exp * 1000) return null;
+    
+    // Allow up to 12 hours clock skew or expired token to be restored.
+    // The backend API calls will reject expired tokens with 401 anyway,
+    // which will log the user out cleanly. This prevents local clock drift from breaking F5.
+    if (decoded.exp && (Date.now() - 12 * 60 * 60 * 1000) >= decoded.exp * 1000) {
+      return null;
+    }
     return decoded;
-  } catch {
+  } catch (e) {
+    console.error("JWT Decode error:", e);
     return null;
   }
 }
 
-function createDemoToken(payload) {
-  const header = { alg: "HS256", typ: "JWT" };
-  const nowInSeconds = Math.floor(Date.now() / 1000);
-  const body = {
-    sub: payload.sub || `user-${Date.now()}`,
-    email: payload.email,
-    role: payload.role,
-    name: payload.name || payload.email?.split("@")[0] || "",
-    iat: nowInSeconds,
-    exp: nowInSeconds + 24 * 60 * 60,
-  };
-  const encode = (obj) =>
-    btoa(JSON.stringify(obj))
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_")
-      .replace(/=+$/, "");
-  return `${encode(header)}.${encode(body)}.demo-signature`;
-}
-
-function demoRoleFromEmail(email) {
-  const lower = email.toLowerCase();
-  if (lower.includes("owner")) return "owner";
-  if (lower.includes("admin")) return "admin";
-  if (lower.includes("expert")) return "expert";
-  return "client";
-}
 
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 const USER_STORAGE_KEY = "aitasker_user_info";
@@ -141,8 +141,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const storedUser = localStorage.getItem(USER_STORAGE_KEY);
+      const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+      const storedUser = sessionStorage.getItem(USER_STORAGE_KEY);
 
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -150,20 +150,25 @@ export function AuthProvider({ children }) {
       }
       const payload = decodeJwtPayload(storedToken);
       if (!payload) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(USER_STORAGE_KEY);
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return;
       }
       let user = null;
       if (storedUser) {
         user = JSON.parse(storedUser);
+        if (user) {
+          const rawRole = user.role || user.Role || "";
+          user.role = rawRole ? rawRole.toLowerCase() : "client";
+          user.id = user.id || user.Id || "";
+        }
       } else {
         user = {
           id: payload.sub,
           email: payload.email,
           name: payload.name,
-          role: payload.role,
+          role: payload.role ? payload.role.toLowerCase() : "client",
           hasProfile: true,
         };
       }
@@ -172,16 +177,16 @@ export function AuthProvider({ children }) {
         payload: { token: storedToken, user },
       });
     } catch {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   }, []);
 
   useEffect(() => {
     function handleUnauthorized() {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
     window.addEventListener("auth:unauthorized", handleUnauthorized);
@@ -190,7 +195,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
     let finalUser = user;
     if (!finalUser) {
       const payload = decodeJwtPayload(token);
@@ -199,11 +204,13 @@ export function AuthProvider({ children }) {
           id: payload.sub,
           email: payload.email,
           name: payload.name,
-          role: payload.role,
+          role: payload.role ? payload.role.toLowerCase() : "client",
           hasProfile: true,
         };
+    } else if (finalUser && finalUser.role) {
+      finalUser.role = finalUser.role.toLowerCase();
     }
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
     dispatch({
       type: AUTH_ACTIONS.LOGIN_SUCCESS,
       payload: { token, user: finalUser, usingDemo },
@@ -211,65 +218,35 @@ export function AuthProvider({ children }) {
     return finalUser;
   }, []);
 
-  // Resolved at module load time — constant for the session.
-  const USE_DEMO_AUTH = import.meta.env.VITE_USE_DEMO_AUTH === "true";
-
   const login = useCallback(
     async (email, password) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
-
-      // -------------------------------------------------------------------
-      // DEMO AUTH MODE — skip backend API entirely, resolve immediately
-      // -------------------------------------------------------------------
-      if (USE_DEMO_AUTH) {
-        if (!email || !password) {
-          const msg = "Email and password are required.";
-          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: msg });
-          throw new Error(msg);
-        }
-        if (password.length < 3) {
-          const msg = "Password must be at least 3 characters.";
-          dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: msg });
-          throw new Error(msg);
-        }
-        const role = demoRoleFromEmail(email);
-        const token = createDemoToken({
-          email,
-          role,
-          name: email.split("@")[0],
-        });
-        const userObj = {
-          role,
-          email,
-          name: email.split("@")[0],
-          hasProfile: true,
-        };
-        return handleAuthSuccess(token, userObj, true);
-      }
-
       // -------------------------------------------------------------------
       // REAL API MODE — call backend, no demo fallback
       // -------------------------------------------------------------------
       try {
         const response = await apiLogin(email, password);
         const roleFromResponse =
-          response.user?.role || response.role || "client";
+          response.user?.role || response.user?.Role || response.role || response.Role || "client";
         const normalizedRole = roleFromResponse.toLowerCase();
         let hasCompletedProfile = true;
 
-        if (normalizedRole === "expert") {
+        const userId = response.user?.id || response.user?.Id || response.userId || response.UserId;
+
+        if (normalizedRole === "expert" && userId) {
           try {
-            const userDetails = await api.users.getById(response.user?.id || response.userId);
+            const userDetails = await api.users.getById(userId);
             hasCompletedProfile = !!(userDetails && userDetails.expertProfile);
           } catch (_err) {
             hasCompletedProfile = false;
           }
         }
         const userObj = {
-          id: response.user?.id || response.userId,
+          id: userId,
           role: normalizedRole,
           email: email,
-          name: response.user?.fullName || response.user?.name || email.split("@")[0],
+          name: response.user?.fullName || response.user?.FullName || response.user?.name || response.user?.Name || email.split("@")[0],
+          phoneNumber: response.user?.phoneNumber || response.user?.PhoneNumber || response.phoneNumber || response.PhoneNumber || "",
           hasProfile: hasCompletedProfile,
         };
         return handleAuthSuccess(response.token, userObj, false);
@@ -286,10 +263,10 @@ export function AuthProvider({ children }) {
   );
 
   const register = useCallback(
-    async ({ name, email, password, confirmPassword, role }) => {
+    async ({ name, email, phoneNumber, password, confirmPassword, role }) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       try {
-        await apiRegister({ name, email, password, role });
+        await apiRegister({ name, email, phoneNumber, password, role });
         dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return true;
@@ -315,7 +292,7 @@ export function AuthProvider({ children }) {
       try {
         await api.auth.completeProfile(state.user?.id, profileData);
         const updatedUser = { ...state.user, hasProfile: true };
-        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+        sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
@@ -333,8 +310,8 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem(USER_STORAGE_KEY);
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    sessionStorage.removeItem(USER_STORAGE_KEY);
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 

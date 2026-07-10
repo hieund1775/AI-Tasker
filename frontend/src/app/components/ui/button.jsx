@@ -3,30 +3,30 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils.js";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive select-none",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-150 select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 aria-invalid:ring-destructive/20 aria-invalid:border-destructive active:scale-[0.98] hover:scale-[1.02]",
   {
     variants: {
       variant: {
         default:
-          "bg-brand-primary text-white hover:bg-brand-primary-hover active:bg-brand-primary shadow-sm",
+          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-none",
         destructive:
-          "bg-destructive text-white hover:bg-red-700 active:bg-red-800 shadow-sm",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/85 shadow-none",
         outline:
-          "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100",
+          "border border-border bg-transparent text-foreground hover:bg-secondary",
         secondary:
-          "bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300",
+          "bg-secondary text-secondary-foreground hover:bg-muted",
         success:
-          "bg-brand-green text-white hover:bg-brand-green/90 active:bg-brand-green/80 shadow-sm",
+          "bg-success text-success-foreground hover:bg-success/85 shadow-none",
         ghost:
-          "text-gray-600 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200",
-        link: "text-brand-primary underline-offset-4 hover:underline",
+          "text-muted-foreground hover:text-foreground hover:bg-secondary",
+        link: "text-accent underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-10 rounded-[14px] gap-1.5 px-4 text-sm",
-        default: "h-11 rounded-[14px] gap-2 px-5 text-base",
-        lg: "h-12 rounded-2xl gap-2 px-6 text-base",
-        xl: "h-[52px] rounded-2xl gap-2.5 px-7 text-base",
-        icon: "size-11 rounded-[14px]",
+        sm: "h-8 rounded-lg gap-1.5 px-3 text-xs",
+        default: "h-9 rounded-lg gap-2 px-4 text-sm",
+        lg: "h-10 rounded-lg gap-2 px-5 text-sm",
+        xl: "h-11 rounded-xl gap-2.5 px-6 text-sm",
+        icon: "size-9 rounded-lg",
       },
     },
     defaultVariants: {
@@ -53,7 +53,7 @@ function Button({
       className={cn(
         buttonVariants({ variant, size, className }),
         fullWidth && "w-full",
-        loading && "cursor-wait"
+        loading && "cursor-wait opacity-70"
       )}
       disabled={props.disabled || loading}
       {...props}

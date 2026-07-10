@@ -10,221 +10,112 @@ import {
   X,
 } from "lucide-react";
 import { AIFileUploadZone } from "./AIFileUploadZone.jsx";
+import { AIProjectIllustration } from "../shared/illustrations/AIProjectIllustration.jsx";
+import api from "../../../services/api.js";
 
-// =============================================================================
-// Mock AI — simulates an AI response that generates task/milestone structures.
-// Replace with real API call when backend is available.
-// =============================================================================
+function parseMiniTasksFromText(text, clientUseCases = []) {
+  if (!text) return [];
+  const lines = text.split("\n");
+  
+  const planUseCases = (clientUseCases || []).map(uc => {
+    return {
+      useCaseId: uc.id,
+      useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+      tasks: [
+        {
+          taskId: uc.id,
+          taskTitle: uc.title || uc.nameAndDeadline || "Task",
+          miniTasks: []
+        }
+      ]
+    };
+  });
 
-function generateId() {
-  return `ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
+  if (planUseCases.length === 0) return [];
 
-function buildMockPlan(userMessage, fileNames) {
-  const msg = (userMessage || "").toLowerCase();
-  const hasFiles = fileNames.length > 0;
-  const fileContext = hasFiles ? fileNames.join(", ") : "";
+  let currentUseCaseIndex = 0;
 
-  let tasks = [
-    {
-      id: generateId(),
-      title: "Requirement Analysis",
-      miniTasks: [
-        { id: generateId(), title: "Gather and document requirements" },
-        { id: generateId(), title: "Define project scope" },
-        { id: generateId(), title: "Prepare technical specification" },
-      ],
-    },
-    {
-      id: generateId(),
-      title: "Backend Development",
-      miniTasks: [
-        { id: generateId(), title: "Database design & schema creation" },
-        { id: generateId(), title: "API development & documentation" },
-        { id: generateId(), title: "Authentication & authorization" },
-      ],
-    },
-    {
-      id: generateId(),
-      title: "Frontend Development",
-      miniTasks: [
-        { id: generateId(), title: "UI component implementation" },
-        { id: generateId(), title: "API integration & state management" },
-        { id: generateId(), title: "Responsive design & cross-browser testing" },
-      ],
-    },
-    {
-      id: generateId(),
-      title: "Testing & Deployment",
-      miniTasks: [
-        { id: generateId(), title: "Unit & integration testing" },
-        { id: generateId(), title: "Performance optimization" },
-        { id: generateId(), title: "Deployment & go-live" },
-      ],
-    },
-  ];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
 
-  if (msg.includes("react") || msg.includes("frontend") || msg.includes("ui")) {
-    tasks = [
-      {
-        id: generateId(),
-        title: "Project Setup & Architecture",
-        miniTasks: [
-          { id: generateId(), title: "Initialize React project with Vite" },
-          { id: generateId(), title: "Set up routing & folder structure" },
-          { id: generateId(), title: "Configure Tailwind & design tokens" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "UI Development",
-        miniTasks: [
-          { id: generateId(), title: "Build reusable component library" },
-          { id: generateId(), title: "Implement page layouts & navigation" },
-          { id: generateId(), title: "Add animations & micro-interactions" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "State Management & API Integration",
-        miniTasks: [
-          { id: generateId(), title: "Set up API service layer" },
-          { id: generateId(), title: "Implement data fetching & caching" },
-          { id: generateId(), title: "Add form validation & error handling" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Testing & Launch",
-        miniTasks: [
-          { id: generateId(), title: "Write component & integration tests" },
-          { id: generateId(), title: "Performance audit & optimization" },
-          { id: generateId(), title: "Production build & deployment" },
-        ],
-      },
-    ];
-  }
+    let foundUseCaseMatch = false;
+    for (let i = 0; i < planUseCases.length; i++) {
+      const ucTitle = planUseCases[i].useCaseTitle.toLowerCase();
+      if (trimmed.toLowerCase().includes(ucTitle) || ucTitle.includes(trimmed.toLowerCase())) {
+        currentUseCaseIndex = i;
+        foundUseCaseMatch = true;
+        break;
+      }
+    }
 
-  if (msg.includes("api") || msg.includes("backend") || msg.includes("node") || msg.includes("express") || msg.includes("database")) {
-    tasks = [
-      {
-        id: generateId(),
-        title: "Database Design",
-        miniTasks: [
-          { id: generateId(), title: "Design ERD & schema models" },
-          { id: generateId(), title: "Set up migrations & seeders" },
-          { id: generateId(), title: "Implement database indexes & optimization" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "API Development",
-        miniTasks: [
-          { id: generateId(), title: "Build RESTful endpoint structure" },
-          { id: generateId(), title: "Implement middleware & validation" },
-          { id: generateId(), title: "Add authentication (JWT/OAuth)" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Business Logic & Services",
-        miniTasks: [
-          { id: generateId(), title: "Implement core business rules" },
-          { id: generateId(), title: "Add file upload & storage" },
-          { id: generateId(), title: "Email/notification integration" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Testing & DevOps",
-        miniTasks: [
-          { id: generateId(), title: "Write unit & e2e tests" },
-          { id: generateId(), title: "Set up CI/CD pipeline" },
-          { id: generateId(), title: "Dockerize & deploy" },
-        ],
-      },
-    ];
-  }
+    if (foundUseCaseMatch) continue;
 
-  if (msg.includes("mobile") || msg.includes("app") || msg.includes("ios") || msg.includes("android")) {
-    tasks = [
-      {
-        id: generateId(),
-        title: "UI/UX Design",
-        miniTasks: [
-          { id: generateId(), title: "Create wireframes & prototypes" },
-          { id: generateId(), title: "Design component system" },
-          { id: generateId(), title: "User flow & navigation design" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Core Development",
-        miniTasks: [
-          { id: generateId(), title: "Set up project architecture" },
-          { id: generateId(), title: "Implement navigation & routing" },
-          { id: generateId(), title: "Build core feature screens" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Backend Integration",
-        miniTasks: [
-          { id: generateId(), title: "API integration layer" },
-          { id: generateId(), title: "Offline data & sync" },
-          { id: generateId(), title: "Push notifications" },
-        ],
-      },
-      {
-        id: generateId(),
-        title: "Testing & Release",
-        miniTasks: [
-          { id: generateId(), title: "Unit & UI testing" },
-          { id: generateId(), title: "Beta testing & bug fixes" },
-          { id: generateId(), title: "App Store submission" },
-        ],
-      },
-    ];
-  }
-
-  if (msg.includes("30") && (msg.includes("day") || msg.includes("sprint"))) {
-    tasks.push({
-      id: generateId(),
-      title: "Deployment & Handover",
-      miniTasks: [
-        { id: generateId(), title: "Staging environment setup" },
-        { id: generateId(), title: "Production deployment" },
-        { id: generateId(), title: "Documentation & knowledge transfer" },
-      ],
-    });
-  }
-
-  if (msg.includes("split") && msg.includes("backend")) {
-    const backendIdx = tasks.findIndex((t) => t.title.toLowerCase().includes("backend"));
-    if (backendIdx >= 0) {
-      const backend = tasks[backendIdx];
-      const mid = Math.ceil(backend.miniTasks.length / 2);
-      tasks.splice(backendIdx, 1, {
-        id: generateId(),
-        title: "Backend — Part 1",
-        miniTasks: backend.miniTasks.slice(0, mid),
-      });
-      tasks.splice(backendIdx + 1, 0, {
-        id: generateId(),
-        title: "Backend — Part 2",
-        miniTasks: backend.miniTasks.slice(mid).length > 0 ? backend.miniTasks.slice(mid) : [{ id: generateId(), title: "Remaining backend work" }],
-      });
+    if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•") || /^\d+[\.\)]/.test(trimmed)) {
+      const cleanTitle = trimmed.replace(/^[-*•\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+      if (cleanTitle.length > 2) {
+        const currentUC = planUseCases[currentUseCaseIndex];
+        if (currentUC && currentUC.tasks && currentUC.tasks[0]) {
+          currentUC.tasks[0].miniTasks.push({
+            id: `mt-ai-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            title: cleanTitle,
+            description: ""
+          });
+        }
+      }
     }
   }
 
-  const totalTasks = tasks.length;
-  const totalMilestones = tasks.reduce((sum, t) => sum + t.miniTasks.length, 0);
+  const totalParsed = planUseCases.reduce((sum, uc) => sum + uc.tasks[0].miniTasks.length, 0);
+  if (totalParsed === 0) {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•")) {
+        const cleanTitle = trimmed.replace(/^[-*•\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+        if (cleanTitle.length > 2) {
+          planUseCases[0].tasks[0].miniTasks.push({
+            id: `mt-ai-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            title: cleanTitle,
+            description: ""
+          });
+        }
+      }
+    }
+  }
 
-  let summary = `Generated ${totalTasks} tasks with ${totalMilestones} milestones.`;
-  if (hasFiles) summary += ` Analyzed ${fileContext}.`;
-  summary += " Review and apply to populate your timeline.";
+  return planUseCases;
+}
 
-  return { tasks, summary };
+// =============================================================================
+function mapPayloadToProposalFormat(payload, clientUseCases = []) {
+  if (!Array.isArray(payload)) return [];
+  return payload.map((task, idx) => {
+    let matchedUseCase = clientUseCases[0];
+    const taskTitleLower = (task.Title || task.title || "").toLowerCase();
+    for (const uc of clientUseCases) {
+      const ucTitleLower = (uc.title || uc.nameAndDeadline || "").toLowerCase();
+      if (taskTitleLower.includes(ucTitleLower) || ucTitleLower.includes(taskTitleLower)) {
+        matchedUseCase = uc;
+        break;
+      }
+    }
+    const useCaseId = matchedUseCase?.id || `uc-fb-${Date.now()}-${idx}`;
+    const useCaseTitle = matchedUseCase?.title || matchedUseCase?.nameAndDeadline || task.Title || task.title || "Use Case";
+    return {
+      useCaseId,
+      useCaseTitle,
+      tasks: [
+        {
+          taskId: useCaseId,
+          taskTitle: useCaseTitle,
+          miniTasks: (task.MiniTasks || task.miniTasks || []).map(mt => ({
+            title: mt.Title || mt.title || "",
+            description: `Estimated Duration: ${mt.Duration || mt.duration || 1} days`
+          }))
+        }
+      ]
+    };
+  });
 }
 
 // =============================================================================
@@ -233,18 +124,20 @@ function buildMockPlan(userMessage, fileNames) {
 
 /**
  * Props:
- *   onClose       — callback to close the panel
- *   projectInfo   — { title, category } for context
- *   onApplyTasks  — callback(tasks[]) when user clicks "Apply Plan"
- *   existingTasks — current tasks in the form
+ *   onClose        — callback to close the panel
+ *   projectInfo    — { title, category } for context
+ *   onApplyTasks   — callback(tasks[]) when user clicks "Apply MiniTasks"
+ *   existingTasks  — current tasks in the form
+ *   clientUseCases — [{ id, title, tasks: [{id, title}] }] from the job post
  */
-export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [] }) {
+export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [], jobPostId, expertId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState([]);
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [contextSummary, setContextSummary] = useState("");
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -254,57 +147,191 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
+  // Load chat history on mount
+  useEffect(() => {
+    if (!jobPostId || !expertId) return;
+    const loadHistory = async () => {
+      try {
+        const history = await api.ai.getExpertAiChatHistory(jobPostId, expertId);
+        if (history && history.length > 0) {
+          const loadedMsgs = [];
+          history.forEach(item => {
+            loadedMsgs.push({ role: "user", text: item.message, timestamp: new Date(item.createdAt).getTime() });
+            loadedMsgs.push({ role: "ai", text: item.aiReply, timestamp: new Date(item.createdAt).getTime() });
+          });
+          setMessages(loadedMsgs);
+        }
+      } catch (err) {
+        console.error("Failed to load chat history:", err);
+      }
+    };
+    loadHistory();
+  }, [jobPostId, expertId]);
+
   // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedPlan]);
 
   // ── Send message ──
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed && files.length === 0) return;
+    if (loading) return;
 
-    const userMsg = { role: "user", text: trimmed, timestamp: Date.now() };
+    const userMsgText = trimmed || (files.length > 0 ? `Tải lên tài liệu: ${files[0].name}` : "");
+    const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setLoading(true);
 
-    setTimeout(() => {
-      const fileNames = files.map((f) => f.name);
-      const plan = buildMockPlan(trimmed, fileNames);
+    try {
+      let uploadedFilePath = null;
+      if (files.length > 0) {
+        try {
+          const uploadRes = await api.ai.uploadChatFile(files[0]);
+          uploadedFilePath = uploadRes?.file_path || uploadRes?.filePath || null;
+        } catch (uploadErr) {
+          console.warn("File upload failed, sending without file...", uploadErr);
+        }
+      }
+
+      // Build messages history matching C# AIMessageDto
+      const historyPayload = messages.map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text
+      }));
+      historyPayload.push({ role: "user", content: userMsgText });
+
+      // Call general backend AiChat endpoint matching C# AIChatRequest
+      const response = await api.ai.sendSession({
+        messages_history: historyPayload,
+        context_summary: contextSummary || "",
+        file_path: uploadedFilePath || "",
+        current_draft: {
+          jobPostId: jobPostId,
+          expertId: expertId,
+          projectTitle: projectInfo?.title || ""
+        }
+      });
+      setFiles([]);
+
+      const chatMessage = response?.chat_message || response?.ChatMessage || "";
+      const payload = response?.payload || response?.Payload;
+      const newContextSummary = response?.context_summary || response?.ContextSummary || "";
+
+      // Save context_summary to maintain chat memory
+      setContextSummary(newContextSummary);
+
+      let parsedUseCases = [];
+      if (payload && Array.isArray(payload)) {
+        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases);
+      }
+
+      const plan = parsedUseCases.length > 0 ? {
+        useCases: parsedUseCases,
+        summary: "Phân rã kế hoạch thành công."
+      } : null;
+
       setGeneratedPlan(plan);
       setApplied(false);
 
-      const aiMsg = { role: "ai", text: plan.summary, plan, timestamp: Date.now() };
+      const aiMsg = { 
+        role: "ai", 
+        text: chatMessage || (plan ? "Kế hoạch đã được sinh thành công." : "Đã nhận phản hồi từ AI."), 
+        plan, 
+        timestamp: Date.now() 
+      };
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("AI backend call failed:", err);
+      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const aiMsg = {
+        role: "ai",
+        text: `❌ Có lỗi xảy ra khi gọi AI: ${errMsg}\nVui lòng thử lại sau.`,
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setLoading(false);
-    }, 1200 + Math.random() * 800);
-  }, [input, loading, files]);
+    }
+  }, [input, loading, files, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
 
   // ── Apply plan ──
   const handleApply = useCallback(() => {
-    if (generatedPlan?.tasks) {
-      onApplyTasks(generatedPlan.tasks);
-      setApplied(true);
+    if (generatedPlan?.useCases) {
+      const result = onApplyTasks({ useCases: generatedPlan.useCases });
+      if (result && result.updatedCount > 0) {
+        setApplied(true);
+      }
     }
   }, [generatedPlan, onApplyTasks]);
 
   // ── Regenerate ──
-  const handleRegenerate = useCallback(() => {
+  const handleRegenerate = useCallback(async () => {
+    const userMsgs = messages.filter(m => m.role === "user");
+    const lastUserMsg = userMsgs[userMsgs.length - 1];
+    if (!lastUserMsg) return;
+
     setLoading(true);
     setGeneratedPlan(null);
     setApplied(false);
 
-    setTimeout(() => {
-      const fileNames = files.map((f) => f.name);
-      const plan = buildMockPlan(messages.map((m) => m.text).join(" "), fileNames);
-      setGeneratedPlan(plan);
+    try {
+      const historyPayload = messages.map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text
+      }));
 
-      const aiMsg = { role: "ai", text: "Regenerated plan:\n\n" + plan.summary, plan, timestamp: Date.now() };
+      const response = await api.ai.sendSession({
+        messages_history: historyPayload,
+        context_summary: contextSummary || "",
+        current_draft: {
+          jobPostId: jobPostId,
+          expertId: expertId,
+          projectTitle: projectInfo?.title || ""
+        }
+      });
+
+      const chatMessage = response?.chat_message || response?.ChatMessage || "";
+      const payload = response?.payload || response?.Payload;
+      const newContextSummary = response?.context_summary || response?.ContextSummary || "";
+
+      setContextSummary(newContextSummary);
+
+      let parsedUseCases = [];
+      if (payload && Array.isArray(payload)) {
+        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases);
+      }
+
+      const plan = parsedUseCases.length > 0 ? {
+        useCases: parsedUseCases,
+        summary: "Kế hoạch đã được sinh lại thành công."
+      } : null;
+
+      setGeneratedPlan(plan);
+      setApplied(false);
+
+      const aiMsg = { 
+        role: "ai", 
+        text: chatMessage || "Kế hoạch đã được cập nhật.", 
+        plan, 
+        timestamp: Date.now() 
+      };
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("AI regenerate failed:", err);
+      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const aiMsg = {
+        role: "ai",
+        text: `❌ Có lỗi khi sinh lại kế hoạch: ${errMsg}\nVui lòng thử lại sau.`,
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setLoading(false);
-    }, 1000 + Math.random() * 600);
-  }, [messages, files]);
+    }
+  }, [messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
 
   // ── File upload handler ──
   const handleFilesChange = useCallback((newFiles) => {
@@ -322,17 +349,17 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
   return (
     <div className="h-full flex flex-col">
       {/* ── Header ── */}
-      <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-4 py-3">
+      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3">
         <div>
-          <h2 className="text-sm font-bold text-gray-900">🤖 AI Project Planner</h2>
-          <p className="text-xs text-gray-500 mt-0.5 font-medium">
-            Chat with AI to generate Tasks &amp; Milestones
+          <h2 className="text-sm font-bold text-foreground">🤖 AI MiniTask Planner</h2>
+          <p className="text-xs text-muted-foreground mt-0.5 font-medium">
+            Generate MiniTasks under existing Client Tasks
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-gray-400 hover:text-gray-600 font-semibold transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
         >
           Close
         </button>
@@ -340,7 +367,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       {/* ── Upload Requirements ── */}
       <div className="shrink-0 px-4 py-3">
-        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
           📎 Upload Requirements
         </p>
         <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
@@ -350,29 +377,29 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
         {/* Divider */}
         <div className="flex items-center gap-2">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span className="text-xs text-gray-400 font-medium">Chat</span>
-          <div className="flex-1 h-px bg-gray-200" />
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-medium">Chat</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
         {/* Messages */}
         <div className="space-y-3">
           {messages.length === 0 && !loading && (
             <div className="text-center py-8">
-              <MessageSquare className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Ask AI to generate your project plan.</p>
-              <p className="text-sm text-gray-300 mt-1">Try: "Generate tasks for a React project"</p>
+              <AIProjectIllustration size="sm" className="mx-auto mb-3" />
+              <MessageSquare className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Ask AI to generate your project plan.</p>
+              <p className="text-sm text-muted-foreground/60 mt-1">Try: "Generate MiniTasks for all use cases"</p>
             </div>
           )}
 
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-brand-primary text-white rounded-br-md"
-                    : "bg-gray-100 text-gray-800 rounded-bl-md"
-                }`}
+                className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${msg.role === "user"
+                    ? "bg-gradient-to-br from-primary to-primary-hover text-primary-foreground rounded-br-md"
+                    : "bg-secondary text-secondary-foreground rounded-bl-md border border-border/50"
+                  }`}
               >
                 <p className="whitespace-pre-wrap">{msg.text}</p>
               </div>
@@ -381,10 +408,10 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-xl rounded-bl-md px-4 py-3">
+              <div className="bg-secondary rounded-xl rounded-bl-md px-4 py-3 border border-border/50">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
-                  <span className="text-sm text-gray-500">Analyzing...</span>
+                  <span className="text-sm text-muted-foreground">Analyzing...</span>
                 </div>
               </div>
             </div>
@@ -395,39 +422,31 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
         {/* Generated Plan Preview */}
         {generatedPlan && (
-          <div className="bg-gradient-to-br from-brand-primary-light/20 to-white rounded-xl border border-brand-primary/20 p-4 space-y-3 shrink-0">
+          <div className="bg-gradient-to-br from-accent/8 via-accent/4 to-card rounded-xl border border-accent/15 p-4 space-y-3 shrink-0">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand-primary" />
-              <span className="text-sm font-semibold text-brand-primary">AI Generated Plan</span>
+              <Sparkles className="w-4 h-4 text-accent" />
+              <span className="text-sm font-semibold text-accent">AI Generated MiniTasks</span>
             </div>
 
-            <div className="flex items-center gap-3 text-sm">
-              <span className="inline-flex items-center gap-1 text-gray-700">
-                <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                {generatedPlan.tasks.length} Tasks
-              </span>
-              <span className="inline-flex items-center gap-1 text-gray-700">
-                <FileText className="w-3.5 h-3.5 text-amber-500" />
-                {generatedPlan.tasks.reduce((s, t) => s + t.miniTasks.length, 0)} Milestones
-              </span>
-            </div>
-
-            <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
-              {generatedPlan.tasks.slice(0, 4).map((task, idx) => (
-                <div key={task.id} className="text-sm">
-                  <p className="font-semibold text-gray-800">{idx + 1}. {task.title}</p>
-                  <div className="pl-5 space-y-0.5 mt-0.5">
-                    {task.miniTasks.slice(0, 3).map((m) => (
-                      <p key={m.id} className="text-xs text-gray-500">• {m.title}</p>
-                    ))}
-                    {task.miniTasks.length > 3 && (
-                      <p className="text-xs text-gray-400">+{task.miniTasks.length - 3} more</p>
-                    )}
-                  </div>
+            <div className="space-y-3 max-h-[240px] overflow-y-auto">
+              {generatedPlan.useCases.slice(0, 3).map((uc) => (
+                <div key={uc.useCaseId} className="bg-secondary/40 rounded-lg p-3 space-y-1.5">
+                  <p className="text-xs font-bold text-foreground/70 uppercase tracking-wide">📋 {uc.useCaseTitle}</p>
+                  {uc.tasks.map((t) => (
+                    <div key={t.taskId} className="pl-2 border-l-2 border-accent/20 space-y-0.5">
+                      <p className="text-xs font-semibold text-foreground">{t.taskTitle} <span className="text-muted-foreground font-normal">— {t.miniTasks.length} mini</span></p>
+                      {t.miniTasks.slice(0, 3).map((m) => (
+                        <p key={m.id} className="text-[11px] text-muted-foreground pl-2">• {m.title}</p>
+                      ))}
+                      {t.miniTasks.length > 3 && (
+                        <p className="text-[11px] text-muted-foreground/60 pl-2">+{t.miniTasks.length - 3} more</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               ))}
-              {generatedPlan.tasks.length > 4 && (
-                <p className="text-xs text-gray-400 pl-1">+{generatedPlan.tasks.length - 4} more tasks</p>
+              {generatedPlan.useCases.length > 3 && (
+                <p className="text-xs text-muted-foreground/60 pl-1">+{generatedPlan.useCases.length - 3} more use cases</p>
               )}
             </div>
 
@@ -436,20 +455,19 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
                 type="button"
                 onClick={handleApply}
                 disabled={applied}
-                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] inline-flex items-center gap-1.5 transition-colors ${
-                  applied
-                    ? "bg-green-100 text-green-700 cursor-default"
-                    : "bg-brand-primary text-white hover:bg-brand-primary-hover shadow-sm"
-                }`}
+                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] inline-flex items-center gap-1.5 transition-colors ${applied
+                    ? "bg-success/10 text-success cursor-default"
+                    : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm"
+                  }`}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                {applied ? "Applied ✓" : "Apply Plan"}
+                {applied ? "Applied ✓" : "Apply MiniTasks"}
               </button>
               <button
                 type="button"
                 onClick={handleRegenerate}
                 disabled={loading}
-                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors inline-flex items-center gap-1.5"
+                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] border border-border bg-card text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Regenerate
@@ -457,7 +475,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
               <button
                 type="button"
                 onClick={() => inputRef.current?.focus()}
-                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light transition-colors inline-flex items-center gap-1.5"
+                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] text-accent hover:text-accent-hover hover:bg-accent-light transition-colors inline-flex items-center gap-1.5"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 Continue Chat
@@ -468,7 +486,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       </div>
 
       {/* ── Chat input ── */}
-      <div className="shrink-0 border-t border-gray-100 px-4 py-3">
+      <div className="shrink-0 border-t border-border px-4 py-3">
         <form
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           className="flex items-center gap-2"
@@ -478,14 +496,14 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask AI to generate or modify tasks..."
+            placeholder="Describe technical approach — AI will generate MiniTasks..."
             disabled={loading}
-            className="flex-1 h-10 px-4 border border-gray-300 rounded-[14px] text-sm placeholder:text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary disabled:opacity-50"
+            className="flex-1 h-10 px-4 border border-border rounded-[14px] bg-background text-sm placeholder:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring disabled:opacity-50 transition-shadow"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="h-10 min-h-10 px-4 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover transition-colors inline-flex items-center justify-center gap-1 disabled:opacity-50"
+            className="h-10 min-h-10 px-4 bg-primary text-primary-foreground rounded-[14px] hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1 disabled:opacity-50"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -494,6 +512,3 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     </div>
   );
 }
-
-// Keep backward-compatible named export
-export { AIPlannerPanel as AIPlannerDrawer };

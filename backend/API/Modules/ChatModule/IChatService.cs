@@ -1,7 +1,14 @@
-namespace AITasker_Modular.Modules.ChatModule;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public interface IChatService
+namespace AITasker_Modular.Modules.ChatModule
 {
-    Task<IReadOnlyList<Conversation>> GetConversationsAsync();
-    Task<Message> SendMessageAsync(Message message);
+    public interface IChatService
+    {
+        Task<ConversationResponseDto> GetOrCreateConversationAsync(CreateConversationDto dto);
+        Task<IEnumerable<ConversationResponseDto>> GetUserConversationsAsync(Guid userId);
+        Task<MessageResponseDto> SendMessageAsync(SendMessageDto dto);
+        Task<IEnumerable<MessageResponseDto>> GetConversationMessagesAsync(Guid conversationId);
+    }
 }

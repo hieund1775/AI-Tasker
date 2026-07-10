@@ -2,7 +2,7 @@ import { getStatusBadgeClass, getStatusLabel, getTaskStatusClass, getTaskStatusL
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // =============================================================================
-// StatusBadge — unified status badge for all entity types.
+// StatusBadge — unified status badge for all entity types (modern pill style).
 //
 // Props:
 //   status    — internal status key (e.g. "in_progress", "accepted", "active")
@@ -29,16 +29,16 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
   const config = ENTITY_CONFIG[entity];
 
   if (!config) {
-    // Fallback for entities not yet mapped
     const label = String(status || "Unknown");
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-[13px] font-medium bg-gray-100 text-gray-700 ${className}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground ${className}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
         {label}
       </span>
     );
   }
 
-  let badgeClass = "bg-gray-100 text-gray-700";
+  let badgeClass = "bg-secondary text-muted-foreground";
   let label = status || "Unknown";
 
   if (entity === "proposal") {
@@ -51,7 +51,8 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
   }
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-[13px] font-medium ${badgeClass} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass} ${className}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
       {label}
     </span>
   );

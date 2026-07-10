@@ -12,7 +12,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Edit3, Trash2, Filter } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
@@ -24,7 +23,7 @@ import api from "../../../services/api.js";
 
 const JOB_POST_STATUS_CONFIG = {
   Active: { color: "bg-green-100 text-green-700", label: "Active" },
-  Inactive: { color: "bg-gray-100 text-gray-700", label: "Inactive" },
+  Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
   Closed: { color: "bg-red-100 text-red-700", label: "Closed" },
   Draft: { color: "bg-yellow-100 text-yellow-700", label: "Draft" },
 };
@@ -45,18 +44,8 @@ export function AdminJobPosts() {
   const [jobPosts, setJobPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
-
-  // Frontend status filtering — applied on top of API results
-  const filteredJobPosts = useMemo(() => {
-    if (!statusFilter) return jobPosts;
-    return jobPosts.filter(
-      (j) => (j.status || "Active").toLowerCase() === statusFilter.toLowerCase(),
-    );
-  }, [jobPosts, statusFilter]);
 
   // Modal states
   const [deleteModal, setDeleteModal] = useState(null);
@@ -66,9 +55,7 @@ export function AdminJobPosts() {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (searchTerm) params.search = searchTerm;
-      const result = await api.get("/jobposts", { params });
+      const result = await api.get("/jobposts");
       setJobPosts(Array.isArray(result) ? result : result?.data || []);
     } catch (err) {
       setError(err.message || "Unable to load job posts.");
@@ -76,7 +63,7 @@ export function AdminJobPosts() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchJobPosts();
@@ -133,8 +120,8 @@ export function AdminJobPosts() {
       label: "Title",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-gray-900 text-sm">{val || "—"}</p>
-          <p className="text-xs text-gray-500">
+          <p className="font-medium text-foreground text-sm">{val || "—"}</p>
+          <p className="text-xs text-muted-foreground">
             {row.clientName || row.clientId
               ? `Posted by: ${row.clientName || row.clientId}`
               : ""}
@@ -155,12 +142,18 @@ export function AdminJobPosts() {
       key: "category",
       label: "Category",
       render: (val) => (
-        <span className="text-xs text-gray-600">{val || "—"}</span>
+        <span className="text-xs text-muted-foreground">{val || "—"}</span>
       ),
     },
     {
       key: "status",
       label: "Status",
+      filterOptions: [
+        { value: "Active", label: "Active" },
+        { value: "Inactive", label: "Inactive" },
+        { value: "Closed", label: "Closed" },
+        { value: "Draft", label: "Draft" },
+      ],
       render: (val) => (
         <StatusBadge
           status={val || "Active"}
@@ -172,7 +165,7 @@ export function AdminJobPosts() {
       key: "createdAt",
       label: "Posted",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -180,15 +173,13 @@ export function AdminJobPosts() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/dashboard" className="mb-4">
-        Back to Dashboard
-      </BackButton>
+    <div className="space-y-6">
+      
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         Job Post / Service Management
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage violating job posts and services on the platform.
       </p>
 
@@ -204,43 +195,11 @@ export function AdminJobPosts() {
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by title..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-white"
-          >
-            {JOB_POST_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <DataTable
         columns={columns}
-        data={filteredJobPosts}
+        data={jobPosts}
         loading={loading}
-        emptyMessage={
-          statusFilter
-            ? `No job posts found with status "${JOB_POST_STATUS_OPTIONS.find(o => o.value === statusFilter)?.label || statusFilter}".`
-            : "No job posts found."
-        }
+        emptyMessage="No job posts found."
         actions={(row) => (
           <div className="flex gap-1.5">
             {row.status !== "Closed" && (

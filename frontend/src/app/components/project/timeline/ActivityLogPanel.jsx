@@ -7,6 +7,7 @@
 // =============================================================================
 
 import { getActorIcon as defaultGetActorIcon } from "./timelineHelpers.jsx";
+import { safeArray, safeDateTimeFormat } from "../../../lib/safety.js";
 
 export function ActivityLogPanel({ projectLogs, getActorIcon }) {
   const iconFn = getActorIcon || defaultGetActorIcon;
@@ -14,29 +15,29 @@ export function ActivityLogPanel({ projectLogs, getActorIcon }) {
   if (!projectLogs || projectLogs.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900 mb-5">
+    <div className="bg-card rounded-xl border border-border p-8">
+      <h2 className="text-xl font-semibold text-foreground mb-5">
         Project Activity
       </h2>
       <div className="space-y-4">
-        {projectLogs.map((log, index) => (
+        {safeArray(projectLogs).map((log, index) => (
           <div
             key={`${log.time || log.id}-${index}`}
-            className="flex gap-4 border border-gray-200 rounded-2xl p-4"
+            className="flex gap-4 border border-border rounded-xl p-4"
           >
-            <div className="w-10 h-10 bg-brand-primary-light text-brand-primary rounded-xl flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-primary-light text-primary rounded-xl flex items-center justify-center flex-shrink-0">
               {iconFn(log.actor)}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <p className="font-medium text-gray-900">{log.actor}</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-foreground">{log.actor}</p>
+                <p className="text-sm text-muted-foreground">
                   {log.time
-                    ? new Date(log.time).toLocaleString()
+                    ? safeDateTimeFormat(log.time, {}, "")
                     : ""}
                 </p>
               </div>
-              <p className="text-gray-700 mt-1">{log.message}</p>
+              <p className="text-foreground mt-1">{log.message}</p>
             </div>
           </div>
         ))}

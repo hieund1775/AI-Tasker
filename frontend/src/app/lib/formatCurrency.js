@@ -32,14 +32,11 @@ export function formatCurrency(amount, currency = "USD", locale = "en-US") {
 
   try {
     return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(num);
   } catch {
-    // Fallback for environments that don't support Intl (very unlikely in 2026)
-    return `${currency} ${num.toFixed(2)}`;
+    return String(num);
   }
 }
 

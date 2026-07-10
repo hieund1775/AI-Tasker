@@ -1,4 +1,6 @@
 import { Outlet, useLocation } from "react-router";
+import { motion, AnimatePresence } from "motion/react";
+import { useEffect } from "react";
 import { Header } from "./Header.jsx";
 import { Footer } from "./Footer.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -14,14 +16,43 @@ export function RootLayout() {
   const location = useLocation();
   const { role, isAuthenticated } = useAuth();
 
+  // Tự động đồng bộ giữa các tab khi localStorage thay đổi (status đè, audit logs, ký quỹ) không cần F5
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (!e.key) return;
+      if (
+        e.key.startsWith("project_status_") ||
+        e.key === "aitasker_audit_logs" ||
+        e.key === "escrow_releases" ||
+        e.key === "aitasker_wallet_updated"
+      ) {
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
   // Hide header/footer on standalone auth pages
   const hideHeaderFooter = ["/login", "/signup"].includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {!hideHeaderFooter && <Header />}
       <main className="flex-1">
-        <Outlet />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       {!hideHeaderFooter && <Footer />}
     </div>

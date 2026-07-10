@@ -38,17 +38,17 @@ export function TaskCard({
   return (
     <div
       id={task.id}
-      className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition"
+      className="bg-card rounded-xl border border-border p-6 card-hover"
     >
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
         <div className="flex-1 pr-4">
           <div className="flex items-start gap-4">
-            <div className="w-11 h-11 bg-brand-primary text-white rounded-xl flex items-center justify-center font-semibold flex-shrink-0">
+            <div className="w-11 h-11 bg-gradient-to-br from-primary/15 to-primary/5 text-primary rounded-xl flex items-center justify-center font-semibold flex-shrink-0 border border-primary/10">
               {task.id || "?"}
             </div>
             <div className="flex-1">
               <div className="flex flex-wrap items-center gap-3">
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h3 className="text-lg font-semibold text-foreground">
                   {task.title}
                 </h3>
                 <span
@@ -59,30 +59,30 @@ export function TaskCard({
                   {getTaskStatusLabel(derivedStatus)}
                 </span>
               </div>
-              <p className="text-gray-500 mt-2">{task.description}</p>
+              <p className="text-muted-foreground mt-2">{task.description}</p>
               <div className="flex flex-wrap items-center gap-5 mt-5 text-sm">
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <CheckCircle2 className="w-4 h-4" />
                   {completedMiniTasks}/{totalMiniTasks}{" "}
                   mini tasks
                 </div>
-                <div className="flex items-center gap-2 text-gray-600">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock3 className="w-4 h-4" />
                   {progress}% completed
                 </div>
               </div>
               <div className="mt-4">
-                <div className="w-full max-w-[1280px] bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div className="w-full max-w-[1280px] bg-secondary rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-brand-primary h-2 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-accent to-accent-hover h-2 rounded-full transition-all duration-500"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
               </div>
               {latestLog && (
-                <div className="mt-4 text-sm text-gray-500">
+                <div className="mt-4 text-sm text-muted-foreground">
                   Latest update:{" "}
-                  <span className="text-gray-700 font-medium">
+                  <span className="text-foreground font-medium">
                     {latestLog.message}
                   </span>
                 </div>

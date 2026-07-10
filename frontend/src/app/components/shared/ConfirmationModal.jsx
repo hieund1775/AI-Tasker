@@ -1,20 +1,5 @@
 // =============================================================================
 // ConfirmationModal — reusable confirmation dialog for important actions.
-//
-// Uses Radix AlertDialog (already in the project via ui/alert-dialog.jsx).
-//
-// Props:
-//   open          — boolean, controls visibility
-//   onOpenChange  — (open: boolean) => void
-//   title         — modal title
-//   description   — body text / question
-//   confirmLabel  — text on the confirm button (default "Confirm")
-//   cancelLabel   — text on the cancel button (default "Cancel")
-//   variant       — "danger" | "warning" | "default" (affects confirm button color)
-//   loading       — boolean, shows spinner & disables confirm
-//   onConfirm     — () => void | Promise<void>
-//   onCancel      — () => void (optional)
-//   children      — optional extra content below description (e.g. reason input)
 // =============================================================================
 
 import { useState, useCallback } from "react";
@@ -32,11 +17,11 @@ import { Loader2 } from "lucide-react";
 
 const variantStyles = {
   danger:
-    "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+    "bg-destructive text-destructive-foreground hover:bg-destructive/85",
   warning:
-    "bg-yellow-600 text-white hover:bg-yellow-700 focus:ring-yellow-500",
+    "bg-warning text-warning-foreground hover:bg-warning/85",
   default:
-    "bg-brand-primary text-white hover:bg-brand-primary-hover focus:ring-brand-primary/50",
+    "bg-primary text-primary-foreground hover:bg-primary-hover",
 };
 
 export function ConfirmationModal({
@@ -58,7 +43,7 @@ export function ConfirmationModal({
   const handleConfirm = useCallback(
     async (e) => {
       e.preventDefault();
-      if (isLoading) return; // spam-click prevention
+      if (isLoading) return;
       setInternalLoading(true);
       try {
         await onConfirm?.();
