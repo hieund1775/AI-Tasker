@@ -14,6 +14,9 @@ import {
   BarChart3,
   TrendingUp,
   Wallet,
+  AlertTriangle,
+  XCircle,
+  Star,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -26,12 +29,14 @@ export function ExpertProfile() {
 
   const [expert, setExpert] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [stats, setStats] = useState({
-    active: 0,
     completed: 0,
-    earned: 0,
-    pending: 0,
-    successRate: 0,
+    cancel: 0,
+    report: 0,
+    success: "0",
+    evaluate: 0,
   });
 
   useEffect(() => {
@@ -84,23 +89,93 @@ export function ExpertProfile() {
               bio: profile.bio || "",
               jobTitle: profile.jobTitle || "AI Expert",
               hourlyRate: profile.hourlyRate || localProfile.hourlyRate || 0,
+              portfolioUrls: profile.portfolioUrls || profile.PortfolioUrls || localProfile.portfolioUrls || "",
             }
           });
 
           const allProjects = apiUser.projects || apiUser.Projects || [];
-          const active = allProjects.filter(
-            (p) => ["in_progress", "in progress", "inprogress", "active", "disputed", "awaiting_cancellation"].includes((p.status || p.Status || "").toLowerCase())
-          ).length;
-          const completed = allProjects.filter(
-            (p) => ["completed", "complete", "cancel_done"].includes((p.status || p.Status || "").toLowerCase())
-          ).length;
           
-          const totalAssigned = active + completed;
-          const successRate = totalAssigned > 0 ? Math.round((completed / totalAssigned) * 100) : 0;
-          const earned = apiUser.wallet?.totalEarned || 0;
-          const pending = apiUser.wallet?.pendingBalance || 0;
+          const completedList = allProjects.filter((p) => {
+            const status = (p.status || p.Status || "").toLowerCase();
+            return ["completed", "complete", "resolved"].includes(status);
+          });
+          const completedCount = completedList.length;
 
-          setStats({ active, completed, earned, pending, successRate });
+          const cancelCount = allProjects.filter((p) => {
+            const status = (p.status || p.Status || "").toLowerCase();
+            return ["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"].includes(status);
+          }).length;
+
+          const reportCount = allProjects.filter((p) => {
+            const status = (p.status || p.Status || "").toLowerCase();
+            return ["disputed"].includes(status);
+          }).length;
+
+          const totalForSuccess = completedCount + cancelCount + reportCount;
+          const successVal = totalForSuccess > 0 ? `${Math.round((completedCount / totalForSuccess) * 100)}%` : "0%";
+
+          setStats({
+            completed: completedCount,
+            cancel: cancelCount,
+            report: reportCount,
+            success: successVal,
+            evaluate: 0,
+          });
+
+          // Fetch full project details for completed projects to get clientName and projectSkills (skills)
+          const detailedCompletedProjects = await Promise.all(
+            completedList.map(async (p) => {
+              try {
+                const fullProj = await api.projects.getById(p.id || p.Id);
+                const clientName = fullProj?.clientName || fullProj?.ClientName || "";
+                
+                let skills = [];
+                if (fullProj?.projectSkills) {
+                  skills = fullProj.projectSkills.map(ps => ps.skillName || ps.SkillName).filter(Boolean);
+                }
+                
+                let category = fullProj?.category || p.category || "";
+                let specialization = "";
+                
+                const jpId = p.jobPostId || p.JobPostId || fullProj?.jobPostId || fullProj?.JobPostId;
+                if (jpId) {
+                  try {
+                    const jobPost = await api.jobPosts.getById(jpId);
+                    if (jobPost) {
+                      specialization = jobPost.specializationName || "";
+                      if (!category) category = jobPost.category || "";
+                      if (skills.length === 0 && jobPost.requiredSkills) {
+                        skills = jobPost.requiredSkills;
+                      }
+                    }
+                  } catch (e) {
+                    console.error("Failed to fetch job post details for completed project:", e);
+                  }
+                }
+                
+                return {
+                  id: p.id || p.Id,
+                  title: p.title || p.Title || fullProj?.title || "",
+                  category: category,
+                  specialization: specialization,
+                  skills: skills,
+                  clientName: clientName || "Client",
+                };
+              } catch (e) {
+                console.error("Failed to fetch full details for completed project:", e);
+                return {
+                  id: p.id || p.Id,
+                  title: p.title || p.Title || "",
+                  category: p.category || "",
+                  specialization: "",
+                  skills: [],
+                  clientName: "Client",
+                };
+              }
+            })
+          );
+          setCompletedProjects(detailedCompletedProjects);
+          setCurrentPage(1);
         }
       } catch (err) {
         console.error("Failed to load expert profile:", err);
@@ -256,6 +331,21 @@ export function ExpertProfile() {
               <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Industry</span>
               <span className="text-sm text-foreground/70 font-medium">{expert.profile?.industry || ""}</span>
             </div>
+            <div>
+              <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Portfolio URL</span>
+              {expert.profile?.portfolioUrls ? (
+                <a
+                  href={expert.profile.portfolioUrls}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-accent hover:underline font-semibold"
+                >
+                  {expert.profile.portfolioUrls}
+                </a>
+              ) : (
+                <span className="text-sm text-foreground/70 font-medium"></span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -289,34 +379,34 @@ export function ExpertProfile() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           {
-            label: "Active Contracts",
-            value: stats.active,
-            icon: Briefcase,
-            color: "text-primary bg-primary-light",
-          },
-          {
             label: "Completed",
             value: stats.completed,
             icon: CheckCircle2,
             color: "text-success bg-success-light",
           },
           {
+            label: "Cancel",
+            value: stats.cancel,
+            icon: XCircle,
+            color: "text-red-500 bg-red-500/10",
+          },
+          {
+            label: "Report",
+            value: stats.report,
+            icon: AlertTriangle,
+            color: "text-warning bg-warning-light",
+          },
+          {
             label: "Success Rate",
-            value: `${stats.successRate}%`,
+            value: stats.success,
             icon: TrendingUp,
             color: "text-accent bg-accent-light",
           },
           {
-            label: "Pending Escrow",
-            value: <MoneyDisplay amount={stats.pending} />,
-            icon: Clock,
-            color: "text-warning bg-warning-light",
-          },
-          {
-            label: "Total Earned",
-            value: <MoneyDisplay amount={stats.earned} />,
-            icon: BarChart3,
-            color: "text-success bg-success-light",
+            label: "Evaluate",
+            value: stats.evaluate,
+            icon: Star,
+            color: "text-primary bg-primary-light",
           },
         ].map((stat, i) => (
           <div
@@ -334,6 +424,104 @@ export function ExpertProfile() {
             <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Completed Projects Section ── */}
+      <div className="bg-card rounded-xl border border-border p-8 text-left space-y-6">
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-success" />
+            Completed Projects
+          </h2>
+          <span className="px-2.5 py-0.5 bg-success/10 text-success rounded-full text-xs font-semibold">
+            {completedProjects.length} Projects
+          </span>
+        </div>
+
+        {completedProjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">No completed projects yet.</p>
+        ) : (() => {
+          const totalPages = Math.max(Math.ceil(completedProjects.length / 5), 1);
+          const activePage = currentPage > totalPages ? 1 : currentPage;
+          const startIndex = (activePage - 1) * 5;
+          const paginatedProjects = completedProjects.slice(startIndex, startIndex + 5);
+
+          return (
+            <div className="space-y-4">
+              <div className="flex flex-col gap-4">
+                {paginatedProjects.map((proj, idx) => (
+                  <div key={proj.id || idx} className="p-5 bg-secondary/30 rounded-xl border border-border/60 hover:border-brand-primary/40 transition-colors space-y-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-semibold text-foreground text-base line-clamp-1" title={proj.title}>
+                        {proj.title}
+                      </h3>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <span className="font-semibold text-foreground/80">Client:</span>
+                        <span>{proj.clientName}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
+                        <div>
+                          <span className="font-semibold text-foreground/80">Category:</span>{" "}
+                          <span>{proj.category || "—"}</span>
+                        </div>
+                        {proj.specialization && (
+                          <>
+                            <span className="text-border">•</span>
+                            <div>
+                              <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
+                              <span>{proj.specialization}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {proj.skills && proj.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {proj.skills.map((skill, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-0.5 bg-primary-light text-primary rounded-md text-[10px] font-semibold"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {completedProjects.length > 5 && (
+                <div className="flex items-center justify-between border-t border-border pt-4 mt-4">
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                    disabled={activePage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+                    <span>Page</span>
+                    <span className="text-foreground">{activePage}</span>
+                    <span>of</span>
+                    <span className="text-foreground">{totalPages}</span>
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                    disabled={activePage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
