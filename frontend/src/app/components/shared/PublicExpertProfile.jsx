@@ -42,6 +42,22 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   const [openPosts, setOpenPosts] = useState([]);
   const [showInvitePanel, setShowInvitePanel] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [completedProjects, setCompletedProjects] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [interactions, setInteractions] = useState({});
+
+  useEffect(() => {
+    const initialInteractions = {};
+    completedProjects.forEach(proj => {
+      try {
+        const raw = localStorage.getItem(`review_expert_reply_${proj.id}`);
+        if (raw) {
+          initialInteractions[proj.id] = JSON.parse(raw);
+        }
+      } catch (e) {}
+    });
+    setInteractions(initialInteractions);
+  }, [completedProjects]);
 
   // Helper to read local profile cache as backup for fields not supported by BE DTO yet
   const getLocalProfile = (userId) => {
@@ -58,7 +74,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
     async function fetchExpert() {
       try {
         if (resolvedId) {
-          const apiExpert = await api.experts.getById(resolvedId);
+          const [apiExpert, reviewData] = await Promise.all([
+            api.experts.getById(resolvedId),
+            api.reviews.getExpertReviews(resolvedId).catch((e) => {
+              console.warn("Failed to load reviews for expert:", e);
+              return null;
+            })
+          ]);
           if (!cancelled && apiExpert) {
             const localCache = getLocalProfile(resolvedId);
             setExpert({
@@ -68,8 +90,28 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               category: apiExpert.expertProfile?.category || apiExpert.category || localCache.category || "",
               specialization: apiExpert.expertProfile?.specialization || apiExpert.expertProfile?.major || apiExpert.specialization || localCache.specialization || "",
               location: apiExpert.expertProfile?.location || apiExpert.location || "Chưa cập nhật",
-              rating: apiExpert.rating || 5.0,
-              reviews: apiExpert.reviews || apiExpert.reviewCount || 0,
+              rating: (() => {
+                let totalRating = 0;
+                let ratedCount = 0;
+                const tempReviews = (reviewData && reviewData.reviews) ? reviewData.reviews : (apiExpert.clientReviews || []);
+                tempReviews.forEach((r) => {
+                  const pId = r.projectId || r.id;
+                  const rawEdited = pId ? (localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`)) : null;
+                  let rVal = 0;
+                  if (rawEdited) {
+                    try { rVal = JSON.parse(rawEdited).rating || 0; } catch (e) {}
+                  }
+                  if (rVal > 0) {
+                    totalRating += rVal;
+                    ratedCount++;
+                  } else if (r.rating > 0) {
+                    totalRating += r.rating;
+                    ratedCount++;
+                  }
+                });
+                return ratedCount > 0 ? Number((totalRating / ratedCount).toFixed(1)) : 5.0;
+              })(),
+              reviews: reviewData ? reviewData.totalReviews : (apiExpert.reviews || apiExpert.reviewCount || 0),
               completedProjects: apiExpert.completedProjects || 0,
               hourlyRate: apiExpert.expertProfile?.hourlyRate || apiExpert.hourlyRate || localCache.hourlyRate,
               bio: apiExpert.expertProfile?.bio || apiExpert.bio || "",
@@ -77,13 +119,139 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               email: apiExpert.email || "",
               phone: apiExpert.phoneNumber || apiExpert.phone || apiExpert.expertProfile?.phone || "Chưa cập nhật",
               portfolio: apiExpert.portfolio || [],
-              clientReviews: (apiExpert.clientReviews || []).map((r) => ({
-                clientName: r.clientName || r.name || "Client",
-                rating: r.rating,
-                comment: r.comment || r.review,
-                date: r.date,
-              })),
+              clientReviews: (reviewData && reviewData.reviews)
+                ? reviewData.reviews.map((r) => {
+                    const pId = r.projectId;
+                    
+                    // Check expert reply
+                    let expertReply = null;
+                    const rawReply = localStorage.getItem(`review_expert_reply_${pId}`);
+                    if (rawReply) {
+                      try {
+                        expertReply = JSON.parse(rawReply);
+                      } catch (e) {}
+                    }
+
+                    // Check client edited review
+                    let editedReview = null;
+                    const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+                    if (rawEdited) {
+                      try {
+                        editedReview = JSON.parse(rawEdited);
+                      } catch (e) {}
+                    }
+
+                    return {
+                      projectId: pId,
+                      clientName: r.clientName || "Client",
+                      rating: r.rating,
+                      comment: r.comment || "",
+                      date: r.createdAt,
+                      expertReply: expertReply,
+                      editedReview: editedReview,
+                    };
+                  })
+                : (apiExpert.clientReviews || []).map((r) => {
+                    const pId = r.projectId || r.id;
+                    let expertReply = null;
+                    if (pId) {
+                      const rawReply = localStorage.getItem(`review_expert_reply_${pId}`);
+                      if (rawReply) {
+                        try { expertReply = JSON.parse(rawReply); } catch (e) {}
+                      }
+                    }
+                    let editedReview = null;
+                    if (pId) {
+                      const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+                      if (rawEdited) {
+                        try { editedReview = JSON.parse(rawEdited); } catch (e) {}
+                      }
+                    }
+                    return {
+                      projectId: pId,
+                      clientName: r.clientName || r.name || "Client",
+                      rating: r.rating,
+                      comment: r.comment || r.review || "",
+                      date: r.date,
+                      expertReply: expertReply,
+                      editedReview: editedReview,
+                    };
+                  }),
             });
+
+            // Map danh sách dự án hoàn thành để hiển thị công khai ở phía dưới
+            const allProjects = apiExpert.projects || apiExpert.Projects || [];
+            const completedList = allProjects.filter((p) => {
+              const status = (p.status || p.Status || "").toLowerCase();
+              return ["completed", "complete", "resolved"].includes(status);
+            });
+
+            const dbReviewsList = reviewData ? (reviewData.reviews || []) : [];
+
+            const detailedCompletedProjects = completedList.map((p) => {
+              const pId = p.id || p.Id;
+              const clientName = p.clientName || p.ClientName || "Client";
+              const specialization = p.specializationName || p.SpecializationName || "";
+              const skills = p.projectSkills || p.ProjectSkills || [];
+              const category = p.category || p.Category || "";
+
+              const startDateRaw = p.startDate || p.StartDate;
+              const endDateRaw = p.endDate || p.EndDate;
+              const formatDate = (dateStr) => {
+                if (!dateStr) return "";
+                try {
+                  return new Date(dateStr).toLocaleDateString("vi-VN");
+                } catch (e) {
+                  return "";
+                }
+              };
+
+              const startDate = formatDate(startDateRaw);
+              const endDate = formatDate(endDateRaw);
+
+              // 1. Original review
+              const dbReview = dbReviewsList.find(r => r.projectId === pId);
+              let review = null;
+              if (dbReview) {
+                review = {
+                  rating: dbReview.rating,
+                  comment: dbReview.comment,
+                  createdAt: dbReview.createdAt
+                };
+              } else {
+                const rawReview = localStorage.getItem(`project_review_${pId}`);
+                if (rawReview) {
+                  try {
+                    review = JSON.parse(rawReview);
+                  } catch (e) {}
+                }
+              }
+
+              // 2. Edited review
+              let editedReview = null;
+              const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+              if (rawEdited) {
+                try {
+                  editedReview = JSON.parse(rawEdited);
+                } catch (e) {}
+              }
+
+              return {
+                id: pId,
+                title: p.title || p.Title || "",
+                category: category,
+                specialization: specialization,
+                skills: skills,
+                clientName: clientName,
+                review: review,
+                editedReview: editedReview,
+                startDate: startDate,
+                endDate: endDate,
+              };
+            });
+
+            setCompletedProjects(detailedCompletedProjects);
+            setCurrentPage(1);
           }
         }
       } catch (err) {
@@ -433,40 +601,190 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               </section>
             )}
 
-            {/* Client Reviews */}
-            {expert.clientReviews?.length > 0 && (
-              <section>
-                <h3 className="font-semibold text-foreground mb-3">
-                  Client Reviews ({expert.clientReviews.length})
-                </h3>
-                <div className="space-y-3">
-                  {expert.clientReviews.map((review, i) => (
-                    <div
-                      key={i}
-                      className="border border-border rounded-lg p-4"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-foreground">
-                          {review.clientName}
-                        </span>
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: review.rating || 0 }, (_, j) => (
-                            <Star
-                              key={j}
-                              className="w-4 h-4 fill-yellow-400 text-yellow-400"
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{review.comment}</p>
-                      {review.date && (
-                        <p className="text-xs text-muted-foreground mt-1">{review.date}</p>
-                      )}
-                    </div>
-                  ))}
+          </div>
+
+          {/* Completed Projects Card for Public View */}
+          <div className="bg-card rounded-2xl border border-border shadow-sm p-8 mt-6">
+            <div className="flex items-center justify-between border-b border-border pb-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-success/10 text-success rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
                 </div>
-              </section>
-            )}
+                <h2 className="text-lg font-bold text-foreground font-sans">
+                  Completed Projects
+                </h2>
+              </div>
+              <span className="px-2.5 py-0.5 bg-success/10 text-success rounded-full text-xs font-semibold">
+                {completedProjects.length} Projects
+              </span>
+            </div>
+
+            {completedProjects.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No completed projects yet.</p>
+            ) : (() => {
+              const totalPages = Math.max(Math.ceil(completedProjects.length / 5), 1);
+              const activePage = currentPage > totalPages ? 1 : currentPage;
+              const startIndex = (activePage - 1) * 5;
+              const paginatedProjects = completedProjects.slice(startIndex, startIndex + 5);
+
+              return (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-4">
+                    {paginatedProjects.map((proj, idx) => (
+                      <div key={proj.id || idx} className="p-5 bg-secondary/30 rounded-xl border border-border/60 hover:border-brand-primary/40 transition-colors space-y-3">
+                        <div className="flex justify-between items-start gap-4">
+                          <h3 className="font-semibold text-foreground text-base line-clamp-1 flex-1 text-left" title={proj.title}>
+                            {proj.title}
+                          </h3>
+                          {proj.review && (
+                            <div className="flex items-center gap-0.5 flex-shrink-0 bg-amber-500/10 px-2.5 py-1 rounded-lg">
+                              {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < proj.review.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="font-semibold text-foreground/80">Client:</span>
+                            <span>{proj.clientName}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
+                            <div>
+                              <span className="font-semibold text-foreground/80">Category:</span>{" "}
+                              <span>{proj.category || "—"}</span>
+                            </div>
+                            {proj.specialization && (
+                              <>
+                                <span className="text-border">•</span>
+                                <div>
+                                  <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
+                                  <span>{proj.specialization}</span>
+                                </div>
+                              </>
+                            )}
+                            {(proj.startDate || proj.endDate) && (
+                              <>
+                                <span className="text-border">•</span>
+                                <div>
+                                  <span className="font-semibold text-foreground/80">Thời gian:</span>{" "}
+                                  <span>{proj.startDate || "—"} đến {proj.endDate || "—"}</span>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        {proj.skills && proj.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {proj.skills.map((skill, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-0.5 bg-primary-light text-primary rounded-md text-[10px] font-semibold"
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {proj.review?.comment && (
+                          <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
+                            <span className="absolute left-2 text-base text-amber-500/70 font-semibold select-none leading-none">“</span>
+                            {proj.review.comment}
+                            {(proj.review.createdAt || proj.review.date) && (
+                              <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
+                                Đánh giá vào: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("vi-VN")}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Hiển thị phản hồi của Expert */}
+                        {interactions[proj.id] && (
+                          <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
+                            {interactions[proj.id].replyText && (
+                              <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                                <span className="font-bold text-brand-primary block">Chuyên gia phản hồi (Thank You):</span>
+                                <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
+                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                              </div>
+                            )}
+                            {interactions[proj.id].requestRevisionText && (
+                              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                                <span className="font-bold text-amber-600 block">Chuyên gia phản hồi & yêu cầu sửa đổi:</span>
+                                <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
+                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Hiển thị đánh giá Đã chỉnh sửa của Client ở dưới cùng */}
+                        {proj.editedReview && (
+                          <div className="space-y-2 mt-3 pl-4 border-l-2 border-success/30">
+                            {/* Divider Đã chỉnh sửa */}
+                            <div className="flex items-center gap-2 py-1">
+                              <span className="text-[10px] text-success font-semibold px-2 py-0.5 bg-success/10 rounded border border-success/20">
+                                Đã chỉnh sửa (Edited Review)
+                              </span>
+                              <div className="h-px bg-success/20 flex-1" />
+                              <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">
+                                {Array.from({ length: 5 }, (_, i) => (
+                                  <Star
+                                    key={i}
+                                    className={`w-3 h-3 ${
+                                      i < proj.editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {proj.editedReview.comment && (
+                              <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
+                                <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                                {proj.editedReview.comment}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {completedProjects.length > 5 && (
+                    <div className="flex items-center justify-between border-t border-border pt-4 mt-4">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                        disabled={activePage === 1}
+                        className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+                        <span>Page</span>
+                        <span className="text-foreground">{activePage}</span>
+                        <span>of</span>
+                        <span className="text-foreground">{totalPages}</span>
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                        disabled={activePage === totalPages}
+                        className="px-3 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-foreground"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
 

@@ -413,6 +413,12 @@ export const api = {
     },
   },
 
+  reviews: {
+    createReview: (data) => post("/Reviews", data),
+    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`),
+    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`),
+  },
+
   projects: {
     list: (params) => get(`/Projects${buildQuery(params)}`).catch(() => []),
     // Phase 1 API integration

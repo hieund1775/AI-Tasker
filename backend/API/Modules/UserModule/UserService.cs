@@ -5,6 +5,7 @@ using BCryptTool = BCrypt.Net.BCrypt;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.InteractionModule;
+using AITasker_Modular.Modules.CategoryTagModule;
 
 namespace AITasker_Modular.Modules.UserModule;
 
@@ -167,7 +168,12 @@ public class UserService : IUserService
                 PortfolioUrls = dto.PortfolioUrls,
                 Location = dto.Location,
                 ReputationCredit = 0m,
-                SuccessRate = 0.0
+                SuccessRate = 0.0,
+                Category = dto.Category,
+                Phone = dto.Phone,
+                Website = dto.Website,
+                Industry = dto.Industry,
+                HourlyRate = dto.HourlyRate
             };
             _context.ExpertProfiles.Add(profile);
         }
@@ -179,11 +185,58 @@ public class UserService : IUserService
             profile.Bio = dto.Bio;
             profile.PortfolioUrls = dto.PortfolioUrls;
             profile.Location = dto.Location;
+            profile.Category = dto.Category;
+            profile.Phone = dto.Phone;
+            profile.Website = dto.Website;
+            profile.Industry = dto.Industry;
+            profile.HourlyRate = dto.HourlyRate;
+        }
+
+        // --- UPDATE PROFILE SKILLS ---
+        if (dto.Skills != null)
+        {
+            var existingSkills = await _context.ExpertProfileSkills
+                .Where(s => s.ExpertProfilesUserId == userGuid)
+                .ToListAsync();
+            _context.ExpertProfileSkills.RemoveRange(existingSkills);
+
+            foreach (var skillNameOrId in dto.Skills)
+            {
+                if (string.IsNullOrWhiteSpace(skillNameOrId)) continue;
+
+                Skill? skill = null;
+                if (Guid.TryParse(skillNameOrId, out var skillId))
+                {
+                    skill = await _context.Skills.FindAsync(skillId);
+                }
+                else
+                {
+                    skill = await _context.Skills.FirstOrDefaultAsync(s => s.Name.ToLower() == skillNameOrId.ToLower());
+                }
+
+                if (skill == null)
+                {
+                    skill = new Skill
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = skillNameOrId
+                    };
+                    _context.Skills.Add(skill);
+                    await _context.SaveChangesAsync();
+                }
+
+                var profileSkill = new ExpertProfileSkill
+                {
+                    ExpertProfilesUserId = userGuid,
+                    SkillsId = skill.Id
+                };
+                _context.ExpertProfileSkills.Add(profileSkill);
+            }
         }
 
         await _context.SaveChangesAsync();
         return true;
-     }
+    }
 
     public async Task<bool> UpdateUserAsync(string userId, DTOs.UpdateUserDto dto)
     {
@@ -259,7 +312,10 @@ public class UserService : IUserService
             return null;
 
         var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userGuid);
-        var profile = await _context.ExpertProfiles.FirstOrDefaultAsync(p => p.UserId == userGuid);
+        var profile = await _context.ExpertProfiles
+            .Include(p => p.ExpertProfileSkills)
+                .ThenInclude(eps => eps.Skill)
+            .FirstOrDefaultAsync(p => p.UserId == userGuid);
 
         var jobPosts = await _context.JobPosts
             .Where(j => j.ClientId == userGuid)
@@ -314,7 +370,10 @@ public class UserService : IUserService
         }).ToList();
 
         var projects = await _context.Projects
+            .Include(p => p.Client)
             .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
+            .Include(p => p.JobPost).ThenInclude(jp => jp!.Specialization)
+            .Include(p => p.ProjectSkills).ThenInclude(ps => ps.Skill)
             .Where(p => p.ClientId == userGuid || p.ExpertId == userGuid)
             .Select(p => new DTOs.UserProjectDto
             {
@@ -329,7 +388,10 @@ public class UserService : IUserService
                 ProjectLink = p.ProjectLink,
                 Title = p.JobPost != null ? p.JobPost.Title : string.Empty,
                 Budget = p.JobPost != null ? p.JobPost.Budget : 0,
-                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null
+                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null,
+                ClientName = p.Client != null ? p.Client.FullName : string.Empty,
+                SpecializationName = p.JobPost != null && p.JobPost.Specialization != null ? p.JobPost.Specialization.Name : string.Empty,
+                ProjectSkills = p.ProjectSkills.Select(ps => ps.Skill != null ? ps.Skill.Name : string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
             })
             .ToListAsync();
 
@@ -353,7 +415,15 @@ public class UserService : IUserService
                 PortfolioUrls = profile.PortfolioUrls,
                 Location = profile.Location,
                 ReputationCredit = profile.ReputationCredit,
-                SuccessRate = profile.SuccessRate
+                SuccessRate = profile.SuccessRate,
+                Category = profile.Category,
+                Phone = profile.Phone,
+                Website = profile.Website,
+                Industry = profile.Industry,
+                HourlyRate = profile.HourlyRate,
+                Skills = profile.ExpertProfileSkills != null
+                    ? profile.ExpertProfileSkills.Select(eps => eps.Skill?.Name ?? string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
+                    : new()
             } : null,
             JobPosts = jobPosts,
             Proposals = proposals,
@@ -490,14 +560,14 @@ public class UserService : IUserService
     public async Task<(DTOs.UserDto? User, string? Token, string? Error)> RefreshTokenAsync(string userId)
     {
         if (!Guid.TryParse(userId, out var guid))
-            return (null, null, "UserId không hợp lệ.");
+            return (null, null, "Invalid user ID format.");
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
         if (user == null)
-            return (null, null, "Không tìm thấy người dùng.");
+            return (null, null, "User not found.");
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
-            return (null, null, "Tài khoản không còn hoạt động.");
+            return (null, null, "User is not active.");
 
         var userDto = new DTOs.UserDto
         {
@@ -525,10 +595,10 @@ public class UserService : IUserService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user == null)
-            return (false, null, "Không tìm thấy tài khoản với email này.");
+            return (false, null, "Account not found.");
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
-            return (false, null, "Tài khoản không còn hoạt động.");
+            return (false, null, "Account is not active.");
 
         // Tạo token ngẫu nhiên 32 ký tự hex
         var resetToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
@@ -548,19 +618,19 @@ public class UserService : IUserService
     public async Task<(bool Success, string? Error)> ResetPasswordAsync(string resetToken, string newPassword)
     {
         if (string.IsNullOrWhiteSpace(resetToken) || string.IsNullOrWhiteSpace(newPassword))
-            return (false, "Token và mật khẩu mới không được để trống.");
+            return (false, "Token and new password cannot be empty.");
 
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.PasswordResetToken == resetToken);
 
         if (user == null)
-            return (false, "Token không hợp lệ hoặc không tồn tại.");
+            return (false, "Invalid reset token.");
 
         if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
-            return (false, "Token đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+            return (false, "Reset token has expired.");
 
         if (newPassword.Length < 6)
-            return (false, "Mật khẩu mới phải có ít nhất 6 ký tự.");
+            return (false, "New password must be at least 6 characters.");
 
         user.PasswordHash = HashPassword(newPassword);
         user.PasswordResetToken = null;    // Xóa token sau khi dùng (one-time use)

@@ -9,13 +9,13 @@ namespace API.Modules.AiModule
     {
         private readonly IWebHostEnvironment _env;
 
-        // Chi cho phep cac dinh dang da ho tro doc o AiChatService
+        // Chỉ cho phép các định dạng đã hỗ trợ đọc ở AiChatService
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".docx", ".txt"
         };
 
-        // Gioi han dung luong file: 10MB
+        // Giới hạn dung lượng file: 10MB
         private const long MaxFileSizeBytes = 10 * 1024 * 1024;
 
         public FileUploadController(IWebHostEnvironment env)
@@ -28,14 +28,14 @@ namespace API.Modules.AiModule
         public async Task<IActionResult> Upload(IFormFile file)
         {
             if (file == null || file.Length == 0)
-                return BadRequest(new { error = "Chua co file nao duoc gui len." });
+                return BadRequest(new { error = "Chưa có file nào được gửi lên." });
 
             if (file.Length > MaxFileSizeBytes)
-                return BadRequest(new { error = "File vuot qua dung luong cho phep (toi da 10MB)." });
+                return BadRequest(new { error = "File vượt quá dung lượng cho phép (tối đa 10MB)." });
 
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             if (!AllowedExtensions.Contains(ext))
-                return BadRequest(new { error = $"Dinh dang file '{ext}' khong duoc ho tro. Chi chap nhan .docx, .txt." });
+                return BadRequest(new { error = $"Định dạng file '{ext}' không được hỗ trợ. Chỉ chấp nhận .docx, .txt." });
 
             var webRoot = _env.WebRootPath ?? Path.Combine(_env.ContentRootPath, "wwwroot");
             var uploadFolderRelative = Path.Combine("uploads", "chat-files");
@@ -43,7 +43,7 @@ namespace API.Modules.AiModule
 
             Directory.CreateDirectory(uploadFolderFull);
 
-            // Dat ten file duy nhat de tranh trung/ghi de
+            // Đặt tên file duy nhất để tránh trùng/ghi đè
             var safeFileName = $"{Guid.NewGuid():N}{ext}";
             var fullSavePath = Path.Combine(uploadFolderFull, safeFileName);
 
@@ -52,7 +52,7 @@ namespace API.Modules.AiModule
                 await file.CopyToAsync(stream);
             }
 
-            // Tra ve duong dan tuong doi (dung lai trong request send-session o field file_path)
+            // Trả về đường dẫn tương đối (dùng lại trong request send-session ở trường file_path)
             var relativePath = Path.Combine(uploadFolderRelative, safeFileName).Replace("\\", "/");
 
             return Ok(new { file_path = relativePath, original_name = file.FileName });

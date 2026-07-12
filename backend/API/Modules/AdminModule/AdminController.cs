@@ -35,7 +35,7 @@ namespace AITasker_Modular.Modules.AdminModule
 
             try {
                 var staffId = await _adminService.CreateStaffAsync(dto.Username, dto.Password, dto.FullName, dto.PhoneNumber, ownerId);
-                return Ok(new { Message = "Đã khởi tạo Staff thành công.", StaffId = staffId });
+                return Ok(new { Message = "Staff created successfully.", StaffId = staffId });
             } catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
               catch (ArgumentException ex) { return BadRequest(ex.Message); }
         }
@@ -51,7 +51,7 @@ namespace AITasker_Modular.Modules.AdminModule
 
             try {
                 await _adminService.BanStaffAsync(targetStaffId, ownerId);
-                return Ok(new { Message = "Đã khóa tài khoản nhân viên thành công." });
+                return Ok(new { Message = "Staff account banned successfully." });
             } catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
               catch (Exception ex) { return BadRequest(ex.Message); }
         }
@@ -69,7 +69,7 @@ namespace AITasker_Modular.Modules.AdminModule
             var ownerId = Guid.Parse(ownerIdStr!);
 
             try {
-                // 1. Lấy dữ liệu mockup/thống kê cũ của nhóm em từ tầng Service
+                // 1. Lấy dữ liệu mockup/thống kê cũ của hệ thống từ tầng Service
                 var serviceData = await _adminService.GetOwnerDashboardAsync(ownerId);
 
                 // 2. Đọc số dư két sắt tổng thực tế trong DB (Hiệu năng O(1))
@@ -100,8 +100,8 @@ namespace AITasker_Modular.Modules.AdminModule
         public string Password { get; set; } = string.Empty; 
         public string FullName { get; set; } = string.Empty; 
 
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Số điện thoại là bắt buộc.")]
-        [System.ComponentModel.DataAnnotations.RegularExpression(@"^0[0-9]{9}$", ErrorMessage = "Số điện thoại không đúng định dạng (10 số, bắt đầu bằng số 0).")]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "Phone number is required.")]
+        [System.ComponentModel.DataAnnotations.RegularExpression(@"^0[0-9]{9}$", ErrorMessage = "Phone number format is invalid (10 digits starting with 0).")]
         public string PhoneNumber { get; set; } = string.Empty;
     }
 }

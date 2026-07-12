@@ -71,7 +71,7 @@ public class ReportsController : ControllerBase
             .FirstOrDefaultAsync(r => r.Id == id);
 
         if (report == null)
-            return NotFound("Không tìm thấy đơn khiếu nại.");
+            return NotFound("Report/Dispute not found.");
 
         return Ok(MapToDetailDto(report));
     }
@@ -128,7 +128,7 @@ public class ReportsController : ControllerBase
         if (expertWallet != null) expertWallet.Balance = 0m;
 
         await _context.SaveChangesAsync();
-        return Ok(new { Message = "Dữ liệu thử nghiệm đã được reset thành công." });
+        return Ok(new { Message = "Test data reset successfully." });
     }
 
     // API 2.2.1: Gửi đơn yêu cầu hủy
@@ -162,7 +162,7 @@ public class ReportsController : ControllerBase
         }
 
         var project = await _context.Projects.FindAsync(report.ProjectId);
-        if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+        if (project == null) return NotFound("Project not found.");
 
         project.Status = "Awaiting_Cancellation";
         decimal totalBudget = project.EscrowBalance; 
@@ -194,7 +194,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> AdminApproveCancel(Guid id)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         report.Status = "Awaiting Partner"; 
         report.UpdatedAt = DateTime.UtcNow;
@@ -207,7 +207,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Admin đã duyệt đơn hủy. Chờ đối tác phản hồi.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Admin has approved the cancellation. Awaiting partner response.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.2 (Phần 2): Đối tác đồng ý hủy -> TÍCH HỢP KẾT SẮT VÀ NHẬT KÝ DÒNG TIỀN MỚI
@@ -215,7 +215,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> PartnerAcceptCancel(Guid id)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         report.Status = "Accepted";
         report.UpdatedAt = DateTime.UtcNow;
@@ -304,7 +304,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Hủy hợp đồng thành công. Tiền ký quỹ đã phân rã hoàn toàn về ví các bên và hệ thống.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Contract cancelled successfully. Escrow funds distributed to wallets and system.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.3 (Phần 2): Đối tác từ chối hủy
@@ -312,7 +312,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> PartnerRejectCancel(Guid id, [FromBody] PartnerRejectRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         report.Status = "Returned";
         report.PartnerRejectionReason = request.PartnerRejectionReason;
@@ -326,7 +326,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Đối tác từ chối đề xuất hủy. Chuyển sang luồng thương lượng giải trình.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Partner rejected the cancellation. Proceeding to clarification.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.2 (Phần 2): Admin bác bỏ đơn hủy
@@ -334,7 +334,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> AdminRejectCancel(Guid id, [FromBody] AdminRejectRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         report.Status = "Rejected";
         report.AdminNote = request.AdminNote;
@@ -354,7 +354,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Admin đã bác bỏ đơn hủy. Dự án tiếp tục thực hiện.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Admin rejected the cancellation. Project continues.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.4 (Phần 1): Người gửi đơn chấp nhận từ chối từ đối tác (Revert chạy tiếp dự án)
@@ -362,7 +362,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> InitiatorAcceptRejection(Guid id)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         report.Status = "Rejected";
         report.UpdatedAt = DateTime.UtcNow;
@@ -381,7 +381,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Đã rút đơn hủy hợp đồng. Dự án tiếp tục thực hiện.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Cancellation request withdrawn. Project continues.", Report = MapToDetailDto(report) });
     }
 
     // API 2.2.4 (Phần 2): Người gửi đơn gửi phản hồi giải trình mới (Resubmit đơn hủy)
@@ -389,7 +389,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> InitiatorRespondRejection(Guid id, [FromBody] InitiatorRespondRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn yêu cầu hủy.");
+        if (report == null) return NotFound("Cancellation report not found.");
 
         // Backup đơn hủy cũ vào HistoryLogsJson
         var historyList = new System.Collections.Generic.List<object>();
@@ -456,7 +456,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Đã gửi phản hồi đàm phán giải trình mới. Đơn hủy chuyển về trạng thái chờ duyệt.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Clarification response submitted. Cancellation request is now pending review.", Report = MapToDetailDto(report) });
     }
 
     // BUG 3: PUT /api/Reports/{id}/admin-accept-report
@@ -464,7 +464,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> AdminAcceptReport(Guid id, [FromBody] AdminAcceptReportRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+        if (report == null) return NotFound("Report/Dispute not found.");
 
         report.Status = (report.ReporterRole.ToLower() == "client") ? "Awaiting Expert" : "Awaiting Client";
         report.ReplyDeadline = DateTime.UtcNow.AddDays(3);
@@ -485,7 +485,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Admin đã chấp nhận báo cáo khiếu nại. Dự án đã chuyển sang trạng thái Disputed.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Admin accepted the dispute report. Project is now Disputed.", Report = MapToDetailDto(report) });
     }
 
     // BUG 3: PUT /api/Reports/{id}/admin-reject-report
@@ -493,7 +493,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> AdminRejectReport(Guid id, [FromBody] AdminRejectReportRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+        if (report == null) return NotFound("Report/Dispute not found.");
 
         report.Status = "Rejected";
         report.AdminNote = request.Reason;
@@ -513,7 +513,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Admin đã bác bỏ đơn khiếu nại. Dự án tiếp tục bình thường.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Admin rejected the dispute report. Project continues normally.", Report = MapToDetailDto(report) });
     }
 
     // BUG 4: PUT /api/Reports/{id}/partner-submit-response
@@ -524,7 +524,7 @@ public class ReportsController : ControllerBase
             .Include(r => r.Project)
             .FirstOrDefaultAsync(r => r.Id == id);
             
-        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+        if (report == null) return NotFound("Report/Dispute not found.");
 
         // Determine the caller's role
         string? callerRole = null;
@@ -572,7 +572,7 @@ public class ReportsController : ControllerBase
         }
         else
         {
-            return BadRequest("Không xác định được vai trò của người gửi phản hồi.");
+            return BadRequest("Could not determine the role of the responder.");
         }
 
         if (report.CurrentRoundClientSubmitted && report.CurrentRoundExpertSubmitted)
@@ -592,7 +592,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Đã nộp phản hồi giải trình.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Clarification response submitted.", Report = MapToDetailDto(report) });
     }
 
     // BUG 6: PUT /api/Reports/{id}/admin-request-more-evidence
@@ -600,7 +600,7 @@ public class ReportsController : ControllerBase
     public async Task<IActionResult> AdminRequestMoreEvidence(Guid id, [FromBody] AdminRequestMoreEvidenceRequest request)
     {
         var report = await _context.Reports.FindAsync(id);
-        if (report == null) return NotFound("Không tìm thấy đơn khiếu nại.");
+        if (report == null) return NotFound("Report/Dispute not found.");
 
         if (request.Target.ToLower() == "client")
         {
@@ -629,7 +629,7 @@ public class ReportsController : ControllerBase
             await _context.Entry(report.Project).Reference(p => p.JobPost).LoadAsync();
         }
 
-        return Ok(new { Message = "Admin đã yêu cầu bổ sung bằng chứng.", Report = MapToDetailDto(report) });
+        return Ok(new { Message = "Admin requested additional evidence.", Report = MapToDetailDto(report) });
     }
 
     private static ReportDetailDto MapToDetailDto(Report r)

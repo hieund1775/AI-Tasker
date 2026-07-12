@@ -39,6 +39,55 @@ export function ExpertProfile() {
     evaluate: 0,
   });
 
+  const [interactions, setInteractions] = useState({});
+  const [replyText, setReplyText] = useState("");
+  const [revisionReason, setRevisionReason] = useState("");
+  const [interactionType, setInteractionType] = useState("reply"); // 'reply' | 'revision'
+  const [activeReplyProjectId, setActiveReplyProjectId] = useState(null);
+
+  useEffect(() => {
+    const initialInteractions = {};
+    completedProjects.forEach(proj => {
+      try {
+        const raw = localStorage.getItem(`review_expert_reply_${proj.id}`);
+        if (raw) {
+          initialInteractions[proj.id] = JSON.parse(raw);
+        }
+      } catch (e) {}
+    });
+    setInteractions(initialInteractions);
+  }, [completedProjects]);
+
+  const handleSaveInteraction = (projId) => {
+    const payload = {
+      replyText: interactionType === "reply" ? replyText.trim() : "",
+      requestRevisionText: interactionType === "revision" ? revisionReason.trim() : "",
+      date: new Date().toISOString(),
+    };
+    
+    if (interactionType === "reply" && !payload.replyText) {
+      alert("Vui lòng nhập tin nhắn cảm ơn / phản hồi.");
+      return;
+    }
+    if (interactionType === "revision" && !payload.requestRevisionText) {
+      alert("Vui lòng nhập lý do yêu cầu chỉnh sửa.");
+      return;
+    }
+
+    localStorage.setItem(`review_expert_reply_${projId}`, JSON.stringify(payload));
+    
+    setInteractions(prev => ({
+      ...prev,
+      [projId]: payload
+    }));
+
+    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+    
+    setReplyText("");
+    setRevisionReason("");
+    setActiveReplyProjectId(null);
+  };
+
   useEffect(() => {
     if (!authUser?.id) return;
     let cancelled = false;
@@ -114,22 +163,52 @@ export function ExpertProfile() {
           const totalForSuccess = completedCount + cancelCount + reportCount;
           const successVal = totalForSuccess > 0 ? `${Math.round((completedCount / totalForSuccess) * 100)}%` : "0%";
 
-          // Calculate Evaluate score based on rated completed projects
+          // Tải đánh giá thực tế từ Database thông qua API mới
+          let evaluateVal = "0";
+          let dbReviewsList = [];
+          try {
+            const reviewRes = await api.reviews.getExpertReviews(authUser.id);
+            if (reviewRes) {
+              dbReviewsList = reviewRes.reviews || [];
+            }
+          } catch (e) {
+            console.error("Failed to load expert reviews from database:", e);
+          }
+
+          // Tính toán điểm đánh giá trung bình dựa trên cả đánh giá gốc lẫn đánh giá đã chỉnh sửa
           let totalRating = 0;
           let ratedCount = 0;
           completedList.forEach((p) => {
-            const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
-            if (rawReview) {
-              try {
-                const parsed = JSON.parse(rawReview);
-                if (parsed && typeof parsed.rating === "number") {
-                  totalRating += parsed.rating;
-                  ratedCount++;
+            const pId = p.id || p.Id;
+            const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+            let rVal = 0;
+            if (rawEdited) {
+              try { rVal = JSON.parse(rawEdited).rating || 0; } catch (e) {}
+            }
+            
+            if (rVal > 0) {
+              totalRating += rVal;
+              ratedCount++;
+            } else {
+              const dbReview = dbReviewsList.find(r => r.projectId === pId);
+              if (dbReview && dbReview.rating > 0) {
+                totalRating += dbReview.rating;
+                ratedCount++;
+              } else {
+                const rawReview = localStorage.getItem(`project_review_${pId}`);
+                if (rawReview) {
+                  try {
+                    const parsed = JSON.parse(rawReview);
+                    if (parsed && typeof parsed.rating === "number") {
+                      totalRating += parsed.rating;
+                      ratedCount++;
+                    }
+                  } catch (e) {}
                 }
-              } catch (e) {}
+              }
             }
           });
-          const evaluateVal = ratedCount > 0 ? (totalRating / ratedCount).toFixed(1).replace(".0", "") : "0";
+          evaluateVal = ratedCount > 0 ? (totalRating / ratedCount).toFixed(1).replace(".0", "") : "0";
 
           setStats({
             completed: completedCount,
@@ -139,78 +218,68 @@ export function ExpertProfile() {
             evaluate: evaluateVal,
           });
 
-          // Fetch full project details for completed projects to get clientName and projectSkills (skills)
-          const detailedCompletedProjects = await Promise.all(
-            completedList.map(async (p) => {
-              try {
-                const fullProj = await api.projects.getById(p.id || p.Id);
-                const clientName = fullProj?.clientName || fullProj?.ClientName || "";
-                
-                let skills = [];
-                if (fullProj?.projectSkills) {
-                  skills = fullProj.projectSkills.map(ps => ps.skillName || ps.SkillName).filter(Boolean);
-                }
-                
-                let category = fullProj?.category || p.category || "";
-                let specialization = "";
-                
-                const jpId = p.jobPostId || p.JobPostId || fullProj?.jobPostId || fullProj?.JobPostId;
-                if (jpId) {
-                  try {
-                    const jobPost = await api.jobPosts.getById(jpId);
-                    if (jobPost) {
-                      specialization = jobPost.specializationName || "";
-                      if (!category) category = jobPost.category || "";
-                      if (skills.length === 0 && jobPost.requiredSkills) {
-                        skills = jobPost.requiredSkills;
-                      }
-                    }
-                  } catch (e) {
-                    console.error("Failed to fetch job post details for completed project:", e);
-                  }
-                }
-                
-                // Load review from localStorage if exists
-                let review = null;
-                const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
-                if (rawReview) {
-                  try {
-                    review = JSON.parse(rawReview);
-                  } catch (e) {
-                    console.error("Failed to parse local project review:", e);
-                  }
-                }
+          // Sử dụng trực tiếp thông tin ClientName, SpecializationName, ProjectSkills từ UserProjectDto được map sẵn
+          const detailedCompletedProjects = completedList.map((p) => {
+            const pId = p.id || p.Id;
+            const clientName = p.clientName || p.ClientName || "Client";
+            const specialization = p.specializationName || p.SpecializationName || "";
+            const skills = p.projectSkills || p.ProjectSkills || [];
+            const category = p.category || p.Category || "";
 
-                return {
-                  id: p.id || p.Id,
-                  title: p.title || p.Title || fullProj?.title || "",
-                  category: category,
-                  specialization: specialization,
-                  skills: skills,
-                  clientName: clientName || "Client",
-                  review: review,
-                };
+            const startDateRaw = p.startDate || p.StartDate;
+            const endDateRaw = p.endDate || p.EndDate;
+            const formatDate = (dateStr) => {
+              if (!dateStr) return "";
+              try {
+                return new Date(dateStr).toLocaleDateString("vi-VN");
               } catch (e) {
-                console.error("Failed to fetch full details for completed project:", e);
-                let review = null;
-                const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
-                if (rawReview) {
-                  try {
-                    review = JSON.parse(rawReview);
-                  } catch (e) {}
-                }
-                return {
-                  id: p.id || p.Id,
-                  title: p.title || p.Title || "",
-                  category: p.category || "",
-                  specialization: "",
-                  skills: [],
-                  clientName: "Client",
-                  review: review,
-                };
+                return "";
               }
-            })
-          );
+            };
+
+            const startDate = formatDate(startDateRaw);
+            const endDate = formatDate(endDateRaw);
+
+            // 1. Lấy đánh giá gốc (từ database hoặc project_review_ cũ)
+            const dbReview = dbReviewsList.find(r => r.projectId === pId);
+            let review = null;
+            if (dbReview) {
+              review = {
+                rating: dbReview.rating,
+                comment: dbReview.comment,
+                createdAt: dbReview.createdAt
+              };
+            } else {
+              const rawReview = localStorage.getItem(`project_review_${pId}`);
+              if (rawReview) {
+                try {
+                  review = JSON.parse(rawReview);
+                } catch (e) {}
+              }
+            }
+
+            // 2. Lấy đánh giá đã được Client chỉnh sửa (lưu trong project_review_edited hoặc project_review_override)
+            let editedReview = null;
+            const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+            if (rawEdited) {
+              try {
+                editedReview = JSON.parse(rawEdited);
+              } catch (e) {}
+            }
+
+            return {
+              id: pId,
+              title: p.title || p.Title || "",
+              category: category,
+              specialization: specialization,
+              skills: skills,
+              clientName: clientName,
+              review: review,
+              editedReview: editedReview,
+              startDate: startDate,
+              endDate: endDate,
+            };
+          });
           setCompletedProjects(detailedCompletedProjects);
           setCurrentPage(1);
         }
@@ -525,6 +594,15 @@ export function ExpertProfile() {
                             </div>
                           </>
                         )}
+                        {(proj.startDate || proj.endDate) && (
+                          <>
+                            <span className="text-border">•</span>
+                            <div>
+                              <span className="font-semibold text-foreground/80">Thời gian:</span>{" "}
+                              <span>{proj.startDate || "—"} đến {proj.endDate || "—"}</span>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -545,6 +623,138 @@ export function ExpertProfile() {
                       <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
                         <span className="absolute left-2 text-base text-amber-500/70 font-semibold select-none leading-none">“</span>
                         {proj.review.comment}
+                        {(proj.review.createdAt || proj.review.date) && (
+                          <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
+                            Đánh giá vào: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("vi-VN")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Hiển thị phản hồi cũ của Expert */}
+                    {interactions[proj.id] && (
+                      <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
+                        {interactions[proj.id].replyText && (
+                          <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                            <span className="font-bold text-brand-primary block">Chuyên gia phản hồi (Thank You):</span>
+                            <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
+                            <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                          </div>
+                        )}
+                        {interactions[proj.id].requestRevisionText && (
+                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                            <span className="font-bold text-amber-600 block">Chuyên gia phản hồi & yêu cầu sửa đổi:</span>
+                            <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
+                            <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Hiển thị đánh giá Đã chỉnh sửa của Client ở dưới cùng */}
+                    {proj.editedReview && (
+                      <div className="space-y-2 mt-3 pl-4 border-l-2 border-success/30">
+                        {/* Divider Đã chỉnh sửa */}
+                        <div className="flex items-center gap-2 py-1">
+                          <span className="text-[10px] text-success font-semibold px-2 py-0.5 bg-success/10 rounded border border-success/20">
+                            Đã chỉnh sửa (Edited Review)
+                          </span>
+                          <div className="h-px bg-success/20 flex-1" />
+                          <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3 h-3 ${
+                                  i < proj.editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        {proj.editedReview.comment && (
+                          <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
+                            <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                            {proj.editedReview.comment}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Button / Form tạo phản hồi mới */}
+                    {proj.review && !interactions[proj.id] && (
+                      <div className="mt-2 text-right">
+                        {activeReplyProjectId !== proj.id ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveReplyProjectId(proj.id);
+                              setInteractionType("reply");
+                              setReplyText("");
+                              setRevisionReason("");
+                            }}
+                            className="text-[11px] text-brand-primary hover:underline cursor-pointer font-bold"
+                          >
+                            + Phản hồi / Yêu cầu sửa đánh giá
+                          </button>
+                        ) : (
+                          <div className="mt-3 p-4 bg-secondary/40 rounded-xl border border-border/80 space-y-3 text-left">
+                            <div className="flex items-center gap-4 text-xs">
+                              <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`interaction_type_${proj.id}`}
+                                  checked={interactionType === "reply"}
+                                  onChange={() => setInteractionType("reply")}
+                                />
+                                Phản hồi cảm ơn (Thank You)
+                              </label>
+                              <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name={`interaction_type_${proj.id}`}
+                                  checked={interactionType === "revision"}
+                                  onChange={() => setInteractionType("revision")}
+                                />
+                                Yêu cầu sửa đánh giá (Request Edit)
+                              </label>
+                            </div>
+
+                            {interactionType === "reply" ? (
+                              <textarea
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                placeholder="Nhập tin nhắn cảm ơn khách hàng..."
+                                rows={2}
+                                className="w-full p-2.5 text-xs border border-input rounded-lg focus:outline-none focus:border-brand-primary text-foreground bg-card font-sans"
+                              />
+                            ) : (
+                              <textarea
+                                value={revisionReason}
+                                onChange={(e) => setRevisionReason(e.target.value)}
+                                placeholder="Nhập lý do mong muốn khách sửa đánh giá..."
+                                rows={2}
+                                className="w-full p-2.5 text-xs border border-input rounded-lg focus:outline-none focus:border-brand-primary text-foreground bg-card font-sans"
+                              />
+                            )}
+
+                            <div className="flex justify-end gap-2 text-xs">
+                              <button
+                                type="button"
+                                onClick={() => setActiveReplyProjectId(null)}
+                                className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg font-medium cursor-pointer"
+                              >
+                                Đóng
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveInteraction(proj.id)}
+                                className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-bold cursor-pointer"
+                              >
+                                Gửi
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

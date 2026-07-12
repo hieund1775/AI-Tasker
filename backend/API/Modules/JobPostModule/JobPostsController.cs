@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http; // ── THAO TÁC CƠ HỌC: BẮT BUỘC PHẢI THÊM ĐỂ HỆ THỐNG HIỂU IFormFile
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using AITasker_Modular.Modules.JobModule; 
 using AITasker_Modular.Modules.JobPostModule; 
 
@@ -13,10 +14,12 @@ namespace AITasker_Modular.Modules.JobPostModule
     public class JobPostsController : ControllerBase
     {
         private readonly IJobPostService _jobService; 
+        private readonly IMemoryCache _cache;
 
-        public JobPostsController(IJobPostService jobService)
+        public JobPostsController(IJobPostService jobService, IMemoryCache cache)
         {
             _jobService = jobService;
+            _cache = cache;
         }
 
         // ======================================================================
@@ -59,10 +62,17 @@ namespace AITasker_Modular.Modules.JobPostModule
         // HỆ THỐNG API CRUD CŨ CỦA BẠN HÙNG (ĐƯỢC BẢO TOÀN NGUYÊN VẸN 100%)
         // ======================================================================
         [HttpGet("search-filter")]
-        public async Task<IActionResult> GetFilteredJobs([FromQuery] string? search, [FromQuery] decimal? minBudget, [FromQuery] decimal? maxBudget, [FromQuery] string? status, [FromQuery] Guid? categoryDomainId)
+        public async Task<IActionResult> GetFilteredJobs(
+            [FromQuery] string? search, 
+            [FromQuery] decimal? minBudget, 
+            [FromQuery] decimal? maxBudget, 
+            [FromQuery] string? status, 
+            [FromQuery] Guid? categoryDomainId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20)
         {
-            var result = await _jobService.GetFilteredJobsAsync(search, minBudget, maxBudget, status, categoryDomainId);
-            if (result == null || !result.Any())
+            var result = await _jobService.GetFilteredJobsAsync(search, minBudget, maxBudget, status, categoryDomainId, page, pageSize);
+            if (result == null || result.Data == null || !result.Data.Any())
             {
                 return NotFound("Không tìm thấy bài đăng tuyển dụng nào phù hợp với bộ lọc.");
             }
@@ -70,13 +80,21 @@ namespace AITasker_Modular.Modules.JobPostModule
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllJobs()
+        public async Task<IActionResult> GetAllJobs([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            var result = await _jobService.GetJobsAsync();
-            if (result == null || !result.Any())
+            var cacheKey = $"job_posts_p{page}_s{pageSize}";
+            if (_cache.TryGetValue(cacheKey, out PagedResult<JobPost>? cachedResult))
+            {
+                return Ok(cachedResult);
+            }
+
+            var result = await _jobService.GetJobsAsync(page, pageSize);
+            if (result == null || result.Data == null || !result.Data.Any())
             {
                 return NotFound("Không tìm thấy bài đăng tuyển dụng nào.");
             }
+
+            _cache.Set(cacheKey, result, TimeSpan.FromSeconds(30));
             return Ok(result);
         }
 
@@ -98,9 +116,16 @@ namespace AITasker_Modular.Modules.JobPostModule
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> UpdateJob(Guid id, [FromBody] UpdateJobPostDto dto)
         {
-            var result = await _jobService.UpdateJobPostAsync(id, dto);
-            if (result == null) return NotFound("Không tìm thấy bài đăng để cập nhật.");
-            return Ok(result);
+            try
+            {
+                var result = await _jobService.UpdateJobPostAsync(id, dto);
+                if (result == null) return NotFound("Không tìm thấy bài đăng để cập nhật.");
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         [HttpGet("client/{clientId:guid}")]

@@ -102,7 +102,7 @@ namespace AITasker_Modular.Migrations
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             TotalBalance = 0m,
-                            UpdatedAt = new DateTime(2026, 7, 7, 11, 2, 25, 148, DateTimeKind.Utc).AddTicks(5467)
+                            UpdatedAt = new DateTime(2026, 7, 12, 8, 26, 58, 908, DateTimeKind.Utc).AddTicks(8366)
                         });
                 });
 
@@ -938,7 +938,16 @@ namespace AITasker_Modular.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("Category")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Certifications")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("HourlyRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Industry")
                         .HasColumnType("longtext");
 
                     b.Property<string>("JobTitle")
@@ -952,6 +961,9 @@ namespace AITasker_Modular.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("Phone")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("PortfolioUrls")
                         .HasColumnType("longtext");
 
@@ -960,6 +972,9 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<double>("SuccessRate")
                         .HasColumnType("double");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("longtext");
 
                     b.HasKey("UserId");
 

@@ -97,25 +97,93 @@ export default function ClientProjectDetail() {
   const [comment, setComment] = useState("");
   const [reviewSaved, setReviewSaved] = useState(false);
   const [isReviewDismissed, setIsReviewDismissed] = useState(false);
+  const [isSavingReview, setIsSavingReview] = useState(false);
+  const [expertReply, setExpertReply] = useState(null);
+  const [editedReview, setEditedReview] = useState(null);
+  const [originalReview, setOriginalReview] = useState(null);
 
   useEffect(() => {
     if (currentProjectId) {
-      const savedReview = localStorage.getItem(`project_review_${currentProjectId}`);
-      if (savedReview) {
-        setReviewSaved(true);
+      // 1. Tải đánh giá đã chỉnh sửa (lần hai) nếu có
+      const rawEdited = localStorage.getItem(`project_review_edited_${currentProjectId}`) || localStorage.getItem(`project_review_override_${currentProjectId}`);
+      if (rawEdited) {
         try {
-          const parsed = JSON.parse(savedReview);
-          setRating(parsed.rating || 0);
-          setComment(parsed.comment || "");
+          const parsed = JSON.parse(rawEdited);
+          setEditedReview(parsed);
         } catch (e) {}
       } else {
-        setReviewSaved(false);
-        setRating(0);
-        setComment("");
+        setEditedReview(null);
       }
+
+      // 2. Fetch đánh giá gốc từ backend API hoặc local
+      api.reviews.getReviewByProject(currentProjectId)
+        .then((res) => {
+          if (res) {
+            setReviewSaved(true);
+            const orig = { rating: res.rating || 0, comment: res.comment || "" };
+            setOriginalReview(orig);
+            // Đặt rating/comment ban đầu để hiển thị review gốc
+            setRating(res.rating || 0);
+            setComment(res.comment || "");
+          } else {
+            // Check local fallback cho review gốc
+            const rawReview = localStorage.getItem(`project_review_${currentProjectId}`);
+            if (rawReview) {
+              try {
+                const parsed = JSON.parse(rawReview);
+                setReviewSaved(true);
+                setOriginalReview(parsed);
+                setRating(parsed.rating || 0);
+                setComment(parsed.comment || "");
+              } catch (e) {
+                setReviewSaved(false);
+                setOriginalReview(null);
+                setRating(0);
+                setComment("");
+              }
+            } else {
+              setReviewSaved(false);
+              setOriginalReview(null);
+              setRating(0);
+              setComment("");
+            }
+          }
+        })
+        .catch(() => {
+          const rawReview = localStorage.getItem(`project_review_${currentProjectId}`);
+          if (rawReview) {
+            try {
+              const parsed = JSON.parse(rawReview);
+              setReviewSaved(true);
+              setOriginalReview(parsed);
+              setRating(parsed.rating || 0);
+              setComment(parsed.comment || "");
+            } catch (e) {
+              setReviewSaved(false);
+              setOriginalReview(null);
+              setRating(0);
+              setComment("");
+            }
+          } else {
+            setReviewSaved(false);
+            setOriginalReview(null);
+            setRating(0);
+            setComment("");
+          }
+        });
       
       const dismissed = localStorage.getItem(`dismissed_review_${currentProjectId}`) === "true";
       setIsReviewDismissed(dismissed);
+
+      // Load expert reply / request revision
+      const rawReply = localStorage.getItem(`review_expert_reply_${currentProjectId}`);
+      if (rawReply) {
+        try {
+          setExpertReply(JSON.parse(rawReply));
+        } catch (e) {}
+      } else {
+        setExpertReply(null);
+      }
     }
   }, [currentProjectId]);
 
@@ -124,16 +192,45 @@ export default function ClientProjectDetail() {
       toast.error("Vui lòng chọn số sao đánh giá (từ 1 đến 5).");
       return;
     }
+    setIsSavingReview(true);
     const reviewData = {
       projectId: currentProjectId,
       rating: rating,
       comment: comment.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     };
-    localStorage.setItem(`project_review_${currentProjectId}`, JSON.stringify(reviewData));
-    setReviewSaved(true);
-    toast.success("Cảm ơn bạn đã gửi đánh giá chuyên gia!");
-    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+
+    // Kiểm tra xem đã có đánh giá gốc chưa
+    if (originalReview) {
+      // Đây là lượt chỉnh sửa (lần thứ hai), lưu vào project_review_edited
+      localStorage.setItem(`project_review_edited_${currentProjectId}`, JSON.stringify(reviewData));
+      setEditedReview(reviewData);
+      setReviewSaved(true);
+      toast.success("Đã cập nhật đánh giá chuyên gia thành công!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setIsSavingReview(false);
+    } else {
+      // Đây là lần đánh giá đầu tiên
+      api.reviews.createReview(reviewData)
+        .then(() => {
+          localStorage.removeItem(`project_review_override_${currentProjectId}`);
+          setOriginalReview(reviewData);
+          setReviewSaved(true);
+          toast.success("Cảm ơn bạn đã gửi đánh giá chuyên gia!");
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        })
+        .catch((err) => {
+          console.warn("Backend save failed, using local storage override:", err);
+          localStorage.setItem(`project_review_override_${currentProjectId}`, JSON.stringify(reviewData));
+          setOriginalReview(reviewData);
+          setReviewSaved(true);
+          toast.success("Đã gửi đánh giá chuyên gia thành công!");
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        })
+        .finally(() => {
+          setIsSavingReview(false);
+        });
+    }
   };
 
   const handleDismissReview = () => {
@@ -945,24 +1042,123 @@ export default function ClientProjectDetail() {
               </div>
 
               {reviewSaved ? (
-                <div className="flex items-center justify-between p-3.5 bg-success/10 border border-success/20 text-success rounded-xl text-xs font-semibold font-sans">
-                  <span>✓ Đã đánh giá thành công (Done)</span>
-                  <div className="flex items-center gap-0.5 ml-2">
-                    {Array.from({ length: 5 }, (_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-4 h-4 ${
-                          i < rating ? "fill-amber-500 text-amber-500" : "text-border"
-                        }`}
-                      />
-                    ))}
-                  </div>
+                <div className="space-y-4 font-sans text-xs">
+                  {/* ORIGINAL REVIEW BLOCK */}
+                  {originalReview && (
+                    <div className="space-y-2 border-b border-border/40 pb-3 text-left">
+                      <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-xl font-semibold">
+                        <span>✓ Đánh giá gốc (Original Review)</span>
+                        <div className="flex items-center gap-0.5 ml-2">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < originalReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {originalReview.comment && (
+                        <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
+                          <span className="absolute left-2 text-sm text-amber-500/70 font-semibold select-none leading-none">“</span>
+                          {originalReview.comment}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* EXPERT REPLY BLOCK */}
+                  {expertReply?.replyText && (
+                    <div className="p-3.5 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs space-y-1 text-left">
+                      <span className="font-bold text-brand-primary block">Chuyên gia phản hồi (Thank You):</span>
+                      <p className="text-muted-foreground">{expertReply.replyText}</p>
+                    </div>
+                  )}
+                  {expertReply?.requestRevisionText && (
+                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs space-y-1 text-left">
+                      <span className="font-bold text-amber-600 block">Chuyên gia phản hồi & yêu cầu sửa đổi:</span>
+                      <p className="text-muted-foreground">{expertReply.requestRevisionText}</p>
+                    </div>
+                  )}
+
+                  {/* CLIENT EDITED REVIEW BLOCK */}
+                  {editedReview && (
+                    <div className="space-y-2 pt-3 border-t border-border/40 text-left">
+                      <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-xl font-semibold">
+                        <span>✓ Đã chỉnh sửa (Edited Review)</span>
+                        <div className="flex items-center gap-0.5 ml-2">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      {editedReview.comment && (
+                        <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
+                          <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">“</span>
+                          {editedReview.comment}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* BUTTON TO OPEN REVISION FORM */}
+                  {expertReply?.requestRevisionText && !editedReview && (
+                    <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl text-xs space-y-2 text-left animate-pulse mt-2">
+                      <p className="text-muted-foreground font-medium">Bạn có thể chỉnh sửa lại đánh giá này theo mong muốn của chuyên gia (chỉ được chỉnh sửa duy nhất 1 lần).</p>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRating(originalReview?.rating || 0);
+                            setComment(originalReview?.comment || "");
+                            setReviewSaved(false);
+                          }}
+                          className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-sm transition-colors cursor-pointer"
+                        >
+                          Chỉnh sửa đánh giá (Adjust Review)
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="space-y-4 font-sans">
+                <div className="space-y-4 font-sans text-left">
+                  {/* Show previous review thread during editing */}
+                  {originalReview && (
+                    <div className="space-y-2 border-b border-border/40 pb-3">
+                      <p className="text-xs text-muted-foreground font-semibold">Đánh giá gốc của bạn:</p>
+                      <div className="flex items-center gap-0.5 mb-1">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-3.5 h-3.5 ${
+                              i < originalReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {originalReview.comment && (
+                        <p className="text-xs text-muted-foreground italic bg-secondary/20 p-2 rounded-lg border border-border">"{originalReview.comment}"</p>
+                      )}
+                    </div>
+                  )}
+
+                  {expertReply?.requestRevisionText && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-left text-muted-foreground">
+                      <span className="font-semibold text-amber-600">Đang chỉnh sửa theo phản hồi của Chuyên gia:</span>
+                      <p className="mt-1 font-medium bg-background/40 p-2 rounded border border-amber-500/10">"{expertReply.requestRevisionText}"</p>
+                    </div>
+                  )}
+
                   {/* Stars Row */}
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-foreground/80 font-medium">Chọn số sao:</span>
+                    <span className="text-xs text-foreground/80 font-medium">Chọn số sao mới:</span>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }, (_, i) => {
                         const starValue = i + 1;
@@ -990,7 +1186,7 @@ export default function ClientProjectDetail() {
 
                   {/* Comment Textarea */}
                   <div className="space-y-1.5">
-                    <span className="text-xs text-foreground/80 font-medium">Bình luận, phản hồi chi tiết:</span>
+                    <span className="text-xs text-foreground/80 font-medium">Bình luận mới:</span>
                     <textarea
                       rows={3}
                       value={comment}
@@ -1000,13 +1196,23 @@ export default function ClientProjectDetail() {
                     />
                   </div>
 
-                  <div className="flex justify-end pt-1">
+                  <div className="flex justify-end gap-2 pt-1">
+                    {originalReview && (
+                      <button
+                        type="button"
+                        onClick={() => setReviewSaved(true)}
+                        className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium text-sm transition-colors cursor-pointer"
+                      >
+                        Huỷ sửa
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={handleSaveReview}
-                      className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                      disabled={isSavingReview}
+                      className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Gửi đánh giá
+                      {isSavingReview ? "Đang gửi..." : "Gửi đánh giá"}
                     </button>
                   </div>
                 </div>
