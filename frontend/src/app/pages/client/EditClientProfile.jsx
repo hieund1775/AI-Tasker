@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
-// Helper: localStorage key cho client profile (tránh đụng cột Status của BE)
+// Helper: localStorage key for client profile (avoids clashing with BE Status column)
 // ---------------------------------------------------------------------------
 export const getClientProfileKey = (userId) => `aitasker_client_profile_${userId}`;
 
@@ -39,19 +39,19 @@ export function EditClientProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // ---- Load profile: API (fullName, email) + localStorage (phần còn lại) ----
+  // ---- Load profile: API (fullName, email) + localStorage (remaining fields) ----
   useEffect(() => {
     if (!authUser?.id) return;
     setLoading(true);
     api.users.getById(authUser.id)
       .then((client) => {
         if (client) {
-          // Phần an toàn từ API
+          // Safe fields from API
           const apiData = {
             fullName: client.fullName || client.name || "",
             email: client.email || "",
           };
-          // Phần profile từ localStorage (phone, location, ...)
+          // Profile details from localStorage (phone, location, ...)
           const localProfile = getLocalClientProfile(authUser.id);
 
           setFormData({
@@ -81,13 +81,13 @@ export function EditClientProfile() {
     setSaving(true);
 
     try {
-      // 1. Lưu fullName & email lên API (an toàn, không đụng cột Status)
+      // 1. Save fullName & email to API (safe, does not touch Status column)
       await api.users.update(authUser.id, {
         fullName: formData.fullName.trim(),
         email: formData.email.trim(),
       });
 
-      // 2. Lưu phần profile còn lại vào localStorage
+      // 2. Save remaining profile fields to localStorage
       saveLocalClientProfile(authUser.id, {
         phone: formData.phone.trim(),
         location: formData.location.trim(),
@@ -96,7 +96,7 @@ export function EditClientProfile() {
         bio: formData.bio.trim(),
       });
 
-      // 3. Cập nhật fullName trong localStorage auth
+      // 3. Update fullName in auth localStorage
       const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);

@@ -561,7 +561,7 @@ export function JobList() {
             </div>
           ))}
           <p className="text-center text-sm text-muted-foreground pt-2">
-            Đang tải danh sách việc làm từ server...
+            Loading job list from server...
           </p>
         </div>
       ) : filtered.length === 0 ? (
@@ -578,7 +578,7 @@ export function JobList() {
           </h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
             {apiError
-              ? `Không thể tải danh sách việc làm. Vui lòng thử lại sau.`
+              ? `Failed to load job list. Please try again later.`
               : searchTerm || hasActiveFilters
               ? "Try adjusting your search terms or clearing the filters."
               : "No jobs are currently available. Check back soon for new opportunities."}

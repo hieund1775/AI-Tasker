@@ -1,25 +1,25 @@
 // =============================================================================
 // AI-Tasker Notification Service (Helper)
 // =============================================================================
-// Quản lý việc bắn thông báo đúng đối tượng (Targeted Notifications)
-// Phân định chính xác User ID và vai trò Client/Expert.
+// Manage sending notifications to correct targets (Targeted Notifications)
+// Accurately resolve User ID and Client/Expert roles.
 // =============================================================================
 
 import api from "./api.js";
 
 /**
- * Gửi thông báo đến một người dùng cụ thể.
+ * Send a notification to a specific user.
  * 
- * @param {string} userId - ID người nhận thông báo
- * @param {string} title - Tiêu đề thông báo
- * @param {string} message - Nội dung thông báo
- * @param {string} type - Loại thông báo ('proposal', 'payment', 'system', 'message', 'dispute')
- * @param {string} linkTo - Đường dẫn chuyển hướng khi click thông báo
- * @returns {Promise<object>} Đối tượng thông báo đã tạo
+ * @param {string} userId - Recipient User ID
+ * @param {string} title - Notification Title
+ * @param {string} message - Notification Message
+ * @param {string} type - Notification Type
+ * @param {string} linkTo - Redirect link when notification is clicked
+ * @returns {Promise<object>} Created notification object
  */
 export async function sendNotification({ userId, title, message, type = "system", linkTo = "" }) {
   try {
-    // Gọi API thực tế để lưu thông báo
+    // Call actual API to save notification
     const newNotif = await api.post("/notifications", {
       userId,
       title,
@@ -27,87 +27,87 @@ export async function sendNotification({ userId, title, message, type = "system"
       link: linkTo,
     });
     
-    // Phát sự kiện cập nhật giao diện
+    // Emit UI update event
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     }
     
     return newNotif;
   } catch (err) {
-    console.warn("[NotificationService] Gửi thông báo thất bại (Có thể do BE chưa có API POST /notifications):", err);
-    // Trả về null thay vì throw lỗi để không làm sập các luồng xử lý chính (ví dụ: chấp nhận proposal, nạp thông báo...)
+    console.warn("[NotificationService] Failed to send notification (Maybe BE does not have POST /notifications API yet):", err);
+    // Return null instead of throwing error to prevent crashing main flows
     return null;
   }
 }
 
 /**
- * TRIGGER 1.1: Expert gửi một proposal mới cho JobPost của Client
- * Chỉ Client (chủ JobPost) nhận thông báo.
+ * TRIGGER 1.1: Expert submits a new proposal for Client's JobPost
+ * Only Client (JobPost owner) receives notification.
  */
 export async function notifyNewProposal({ clientUserId, expertName, jobTitle, jobPostId }) {
   return sendNotification({
     userId: clientUserId,
-    title: `Đề xuất mới cho công việc: ${jobTitle}`,
-    message: `Chuyên gia ${expertName} vừa gửi một đề xuất mới cho công việc của bạn.`,
+    title: `New proposal for job: ${jobTitle}`,
+    message: `Expert ${expertName} has submitted a new proposal for your job.`,
     type: "proposal",
     linkTo: `/client/my-projects?projectId=${jobPostId}&view=proposals`
   });
 }
 
 /**
- * TRIGGER 1.2: Expert cập nhật/gửi lại proposal cần sửa
- * Chỉ Client (chủ JobPost) nhận thông báo.
+ * TRIGGER 1.2: Expert updates/resubmits proposal needing revision
+ * Only Client (JobPost owner) receives notification.
  */
 export async function notifyUpdatedProposal({ clientUserId, expertName, jobTitle, jobPostId }) {
   return sendNotification({
     userId: clientUserId,
-    title: `Cập nhật đề xuất cho công việc: ${jobTitle}`,
-    message: `Chuyên gia ${expertName} đã cập nhật và gửi lại đề xuất theo yêu cầu.`,
+    title: `Updated proposal for job: ${jobTitle}`,
+    message: `Expert ${expertName} has updated and resubmitted the proposal as requested.`,
     type: "proposal",
     linkTo: `/client/my-projects?projectId=${jobPostId}&view=proposals`
   });
 }
 
 /**
- * TRIGGER 2.1: Client chấp nhận Proposal của Expert A
- * - Expert A (người được chọn) nhận thông báo chúc mừng.
- * - Tất cả các ứng viên khác (Expert B, C...) ứng tuyển vào Job đó nhận thông báo từ chối.
+ * TRIGGER 2.1: Client accepts Expert A's Proposal
+ * - Expert A (selected expert) receives congrats notification.
+ * - All other candidates (Expert B, C...) for that Job receive rejection notification.
  */
 export async function notifyProposalDecision({ selectedExpertId, clientName, jobTitle, proposalId, otherProposals = [] }) {
-  // 1. Gửi cho Expert được chọn
+  // 1. Send to the selected Expert
   await sendNotification({
     userId: selectedExpertId,
-    title: `Đề xuất được chấp nhận | Dự án: ${jobTitle}`,
-    message: `Chúc mừng! Đề xuất của bạn đã được khách hàng ${clientName} chấp nhận.`,
+    title: `Proposal accepted | Project: ${jobTitle}`,
+    message: `Congratulations! Your proposal has been accepted by client ${clientName}.`,
     type: "proposal",
     linkTo: `/expert/proposals/${proposalId}`
   });
 
-  // 2. Đồng loạt gửi cho các Expert khác (nếu có)
+  // 2. Send to other Experts simultaneously (if any)
   const notifyOthers = otherProposals.map(prop => {
     return sendNotification({
       userId: prop.expertId,
-      title: `Đề xuất bị từ chối | Dự án: ${jobTitle}`,
-      message: `Rất tiếc, khách hàng ${clientName} đã từ chối đề xuất của bạn cho dự án này.`,
+      title: `Proposal rejected | Project: ${jobTitle}`,
+      message: `Sorry, client ${clientName} has rejected your proposal for this project.`,
       type: "proposal",
       linkTo: `/expert/proposals/${prop.id}`
     });
   });
 
   await Promise.all(notifyOthers).catch(err => {
-    console.error("[NotificationService] Gửi thông báo từ chối cho các chuyên gia khác thất bại:", err);
+    console.error("[NotificationService] Failed to send rejection notifications to other experts:", err);
   });
 }
 
 /**
- * TRIGGER 2.2: Client hoàn thành ký quỹ (Fund Escrow) thành công
- * Chỉ Expert được chọn nhận thông báo. Các Expert khác không liên quan KHÔNG nhận gì.
+ * TRIGGER 2.2: Client successfully funds escrow (Fund Escrow)
+ * Only selected Expert receives notification. Other unrelated Experts receive nothing.
  */
 export async function notifyEscrowFunded({ expertUserId, clientName, jobTitle, proposalId }) {
   return sendNotification({
     userId: expertUserId,
-    title: `Ký quỹ thành công | Dự án: ${jobTitle}`,
-    message: `Khách hàng ${clientName} đã nạp tiền ký quỹ thành công. Dự án chính thức bắt đầu!`,
+    title: `Escrow deposited successfully | Project: ${jobTitle}`,
+    message: `Client ${clientName} deposited escrow successfully. The project has officially started!`,
     type: "payment",
     linkTo: `/expert/proposals/${proposalId}`
   });
@@ -120,8 +120,8 @@ export async function notifyEscrowFunded({ expertUserId, clientName, jobTitle, p
 export async function notifyExpertInvited({ expertUserId, clientName, jobTitle, jobPostId, proposalId }) {
   return sendNotification({
     userId: expertUserId,
-    title: `Lời mời dự án mới: ${jobTitle}`,
-    message: `Khách hàng ${clientName} vừa gửi lời mời bạn tham gia dự án "${jobTitle}". Vui lòng kiểm tra và phản hồi.`,
+    title: `New project invitation: ${jobTitle}`,
+    message: `Client ${clientName} has invited you to join the project "${jobTitle}". Please check and respond.`,
     type: "proposal",
     linkTo: jobPostId ? `/expert/jobs/${jobPostId}` : `/expert/dashboard`
   });
@@ -134,8 +134,8 @@ export async function notifyExpertInvited({ expertUserId, clientName, jobTitle, 
 export async function notifyInviteDeclined({ clientUserId, expertName, jobTitle, jobPostId }) {
   return sendNotification({
     userId: clientUserId,
-    title: `Chuyên gia từ chối lời mời: ${jobTitle}`,
-    message: `Chuyên gia ${expertName} đã từ chối lời mời tham gia dự án "${jobTitle}".`,
+    title: `Expert declined invitation: ${jobTitle}`,
+    message: `Expert ${expertName} has declined the invitation to join the project "${jobTitle}".`,
     type: "proposal",
     linkTo: `/client/projects/${jobPostId}/proposals`
   });
@@ -148,8 +148,8 @@ export async function notifyInviteDeclined({ clientUserId, expertName, jobTitle,
 export async function notifyProposalDeclined({ expertUserId, clientName, jobTitle }) {
   return sendNotification({
     userId: expertUserId,
-    title: `Đề xuất bị từ chối: ${jobTitle}`,
-    message: `Khách hàng ${clientName} đã từ chối đề xuất của bạn cho dự án "${jobTitle}".`,
+    title: `Proposal rejected: ${jobTitle}`,
+    message: `Client ${clientName} has rejected your proposal for project "${jobTitle}".`,
     type: "proposal",
     linkTo: `/expert/proposals`
   });

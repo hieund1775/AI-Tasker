@@ -513,7 +513,7 @@ export function SendProposal() {
 
       let finalPropId = null;
 
-      // Lấy file đính kèm thực tế nếu Expert có upload lên form
+      // Retrieve actual attachment file if Expert uploaded to form
       const portfolioFile = attachments[0] || null;
       const attachmentFile = attachments[1] || null;
 
@@ -530,8 +530,8 @@ export function SendProposal() {
         // Notify client that expert updated their proposal
         notifyUpdatedProposal({
           clientUserId: project?.clientId,
-          expertName: user?.fullName || user?.name || "Chuyên gia",
-          jobTitle: project?.title || "Dự án",
+          expertName: user?.fullName || user?.name || "Expert",
+          jobTitle: project?.title || "Project",
           jobPostId: projectId,
         }).catch(() => {});
       } else {
@@ -549,8 +549,8 @@ export function SendProposal() {
         // Notify client that a new proposal arrived
         notifyNewProposal({
           clientUserId: project?.clientId,
-          expertName: user?.fullName || user?.name || "Chuyên gia",
-          jobTitle: project?.title || "Dự án",
+          expertName: user?.fullName || user?.name || "Expert",
+          jobTitle: project?.title || "Project",
           jobPostId: projectId,
         }).catch(() => {});
       }
@@ -1010,9 +1010,9 @@ export function SendProposal() {
                       <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
                         <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Thời gian đề xuất vượt quá yêu cầu</p>
+                          <p className="text-sm font-bold">Proposed duration exceeds requirement</p>
                           <p className="text-xs text-amber-700 mt-0.5">
-                            Thời gian của bạn ({totalDays} ngày) vượt quá mốc gốc của khách hàng ({clientDuration} ngày) là {Math.abs(timeDeviation)} ngày.
+                            Your duration ({totalDays} days) exceeds the client's baseline ({clientDuration} days) by {Math.abs(timeDeviation)} days.
                           </p>
                         </div>
                       </div>
@@ -1021,9 +1021,9 @@ export function SendProposal() {
                       <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
                         <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Ngân sách đề xuất vượt quá ngân sách gốc</p>
+                          <p className="text-sm font-bold">Proposed budget exceeds baseline</p>
                           <p className="text-xs text-rose-700 mt-0.5">
-                            Giá bid của bạn ({finalBid.toLocaleString()} USD) vượt quá ngân sách của khách hàng ({clientBudget.toLocaleString()} USD) là {Math.abs(budgetDeviation).toLocaleString()} USD.
+                            Your bid amount ({finalBid.toLocaleString()} USD) exceeds the client's budget ({clientBudget.toLocaleString()} USD) by {Math.abs(budgetDeviation).toLocaleString()} USD.
                           </p>
                         </div>
                       </div>

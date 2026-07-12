@@ -81,8 +81,8 @@ export function JobDetail() {
         }
 
         if (!cancelled) {
-          // api.jobPosts.getById đã chạy mapJobPost() rồi nên useCases, requiredSkills, category
-          // đều đã được map đúng. Chỉ cần gán thêm client info.
+          // api.jobPosts.getById already executed mapJobPost(), so useCases, requiredSkills, category
+          // are already mapped correctly. Just assign client info.
           setJob({
             ...project,
             client: clientInfo,
@@ -117,17 +117,17 @@ export function JobDetail() {
       if (job?.clientId) {
         await notificationService.notifyInviteDeclined({
           clientUserId: job.clientId,
-          expertName: user?.fullName || user?.name || "Một chuyên gia",
+          expertName: user?.fullName || user?.name || "An expert",
           jobTitle: job.title,
           jobPostId: job.id
         });
       }
 
-      alert("Bạn đã từ chối lời mời thành công!");
+      alert("You have successfully declined the invitation!");
       setInvitation(null);
     } catch (e) {
       console.error("Failed to decline invite:", e);
-      alert("Lỗi khi từ chối lời mời. Vui lòng thử lại!");
+      alert("Failed to decline invitation. Please try again!");
     }
   };
 
@@ -154,7 +154,7 @@ export function JobDetail() {
     );
   }
 
-  // Dùng requiredSkills đã được map sẵn bởi mapJobPost() trong api.js
+  // Use requiredSkills already mapped by mapJobPost() in api.js
   const skills = (job.requiredSkills && job.requiredSkills.length > 0)
     ? job.requiredSkills
     : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
@@ -240,7 +240,7 @@ export function JobDetail() {
                     <p className="font-bold text-foreground text-sm">
                       User Story #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
                     </p>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{uc.originalDurationDays || uc.durationDays || 1} ngày</span>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{uc.originalDurationDays || uc.durationDays || 1} days</span>
                   </div>
                   {uc.description ? (
                     <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
@@ -250,7 +250,7 @@ export function JobDetail() {
                       {safeArray(uc.requirements).map((req, j) => (
                         <li key={j} className="flex items-center justify-between text-sm text-muted-foreground">
                           <span>• {req.title}</span>
-                          <span className="text-xs bg-secondary px-1.5 py-0.5 rounded ml-2 shrink-0">{req.durationDays || 1} ngày</span>
+                          <span className="text-xs bg-secondary px-1.5 py-0.5 rounded ml-2 shrink-0">{req.durationDays || 1} days</span>
                         </li>
                       ))}
                     </ul>

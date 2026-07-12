@@ -96,7 +96,7 @@ export function ProjectHeaderCard({
 
     // If finished
     if (["completed", "payment_released", "closed"].includes(status)) {
-      return "0 ngày (Đã hoàn thành)";
+      return "0 days (Completed)";
     }
 
     // If active / in progress / disputed
@@ -120,7 +120,7 @@ export function ProjectHeaderCard({
       const now = new Date();
       const diffMs = end.getTime() - now.getTime();
       if (diffMs <= 0) {
-        return "Quá hạn";
+        return "Overdue";
       }
 
       const diffSecs = Math.floor(diffMs / 1000);
@@ -129,19 +129,19 @@ export function ProjectHeaderCard({
       const diffDays = Math.floor(diffHrs / 24);
 
       if (diffDays > 0) {
-        return `${diffDays} ngày còn lại`;
+        return `${diffDays} days remaining`;
       } else if (diffHrs > 0) {
-        return `${diffHrs} giờ còn lại`;
+        return `${diffHrs} hours remaining`;
       } else if (diffMins > 0) {
-        return `${diffMins} phút còn lại`;
+        return `${diffMins} minutes remaining`;
       } else {
-        return `${diffSecs} giây còn lại`;
+        return `${diffSecs} seconds remaining`;
       }
     }
 
     // Default/Not started: show use case total duration
     const useCaseDays = project.useCases?.reduce((sum, uc) => sum + (Number(uc.originalDurationDays || uc.durationDays) || 0), 0) || 0;
-    return `${useCaseDays} ngày`;
+    return `${useCaseDays} days`;
   })();
 
   const otherPerson = role === "client" ? expert : client;

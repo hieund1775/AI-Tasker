@@ -38,7 +38,7 @@ function parseUseCasesFromText(text) {
         if (title.length > 2) {
           useCases.push({
             title: title,
-            description: description || `Đặc tả: ${title}`,
+            description: description || `Specification: ${title}`,
             originalDurationDays: 5
           });
           matched = true;
@@ -119,7 +119,7 @@ export function AIClientsUseCasePlanner({
 
     const welcomeMsg = {
       role: "ai",
-      text: `Chào bạn! Tôi là trợ lý lập kế hoạch User Stories bằng AI.\n\nHãy tải lên tài liệu mô tả yêu cầu (BRD/SRS) của bạn ở trên, hoặc mô tả ý tưởng dự án của bạn tại đây (ví dụ: "Tôi muốn làm một chatbot bán hàng tích hợp RAG").\n\nTập lệnh AI của tôi sẽ tiến hành phân tách và chuẩn hóa các Project User Stories cùng timeline tối đa gốc cụ thể để bạn áp dụng vào form tuyển dụng!`,
+      text: `Hello! I am your AI User Stories planning assistant.\n\nPlease upload your requirement document (BRD/SRS) above, or describe your project idea here (e.g., "I want to make a sales chatbot integrated with RAG").\n\nMy AI engine will decompose and normalize the Project User Stories along with specific baseline maximum timelines for you to apply to the recruitment form!`,
       timestamp: Date.now()
     };
     setMessages([welcomeMsg]);
@@ -134,7 +134,7 @@ export function AIClientsUseCasePlanner({
     if (!trimmed && files.length === 0) return;
     if (loading) return;
 
-    const userMsgText = trimmed || `Hãy phân tích tài liệu đính kèm để sinh User Stories: ${files.map(f => f.name).join(", ")}`;
+    const userMsgText = trimmed || `Please analyze the attached document to generate User Stories: ${files.map(f => f.name).join(", ")}`;
     const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -186,11 +186,11 @@ export function AIClientsUseCasePlanner({
           specialization: "Full Stack Development",
           skills: [],
           useCases: stories,
-          introText: chatMessage || "Dưới đây là đề xuất User Stories dựa trên phân tích của AI:"
+          introText: chatMessage || "Here is the proposed User Stories based on AI analysis:"
         };
       }
 
-      const replyText = chatMessage || (plan ? "Dưới đây là đề xuất User Stories dựa trên phân tích của AI:" : "Tôi chưa thu thập đủ thông tin để đề xuất User Stories. Hãy mô tả chi tiết hơn về dự án của bạn nhé.");
+      const replyText = chatMessage || (plan ? "Here is the proposed User Stories based on AI analysis:" : "I have not gathered enough information to propose User Stories. Please describe your project in more detail.");
 
       setGeneratedPlan(plan);
       setApplied(false);
@@ -206,7 +206,7 @@ export function AIClientsUseCasePlanner({
       console.error("Backend AI chat failed:", err);
       const aiMsg = {
         role: "ai",
-        text: "Xin lỗi, đã có lỗi xảy ra khi kết nối với AI Backend. (Mã lỗi: " + (err.message || "Unknown") + ")",
+        text: "Sorry, an error occurred while connecting to the AI Backend. (Error code: " + (err.message || "Unknown") + ")",
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -228,7 +228,7 @@ export function AIClientsUseCasePlanner({
       const names = newFiles.map((f) => f.name).join(", ");
       setMessages((prev) => [
         ...prev,
-        { role: "user", text: `Đã đính kèm tài liệu: ${names}`, timestamp: Date.now() }
+        { role: "user", text: `Attached document: ${names}`, timestamp: Date.now() }
       ]);
     }
   }, []);
@@ -240,7 +240,7 @@ export function AIClientsUseCasePlanner({
         <div>
           <h2 className="text-sm font-bold text-foreground">🤖 AI User Story Planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-            Lập kế hoạch User Stories từ tài liệu & trò chuyện
+            Plan User Stories from Document & Chat
           </p>
         </div>
         <button
@@ -248,14 +248,14 @@ export function AIClientsUseCasePlanner({
           onClick={onClose}
           className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
         >
-          Đóng
+          Close
         </button>
       </div>
 
       {/* Upload Requirements */}
       <div className="shrink-0 px-4 py-3 border-b border-border bg-card">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          📎 Tải lên BRD / SRS
+          📎 Upload BRD / SRS
         </p>
         <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
@@ -266,8 +266,8 @@ export function AIClientsUseCasePlanner({
           {messages.length === 0 && !loading && (
             <div className="text-center py-8 px-4">
               <MessageSquare className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground font-medium">Hãy nhắn tin hoặc tải lên tài liệu để AI tự động lập luồng Use Cases dự án.</p>
-              <p className="text-xs text-muted-foreground/60 mt-1 italic">Ví dụ: "Tôi muốn làm chatbot hỗ trợ khách hàng tích hợp RAG"</p>
+              <p className="text-sm text-muted-foreground font-medium">Please send a message or upload a document to automatically generate Use Cases.</p>
+              <p className="text-xs text-muted-foreground/60 mt-1 italic">Example: "I want to build a customer support chatbot with RAG"</p>
             </div>
           )}
 
@@ -285,7 +285,7 @@ export function AIClientsUseCasePlanner({
                   <div className="mt-4 space-y-3 border-t border-border pt-3 w-full">
                     <div className="bg-accent/10 border border-accent/20 rounded-lg p-2.5">
                       <p className="text-[11px] font-bold text-accent uppercase tracking-wider">
-                        Phân loại dự đoán:
+                        Predicted Category:
                       </p>
                       <p className="text-xs text-foreground font-semibold mt-0.5">
                         {msg.plan.category} ({msg.plan.specialization})
@@ -294,13 +294,13 @@ export function AIClientsUseCasePlanner({
 
                     <div className="space-y-2">
                       <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Danh sách Use Cases đề xuất:
+                        Proposed Use Cases:
                       </p>
                       {msg.plan.useCases.map((uc, index) => (
                         <div key={index} className="bg-secondary/60 border border-border rounded-lg p-2.5 text-xs space-y-1">
                           <p className="font-semibold text-foreground">{uc.title}</p>
                           <p className="text-muted-foreground leading-normal">{uc.description}</p>
-                          <p className="text-accent font-medium">{uc.originalDurationDays} ngày</p>
+                          <p className="text-accent font-medium">{uc.originalDurationDays} days</p>
                         </div>
                       ))}
                     </div>
@@ -315,7 +315,7 @@ export function AIClientsUseCasePlanner({
               <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
-                  <span className="text-sm text-muted-foreground font-medium">AI đang phân tích tài liệu & yêu cầu...</span>
+                  <span className="text-sm text-muted-foreground font-medium">AI is analyzing document & requirements...</span>
                 </div>
               </div>
             </div>
@@ -338,7 +338,7 @@ export function AIClientsUseCasePlanner({
               }`}
           >
             <Sparkles className="w-4 h-4" />
-            {applied ? "✓ Đã áp dụng Use Cases vào Form" : "Áp dụng Use Cases này"}
+            {applied ? "✓ Applied Use Cases to Form" : "Apply these Use Cases"}
           </button>
         </div>
       )}
@@ -358,7 +358,7 @@ export function AIClientsUseCasePlanner({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
-            placeholder="Mô tả dự án hoặc đặt câu hỏi..."
+            placeholder="Describe your project or ask a question..."
             className="flex-1 px-4 py-2 border border-input rounded-xl text-sm focus:outline-none focus:border-brand-primary bg-card"
           />
           <button

@@ -35,21 +35,21 @@ const statusColors = {
 };
 
 const typeLabels = {
-  deposit: "nạp tiền",
-  manualdeposit: "nạp tiền",
-  withdrawal: "rút tiền",
-  escrow_deposit: "ký quỹ",
-  escrowdeposit: "ký quỹ",
-  escrow_release: "giải ngân",
-  escrowrelease: "giải ngân",
-  releasepayment: "giải ngân",
-  escrow_refund: "tố cáo",
-  escrowrefund: "tố cáo",
-  refund: "tố cáo",
-  dispute: "tố cáo",
-  platformfee: "phí hệ thống",
-  platform_fee: "phí hệ thống",
-  cancel: "hủy dự án",
+  deposit: "deposit",
+  manualdeposit: "deposit",
+  withdrawal: "withdrawal",
+  escrow_deposit: "escrow deposit",
+  escrowdeposit: "escrow deposit",
+  escrow_release: "escrow release",
+  escrowrelease: "escrow release",
+  releasepayment: "escrow release",
+  escrow_refund: "dispute refund",
+  escrowrefund: "dispute refund",
+  refund: "dispute refund",
+  dispute: "dispute refund",
+  platformfee: "platform fee",
+  platform_fee: "platform fee",
+  cancel: "cancellation request",
 };
 
 // ---------------------------------------------------------------------------
@@ -285,7 +285,7 @@ export function ExpertWallet() {
             });
           }
 
-          // Insert exactly ONE clean consolidated "hủy dự án" transaction for each cancelled project
+          // Insert exactly ONE clean consolidated "cancel project" transaction for each cancelled project
           cancelledProjIdsInDb.forEach(projIdLower => {
             const split = cancelledProjectSplits.get(projIdLower);
             const report = projectReportMap.get(projIdLower);
@@ -295,7 +295,7 @@ export function ExpertWallet() {
               id: `cancel-payout-${projIdLower}`,
               projectId: projIdLower,
               amount: split.expertPayout,
-              type: "cancel", // maps to "hủy dự án"
+              type: "cancel", // maps to "cancel project"
               status: "done",
               createdAt: tDate,
               projectTitle: split.title,
@@ -445,7 +445,7 @@ export function ExpertWallet() {
                 amount: r.amount,
                 type: "escrow_release",
                 createdAt: r.createdAt || new Date().toISOString(),
-                projectTitle: r.projectTitle || "Dự án",
+                projectTitle: r.projectTitle || "Project",
               });
               myTransactions.unshift({
                 id: `fee-${r.id || crypto.randomUUID()}`,
@@ -453,7 +453,7 @@ export function ExpertWallet() {
                 amount: -r.amount * 0.05,
                 type: "platform_fee",
                 createdAt: r.createdAt || new Date().toISOString(),
-                projectTitle: r.projectTitle || "Dự án",
+                projectTitle: r.projectTitle || "Project",
               });
             }
           });
@@ -502,19 +502,19 @@ export function ExpertWallet() {
       const resolvedUserId = user?.id || user?.Id;
       const res = await api.payments.createPaymentOrder(resolvedUserId, amount, window.location.href);
       if (res && res.orderUrl) {
-        setFeedback({ type: "success", message: "Đang chuyển hướng sang cổng thanh toán ZaloPay..." });
+        setFeedback({ type: "success", message: "Redirecting to ZaloPay payment gateway..." });
         sessionStorage.setItem("payment_return_url", window.location.pathname + window.location.search);
         setTimeout(() => {
           window.location.href = res.orderUrl;
         }, 1000);
       } else {
-        throw new Error("Không lấy được link thanh toán từ ZaloPay.");
+        throw new Error("Failed to retrieve ZaloPay payment link.");
       }
     } catch (err) {
       console.error("Wallet deposit via ZaloPay failed:", err);
       setFeedback({
         type: "error",
-        message: err?.message || "Tạo đơn hàng nạp tiền thất bại. Vui lòng thử lại sau."
+        message: err?.message || "Failed to create deposit order. Please try again later."
       });
       setShowDepositModal(false);
       setWalletDepositAmount("");
@@ -534,7 +534,7 @@ export function ExpertWallet() {
       const resolvedUserId = user?.id || user?.Id;
       const res = await api.payments.withdraw(resolvedUserId, amount);
       
-      setFeedback({ type: "success", message: res?.message || "Rút tiền thành công!" });
+      setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
       
@@ -572,7 +572,7 @@ export function ExpertWallet() {
       console.error("Withdraw failed:", err);
       setFeedback({
         type: "error",
-        message: err?.message || "Rút tiền thất bại. Vui lòng thử lại sau."
+        message: err?.message || "Withdrawal failed. Please try again later."
       });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
@@ -646,14 +646,14 @@ export function ExpertWallet() {
                 onClick={() => setShowDepositModal(true)}
                 className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
               >
-                <PlusCircle className="w-3 h-3" /> Nạp tiền
+                <PlusCircle className="w-3 h-3" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
                 className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
               >
-                <Send className="w-3 h-3" /> Rút tiền
+                <Send className="w-3 h-3" /> Withdraw
               </button>
             </div>
           </div>
@@ -775,15 +775,15 @@ export function ExpertWallet() {
                     ? "bg-secondary text-muted-foreground border border-border"
                     : "bg-success/10 text-success border border-success/20";
 
-                  // Xử lý description hiển thị theo yêu cầu đại ca
+                  // Process description display as requested
                   let displayDesc = tx.description;
-                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "nạp tiền";
-                  else if (lowerType === "withdrawal") displayDesc = "rút tiền";
+                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "deposit";
+                  else if (lowerType === "withdrawal") displayDesc = "withdrawal";
                   else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType)) {
-                    displayDesc = tx.projectTitle ? `Dự án: ${tx.projectTitle}` : (tx.description || "Dự án: AI-Tasker");
+                    displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : (tx.description || "Project: AI-Tasker");
                   }
 
-                  // Tố cáo/bồi thường: nếu ko bồi thường được (amount <= 0) thì hiển thị "-"
+                  // Report/Compensation: if cannot compensate (amount <= 0), show "-"
                   const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType) && Number(tx.amount || 0) <= 0;
 
                   return (
@@ -826,21 +826,21 @@ export function ExpertWallet() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-success" /> Nạp tiền vào ví
+              <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
-              Nhập số tiền bạn muốn nạp vào ví thông qua cổng thanh toán ZaloPay (tối thiểu 1,000 VND).
+              Enter the amount you wish to deposit into your wallet via ZaloPay (minimum 1,000 VND).
             </p>
             <form onSubmit={handleWalletDeposit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền (VND)</label>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount (VND)</label>
                 <input
                   type="number"
                   min="1000"
                   step="1000"
                   value={walletDepositAmount}
                   onChange={(e) => setWalletDepositAmount(e.target.value)}
-                  placeholder="Ví dụ: 50000"
+                  placeholder="e.g. 50000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
                 />
@@ -851,7 +851,7 @@ export function ExpertWallet() {
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
                   className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
                 >
-                  {depositLoading ? "Đang xử lý..." : "Nạp tiền qua ZaloPay"}
+                  {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
                 <button
                   type="button"
@@ -861,7 +861,7 @@ export function ExpertWallet() {
                   }}
                   className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
-                  Hủy
+                  Cancel
                 </button>
               </div>
             </form>
@@ -874,14 +874,14 @@ export function ExpertWallet() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Send className="w-5 h-5 text-primary" /> Rút tiền khỏi ví
+              <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
-              Nhập số tiền muốn rút từ ví khả dụng (Số dư khả dụng hiện tại: <span className="font-semibold text-foreground"><MoneyDisplay amount={data?.wallet?.balance ?? 0} /></span>).
+              Enter the amount you wish to withdraw from your available balance (Current available balance: <span className="font-semibold text-foreground"><MoneyDisplay amount={data?.wallet?.balance ?? 0} /></span>).
             </p>
             <form onSubmit={handleWalletWithdraw} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền rút (VND)</label>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Withdrawal Amount (VND)</label>
                 <input
                   type="number"
                   min="1"
@@ -889,7 +889,7 @@ export function ExpertWallet() {
                   max={data?.wallet?.balance || 0}
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Ví dụ: 20000"
+                  placeholder="e.g. 20000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
                 />
@@ -900,7 +900,7 @@ export function ExpertWallet() {
                   disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
                   className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
                 >
-                  {withdrawLoading ? "Đang xử lý..." : "Rút tiền"}
+                  {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
                 <button
                   type="button"
@@ -910,7 +910,7 @@ export function ExpertWallet() {
                   }}
                   className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
-                  Hủy
+                  Cancel
                 </button>
               </div>
             </form>

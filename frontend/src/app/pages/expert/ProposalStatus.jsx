@@ -110,14 +110,14 @@ export function ProposalStatus() {
   }, [user?.id]);
 
   const STATUS_OPTIONS = [
-    { value: "", label: "Tất cả trạng thái" },
-    { value: "pending", label: "Đang chờ (Pending)" },
-    { value: "under_review", label: "Đang xem xét (Under Review)" },
-    { value: "pending_escrow", label: "Chờ ký quỹ (Pending Payment)" },
-    { value: "accepted", label: "Được chấp nhận (Accepted)" },
-    { value: "declined", label: "Từ chối (Declined)" },
-    { value: "withdrawn", label: "Đã rút (Withdrawn)" },
-    { value: "expired", label: "Đã quá hạn (Expired)" },
+    { value: "", label: "All Statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "under_review", label: "Under Review" },
+    { value: "pending_escrow", label: "Pending Payment" },
+    { value: "accepted", label: "Accepted" },
+    { value: "declined", label: "Declined" },
+    { value: "withdrawn", label: "Withdrawn" },
+    { value: "expired", label: "Expired" },
   ];
 
   const filteredProposals = proposals.filter((proposal) => {
@@ -139,7 +139,7 @@ export function ProposalStatus() {
         />
         {proposals.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -177,9 +177,9 @@ export function ProposalStatus() {
         </div>
       ) : filteredProposals.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-foreground/60 mb-2">Không tìm thấy đề xuất</h3>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">No proposals found</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-            Không có đề xuất nào có trạng thái phù hợp với bộ lọc đã chọn.
+            No proposals match the selected filters.
           </p>
         </div>
       ) : (

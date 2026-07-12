@@ -152,14 +152,14 @@ export default function TaskDetailPage() {
 
   const handleProductSubmit = useCallback(async () => {
     if (!productLinkInput.trim() && !productFileInput.trim()) {
-      toast.error("Vui lòng cung cấp link sản phẩm hoặc file!");
+      toast.error("Please provide a product link or file!");
       return;
     }
     setProductSubmitLoading(true);
     try {
       const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
       if (success) {
-        toast.success("Sản phẩm đã được nộp thành công!");
+        toast.success("Product submitted successfully!");
         setShowProductModal(false);
 
         notifyTaskSubmittedForReview({
@@ -170,12 +170,12 @@ export default function TaskDetailPage() {
           taskId,
         }).catch(() => { });
       } else {
-        toast.error("Không thể nộp sản phẩm.");
+        toast.error("Failed to submit product.");
       }
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể nộp sản phẩm.");
+      toast.error("Failed to submit product.");
     } finally {
       setProductSubmitLoading(false);
     }
@@ -324,7 +324,7 @@ export default function TaskDetailPage() {
     setRevisionType("entire");
     setSelectedMiniTaskIds(new Set());
     setRevisionFeedback("");
-    toast.info("Vui lòng điền chi tiết lý do từ chối.");
+    toast.info("Please fill in decline reason details.");
   }, []);
 
   // ---- Derived values ----
@@ -433,7 +433,7 @@ export default function TaskDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
       <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
-        Quay lại dự án
+        Back to Project
       </BackButton>
 
       <PageHeader
@@ -509,19 +509,19 @@ export default function TaskDetailPage() {
         task={task}
       />
 
-      {/* Deliverables Panel (Khung hoàn chỉnh nhỏ) */}
+      {/* Deliverables Panel */}
       {hasMainProduct && (
         <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <h3 className="text-xs font-bold text-foreground/85 font-sans uppercase tracking-wider">
-              Sản phẩm đã bàn giao (Submitted Deliverables)
+              Submitted Deliverables
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {task.productLink && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Link sản phẩm</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Product Link</span>
                 <a
                   href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                   target="_blank"
@@ -535,7 +535,7 @@ export default function TaskDetailPage() {
             )}
             {task.productFile && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">File đính kèm</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Attached File</span>
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <span className="text-xs text-foreground/80 font-mono truncate">
                     {task.productFile}
@@ -609,7 +609,7 @@ export default function TaskDetailPage() {
               Urgent Request
             </p>
             <p className="text-xs text-destructive mt-1">
-              Client đang yêu cầu sản phẩm khẩn cấp cho task này. Vui lòng nộp sản phẩm để chuyển sang trạng thái chờ duyệt.
+              Client is requesting product urgently. Please submit deliverables to proceed.
             </p>
             {task?.urgentRequestedAt && (
               <p className="text-xs text-destructive/70 mt-1 font-mono">
@@ -752,7 +752,7 @@ export default function TaskDetailPage() {
                       className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
-                      {isWaitingForApproval ? "Đang chờ Client duyệt sản phẩm" : "Submit Product (Nộp sản phẩm)"}
+                      {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
                     </Button>
                   ) : (
                     <Button
@@ -780,7 +780,7 @@ export default function TaskDetailPage() {
                 )}
                 {(task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product") && (
                   <p className="text-xs text-amber-600 font-semibold text-center animate-pulse">
-                    Khách hàng yêu cầu điều chỉnh sản phẩm! Hãy nộp lại sản phẩm đã chỉnh sửa phía trên.
+                    Client requested revisions! Please submit updated deliverables above.
                   </p>
                 )}
               </div>
@@ -858,7 +858,7 @@ export default function TaskDetailPage() {
                 {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
                   <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
                     <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
-                    Đang chờ Expert nộp sản phẩm (Waiting for Expert submission)...
+                    Waiting for Expert submission...
                   </div>
                 )}
 
@@ -873,7 +873,7 @@ export default function TaskDetailPage() {
                       className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
-                      View Product (Xem sản phẩm)
+                      View Product
                     </Button>
                   </div>
                 )}
@@ -929,7 +929,7 @@ export default function TaskDetailPage() {
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <h3 className="text-lg font-bold text-red-800">
-              Lý do từ chối (Decline Reason)
+              Decline Reason
             </h3>
           </div>
           <p className="text-sm font-semibold text-red-700 leading-relaxed bg-card border border-red-200 rounded-lg p-4 font-sans">
@@ -943,15 +943,15 @@ export default function TaskDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Nộp sản phẩm bàn giao (Deliverables)
+              Submit Deliverables
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Cung cấp link sản phẩm hoặc tên file đính kèm để gửi cho Client kiểm tra.
+              Provide product link or attached file to submit to Client.
             </p>
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  Link sản phẩm
+                  Product Link
                 </label>
                 <input
                   type="text"
@@ -963,7 +963,7 @@ export default function TaskDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  Tên file
+                  File Name
                 </label>
                 <input
                   type="text"
@@ -981,7 +981,7 @@ export default function TaskDetailPage() {
                 onClick={() => setShowProductModal(false)}
                 disabled={productSubmitLoading}
               >
-                Hủy
+                Cancel
               </Button>
               <Button
                 variant="default"
@@ -991,7 +991,7 @@ export default function TaskDetailPage() {
                 disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileInput.trim())}
                 className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
               >
-                {productSubmitLoading ? "Đang gửi..." : "Gửi sản phẩm"}
+                {productSubmitLoading ? "Submitting..." : "Submit"}
               </Button>
             </div>
           </div>
@@ -1005,8 +1005,8 @@ export default function TaskDetailPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Sản phẩm nộp cho: {task?.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Chi tiết các file và link do chuyên gia cung cấp</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Deliverables for: {task?.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Details of deliverables provided by the expert</p>
               </div>
               <button
                 onClick={() => setShowViewProductModalClient(false)}
@@ -1020,16 +1020,16 @@ export default function TaskDetailPage() {
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto font-sans">
               <div className="space-y-4">
                 {!task?.productLink && !task?.productFile && !task?.miniTasks?.some(mt => mt.productLink || mt.productFile) ? (
-                  <p className="text-sm text-muted-foreground italic text-center">Chuyên gia chưa upload sản phẩm nào.</p>
+                  <p className="text-sm text-muted-foreground italic text-center">No deliverables uploaded yet.</p>
                 ) : (
                   <div className="space-y-4">
                     {(task?.productLink || task?.productFile) && (
                       <div className="p-4 bg-muted/40 rounded-xl border border-border/80 text-left space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Sản phẩm Task chính</h4>
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {task?.productLink && (
                             <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Handover Product Link</span>
                               <a
                                 href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                                 target="_blank"
@@ -1043,7 +1043,7 @@ export default function TaskDetailPage() {
                           )}
                           {task?.productFile && (
                             <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Tên file sản phẩm</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Product File Name</span>
                               <div className="flex items-center justify-between gap-2 mt-1">
                                 <span className="text-sm text-foreground/80 font-medium font-mono truncate">
                                   {task.productFile}
@@ -1065,7 +1065,7 @@ export default function TaskDetailPage() {
 
                     {task?.miniTasks?.some(mt => mt.productLink || mt.productFile) && (
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Sản phẩm từ các Mini-Task</h4>
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
                         <div className="space-y-2">
                           {task.miniTasks
                             .filter(mt => mt.productLink || mt.productFile)
@@ -1075,7 +1075,7 @@ export default function TaskDetailPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {mt.productLink && (
                                     <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
-                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm</span>
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product Link</span>
                                       <a
                                         href={mt.productLink.startsWith("http") ? mt.productLink : `https://${mt.productLink}`}
                                         target="_blank"
@@ -1089,7 +1089,7 @@ export default function TaskDetailPage() {
                                   )}
                                   {mt.productFile && (
                                     <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
-                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Tên file</span>
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">File Name</span>
                                       <div className="flex items-center justify-between gap-2 mt-0.5">
                                         <span className="text-xs text-foreground/80 font-medium font-mono truncate">
                                           {mt.productFile}
@@ -1126,7 +1126,7 @@ export default function TaskDetailPage() {
                     className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <X className="w-4 h-4" />
-                    Từ chối (Decline)
+                    Decline
                   </button>
                   <button
                     type="button"
@@ -1134,7 +1134,7 @@ export default function TaskDetailPage() {
                     className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <Check className="w-4 h-4" />
-                    Phê duyệt (Accept)
+                    Accept
                   </button>
                 </>
               ) : (
@@ -1143,7 +1143,7 @@ export default function TaskDetailPage() {
                   onClick={() => setShowViewProductModalClient(false)}
                   className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-bold rounded-xl text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
                 >
-                  Đóng
+                  Close
                 </button>
               )}
             </div>
@@ -1157,7 +1157,7 @@ export default function TaskDetailPage() {
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Xác nhận nộp bằng chứng bàn giao</h3>
+                <h3 className="text-lg font-bold text-foreground">Confirm Submission of Handover Evidence</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Milestone: {task?.title}
                 </p>
@@ -1168,7 +1168,7 @@ export default function TaskDetailPage() {
             </div>
             <div className="p-6 space-y-4 text-center">
               <p className="text-sm text-foreground/80 font-sans">
-                Bạn có chắc chắn muốn xác nhận hoàn thành milestone và gửi thông báo bàn giao cho Khách hàng?
+                Are you sure you want to mark this milestone as completed and notify the Client?
               </p>
               <div className="flex gap-3 pt-2">
                 <button
@@ -1176,7 +1176,7 @@ export default function TaskDetailPage() {
                   onClick={() => setShowEvidenceModal(false)}
                   className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="button"
@@ -1184,7 +1184,7 @@ export default function TaskDetailPage() {
                   disabled={evidenceSubmitting}
                   className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {evidenceSubmitting ? "Đang gửi..." : "Xác nhận & Gửi"}
+                  {evidenceSubmitting ? "Submitting..." : "Confirm & Send"}
                 </button>
               </div>
             </div>

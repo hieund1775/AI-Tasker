@@ -166,10 +166,10 @@ export function ClientDashboard() {
       });
       setShowReportForm(false);
       setReportingProject(null);
-      toast.success("Báo cáo vi phạm đã được gửi tới Admin thành công.");
+      toast.success("Violation report has been sent to Admin successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể gửi báo cáo vi phạm.");
+      toast.error(err.message || "Failed to send violation report.");
     } finally {
       setReportSubmitting(false);
     }
@@ -179,14 +179,14 @@ export function ClientDashboard() {
     setExplanationSubmitting(true);
     try {
       await api.put(`/reports/${explainingReport.id}/partner-reject-cancel`, {
-        partnerRejectionReason: formData.reason || formData.description || "Từ chối yêu cầu hủy hợp đồng",
+        partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
       });
       setShowExplanationForm(false);
       setExplainingReport(null);
-      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      toast.success("Submitted response explanation successfully!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+      toast.error(err.message || "Failed to submit response explanation.");
     } finally {
       setExplanationSubmitting(false);
     }
@@ -553,7 +553,7 @@ export function ClientDashboard() {
                         {(() => {
                           const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
                           if (!isDisputed) {
-                            // Chống spam: kiểm tra xem project đã có report pending chưa
+                            // Anti-spam: check if the project already has a pending report
                             const existingActiveReport = activeReports.find(r =>
                               (r.projectId === p.projectId || r.projectId === p.id) &&
                               !["Rejected", "Resolved"].includes(r.status)
@@ -561,7 +561,7 @@ export function ClientDashboard() {
                             if (existingActiveReport) {
                               return (
                                 <span className="h-9 px-4 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
-                                  <AlertTriangle className="w-3.5 h-3.5" /> Đã có report đang xử lý
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Dispute is processing
                                 </span>
                               );
                             }
@@ -587,7 +587,7 @@ export function ClientDashboard() {
                                 }}
                                 className="h-9 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-3.5 h-3.5" /> Gửi phản hồi
+                                <AlertTriangle className="w-3.5 h-3.5" /> Submit Response
                               </button>
                             );
                           }
@@ -637,15 +637,15 @@ export function ClientDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
-              Gửi phản hồi báo cáo vi phạm
+              Submit Response to Report
             </DialogTitle>
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
               <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
-                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+                <p className="font-semibold text-foreground">Dispute Content:</p>
+                <p className="text-foreground/80"><strong>Reason:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Details:</strong> {explainingReport.description}</p>
               </div>
 
               <ReportForm
@@ -656,7 +656,7 @@ export function ClientDashboard() {
                   setExplainingReport(null);
                 }}
                 loading={explanationSubmitting}
-                submitLabel="Gửi phản hồi"
+                submitLabel="Submit Response"
                 role="client"
                 isResponse={true}
                 initialDisputeType={explainingReport?.disputeType}

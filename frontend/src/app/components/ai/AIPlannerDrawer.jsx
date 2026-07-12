@@ -179,7 +179,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     if (!trimmed && files.length === 0) return;
     if (loading) return;
 
-    const userMsgText = trimmed || (files.length > 0 ? `Tải lên tài liệu: ${files[0].name}` : "");
+    const userMsgText = trimmed || (files.length > 0 ? `Upload document: ${files[0].name}` : "");
     const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
@@ -230,7 +230,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const plan = parsedUseCases.length > 0 ? {
         useCases: parsedUseCases,
-        summary: "Phân rã kế hoạch thành công."
+        summary: "Plan breakdown successful."
       } : null;
 
       setGeneratedPlan(plan);
@@ -238,17 +238,17 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const aiMsg = { 
         role: "ai", 
-        text: chatMessage || (plan ? "Kế hoạch đã được sinh thành công." : "Đã nhận phản hồi từ AI."), 
+        text: chatMessage || (plan ? "Plan generated successfully." : "Received response from AI."), 
         plan, 
         timestamp: Date.now() 
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI backend call failed:", err);
-      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ Có lỗi xảy ra khi gọi AI: ${errMsg}\nVui lòng thử lại sau.`,
+        text: `❌ An error occurred while calling AI: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -306,7 +306,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const plan = parsedUseCases.length > 0 ? {
         useCases: parsedUseCases,
-        summary: "Kế hoạch đã được sinh lại thành công."
+        summary: "Plan regenerated successfully."
       } : null;
 
       setGeneratedPlan(plan);
@@ -314,17 +314,17 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const aiMsg = { 
         role: "ai", 
-        text: chatMessage || "Kế hoạch đã được cập nhật.", 
+        text: chatMessage || "Plan has been updated.", 
         plan, 
         timestamp: Date.now() 
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI regenerate failed:", err);
-      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ Có lỗi khi sinh lại kế hoạch: ${errMsg}\nVui lòng thử lại sau.`,
+        text: `❌ An error occurred while regenerating plan: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);

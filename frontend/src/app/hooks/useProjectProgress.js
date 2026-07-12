@@ -321,11 +321,11 @@ export function useProjectProgress(projectId, role) {
         isCompleted: nextCompleted,
         feedbackSenderId: user?.id || null
       });
-      toast.success(nextCompleted ? "Đã đánh dấu hoàn thành" : "Đã hủy đánh dấu hoàn thành");
+      toast.success(nextCompleted ? "Marked as completed" : "Unmarked as completed");
       triggerUpdate();
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi khi cập nhật minitask");
+      toast.error("Failed to update minitask");
 
       // Rollback
       const rollbackTasks = [...tasks];
@@ -370,7 +370,7 @@ export function useProjectProgress(projectId, role) {
         miniTaskId,
         action: newCompleted ? "mini_task_completed" : "mini_task_created",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: miniTask?.title || updates.title || ""
       });
       triggerUpdate();
@@ -388,7 +388,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted handover evidence."
       });
       triggerUpdate();
@@ -409,7 +409,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Quick Accepted task."
       });
       triggerUpdate();
@@ -426,7 +426,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "urgent_submission_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Requested Expert to submit product."
       });
       triggerUpdate();
@@ -456,7 +456,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Accepted deliverables."
       });
       triggerUpdate();
@@ -477,7 +477,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Product declined, revision requested."
       });
       triggerUpdate();
@@ -494,7 +494,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted checklist for review."
       });
       triggerUpdate();
@@ -516,7 +516,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${productFile || "N/A"}`
       });
       triggerUpdate();
@@ -536,7 +536,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Approved milestone."
       });
       triggerUpdate();
@@ -557,7 +557,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Requested revision."
       });
       triggerUpdate();
@@ -598,7 +598,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted project final work for review."
       });
 
@@ -624,7 +624,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Accepted project final delivery."
       });
 
@@ -656,7 +656,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Declined project final delivery."
       });
 

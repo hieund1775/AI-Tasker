@@ -120,17 +120,17 @@ export function AdminDisputes() {
     },
     {
       key: "status",
-      label: "Loại báo cáo",
+      label: "Dispute Type",
       render: (val, row) => {
         const reportTypes = {
-          financial: "Báo cáo tài chính",
-          communication: "Báo cáo trao đổi",
-          quality: "Báo cáo chất lượng",
-          deadline: "Báo cáo tiến độ",
-          other: "Báo cáo khác",
-          cancellation: "Báo cáo hủy dự án",
+          financial: "Financial dispute",
+          communication: "Communication issue",
+          quality: "Quality dispute",
+          deadline: "Deadline delay",
+          other: "Other dispute",
+          cancellation: "Cancellation request",
         };
-        const label = reportTypes[row.disputeType] || "Báo cáo tiến độ";
+        const label = reportTypes[row.disputeType] || "Deadline delay";
         const colors = {
           financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
           communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
@@ -173,7 +173,7 @@ export function AdminDisputes() {
     },
     {
       key: "amount",
-      label: "Số tiền ký quỹ",
+      label: "Escrow Amount",
       render: (val, row) => (
         <span className="font-semibold text-brand-primary text-sm">
           <MoneyDisplay amount={row.escrowAmount || row.amount || 0} />
@@ -182,14 +182,14 @@ export function AdminDisputes() {
     },
     {
       key: "actualStatus",
-      label: "Trạng thái",
+      label: "Status",
       render: (val, row) => (
         <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
       ),
     },
     {
       key: "createdAt",
-      label: "Thời gian gửi báo cáo",
+      label: "Report Time",
       render: (val) => (
         <span className="text-xs font-medium text-muted-foreground">
           {val ? formatDateTime(val) : "—"}

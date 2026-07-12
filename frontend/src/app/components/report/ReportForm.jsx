@@ -90,10 +90,10 @@ export function ReportForm({
 
   const validate = useCallback(() => {
     const errs = {};
-    if (!reason.trim()) errs.reason = isResponse ? "Vui lòng nhập lý do phản hồi." : "Please enter a report reason.";
-    if (!description.trim()) errs.description = isResponse ? "Vui lòng nhập nội dung phản hồi chi tiết." : "Please enter a detailed description.";
+    if (!reason.trim()) errs.reason = isResponse ? "Please enter response reason." : "Please enter a report reason.";
+    if (!description.trim()) errs.description = isResponse ? "Please enter detailed response content." : "Please enter a detailed description.";
     if (!desiredResolution.trim())
-      errs.desiredResolution = isResponse ? "Vui lòng nhập phương án giải quyết mong muốn." : "Please enter your desired resolution.";
+      errs.desiredResolution = isResponse ? "Please enter desired resolution." : "Please enter your desired resolution.";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }, [reason, description, desiredResolution, isResponse]);
@@ -200,13 +200,13 @@ export function ReportForm({
       {/* ---- Entered fields ---- */}
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Lý do phản hồi" : "Report Reason"} <span className="text-red-500">*</span>
+          {isResponse ? "Response Reason" : "Report Reason"} <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder={isResponse ? "Ví dụ: Sản phẩm đã hoàn thành nhưng khách hàng không giải ngân" : "e.g. Client has not paid after project completion"}
+          placeholder={isResponse ? "e.g. Deliverable completed but client has not released funds" : "e.g. Client has not paid after project completion"}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
             errors.reason ? "border-red-300" : "border-input"
           }`}
@@ -237,12 +237,12 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Mô tả phản hồi chi tiết" : "Detailed Description"} <span className="text-red-500">*</span>
+          {isResponse ? "Detailed Response Content" : "Detailed Description"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder={isResponse ? "Mô tả chi tiết nội dung giải trình..." : "Describe the issue in detail, timeline of events..."}
+          placeholder={isResponse ? "Describe explanation in detail..." : "Describe the issue in detail, timeline of events..."}
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.description ? "border-red-300" : "border-input"
@@ -256,12 +256,12 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Phương án giải quyết mong muốn" : "Desired Resolution"} <span className="text-red-500">*</span>
+          {isResponse ? "Desired Resolution" : "Desired Resolution"} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={desiredResolution}
           onChange={(e) => setDesiredResolution(e.target.value)}
-          placeholder={isResponse ? "Ví dụ: Yêu cầu giải ngân toàn bộ số tiền escrow" : "How would you like this to be resolved?"}
+          placeholder={isResponse ? "e.g. Request full payout release from escrow" : "How would you like this to be resolved?"}
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.desiredResolution ? "border-red-300" : "border-input"
@@ -279,7 +279,7 @@ export function ReportForm({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-foreground/80">
-            {isResponse ? "Tài liệu / Bằng chứng (Tùy chọn)" : "Evidence (Optional)"}
+            {isResponse ? "Documents / Evidence (Optional)" : "Evidence (Optional)"}
           </label>
           <button
             type="button"
@@ -366,7 +366,7 @@ export function ReportForm({
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">
-          {isResponse ? "Phản hồi này sẽ được gửi tới Admin để xem xét giải quyết tranh chấp." : "This report will be sent to Admin for dispute resolution review."}
+          {isResponse ? "This response will be sent to Admin for dispute review." : "This report will be sent to Admin for dispute resolution review."}
         </p>
       </div>
 
@@ -378,7 +378,7 @@ export function ReportForm({
           disabled={isLoading}
           className="px-5 py-2.5 border border-input rounded-lg text-sm font-medium text-foreground/80 hover:bg-secondary/60 disabled:opacity-50 transition"
         >
-          {isResponse ? "Hủy" : "Cancel"}
+          {isResponse ? "Cancel" : "Cancel"}
         </button>
         <button
           type="submit"
@@ -388,7 +388,7 @@ export function ReportForm({
           {isLoading ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
-              {isResponse ? "Đang gửi phản hồi..." : "Submitting Report..."}
+              {isResponse ? "Submitting Response..." : "Submitting Report..."}
             </>
           ) : (
             submitLabel

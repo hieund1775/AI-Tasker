@@ -91,8 +91,8 @@ export function PostProject() {
   const handleApplyAIPlan = (result) => {
     if (!result) return;
     
-    // Tắt ghi đè Category/Specialization/Skills từ AI vì AI sinh ra dạng Text (VD: "Machine Learning")
-    // trong khi hệ thống hiện tại yêu cầu chọn Mã ID (UUID). Việc ghi đè Text sẽ làm lỗi dropdown và xóa dữ liệu đã chọn.
+    // Disable Category/Specialization/Skills override from AI because AI generates text format (e.g. "Machine Learning")
+    // while the current system requires UUID. Overriding text will break the dropdown and clear selected data.
     
     // Map AI use cases to current normalized shape
     if (result.useCases) {
@@ -191,7 +191,7 @@ export function PostProject() {
             Duration: Number(req.durationDays) || 0
           }))
         : [{
-            Title: `Cấu phần của ${uc.title}`,
+            Title: `Component of ${uc.title}`,
             Duration: Number(uc.originalDurationDays) || 1
           }];
       
@@ -238,7 +238,7 @@ export function PostProject() {
           expertId: invitedExpert.id,
           bidAmount: 0,
           estimatedDays: deadlineDays,
-          introduction: "Tôi muốn mời bạn tham gia dự án này.",
+          introduction: "I would like to invite you to join this project.",
           coverLetter: JSON.stringify(coverLetterObj),
           isSubmitted: false,
         });
@@ -253,14 +253,14 @@ export function PostProject() {
       }
 
       if (invitedExpert) {
-        alert("Đã gửi lời mời dự án tới chuyên gia thành công!");
+        alert("Project invitation successfully sent to the expert!");
       } else {
-        alert("Đăng dự án thành công!");
+        alert("Project posted successfully!");
       }
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Đăng dự án thất bại. Vui lòng thử lại!");
+      alert(err.message || "Failed to post project. Please try again!");
     } finally {
       setSubmitting(false);
     }
@@ -326,7 +326,7 @@ export function PostProject() {
   }, [formData.durationValue, formData.durationUnit]);
 
 
-  // Danh sách categories và specializations từ API
+  // List of categories and specializations from API
   const categoriesList = useMemo(() => {
     const list = [];
     apiCategories.forEach(cat => {
@@ -859,7 +859,7 @@ export function PostProject() {
                     onClick={() => setVisibleCount((prev) => prev + 3)}
                     className="w-full h-11 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-xl text-sm font-bold transition-colors text-center border border-border mt-2"
                   >
-                    Thêm chuyên gia
+                    Add Expert
                   </button>
                 )}
               </div>

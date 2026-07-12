@@ -141,7 +141,7 @@ export function ProposalDetail() {
   const isSessionProposal = proposal.id?.startsWith("session-prop-");
   const hasFullFields = isSessionProposal || !!proposal.proposalTitle;
   
-  // Tổng hợp file đính kèm từ database phẳng của BE (portfolio và attachmentUrl)
+  // Aggregate attachments from BE flat database (portfolio and attachmentUrl)
   const attachments = [...(proposal.attachments || [])];
   if (proposal.portfolio) {
     const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
@@ -271,7 +271,7 @@ export function ProposalDetail() {
         <div className="p-8">
           {proposal.isSubmitted === false ? (
             <div className="py-12 text-center text-muted-foreground italic bg-secondary/60 rounded-xl border border-border p-6">
-              Thông tin proposal hiện đang được để trống. Hãy hoàn thành proposal của bạn để gửi cho client.
+              Proposal information is currently empty. Please complete your proposal to submit to the client.
             </div>
           ) : (
             <>

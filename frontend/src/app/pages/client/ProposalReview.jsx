@@ -69,7 +69,7 @@ export function ProposalReview() {
               .toUpperCase()
               .slice(0, 2);
 
-            // Tổng hợp file đính kèm từ database phẳng của BE (portfolio và attachmentUrl)
+            // Aggregate attachments from BE flat database (portfolio and attachmentUrl)
             const attachments = [];
             if (proposal.portfolio) {
               const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
@@ -171,8 +171,8 @@ export function ProposalReview() {
       if (proposal && proposal.expertId) {
         await notificationService.notifyProposalDeclined({
           expertUserId: proposal.expertId,
-          clientName: user?.fullName || user?.name || "Khách hàng",
-          jobTitle: project?.title || "Dự án",
+          clientName: user?.fullName || user?.name || "Client",
+          jobTitle: project?.title || "Project",
         });
       }
 

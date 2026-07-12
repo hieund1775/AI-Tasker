@@ -89,7 +89,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               title: apiExpert.expertProfile?.jobTitle || apiExpert.specialization || "AI Expert",
               category: apiExpert.expertProfile?.category || apiExpert.category || localCache.category || "",
               specialization: apiExpert.expertProfile?.specialization || apiExpert.expertProfile?.major || apiExpert.specialization || localCache.specialization || "",
-              location: apiExpert.expertProfile?.location || apiExpert.location || "Chưa cập nhật",
+              location: apiExpert.expertProfile?.location || apiExpert.location || "Not updated",
               rating: (() => {
                 let totalRating = 0;
                 let ratedCount = 0;
@@ -117,7 +117,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               bio: apiExpert.expertProfile?.bio || apiExpert.bio || "",
               skills: apiExpert.expertProfile?.skills?.length ? apiExpert.expertProfile.skills : (apiExpert.skills?.length ? apiExpert.skills : (localCache.skills || [])),
               email: apiExpert.email || "",
-              phone: apiExpert.phoneNumber || apiExpert.phone || apiExpert.expertProfile?.phone || "Chưa cập nhật",
+              phone: apiExpert.phoneNumber || apiExpert.phone || apiExpert.expertProfile?.phone || "Not updated",
               portfolio: apiExpert.portfolio || [],
               clientReviews: (reviewData && reviewData.reviews)
                 ? reviewData.reviews.map((r) => {
@@ -179,7 +179,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                   }),
             });
 
-            // Map danh sách dự án hoàn thành để hiển thị công khai ở phía dưới
+            // Map the completed projects list to display publicly below
             const allProjects = apiExpert.projects || apiExpert.Projects || [];
             const completedList = allProjects.filter((p) => {
               const status = (p.status || p.Status || "").toLowerCase();
@@ -334,7 +334,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
       await notificationService.notifyExpertInvited({
         expertUserId: resolvedId,
-        clientName: authUser?.fullName || authUser?.name || "Khách hàng",
+        clientName: authUser?.fullName || authUser?.name || "Client",
         jobTitle: project.title,
         jobPostId: project.id,
         proposalId: createdProposal?.id || createdProposal?.Id
@@ -484,14 +484,14 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
             {/* Meta details */}
             {(() => {
-              // Phân giải tên Category
+              // Resolve Category name
               let resolvedCat = expert.category;
               const matchedCat = categoriesList.find(c => c.id === expert.category);
               if (matchedCat) {
                 resolvedCat = matchedCat.name;
               }
 
-              // Phân giải tên Specialization
+              // Resolve Specialization name
               let resolvedSpec = expert.specialization;
               for (const cat of categoriesList) {
                 const matchedSpec = cat.specializations?.find(s => s.id === expert.specialization);
@@ -673,8 +673,8 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                               <>
                                 <span className="text-border">•</span>
                                 <div>
-                                  <span className="font-semibold text-foreground/80">Thời gian:</span>{" "}
-                                  <span>{proj.startDate || "—"} đến {proj.endDate || "—"}</span>
+                                  <span className="font-semibold text-foreground/80">Duration:</span>{" "}
+                                  <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
                                 </div>
                               </>
                             )}
@@ -700,25 +700,25 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             {proj.review.comment}
                             {(proj.review.createdAt || proj.review.date) && (
                               <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
-                                Đánh giá vào: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("vi-VN")}
+                                Reviewed on: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("en-US")}
                               </span>
                             )}
                           </div>
                         )}
 
-                        {/* Hiển thị phản hồi của Expert */}
+                        {/* Show Expert response */}
                         {interactions[proj.id] && (
                           <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
                             {interactions[proj.id].replyText && (
                               <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-bold text-brand-primary block">Chuyên gia phản hồi (Thank You):</span>
+                                <span className="font-bold text-brand-primary block">Expert Response (Thank You):</span>
                                 <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
                                 <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
                               </div>
                             )}
                             {interactions[proj.id].requestRevisionText && (
                               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-bold text-amber-600 block">Chuyên gia phản hồi & yêu cầu sửa đổi:</span>
+                                <span className="font-bold text-amber-600 block">Expert Response & Revision Request:</span>
                                 <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
                                 <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
                               </div>
@@ -726,13 +726,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                           </div>
                         )}
 
-                        {/* Hiển thị đánh giá Đã chỉnh sửa của Client ở dưới cùng */}
+                        {/* Show Client's Edited Review at the bottom */}
                         {proj.editedReview && (
                           <div className="space-y-2 mt-3 pl-4 border-l-2 border-success/30">
-                            {/* Divider Đã chỉnh sửa */}
+                            {/* Edited Review Divider */}
                             <div className="flex items-center gap-2 py-1">
                               <span className="text-[10px] text-success font-semibold px-2 py-0.5 bg-success/10 rounded border border-success/20">
-                                Đã chỉnh sửa (Edited Review)
+                                Edited Review
                               </span>
                               <div className="h-px bg-success/20 flex-1" />
                               <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">

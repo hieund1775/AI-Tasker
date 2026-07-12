@@ -365,7 +365,7 @@ export function MyProjectsList() {
           );
           setProposalsList(filteredList);
 
-          // Đồng bộ hóa viewedProposal với dữ liệu mới cập nhật từ DB
+          // Sync viewedProposal with newly updated DB data
           setViewedProposal(prev => {
             if (!prev) return null;
             const updated = enrichedList.find(p => p.id === prev.id);
@@ -406,7 +406,7 @@ export function MyProjectsList() {
       await api.proposals.updateStatus(proposalId, "Declined");
       toast.success("Proposal has been declined successfully!");
       
-      // Cập nhật state local ngay lập tức
+      // Update local state immediately
       setProposalsList((prev) => prev.filter((p) => p.id !== proposalId));
       if (viewedProposal?.id === proposalId) {
         setViewedProposal(null);
@@ -425,10 +425,10 @@ export function MyProjectsList() {
   const handleAcceptProposal = async (p) => {
     setActionLoading(true);
     try {
-      // 1. Cập nhật Proposal status sang pending_pay trên Backend
+      // 1. Update Proposal status to pending_pay on Backend
       await api.proposals.updateStatus(p.id, "pending_pay");
 
-      // 2. Tạo dự án từ proposal trên Backend để sinh ra projectId thực tế
+      // 2. Create project from proposal on Backend to generate actual projectId
       try {
         await api.projects.createFromProposal(p.id);
       } catch (projErr) {
@@ -460,13 +460,13 @@ export function MyProjectsList() {
       const otherProposals = proposalsList.filter(prop => prop.id !== p.id);
       notifyProposalDecision({
         selectedExpertId: p.expertId,
-        clientName: user?.fullName || user?.name || "Khách hàng",
-        jobTitle: selectedProject?.title || "Dự án",
+        clientName: user?.fullName || user?.name || "Client",
+        jobTitle: selectedProject?.title || "Project",
         proposalId: p.id,
         otherProposals: otherProposals.map(op => ({ id: op.id, expertId: op.expertId })),
       }).catch(() => {});
 
-      // 3. Cập nhật local state sang pending_pay để hiển thị nút ký quỹ
+      // 3. Update local state to pending_pay to display escrow button
       const acceptedProposal = { ...p, status: "pending_pay" };
       setProposal(acceptedProposal);
       setViewedProposal(acceptedProposal);
@@ -531,7 +531,7 @@ export function MyProjectsList() {
         {showInviteSuccessBanner && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
             <span className="font-semibold text-sm">
-              Bạn đã mời chuyên gia {invitedExpertName ? `"${invitedExpertName}" ` : ""}thành công
+              Successfully invited expert {invitedExpertName ? `"${invitedExpertName}" ` : ""}
             </span>
             <button
               onClick={() => setShowInviteSuccessBanner(false)}
@@ -869,7 +869,7 @@ export function MyProjectsList() {
               {/* Escrow payment direct button for single accepted proposal */}
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-sm text-left">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Hình thức ký quỹ (Escrow Setup)</h3>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Escrow Setup</h3>
                   
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
@@ -879,7 +879,7 @@ export function MyProjectsList() {
                       className="mt-1 w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50"
                     />
                     <label htmlFor="agreeEscrowSingle" className="text-sm text-foreground/80 font-medium">
-                      Ký xác nhận rằng bạn có muốn ký quỹ số tiền <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> để thực hiện dự án này.
+                      Confirm that you want to deposit <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
                     </label>
                   </div>
 
@@ -888,7 +888,7 @@ export function MyProjectsList() {
                     onClick={() => {
                       const checked = document.getElementById("agreeEscrowSingle")?.checked;
                       if (!checked) {
-                        toast.error("Vui lòng tích chọn ký xác nhận trước khi tiếp tục!");
+                        toast.error("Please check the confirmation box before proceeding!");
                         return;
                       }
                       navigate("/client/billing", {
@@ -904,7 +904,7 @@ export function MyProjectsList() {
                     }}
                     className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
                   >
-                    Xác nhận ký quỹ
+                    Confirm Escrow Deposit
                   </button>
                 </div>
               )}
@@ -915,7 +915,7 @@ export function MyProjectsList() {
                     to={`/client/projects/${selectedProject.projectId || selectedProject.id}`}
                     className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
-                    <Briefcase className="w-4 h-4" /> Quản lý tiến độ dự án
+                    <Briefcase className="w-4 h-4" /> Manage Project Progress
                   </Link>
                   <Link
                     to={`/messenger/${proposal.expertId}`}
@@ -928,7 +928,7 @@ export function MyProjectsList() {
             </div>
           ) : proposalsList.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground italic font-medium">
-              Chưa có proposal nào được gửi cho dự án này.
+              No proposals have been submitted for this project yet.
             </div>
           ) : viewedProposal === null ? (
             /* Proposals list view */
@@ -952,7 +952,7 @@ export function MyProjectsList() {
                         {p.createdAt && (
                           <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
                             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                            Gửi lúc: {safeDateFormat(p.createdAt, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            Submitted: {safeDateFormat(p.createdAt, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         )}
                       </div>
@@ -1194,7 +1194,7 @@ export function MyProjectsList() {
   // VIEW: LIST
   // =========================================================================
   const STATUS_OPTIONS = [
-    { value: "", label: "Tất cả trạng thái" },
+    { value: "", label: "All Statuses" },
     { value: "Open", label: "Open" },
     { value: "In Progress", label: "In Progress" },
     { value: "Completed", label: "Complete" },
@@ -1219,7 +1219,7 @@ export function MyProjectsList() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => {

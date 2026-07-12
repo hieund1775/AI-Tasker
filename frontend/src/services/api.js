@@ -190,7 +190,7 @@ function del(endpoint, options = {}) {
   return request(endpoint, { ...options, method: "DELETE" });
 }
 
-// ── Helpers lưu/đọc use cases từ localStorage (dự phòng khi BE chưa serialize jobRequirements) ──
+// ── Helpers to save/read use cases from localStorage (backup when BE has not serialized jobRequirements) ──
 export function saveJobUseCases(jobId, useCases) {
   try {
     localStorage.setItem(`aitasker_job_usecases_${jobId}`, JSON.stringify(useCases));
@@ -228,7 +228,7 @@ function mapJobPost(jp) {
     ).filter(Boolean);
   }
 
-  // 1. Ưu tiên jobPostTasks từ API (nếu BE lưu vào đây)
+  // 1. Prioritize jobPostTasks from API (if BE saves them here)
   const tasksList = jp.jobPostTasks || jp.JobPostTasks;
   const implementationStr = jp.implementation || jp.Implementation;
 
@@ -249,7 +249,7 @@ function mapJobPost(jp) {
       };
     });
   } else if (implementationStr) {
-    // 2. Thử parse field implementation (JSON string lưu use cases)
+    // 2. Try parsing field implementation (JSON string storing use cases)
     try {
       const parsed = JSON.parse(implementationStr);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -275,7 +275,7 @@ function mapJobPost(jp) {
       jp.useCases = [];
     }
   } else {
-    // 3. Fallback: localStorage (lưu lúc post trên máy này)
+    // 3. Fallback: localStorage (saved during post on this machine)
     const cached = loadJobUseCases(jp.id || jp.Id);
     jp.useCases = cached || [];
   }
@@ -309,7 +309,7 @@ export const api = {
       };
       return post(endpoint, payload, { authenticated: false });
     },
-    // API Hoàn thiện Profile
+    // Profile Completion API
     completeProfile: (userId, data) =>
       put(`/users/${userId}/expert-profile`, data),
     logout: () => post("/auth/logout"),
@@ -331,7 +331,7 @@ export const api = {
     },
   },
 
-  // ĐÃ SỬA CHUẨN BACKEND CHO NHÓM USERS
+  // FIXED BACKEND STANDARD FOR USERS GROUP
   users: {
     getById: (id) => get(`/Users/${id}`),
     list: (params) => {
@@ -392,12 +392,12 @@ export const api = {
     },
   },
 
-  // ĐÃ SỬA LẠI ĐỂ GỌI SANG ĐƯỜNG DẪN /Users THAY VÌ /experts
+  // MODIFIED TO CALL /Users ENDPOINT INSTEAD OF /experts
   experts: {
     // API Check Profile
     checkProfile: () => get("/Users/test-expert-profile"),
 
-    // Lấy thông tin profile của chuyên gia
+    // Retrieve expert profile info
     getProfile: (id) => get(`/Users/${id}/expert-profile`),
 
     // TODO: Backend endpoint not yet confirmed — placeholder
@@ -406,7 +406,7 @@ export const api = {
       return get(`/Users/${id}`).catch(() => null);
     },
 
-    // Lấy danh sách chuyên gia gọi xuống /users/experts mới mở của BE
+    // Retrieve expert list from the new /users/experts BE endpoint
     list: (params) => {
       const query = buildQuery(params);
       return get(`/users/experts${query}`);
@@ -569,7 +569,7 @@ export const api = {
   },
 
   payments: {
-    // Lấy số dư ví từ GET /Users/{id} (trả về field wallet.balance)
+    // Retrieve wallet balance from GET /Users/{id} (returns wallet.balance field)
     getWallet: (userId) =>
       get(`/Users/${userId}`).then((u) => {
         const w = u?.wallet || u?.Wallet;
@@ -595,7 +595,7 @@ export const api = {
       post(`/users/${userId}/withdraw`, {
         amount: Number(amount)
       }),
-    // ZaloPay create-order: trả về { orderUrl } để redirect sang trang ZaloPay
+    // ZaloPay create-order: returns { orderUrl } to redirect to ZaloPay page
     createPaymentOrder: (userId, amount) =>
       post("/payment/create-order", {
         userId,
@@ -620,7 +620,7 @@ export const api = {
 
   proposals: {
     create: (data) => {
-      // API /api/Proposals/submit-proposal nhận multipart/form-data
+      // API /api/Proposals/submit-proposal accepts multipart/form-data
       const formData = new FormData();
       formData.append("JobPostId", data.jobPostId);
       formData.append("ExpertId", data.expertId);
@@ -629,7 +629,7 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
-      // Append files thực tế nếu có, hoặc để trống
+      // Append actual files if present, or leave empty
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
       } else {

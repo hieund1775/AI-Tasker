@@ -138,15 +138,15 @@ export function ProposalCard({
                           <File className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="max-w-[160px] truncate">{fileName}</span>
                         </a>
-                        {/* Nút tải về */}
+                        {/* Download button */}
                         <a
                           href={fileUrl}
                           download={fileName}
                           className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-semibold transition-colors"
-                          title="Tải về"
+                          title="Download"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          Tải về
+                          Download
                         </a>
                       </div>
                     );

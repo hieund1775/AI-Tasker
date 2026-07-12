@@ -33,7 +33,7 @@ export function SignUpPage() {
     }
     const phonePattern = /^0[0-9]{9}$/;
     if (!phonePattern.test(formData.phoneNumber.trim())) {
-      setError("Số điện thoại không đúng định dạng (phải có 10 chữ số và bắt đầu bằng số 0).");
+      setError("Invalid phone number format (must be 10 digits and start with 0).");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -58,7 +58,7 @@ export function SignUpPage() {
 
       if (isSuccess) {
         alert(
-          "Đăng ký thành công! Hệ thống sẽ chuyển bạn đến trang Đăng nhập.",
+          "Registration successful! Redirecting to login page.",
         );
         navigate("/login", { replace: true });
       }

@@ -202,10 +202,10 @@ export function ExpertDashboard() {
       });
       setShowReportForm(false);
       setReportingProject(null);
-      toast.success("Báo cáo vi phạm thanh toán đã được gửi tới Admin thành công.");
+      toast.success("Payment violation report sent to Admin successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể gửi báo cáo tranh chấp.");
+      toast.error(err.message || "Failed to send dispute report.");
     } finally {
       setReportSubmitting(false);
     }
@@ -217,7 +217,7 @@ export function ExpertDashboard() {
       const isCancellation = explainingReport.reportType === "cancellation" || explainingReport.disputeType === "cancellation";
       if (isCancellation) {
         await api.put(`/reports/${explainingReport.id}/partner-reject-cancel`, {
-          partnerRejectionReason: formData.reason || formData.description || "Từ chối yêu cầu hủy hợp đồng",
+          partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
         });
       } else {
         const evidenceUrl = Array.isArray(formData.evidence) && formData.evidence.length > 0
@@ -232,10 +232,10 @@ export function ExpertDashboard() {
       }
       setShowExplanationForm(false);
       setExplainingReport(null);
-      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      toast.success("Response explanation submitted successfully!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+      toast.error(err.message || "Failed to submit explanation report.");
     } finally {
       setExplanationSubmitting(false);
     }
@@ -739,7 +739,7 @@ export function ExpertDashboard() {
                                 }}
                                 className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                                <AlertTriangle className="w-4 h-4" /> Report Violation
                               </button>
                             );
                           }
@@ -753,7 +753,7 @@ export function ExpertDashboard() {
                                 }}
                                 className="mr-3 h-11 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-4 h-4" /> Gửi phản hồi
+                                <AlertTriangle className="w-4 h-4" /> Submit Response
                               </button>
                             );
                           }
@@ -901,7 +901,7 @@ export function ExpertDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-900">
-              Báo cáo vi phạm Khách hàng (Expert Report Client)
+              Report Client Violation
             </DialogTitle>
           </DialogHeader>
           {reportingProject && (
@@ -923,15 +923,15 @@ export function ExpertDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-foreground">
-              Gửi phản hồi báo cáo vi phạm
+              Submit Response to Report
             </DialogTitle>
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
               <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
-                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
+                <p className="font-semibold text-foreground">Dispute Content:</p>
+                <p className="text-foreground/80"><strong>Reason:</strong> {explainingReport.reason || explainingReport.reportName}</p>
+                <p className="text-foreground/80"><strong>Details:</strong> {explainingReport.description}</p>
               </div>
 
               <ReportForm
@@ -942,7 +942,7 @@ export function ExpertDashboard() {
                   setExplainingReport(null);
                 }}
                 loading={explanationSubmitting}
-                submitLabel="Gửi phản hồi"
+                submitLabel="Submit Response"
                 role="expert"
                 isResponse={true}
                 initialDisputeType={explainingReport?.disputeType}

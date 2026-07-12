@@ -66,11 +66,11 @@ export function ExpertProfile() {
     };
     
     if (interactionType === "reply" && !payload.replyText) {
-      alert("Vui lòng nhập tin nhắn cảm ơn / phản hồi.");
+      alert("Please enter a thank you or response message.");
       return;
     }
     if (interactionType === "revision" && !payload.requestRevisionText) {
-      alert("Vui lòng nhập lý do yêu cầu chỉnh sửa.");
+      alert("Please enter the reason for revision request.");
       return;
     }
 
@@ -97,7 +97,7 @@ export function ExpertProfile() {
         setLoading(true);
         const apiUser = await api.users.getById(authUser.id);
         if (!cancelled && apiUser) {
-          // Tải toàn bộ danh mục để phân giải GUID thành Tên hiển thị
+          // Load all categories to resolve GUID to display name
           let allCats = [];
           try {
             allCats = await api.categoryTags.getCategories();
@@ -111,7 +111,7 @@ export function ExpertProfile() {
           const rawCategory = profile.category || localProfile.category || "";
           const rawSpecialization = profile.specialization || profile.major || localProfile.specialization || "";
 
-          // Tìm name tương ứng với GUID
+          // Find name corresponding to GUID
           const matchedCategoryObj = allCats.find(c => c.id === rawCategory);
           const categoryName = matchedCategoryObj ? matchedCategoryObj.name : rawCategory;
 
@@ -163,7 +163,7 @@ export function ExpertProfile() {
           const totalForSuccess = completedCount + cancelCount + reportCount;
           const successVal = totalForSuccess > 0 ? `${Math.round((completedCount / totalForSuccess) * 100)}%` : "0%";
 
-          // Tải đánh giá thực tế từ Database thông qua API mới
+          // Load actual reviews from Database via the new API
           let evaluateVal = "0";
           let dbReviewsList = [];
           try {
@@ -175,7 +175,7 @@ export function ExpertProfile() {
             console.error("Failed to load expert reviews from database:", e);
           }
 
-          // Tính toán điểm đánh giá trung bình dựa trên cả đánh giá gốc lẫn đánh giá đã chỉnh sửa
+          // Calculate average evaluation score based on both original and edited reviews
           let totalRating = 0;
           let ratedCount = 0;
           completedList.forEach((p) => {
@@ -218,7 +218,7 @@ export function ExpertProfile() {
             evaluate: evaluateVal,
           });
 
-          // Sử dụng trực tiếp thông tin ClientName, SpecializationName, ProjectSkills từ UserProjectDto được map sẵn
+          // Use ClientName, SpecializationName, ProjectSkills directly from pre-mapped UserProjectDto
           const detailedCompletedProjects = completedList.map((p) => {
             const pId = p.id || p.Id;
             const clientName = p.clientName || p.ClientName || "Client";
@@ -240,7 +240,7 @@ export function ExpertProfile() {
             const startDate = formatDate(startDateRaw);
             const endDate = formatDate(endDateRaw);
 
-            // 1. Lấy đánh giá gốc (từ database hoặc project_review_ cũ)
+            // 1. Get original review (from database or legacy project_review_)
             const dbReview = dbReviewsList.find(r => r.projectId === pId);
             let review = null;
             if (dbReview) {
@@ -258,7 +258,7 @@ export function ExpertProfile() {
               }
             }
 
-            // 2. Lấy đánh giá đã được Client chỉnh sửa (lưu trong project_review_edited hoặc project_review_override)
+            // 2. Get review edited by Client (stored in project_review_edited or project_review_override)
             let editedReview = null;
             const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
             if (rawEdited) {
@@ -598,8 +598,8 @@ export function ExpertProfile() {
                           <>
                             <span className="text-border">•</span>
                             <div>
-                              <span className="font-semibold text-foreground/80">Thời gian:</span>{" "}
-                              <span>{proj.startDate || "—"} đến {proj.endDate || "—"}</span>
+                              <span className="font-semibold text-foreground/80">Duration:</span>{" "}
+                              <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
                             </div>
                           </>
                         )}
@@ -625,25 +625,25 @@ export function ExpertProfile() {
                         {proj.review.comment}
                         {(proj.review.createdAt || proj.review.date) && (
                           <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
-                            Đánh giá vào: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("vi-VN")}
+                            Reviewed on: {new Date(proj.review.createdAt || proj.review.date).toLocaleDateString("en-US")}
                           </span>
                         )}
                       </div>
                     )}
 
-                    {/* Hiển thị phản hồi cũ của Expert */}
+                    {/* Show previous Expert response */}
                     {interactions[proj.id] && (
                       <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
                         {interactions[proj.id].replyText && (
                           <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                            <span className="font-bold text-brand-primary block">Chuyên gia phản hồi (Thank You):</span>
+                            <span className="font-bold text-brand-primary block">Expert Response (Thank You):</span>
                             <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
                             <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
                           </div>
                         )}
                         {interactions[proj.id].requestRevisionText && (
                           <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                            <span className="font-bold text-amber-600 block">Chuyên gia phản hồi & yêu cầu sửa đổi:</span>
+                            <span className="font-bold text-amber-600 block">Expert Response & Revision Request:</span>
                             <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
                             <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
                           </div>
@@ -651,13 +651,13 @@ export function ExpertProfile() {
                       </div>
                     )}
 
-                    {/* Hiển thị đánh giá Đã chỉnh sửa của Client ở dưới cùng */}
+                    {/* Show Client's Edited Review at the bottom */}
                     {proj.editedReview && (
                       <div className="space-y-2 mt-3 pl-4 border-l-2 border-success/30">
-                        {/* Divider Đã chỉnh sửa */}
+                        {/* Edited Review Divider */}
                         <div className="flex items-center gap-2 py-1">
                           <span className="text-[10px] text-success font-semibold px-2 py-0.5 bg-success/10 rounded border border-success/20">
-                            Đã chỉnh sửa (Edited Review)
+                            Edited Review
                           </span>
                           <div className="h-px bg-success/20 flex-1" />
                           <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">
@@ -680,7 +680,7 @@ export function ExpertProfile() {
                       </div>
                     )}
 
-                    {/* Button / Form tạo phản hồi mới */}
+                    {/* Button / Form to create new response */}
                     {proj.review && !interactions[proj.id] && (
                       <div className="mt-2 text-right">
                         {activeReplyProjectId !== proj.id ? (
@@ -694,7 +694,7 @@ export function ExpertProfile() {
                             }}
                             className="text-[11px] text-brand-primary hover:underline cursor-pointer font-bold"
                           >
-                            + Phản hồi / Yêu cầu sửa đánh giá
+                            + Respond / Request Review Edit
                           </button>
                         ) : (
                           <div className="mt-3 p-4 bg-secondary/40 rounded-xl border border-border/80 space-y-3 text-left">
@@ -706,7 +706,7 @@ export function ExpertProfile() {
                                   checked={interactionType === "reply"}
                                   onChange={() => setInteractionType("reply")}
                                 />
-                                Phản hồi cảm ơn (Thank You)
+                                Thank You Response
                               </label>
                               <label className="flex items-center gap-1.5 font-semibold text-foreground cursor-pointer">
                                 <input
@@ -715,7 +715,7 @@ export function ExpertProfile() {
                                   checked={interactionType === "revision"}
                                   onChange={() => setInteractionType("revision")}
                                 />
-                                Yêu cầu sửa đánh giá (Request Edit)
+                                Request Review Edit
                               </label>
                             </div>
 
@@ -723,7 +723,7 @@ export function ExpertProfile() {
                               <textarea
                                 value={replyText}
                                 onChange={(e) => setReplyText(e.target.value)}
-                                placeholder="Nhập tin nhắn cảm ơn khách hàng..."
+                                placeholder="Enter thank you message to client..."
                                 rows={2}
                                 className="w-full p-2.5 text-xs border border-input rounded-lg focus:outline-none focus:border-brand-primary text-foreground bg-card font-sans"
                               />
@@ -731,7 +731,7 @@ export function ExpertProfile() {
                               <textarea
                                 value={revisionReason}
                                 onChange={(e) => setRevisionReason(e.target.value)}
-                                placeholder="Nhập lý do mong muốn khách sửa đánh giá..."
+                                placeholder="Enter reason for requesting review edit..."
                                 rows={2}
                                 className="w-full p-2.5 text-xs border border-input rounded-lg focus:outline-none focus:border-brand-primary text-foreground bg-card font-sans"
                               />
@@ -743,14 +743,14 @@ export function ExpertProfile() {
                                 onClick={() => setActiveReplyProjectId(null)}
                                 className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg font-medium cursor-pointer"
                               >
-                                Đóng
+                                Close
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleSaveInteraction(proj.id)}
                                 className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-bold cursor-pointer"
                               >
-                                Gửi
+                                Send
                               </button>
                             </div>
                           </div>

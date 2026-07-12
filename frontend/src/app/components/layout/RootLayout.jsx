@@ -16,7 +16,7 @@ export function RootLayout() {
   const location = useLocation();
   const { role, isAuthenticated } = useAuth();
 
-  // Tự động đồng bộ giữa các tab khi localStorage thay đổi (status đè, audit logs, ký quỹ) không cần F5
+  // Automatically sync between tabs when localStorage changes (status overrides, audit logs, escrow) without F5
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (!e.key) return;

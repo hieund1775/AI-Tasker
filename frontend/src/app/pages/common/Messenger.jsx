@@ -84,7 +84,7 @@ export function Messenger() {
         // Ki?m tra xem activeConvId hi?n t?i cA3 ph?i lA conversationId khA'ng
         let activeC = convs.find((c) => c.id === activeConvId);
         
-        // Nếu KHÔNG, có thể nó là UserId. Tạo hoặc lấy cuộc hội thoại với user đó.
+        // If NOT, it might be UserId. Create or retrieve the conversation with that user.
         if (!activeC && activeConvId.length > 20) {
           const isClient = String(user?.role).toLowerCase() === "client";
           try {
@@ -103,7 +103,7 @@ export function Messenger() {
         }
       }
 
-      // Convert format backend sang format UI của frontend
+      // Convert backend format to frontend UI format
       const mappedList = convs.map((c) => {
         const isClient = String(demoUserId).toLowerCase() === String(c.clientId).toLowerCase();
         return {

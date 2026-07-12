@@ -76,7 +76,7 @@ export function useProjectTimeline(role, projectId) {
                           miniTaskId: mt.id || null,
                           action: "mini_task_completed",
                           actor: "Expert",
-                          actorName: "Chuyên gia",
+                          actorName: "Expert",
                           timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
                           details: mt.title || ""
                         });
@@ -91,7 +91,7 @@ export function useProjectTimeline(role, projectId) {
                       taskId: task.id,
                       action: "task_approved",
                       actor: "Client",
-                      actorName: "Khách hàng",
+                      actorName: "Client",
                       timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
                       details: `Milestone: ${taskTitle}`
                     });
@@ -102,7 +102,7 @@ export function useProjectTimeline(role, projectId) {
                       taskId: task.id,
                       action: "task_submitted_for_review",
                       actor: "Expert",
-                      actorName: "Chuyên gia",
+                      actorName: "Expert",
                       timestamp: new Date(Date.now() - 3600000).toISOString(),
                       details: `Milestone: ${taskTitle}`
                     });

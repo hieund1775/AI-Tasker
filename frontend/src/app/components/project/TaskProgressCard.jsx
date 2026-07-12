@@ -67,11 +67,11 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Milestone đã được phê duyệt thành công!");
+      toast.success("Milestone approved successfully!");
       setShowViewProductModal(false);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể phê duyệt milestone.");
+      toast.error("Failed to approve milestone.");
     }
   };
 
@@ -88,10 +88,10 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!");
+      toast.success("Deliverable requested. The expert has been notified urgently!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể yêu cầu sản phẩm.");
+      toast.error("Failed to request deliverable.");
     }
   };
 
@@ -99,7 +99,7 @@ export function TaskProgressCard({
     setIsDeclineUnlocked(true);
     setShowDeclineForm(true);
     setShowViewProductModal(false);
-    toast.info("Đã mở khóa nút từ chối. Vui lòng điền lý do ở phía dưới.");
+    toast.info("Decline button unlocked. Please enter the reason below.");
   };
 
   const handleSendDecline = async () => {
@@ -117,14 +117,14 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
+      toast.success("Declined and revision feedback sent successfully!");
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể gửi phản hồi từ chối.");
+      toast.error("Failed to send decline feedback.");
     }
   };
 
@@ -420,12 +420,12 @@ export function TaskProgressCard({
             {showDeclineForm && (
               <div className="bg-destructive-light border border-destructive/20 rounded-lg p-3 space-y-2 mt-2 text-left">
                 <label className="block text-xs font-semibold text-destructive">
-                  Lý do từ chối (Feedback):
+                  Decline Reason (Feedback):
                 </label>
                 <textarea
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
-                  placeholder="Nhập chi tiết lý do từ chối (ví dụ: Sản phẩm bị lỗi layout ở mobile...)"
+                  placeholder="Enter details for decline (e.g. deliverable has layout bugs on mobile...)"
                   rows={3}
                   className="w-full text-sm border border-destructive/20 rounded-lg p-2.5 bg-card focus:outline-none focus:ring-1 focus:ring-destructive/40 focus:border-destructive/40 resize-none"
                 />
@@ -439,7 +439,7 @@ export function TaskProgressCard({
                     }}
                     className="px-3 py-1.5 border border-border text-foreground rounded-lg hover:bg-secondary font-medium cursor-pointer"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="button"
@@ -447,7 +447,7 @@ export function TaskProgressCard({
                     onClick={handleSendDecline}
                     className="px-3 py-1.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-semibold disabled:opacity-50 cursor-pointer"
                   >
-                    Gửi phản hồi
+                    Submit Feedback
                   </button>
                 </div>
               </div>
@@ -463,8 +463,8 @@ export function TaskProgressCard({
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary border-b border-border">
               <div className="text-left">
-                <h3 className="text-lg font-bold text-foreground">Sản phẩm nộp cho: {task.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Chi tiết các file và link do chuyên gia cung cấp</p>
+                <h3 className="text-lg font-bold text-foreground">Deliverables for: {task.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Details of files and links provided by the expert</p>
               </div>
               <button
                 onClick={() => setShowViewProductModal(false)}
@@ -480,15 +480,15 @@ export function TaskProgressCard({
               <div className="space-y-3">
                 <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-left">
                   <FileText className="w-4 h-4 text-primary" />
-                  Sản phẩm chính của Milestone
+                  Main Deliverable of Milestone
                 </h4>
                 {(!task.productLink && !task.productFile) ? (
-                  <p className="text-sm text-muted-foreground italic bg-secondary p-4 rounded-lg border border-border text-left">Chưa nộp file hay link chính cho milestone này.</p>
+                  <p className="text-sm text-muted-foreground italic bg-secondary p-4 rounded-lg border border-border text-left">No file or link submitted yet for this milestone.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {task.productLink && (
                       <div className="flex flex-col p-3 bg-primary-light rounded-lg border border-primary/10 hover:bg-primary-light/80 transition-colors text-left">
-                        <span className="text-xs font-semibold text-primary uppercase">Link sản phẩm</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Product Link</span>
                         <a
                           href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                           target="_blank"
@@ -502,7 +502,7 @@ export function TaskProgressCard({
                     )}
                     {task.productFile && (
                       <div className="flex flex-col p-3 bg-secondary rounded-lg border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Tên file sản phẩm</span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Product File Name</span>
                         <div className="flex items-center justify-between gap-2 mt-1">
                           <span className="text-sm text-foreground font-medium font-mono truncate">
                             {task.productFile}
@@ -533,7 +533,7 @@ export function TaskProgressCard({
                     className="px-5 py-2.5 bg-destructive-light hover:bg-destructive/10 text-destructive font-bold rounded-lg text-sm transition-colors border border-destructive/20 flex items-center gap-1.5 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
-                    Từ chối (Decline)
+                    Decline
                   </button>
                   <button
                     type="button"
@@ -541,7 +541,7 @@ export function TaskProgressCard({
                     className="px-5 py-2.5 bg-success hover:bg-success/90 text-success-foreground font-bold rounded-lg text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
-                    Phê duyệt (Accept)
+                    Accept
                   </button>
                 </>
               ) : (
@@ -550,7 +550,7 @@ export function TaskProgressCard({
                   onClick={() => setShowViewProductModal(false)}
                   className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground font-bold rounded-lg text-sm transition-colors border border-border cursor-pointer"
                 >
-                  Đóng
+                  Close
                 </button>
               )}
             </div>

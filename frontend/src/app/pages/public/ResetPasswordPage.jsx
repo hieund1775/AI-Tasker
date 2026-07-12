@@ -25,22 +25,22 @@ export function ResetPasswordPage() {
     setError("");
 
     if (!token.trim()) {
-      setError("Vui lòng nhập Token xác thực.");
+      setError("Please enter the verification Token.");
       return;
     }
 
     if (!password) {
-      setError("Vui lòng nhập mật khẩu mới.");
+      setError("Please enter your new password.");
       return;
     }
 
     if (password.length < 6) {
-      setError("Mật khẩu mới phải từ 6 ký tự trở lên.");
+      setError("New password must be at least 6 characters.");
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Mật khẩu xác nhận không khớp.");
+      setError("Passwords do not match.");
       return;
     }
 
@@ -49,7 +49,7 @@ export function ResetPasswordPage() {
       await resetPassword(token.trim(), password);
       setSubmitted(true);
     } catch (err) {
-      setError(err.message || "Đặt lại mật khẩu thất bại. Token có thể đã hết hạn hoặc không hợp lệ.");
+      setError(err.message || "Failed to reset password. The token may be expired or invalid.");
     } finally {
       setLoading(false);
     }
@@ -74,11 +74,11 @@ export function ResetPasswordPage() {
             </div>
             <span className="text-xl font-bold text-foreground tracking-tight">Tasker</span>
           </Link>
-          <h2 className="text-xl font-bold text-foreground tracking-tight">Đặt lại mật khẩu</h2>
+          <h2 className="text-xl font-bold text-foreground tracking-tight">Reset Password</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {submitted
-              ? "Mật khẩu của bạn đã được thay đổi thành công."
-              : "Nhập token xác thực và mật khẩu mới để đặt lại mật khẩu."}
+              ? "Your password has been changed successfully."
+              : "Enter the verification token and a new password to reset."}
           </p>
         </div>
 
@@ -88,14 +88,14 @@ export function ResetPasswordPage() {
               <CheckCircle className="w-7 h-7 text-success" />
             </div>
             <p className="text-sm text-muted-foreground mb-6">
-              Mật khẩu đã đặt lại thành công. Bạn có thể sử dụng mật khẩu mới này để đăng nhập ngay bây giờ.
+              Password has been reset successfully. You can use this new password to log in now.
             </p>
             <Link
               to="/login"
               className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-hover transition-colors"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Đến trang Đăng nhập
+              Go to Login Page
             </Link>
           </div>
         ) : (
@@ -108,21 +108,21 @@ export function ResetPasswordPage() {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Token xác thực (Reset Token)</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Verification Token (Reset Token)</label>
               <div className="relative">
                 <input
                   type="text"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   className="w-full h-10 px-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                  placeholder="Nhập mã token nhận được từ Email"
+                  placeholder="Enter token code received in Email"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Mật khẩu mới</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">New Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
                 <input
@@ -137,7 +137,7 @@ export function ResetPasswordPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">Xác nhận mật khẩu mới</label>
+              <label className="block text-sm font-medium text-foreground mb-1.5">Confirm New Password</label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
                 <input
@@ -156,7 +156,7 @@ export function ResetPasswordPage() {
               disabled={loading}
               className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors flex items-center justify-center disabled:opacity-50"
             >
-              {loading ? "Đang xử lý..." : "Đặt lại mật khẩu"}
+              {loading ? "Processing..." : "Reset Password"}
             </button>
 
             <div className="text-center">
@@ -165,7 +165,7 @@ export function ResetPasswordPage() {
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Quay lại Đăng nhập
+                Back to Login
               </Link>
             </div>
           </form>

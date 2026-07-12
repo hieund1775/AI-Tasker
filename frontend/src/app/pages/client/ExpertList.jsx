@@ -83,14 +83,14 @@ export function ExpertList() {
           .map((u) => {
             const profile = u.expertProfile || {};
             
-            // Giải mã Category Name của Expert
+            // Decode Expert Category Name
             let resolvedCatName = profile.category || u.category || "";
             const matchedCat = (cats || []).find(c => c.id === resolvedCatName);
             if (matchedCat) {
               resolvedCatName = matchedCat.name;
             }
 
-            // Giải mã Specialization Name của Expert
+            // Decode Expert Specialization Name
             let resolvedSpecName = profile.specialization || profile.major || u.specialization || "";
             let foundSpec = false;
             for (const cat of (cats || [])) {
@@ -109,7 +109,7 @@ export function ExpertList() {
               resolvedCatName = "AI & Computing";
             }
 
-            // Giải mã Skills của Expert
+            // Decode Expert Skills
             const resolvedExpertSkills = (profile.skills || []).map(sk => {
               if (typeof sk === "string" && sk.startsWith("skill-")) {
                 const match = (skills || []).find(s => s.id === sk);
@@ -145,7 +145,7 @@ export function ExpertList() {
 
   // ---- Filter options derived from expert data -----------------------------
 
-  // Category options: lấy đầy đủ từ API danh mục của Backend (Lọc trùng lặp)
+  // Category options: retrieve fully from Backend categories API (Filter duplicates)
   const categoryOptions = useMemo(() => {
     const list = [];
     categoriesList.forEach((cat) => {
@@ -160,15 +160,15 @@ export function ExpertList() {
     return list.sort((a, b) => a.label.localeCompare(b.label));
   }, [categoriesList, experts]);
 
-  // Domain expertise: lấy đầy đủ specialization từ danh mục API của Backend
-  // Chỉ lấy những specialization chính thức thuộc các danh mục của Backend
+  // Domain expertise: retrieve fully from Backend categories API
+  // Only retrieve specializations officially belonging to Backend categories
   const domainOptions = useMemo(() => {
     const list = [];
     categoriesList.forEach((cat) => {
       if (Array.isArray(cat.specializations)) {
         cat.specializations.forEach((spec) => {
           if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
-            // Đếm số expert thực tế trùng khớp
+            // Count actual matching experts
             const count = experts.filter((e) => e.specialization === spec.name).length;
             
             if (!list.some(item => item.value === spec.name)) {
@@ -185,11 +185,11 @@ export function ExpertList() {
     return list.sort((a, b) => a.label.localeCompare(b.label));
   }, [categoriesList, experts]);
 
-  // Core technology (Skills): Lấy danh sách đầy đủ từ API skills của Backend (Lọc trùng lặp)
+  // Core technology (Skills): retrieve fully from Backend skills API (Filter duplicates)
   const techOptions = useMemo(() => {
     const list = [];
     skillsList.forEach((skill) => {
-      if (skill.name && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) { // Chỉ lấy tên skill thật
+      if (skill.name && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) { // Only use real skill names
         if (!list.some(item => item.value === skill.name)) {
           list.push({
             value: skill.name,
