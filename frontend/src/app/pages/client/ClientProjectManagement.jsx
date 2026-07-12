@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -90,6 +90,57 @@ export default function ClientProjectDetail() {
   const isEscalatedRound = cancelAttemptCount >= 1;  // Đã bị từ chối ít nhất 1 lần
 
   const [showRejectedBanner, setShowRejectedBanner] = useState(true);
+
+  // ── Review & Evaluation states ──
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [reviewSaved, setReviewSaved] = useState(false);
+  const [isReviewDismissed, setIsReviewDismissed] = useState(false);
+
+  useEffect(() => {
+    if (currentProjectId) {
+      const savedReview = localStorage.getItem(`project_review_${currentProjectId}`);
+      if (savedReview) {
+        setReviewSaved(true);
+        try {
+          const parsed = JSON.parse(savedReview);
+          setRating(parsed.rating || 0);
+          setComment(parsed.comment || "");
+        } catch (e) {}
+      } else {
+        setReviewSaved(false);
+        setRating(0);
+        setComment("");
+      }
+      
+      const dismissed = localStorage.getItem(`dismissed_review_${currentProjectId}`) === "true";
+      setIsReviewDismissed(dismissed);
+    }
+  }, [currentProjectId]);
+
+  const handleSaveReview = () => {
+    if (rating === 0) {
+      toast.error("Vui lòng chọn số sao đánh giá (từ 1 đến 5).");
+      return;
+    }
+    const reviewData = {
+      projectId: currentProjectId,
+      rating: rating,
+      comment: comment.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`project_review_${currentProjectId}`, JSON.stringify(reviewData));
+    setReviewSaved(true);
+    toast.success("Cảm ơn bạn đã gửi đánh giá chuyên gia!");
+    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+  };
+
+  const handleDismissReview = () => {
+    localStorage.setItem(`dismissed_review_${currentProjectId}`, "true");
+    setIsReviewDismissed(true);
+  };
+
   useEffect(() => {
     if (report?.id && report?.status === "Rejected") {
       const isDismissed = localStorage.getItem(`dismissed_rejection_report_${report.id}`) === "true";
@@ -868,6 +919,101 @@ export default function ClientProjectDetail() {
         <AnimatedReveal>
           <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" allTasksApproved={allTasksApproved} />
         </AnimatedReveal>
+
+        {/* ── Evaluation / Review Section ── */}
+        {project?.status === "completed" && !isReviewDismissed && (
+          <AnimatedReveal>
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 relative text-left space-y-4 mb-6 mt-6">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={handleDismissReview}
+                className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                title="Đóng đánh giá"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-3 border-b border-border pb-3">
+                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
+                  <Star className="w-5 h-5 fill-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground font-sans">Đánh giá chuyên gia (Expert Evaluation)</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-sans">Dự án hoàn tất thành công. Hãy dành ít phút để đánh giá chất lượng phục vụ của chuyên gia.</p>
+                </div>
+              </div>
+
+              {reviewSaved ? (
+                <div className="flex items-center justify-between p-3.5 bg-success/10 border border-success/20 text-success rounded-xl text-xs font-semibold font-sans">
+                  <span>✓ Đã đánh giá thành công (Done)</span>
+                  <div className="flex items-center gap-0.5 ml-2">
+                    {Array.from({ length: 5 }, (_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < rating ? "fill-amber-500 text-amber-500" : "text-border"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 font-sans">
+                  {/* Stars Row */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-foreground/80 font-medium">Chọn số sao:</span>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const starValue = i + 1;
+                        return (
+                          <button
+                            type="button"
+                            key={i}
+                            onClick={() => setRating(starValue)}
+                            onMouseEnter={() => setHoverRating(starValue)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
+                          >
+                            <Star
+                              className={`w-6 h-6 transition-all ${
+                                starValue <= (hoverRating || rating)
+                                  ? "fill-amber-500 text-amber-500"
+                                  : "text-muted hover:text-amber-400"
+                              }`}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Comment Textarea */}
+                  <div className="space-y-1.5">
+                    <span className="text-xs text-foreground/80 font-medium">Bình luận, phản hồi chi tiết:</span>
+                    <textarea
+                      rows={3}
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Ý kiến đánh giá chuyên gia..."
+                      className="w-full p-3 text-sm border border-input rounded-xl focus:outline-none focus:border-brand-primary text-foreground bg-card"
+                    />
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <button
+                      type="button"
+                      onClick={handleSaveReview}
+                      className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm shadow-sm transition-colors cursor-pointer"
+                    >
+                      Gửi đánh giá
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </AnimatedReveal>
+        )}
         {/* Realtime Submission Timebar */}
         {project?.finalDeliveryStatus === "Final Product Submitted" && project?.finalWorkSubmittedAt && (
           <AnimatedReveal>

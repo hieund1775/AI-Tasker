@@ -114,12 +114,29 @@ export function ExpertProfile() {
           const totalForSuccess = completedCount + cancelCount + reportCount;
           const successVal = totalForSuccess > 0 ? `${Math.round((completedCount / totalForSuccess) * 100)}%` : "0%";
 
+          // Calculate Evaluate score based on rated completed projects
+          let totalRating = 0;
+          let ratedCount = 0;
+          completedList.forEach((p) => {
+            const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
+            if (rawReview) {
+              try {
+                const parsed = JSON.parse(rawReview);
+                if (parsed && typeof parsed.rating === "number") {
+                  totalRating += parsed.rating;
+                  ratedCount++;
+                }
+              } catch (e) {}
+            }
+          });
+          const evaluateVal = ratedCount > 0 ? (totalRating / ratedCount).toFixed(1).replace(".0", "") : "0";
+
           setStats({
             completed: completedCount,
             cancel: cancelCount,
             report: reportCount,
             success: successVal,
-            evaluate: 0,
+            evaluate: evaluateVal,
           });
 
           // Fetch full project details for completed projects to get clientName and projectSkills (skills)
@@ -153,6 +170,17 @@ export function ExpertProfile() {
                   }
                 }
                 
+                // Load review from localStorage if exists
+                let review = null;
+                const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
+                if (rawReview) {
+                  try {
+                    review = JSON.parse(rawReview);
+                  } catch (e) {
+                    console.error("Failed to parse local project review:", e);
+                  }
+                }
+
                 return {
                   id: p.id || p.Id,
                   title: p.title || p.Title || fullProj?.title || "",
@@ -160,9 +188,17 @@ export function ExpertProfile() {
                   specialization: specialization,
                   skills: skills,
                   clientName: clientName || "Client",
+                  review: review,
                 };
               } catch (e) {
                 console.error("Failed to fetch full details for completed project:", e);
+                let review = null;
+                const rawReview = localStorage.getItem(`project_review_${p.id || p.Id}`);
+                if (rawReview) {
+                  try {
+                    review = JSON.parse(rawReview);
+                  } catch (e) {}
+                }
                 return {
                   id: p.id || p.Id,
                   title: p.title || p.Title || "",
@@ -170,6 +206,7 @@ export function ExpertProfile() {
                   specialization: "",
                   skills: [],
                   clientName: "Client",
+                  review: review,
                 };
               }
             })
@@ -451,10 +488,22 @@ export function ExpertProfile() {
               <div className="flex flex-col gap-4">
                 {paginatedProjects.map((proj, idx) => (
                   <div key={proj.id || idx} className="p-5 bg-secondary/30 rounded-xl border border-border/60 hover:border-brand-primary/40 transition-colors space-y-3">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-foreground text-base line-clamp-1" title={proj.title}>
+                    <div className="flex justify-between items-start gap-4">
+                      <h3 className="font-semibold text-foreground text-base line-clamp-1 flex-1 text-left" title={proj.title}>
                         {proj.title}
                       </h3>
+                      {proj.review && (
+                        <div className="flex items-center gap-0.5 flex-shrink-0 bg-amber-500/10 px-2.5 py-1 rounded-lg">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < proj.review.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5 text-xs">
@@ -489,6 +538,13 @@ export function ExpertProfile() {
                             {skill}
                           </span>
                         ))}
+                      </div>
+                    )}
+
+                    {proj.review?.comment && (
+                      <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
+                        <span className="absolute left-2 text-base text-amber-500/70 font-semibold select-none leading-none">“</span>
+                        {proj.review.comment}
                       </div>
                     )}
                   </div>
