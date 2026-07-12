@@ -505,7 +505,7 @@ export function AdminReportDetail() {
       }
 
       // Override trạng thái và lưu local
-      localStorage.setItem(`project_status_${report?.projectId}`, "completed");
+      localStorage.setItem(`project_status_${report?.projectId}`, "cancelled");
       localStorage.setItem(`report_status_${id}`, "Resolved");
 
       showToast("Đã cưỡng chế giải ngân cho Chuyên gia thành công.");
@@ -938,52 +938,56 @@ export function AdminReportDetail() {
 
         // Thực hiện chuyển tiền ví
         try {
-          if (expertPayout > 0) {
-            try {
-              await api.payments.depositWallet(report?.expertId, expertPayout);
-            } catch (depositErr) {
-              console.warn("depositWallet expert payout failed:", depositErr);
-            }
-            try {
-              await releaseProjectMoneyToExpert({
-                projectId: report?.projectId,
-                amount: expertPayout,
-                expertId: report?.expertId,
-                reportId: id,
-              });
-            } catch (e) {
-              console.warn("Release to expert failed inside escalated verdict, recording fallback transaction log...", e);
+          let releaseSucceeded = false;
+          try {
+            await api.payments.releaseEscrow({ projectId: report?.projectId });
+            releaseSucceeded = true;
+          } catch (e) {
+            console.warn("Escrow release endpoint failed inside escalated verdict, falling back to direct transfers...", e);
+          }
+
+          if (releaseSucceeded) {
+            // releaseEscrow đã cộng escrowTotal vào Expert Wallet. Phí hệ thống -5% (platformFee) cũng bị trừ.
+            // Nên ta tính toán chênh lệch bù trừ chính xác:
+            const diffExpert = expertPayout - escrowTotal + platformFee;
+            if (diffExpert !== 0) {
               try {
-                await api.post("/interactions/transaction", {
-                  projectId: report?.projectId,
-                  amount: expertPayout,
-                  expertId: report?.expertId,
-                  reportId: id,
-                  type: "release_payment",
-                  transactionType: "release_payment",
-                  description: `Escalated verdict fallback: Release to Expert for project ${report?.projectId}`,
-                });
-              } catch (err) { }
+                if (diffExpert > 0) {
+                  await api.payments.depositWallet(report?.expertId, diffExpert);
+                } else {
+                  await api.payments.withdraw(report?.expertId, Math.abs(diffExpert));
+                }
+              } catch (expertErr) {
+                console.warn("Expert wallet compensation failed:", expertErr);
+              }
+            }
+
+            // Client nhận 0 từ releaseEscrow, nên ta nạp clientRefund
+            if (clientRefund > 0) {
+              try {
+                await api.payments.depositWallet(report?.clientId, clientRefund);
+              } catch (clientErr) {
+                console.warn("Client wallet compensation failed:", clientErr);
+              }
+            }
+          } else {
+            // Fallback: nếu releaseEscrow lỗi thì nạp trực tiếp
+            if (expertPayout > 0) {
+              try {
+                await api.payments.depositWallet(report?.expertId, expertPayout);
+              } catch (expertErr) {
+                console.warn("Direct expert payout failed:", expertErr);
+              }
+            }
+            if (clientRefund > 0) {
+              try {
+                await api.payments.depositWallet(report?.clientId, clientRefund);
+              } catch (clientErr) {
+                console.warn("Direct client refund failed:", clientErr);
+              }
             }
           }
-          if (clientRefund > 0) {
-            try {
-              await api.payments.depositWallet(report?.clientId, clientRefund);
-            } catch (depositErr) {
-              console.warn("depositWallet client refund failed:", depositErr);
-            }
-            try {
-              await refundProjectMoneyToClient({
-                projectId: report?.projectId,
-                amount: clientRefund,
-                clientId: report?.clientId,
-                reportId: id,
-                reason: `Escalated Cancel Settle: ${verdictType}`,
-              });
-            } catch (e) {
-              console.warn("Refund to client failed inside escalated verdict:", e);
-            }
-          }
+
           if (platformFee > 0) {
             try {
               await api.post("/interactions/transaction", {
@@ -1000,8 +1004,12 @@ export function AdminReportDetail() {
           console.warn("Escalated money distribution api failed, using fallback...", moneyErr);
         }
 
-        // Lưu trạng thái
-        localStorage.setItem(`project_status_${report?.projectId}`, "cancelled");
+        // Lưu trạng thái với ID viết thường để tránh mismatch casing
+        const projIdLower = String(report?.projectId).toLowerCase();
+        localStorage.setItem(`cancellation_expert_payout_${projIdLower}`, expertPayout);
+        localStorage.setItem(`cancellation_client_refund_${projIdLower}`, clientRefund);
+        localStorage.setItem(`project_status_${projIdLower}`, "cancelled");
+        localStorage.setItem(`escalated_verdict_${projIdLower}`, "true");
         localStorage.setItem(`report_status_${id}`, "Resolved");
 
         showToast(`Đã giải quyết tranh chấp hủy hợp đồng (${verdictType}). Tiền đã được phân chia.`);

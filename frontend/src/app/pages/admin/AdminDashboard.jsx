@@ -48,26 +48,6 @@ export function AdminDashboard() {
         .map(t => String(t.projectId || t.ProjectId).toLowerCase())
     );
 
-    let totalRevenue = 0;
-    transactions.forEach(t => {
-      const lType = t.type?.toLowerCase() || t.Type?.toLowerCase();
-      let fee = 0;
-      if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-        fee = Number(t.amount || t.Amount || 0) * 5 / 95;
-      } else if (lType === "platformfee") {
-        fee = Math.abs(Number(t.amount || t.Amount || 0));
-      }
-      totalRevenue += fee;
-    });
-
-    localReleases.forEach(r => {
-      const releaseProjIdLower = String(r.projectId).toLowerCase();
-      const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
-      if (!hasDbTx) {
-        totalRevenue += Number(r.amount) * 0.05;
-      }
-    });
-
     const usersData = (usersSettled.status === "fulfilled" && usersSettled.value)
       ? (usersSettled.value.data || usersSettled.value)
       : [];
@@ -75,6 +55,7 @@ export function AdminDashboard() {
 
     // Fetch projects for all users since backend has no GetAllProjects
     let activeProjectsCount = 0;
+    const allFetchedProjects = [];
     try {
       const projectPromises = [];
       usersData.forEach(u => {
@@ -92,6 +73,12 @@ export function AdminDashboard() {
             const pId = String(p.id || p.Id).toLowerCase();
             if (!seenIds.has(pId)) {
               seenIds.add(pId);
+              allFetchedProjects.push(p);
+              const dbStatus = (p.status || p.Status || "").toLowerCase().trim();
+              const isTerminal = ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped"].includes(dbStatus);
+              if (isTerminal) {
+                try { localStorage.removeItem(`project_status_${pId}`); } catch (e) {}
+              }
               const localStatus = localStorage.getItem(`project_status_${pId}`) || p.status || p.Status || "";
               const statusLower = localStatus.toLowerCase().replace(/[\s_]+/g, "");
               if (statusLower === "inprogress" || statusLower === "in_progress") {
@@ -104,6 +91,61 @@ export function AdminDashboard() {
     } catch (err) {
       console.warn("fetchStats projects fetch failed:", err);
     }
+
+    // Build project map with budgets to calculate exact platform fee
+    const projectMap = new Map();
+    allFetchedProjects.forEach(p => {
+      const projId = String(p.id || p.Id).toLowerCase();
+      const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+      projectMap.set(projId, { budget });
+    });
+
+    // Build set of projects that have an explicit PlatformFee transaction
+    const projectsWithPlatformFee = new Set();
+    transactions.forEach(t => {
+      const lType = (t.type || t.Type || "").toLowerCase();
+      const projId = t.projectId || t.ProjectId;
+      if (projId && (lType === "platformfee" || lType === "platform_fee")) {
+        projectsWithPlatformFee.add(String(projId).toLowerCase());
+      }
+    });
+
+    const getPlatformFee = (t) => {
+      const lType = (t.type || t.Type || "").toLowerCase();
+      const projId = t.projectId || t.ProjectId;
+      const projIdLower = projId ? String(projId).toLowerCase() : null;
+      const tAmount = Number(t.amount || t.Amount || 0);
+
+      if (lType === "platformfee" || lType === "platform_fee") {
+        return Math.abs(tAmount);
+      }
+
+      if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
+        if (projIdLower && projectsWithPlatformFee.has(projIdLower)) {
+          return 0;
+        }
+        const projDetails = projIdLower ? projectMap.get(projIdLower) : null;
+        if (projDetails && projDetails.budget > 0) {
+          return projDetails.budget * 0.05;
+        }
+        return tAmount * 5 / 95;
+      }
+
+      return 0;
+    };
+
+    let totalRevenue = 0;
+    transactions.forEach(t => {
+      totalRevenue += getPlatformFee(t);
+    });
+
+    localReleases.forEach(r => {
+      const releaseProjIdLower = String(r.projectId).toLowerCase();
+      const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
+      if (!hasDbTx) {
+        totalRevenue += Number(r.amount) * 0.05;
+      }
+    });
 
     setStats({
       totalUsers: totalUsersCount,

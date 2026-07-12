@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -82,12 +82,20 @@ export default function ClientProjectDetail() {
   // Lần 1: Soft Cancel (bình thường)
   // Lần 2+: Tự động leo thang thành Binding Dispute
   const cancelAttemptCount = currentProjectId
-    ? parseInt(localStorage.getItem(`cancel_attempt_count_${currentProjectId}`) || "0", 10)
+    ? parseInt(localStorage.getItem(`cancel_attempt_count_${String(currentProjectId).toLowerCase()}`) || "0", 10)
     : 0;
   const cancelLocked = currentProjectId
-    ? localStorage.getItem(`cancel_locked_${currentProjectId}`) === "true"
+    ? localStorage.getItem(`cancel_locked_${String(currentProjectId).toLowerCase()}`) === "true"
     : false;
   const isEscalatedRound = cancelAttemptCount >= 1;  // Đã bị từ chối ít nhất 1 lần
+
+  const [showRejectedBanner, setShowRejectedBanner] = useState(true);
+  useEffect(() => {
+    if (report?.id && report?.status === "Rejected") {
+      const isDismissed = localStorage.getItem(`dismissed_rejection_report_${report.id}`) === "true";
+      setShowRejectedBanner(!isDismissed);
+    }
+  }, [report?.id, report?.status]);
 
   const [elapsedTime, setElapsedTime] = useState("");
 
@@ -119,7 +127,12 @@ export default function ClientProjectDetail() {
 
   const isDisputed = project?.status?.toLowerCase() === "disputed";
   const isContractCancelled = project?.status?.toLowerCase() === "contract_cancelled" || project?.status?.toLowerCase() === "cancel_done";
-  const isLocked = isDisputed || isContractCancelled || project?.status === "Awaiting_Cancellation";
+  const isLocked =
+    isDisputed ||
+    isContractCancelled ||
+    (project?.status === "Awaiting_Cancellation" &&
+      report &&
+      (report.reporterRole === "client" || (report.reporterRole === "expert" && report.status !== "Pending Admin" && report.status !== "Pending")));
 
   const allTasksApproved = tasks && tasks.length > 0 && tasks.every(t => {
     const rawStatus = t.status?.toLowerCase();
@@ -361,20 +374,31 @@ export default function ClientProjectDetail() {
 
       if (diffExpert !== 0 && expertId) {
         try {
-          await api.payments.depositWallet(expertId, diffExpert);
+          if (diffExpert > 0) {
+            await api.payments.depositWallet(expertId, diffExpert);
+          } else {
+            await api.payments.withdraw(expertId, Math.abs(diffExpert));
+          }
         } catch (e) {
           console.warn("Expert wallet compensation failed:", e);
         }
       }
       if (diffClient !== 0 && clientId) {
         try {
-          await api.payments.depositWallet(clientId, diffClient);
+          if (diffClient > 0) {
+            await api.payments.depositWallet(clientId, diffClient);
+          } else {
+            await api.payments.withdraw(clientId, Math.abs(diffClient));
+          }
         } catch (e) {
           console.warn("Client wallet compensation failed:", e);
         }
       }
 
-      localStorage.setItem(`project_status_${currentProjectId}`, "cancelled");
+      const projIdLower = String(currentProjectId).toLowerCase();
+      localStorage.setItem(`cancellation_expert_payout_${projIdLower}`, correctExpertPayout);
+      localStorage.setItem(`cancellation_client_refund_${projIdLower}`, correctClientRefund);
+      localStorage.setItem(`project_status_${projIdLower}`, "cancelled");
       toast.success("Bạn đã đồng ý hủy hợp đồng. Tiền đã được giải ngân/hoàn trả.");
 
       // Expert gets payout notification
@@ -412,6 +436,12 @@ export default function ClientProjectDetail() {
       await api.put(`/reports/${report.id}/partner-reject-cancel`, {
         partnerRejectionReason: partnerRejectReason,
       });
+
+      // Tăng cancelAttemptCount khi đối tác từ chối yêu cầu hủy của đối phương
+      const projIdLower = String(currentProjectId).toLowerCase();
+      const currentCount = Number(localStorage.getItem(`cancel_attempt_count_${projIdLower}`) || 0);
+      localStorage.setItem(`cancel_attempt_count_${projIdLower}`, currentCount + 1);
+
       toast.success("Bạn đã từ chối yêu cầu hủy. Lý do đã được gửi lên Admin.");
       setShowPartnerRejectForm(false);
       setPartnerRejectReason("");
@@ -428,6 +458,11 @@ export default function ClientProjectDetail() {
     setCancelLoading(true);
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
+
+      // GIỮ cancel_attempt_count — không reset để leo thang vẫn có hiệu lực
+      // nếu client cancel lần nữa sau khi bị từ chối, sẽ vào Binding Dispute ngay.
+      // Chỉ xóa count khi hợp đồng thực sự kết thúc (partner accept cancel).
+
       toast.success("Bạn đã chấp nhận từ chối hủy. Dự án hoạt động bình thường trở lại.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -444,13 +479,24 @@ export default function ClientProjectDetail() {
       return;
     }
     setCancelLoading(true);
-    const finalReason = cancelAttemptCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
+    const projIdLower = String(currentProjectId).toLowerCase();
+    const currentCount = parseInt(localStorage.getItem(`cancel_attempt_count_${projIdLower}`) || "0", 10);
+    const newCount = currentCount + 1;
+    localStorage.setItem(`cancel_attempt_count_${projIdLower}`, String(newCount));
+
+    const finalReason = newCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
     try {
       await api.put(`/reports/${report.id}/initiator-respond-rejection`, {
         reason: finalReason,
         evidenceFileName: evidenceFileName || "",
       });
-      toast.success("Đã phản hồi và gửi lại đơn hủy hợp đồng mới lên Admin.");
+
+      if (newCount >= 1) {
+        toast.success("⚠️ Đơn hủy đã leo thang lên Binding Dispute (Vòng 2). Admin sẽ ra phán quyết ràng buộc.", { duration: 6000 });
+      } else {
+        toast.success("Đã phản hồi và gửi lại đơn hủy hợp đồng mới lên Admin.");
+      }
+
       setShowCancelModal(false);
       setCancelReason("");
       setEvidenceFileName("");
@@ -524,8 +570,12 @@ export default function ClientProjectDetail() {
         subtitle="Track progress, review deliverables, and manage escrow safely."
         badge={
           project?.status ? (() => {
-            const status = project.status.toLowerCase();
+            let status = project.status.toLowerCase();
             let label = project.status;
+            if (status === "awaiting_cancellation" && report && (report.status === "Pending Admin" || report.status === "Pending")) {
+              status = "inprogress";
+              label = "In Progress";
+            }
             let colorClasses = "bg-accent-light text-accent";
             if (report?.status === "Resolved") {
               label = "End a quarrel";
@@ -572,7 +622,7 @@ export default function ClientProjectDetail() {
 
       <div className="space-y-6">
         {/* Multi-Stage Cancellation Negotiation Widget */}
-        {project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
+        {isLocked && project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
           <div className="p-6 bg-card border border-amber-300 rounded-2xl shadow-sm text-sm font-sans space-y-4">
             {report.reporterRole === "client" ? (
               report.status === "Pending Admin" ? (
@@ -767,15 +817,30 @@ export default function ClientProjectDetail() {
         )}
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
-        {report?.status === "Rejected" && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start gap-2 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-foreground">Báo cáo vi phạm đã bị Admin từ chối giải quyết</p>
-              {report.rejectionReason && (
-                <p className="mt-1 text-muted-foreground"><strong>Lý do từ chối:</strong> {report.rejectionReason}</p>
-              )}
+        {report?.status === "Rejected" && report?.reporterRole === "client" && showRejectedBanner && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-foreground">Báo cáo vi phạm đã bị Admin từ chối giải quyết</p>
+                {(() => {
+                  const reasonText = report.rejectionReason || report.RejectionReason || report.adminNote || report.AdminNote || report.note || report.Note;
+                  return reasonText ? (
+                    <p className="mt-1 text-muted-foreground"><strong>Lý do từ chối:</strong> {reasonText}</p>
+                  ) : null;
+                })()}
+              </div>
             </div>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowRejectedBanner(false);
+                localStorage.setItem(`dismissed_rejection_report_${report.id}`, "true");
+              }} 
+              className="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded-lg hover:bg-amber-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
         {report?.status === "Resolved" && (

@@ -147,19 +147,19 @@ export function ReportForm({
   }
 
   // Pre-calculate display deadline and start date
-  const displayStartDate = project.createdAt
-    ? formatDateTime(project.createdAt)
-    : "—";
+  const rawStartDate = project.startDate || project.StartDate || project.createdAt || project.CreatedAt;
+  const displayStartDate = rawStartDate ? formatDateTime(rawStartDate) : "—";
 
   const displayDeadline = (() => {
-    if (!project.deadline) return "—";
-    const num = Number(project.deadline);
+    const rawDeadline = project.endDate || project.EndDate || project.deadline || project.Deadline;
+    if (!rawDeadline) return "—";
+    const num = Number(rawDeadline);
     if (!Number.isNaN(num) && num < 1000) {
-      const d = new Date(project.createdAt || new Date());
+      const d = new Date(rawStartDate || new Date());
       d.setDate(d.getDate() + num);
       return formatDateTime(d.toISOString());
     }
-    return formatDateTime(project.deadline);
+    return formatDateTime(rawDeadline);
   })();
 
   const clientName =

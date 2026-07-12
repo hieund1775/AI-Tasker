@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock } from "lucide-react";
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -72,16 +72,29 @@ export default function ExpertProjectDetail() {
 
   // 2-round escalation tracking
   const cancelAttemptCount = currentProjectId
-    ? parseInt(localStorage.getItem(`cancel_attempt_count_${currentProjectId}`) || "0", 10)
+    ? parseInt(localStorage.getItem(`cancel_attempt_count_${String(currentProjectId).toLowerCase()}`) || "0", 10)
     : 0;
   const cancelLocked = currentProjectId
-    ? localStorage.getItem(`cancel_locked_${currentProjectId}`) === "true"
+    ? localStorage.getItem(`cancel_locked_${String(currentProjectId).toLowerCase()}`) === "true"
     : false;
   const isEscalatedRound = cancelAttemptCount >= 1;
 
+  const [showRejectedBanner, setShowRejectedBanner] = useState(true);
+  useEffect(() => {
+    if (report?.id && report?.status === "Rejected") {
+      const isDismissed = localStorage.getItem(`dismissed_rejection_report_${report.id}`) === "true";
+      setShowRejectedBanner(!isDismissed);
+    }
+  }, [report?.id, report?.status]);
+
   const isDisputed = project?.status?.toLowerCase() === "disputed";
   const isContractCancelled = project?.status?.toLowerCase() === "contract_cancelled" || project?.status?.toLowerCase() === "cancel_done";
-  const isLocked = isDisputed || isContractCancelled || project?.status === "Awaiting_Cancellation";
+  const isLocked =
+    isDisputed ||
+    isContractCancelled ||
+    (project?.status === "Awaiting_Cancellation" &&
+      report &&
+      (report.reporterRole === "expert" || (report.reporterRole === "client" && report.status !== "Pending Admin" && report.status !== "Pending")));
 
   const allTasksApproved = tasks && tasks.length > 0 && tasks.every(t => {
     const rawStatus = t.status?.toLowerCase();
@@ -203,13 +216,14 @@ export default function ExpertProjectDetail() {
 
   const handleConfirmCancellationSend = async () => {
     setCancelLoading(true);
+    const finalReason = cancelAttemptCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
     try {
       await api.reports.create({
         projectId: currentProjectId,
         reporterId: user.id,
         reporterRole: "expert",
-        reason: cancelReason,
-        description: cancelReason,
+        reason: finalReason,
+        description: finalReason,
         evidenceUrl: evidenceFileName || "",
         reportType: "cancellation",
         disputeType: "cancellation",
@@ -270,20 +284,31 @@ export default function ExpertProjectDetail() {
 
       if (diffExpert !== 0 && expertId) {
         try {
-          await api.payments.depositWallet(expertId, diffExpert);
+          if (diffExpert > 0) {
+            await api.payments.depositWallet(expertId, diffExpert);
+          } else {
+            await api.payments.withdraw(expertId, Math.abs(diffExpert));
+          }
         } catch (e) {
           console.warn("Expert wallet compensation failed:", e);
         }
       }
       if (diffClient !== 0 && clientId) {
         try {
-          await api.payments.depositWallet(clientId, diffClient);
+          if (diffClient > 0) {
+            await api.payments.depositWallet(clientId, diffClient);
+          } else {
+            await api.payments.withdraw(clientId, Math.abs(diffClient));
+          }
         } catch (e) {
           console.warn("Client wallet compensation failed:", e);
         }
       }
 
-      localStorage.setItem(`project_status_${currentProjectId}`, "cancelled");
+      const projIdLower = String(currentProjectId).toLowerCase();
+      localStorage.setItem(`cancellation_expert_payout_${projIdLower}`, correctExpertPayout);
+      localStorage.setItem(`cancellation_client_refund_${projIdLower}`, correctClientRefund);
+      localStorage.setItem(`project_status_${projIdLower}`, "cancelled");
       toast.success("Bạn đã đồng ý hủy hợp đồng. Tiền đã được giải ngân/hoàn trả.");
 
       notifyContractCancelledExpert({
@@ -320,9 +345,10 @@ export default function ExpertProjectDetail() {
         partnerRejectionReason: partnerRejectReason,
       });
 
-      // Vòng 2 Cancellation: Tăng cancelAttemptCount
-      const currentCount = Number(localStorage.getItem(`cancel_attempt_count_${currentProjectId}`) || 0);
-      localStorage.setItem(`cancel_attempt_count_${currentProjectId}`, currentCount + 1);
+      // Vòng 2 Cancellation: Tăng cancelAttemptCount với lowercase project ID
+      const projIdLower = String(currentProjectId).toLowerCase();
+      const currentCount = Number(localStorage.getItem(`cancel_attempt_count_${projIdLower}`) || 0);
+      localStorage.setItem(`cancel_attempt_count_${projIdLower}`, currentCount + 1);
 
       toast.success("Bạn đã từ chối yêu cầu hủy. Yêu cầu tiếp theo từ Client sẽ là Tranh Chấp Chính Thức.");
       setShowPartnerRejectForm(false);
@@ -340,6 +366,11 @@ export default function ExpertProjectDetail() {
     setCancelLoading(true);
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
+
+      // GIỮ cancel_attempt_count — không reset để leo thang vẫn có hiệu lực
+      // nếu expert cancel lần nữa sau khi bị từ chối, sẽ vào Binding Dispute ngay.
+      // Chỉ xóa count khi hợp đồng thực sự kết thúc (partner accept cancel).
+
       toast.success("Bạn đã chấp nhận từ chối hủy. Dự án hoạt động bình thường trở lại.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -356,17 +387,16 @@ export default function ExpertProjectDetail() {
       return;
     }
     setCancelLoading(true);
+    const projIdLower = String(currentProjectId).toLowerCase();
     try {
-      const currentCount = parseInt(localStorage.getItem(`cancel_attempt_count_${currentProjectId}`) || "0", 10);
+      const currentCount = parseInt(localStorage.getItem(`cancel_attempt_count_${projIdLower}`) || "0", 10);
       const newCount = currentCount + 1;
-      localStorage.setItem(`cancel_attempt_count_${currentProjectId}`, String(newCount));
+      localStorage.setItem(`cancel_attempt_count_${projIdLower}`, String(newCount));
 
       if (newCount >= 1) {
         await api.put(`/reports/${report.id}/initiator-respond-rejection`, {
-          reason: cancelReason,
+          reason: `[ESCALATED BINDING DISPUTE] ${cancelReason}`,
           evidenceFileName: evidenceFileName || "",
-          escalated: true,
-          attemptRound: newCount + 1,
         });
         toast.success("⚠️ Đơn hủy đã leo thang lên Binding Dispute (Vòng 2). Admin sẽ ra phán quyết ràng buộc.", { duration: 6000 });
       } else {
@@ -450,8 +480,12 @@ export default function ExpertProjectDetail() {
         subtitle="Complete tasks, submit deliverables, and track project progress."
         badge={
           project?.status ? (() => {
-            const status = project.status.toLowerCase();
+            let status = project.status.toLowerCase();
             let label = project.status;
+            if (status === "awaiting_cancellation" && report && (report.status === "Pending Admin" || report.status === "Pending")) {
+              status = "inprogress";
+              label = "In Progress";
+            }
             let colorClasses = "bg-accent-light text-accent";
             if (report?.status === "Resolved") {
               label = "End a quarrel";
@@ -495,15 +529,30 @@ export default function ExpertProjectDetail() {
       <div className="space-y-6">
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
-        {report?.status === "Rejected" && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start gap-2 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-foreground">Báo cáo vi phạm đã bị Admin từ chối giải quyết</p>
-              {report.rejectionReason && (
-                <p className="mt-1 text-muted-foreground"><strong>Lý do từ chối:</strong> {report.rejectionReason}</p>
-              )}
+        {report?.status === "Rejected" && report?.reporterRole === "expert" && showRejectedBanner && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-foreground">Báo cáo vi phạm đã bị Admin từ chối giải quyết</p>
+                {(() => {
+                  const reasonText = report.rejectionReason || report.RejectionReason || report.adminNote || report.AdminNote || report.note || report.Note;
+                  return reasonText ? (
+                    <p className="mt-1 text-muted-foreground"><strong>Lý do từ chối:</strong> {reasonText}</p>
+                  ) : null;
+                })()}
+              </div>
             </div>
+            <button 
+              type="button" 
+              onClick={() => {
+                setShowRejectedBanner(false);
+                localStorage.setItem(`dismissed_rejection_report_${report.id}`, "true");
+              }} 
+              className="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded-lg hover:bg-amber-100"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
         {report?.status === "Resolved" && (
@@ -521,7 +570,7 @@ export default function ExpertProjectDetail() {
             </div>
           </div>
         )}
-        {project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
+        {isLocked && project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
           <div className="p-6 bg-card border border-amber-300 rounded-2xl shadow-sm text-sm font-sans space-y-4">
             {report.reporterRole === "expert" ? (
               report.status === "Pending Admin" ? (
@@ -975,8 +1024,12 @@ export default function ExpertProjectDetail() {
                   <Ban className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-foreground font-sans">Cancel Contract (Expert)</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-sans">Kết thúc hợp đồng — phí sàn 5% + phí phạt 10% sẽ được áp dụng</p>
+                  <h3 className={`text-lg font-bold font-sans ${cancelAttemptCount >= 1 ? "text-orange-700" : "text-foreground"}`}>
+                    {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract (Expert)"}
+                  </h3>
+                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-orange-600/80" : "text-muted-foreground"}`}>
+                    {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Kết thúc hợp đồng — phí sàn 5% + phí phạt 10% sẽ được áp dụng"}
+                  </p>
                 </div>
               </div>
 

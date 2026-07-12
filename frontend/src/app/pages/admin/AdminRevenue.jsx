@@ -35,14 +35,12 @@ export function AdminRevenue() {
   useEffect(() => {
     async function fetchRevenue() {
       try {
-        const [dashboardRes, projectsRes, transactionsRes, usersRes] = await Promise.all([
+        const [dashboardRes, transactionsRes, usersRes] = await Promise.all([
           api.users.systemDashboard().catch(() => null),
-          api.projects.list().catch(() => []),
           api.payments.getTransactions().catch(() => []),
           api.users.list().catch(() => []),
         ]);
 
-        const projects = Array.isArray(projectsRes) ? projectsRes : [];
         const transactions = Array.isArray(transactionsRes) ? transactionsRes : [];
         const users = Array.isArray(usersRes) ? usersRes : (usersRes?.data || usersRes?.value || []);
 
@@ -54,14 +52,40 @@ export function AdminRevenue() {
           userMap.set(uId, name);
         });
 
-        // Build Project Map
+        // Workaround: C# backend has no GetAllProjects endpoint, so we fetch projects for all users
+        const projectPromises = [];
+        users.forEach(u => {
+          const uId = u.id || u.Id;
+          if (uId) {
+            projectPromises.push(api.users.getClientProjects(uId).catch(() => []));
+            projectPromises.push(api.users.getExpertProjects(uId).catch(() => []));
+          }
+        });
+
+        const projectsResults = await Promise.all(projectPromises);
+        const projects = [];
+        const seenIds = new Set();
+        projectsResults.forEach(list => {
+          if (Array.isArray(list)) {
+            list.forEach(p => {
+              const pId = String(p.id || p.Id).toLowerCase();
+              if (!seenIds.has(pId)) {
+                seenIds.add(pId);
+                projects.push(p);
+              }
+            });
+          }
+        });
+
+        // Build Project Map with budget/escrowAmount
         const projectMap = new Map();
         projects.forEach(p => {
           const projId = String(p.id || p.Id).toLowerCase();
           const clientName = p.client?.fullName || p.client?.FullName || p.clientName || p.client || "";
           const expertName = p.expert?.fullName || p.expert?.FullName || p.expertName || p.expert || "";
           const title = p.title || p.jobPost?.title || p.jobPostTitle || "Project";
-          projectMap.set(projId, { clientName, expertName, title });
+          const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+          projectMap.set(projId, { clientName, expertName, title, budget });
         });
 
         // 1. Calculate Escrow dynamically from active projects
@@ -77,12 +101,18 @@ export function AdminRevenue() {
         if (projects.length > 0) {
           projects.forEach(p => {
             const projId = p.id || p.Id;
+            const dbStatus = (p.status || p.Status || "").toLowerCase().trim();
+            const isTerminal = ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped"].includes(dbStatus);
+            
+            if (isTerminal) {
+              try { localStorage.removeItem(`project_status_${projId}`); } catch (e) {}
+            }
+
             const localStatus = localStorage.getItem(`project_status_${projId}`);
-            const status = (localStatus || p.status || p.Status || "").toLowerCase();
-            const isCompleted = ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done"].includes(status);
+            const status = (localStatus || p.status || p.Status || "").toLowerCase().replace(/_/g, "").trim();
             const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
 
-            if (!isCompleted && !isReleasedLocally) {
+            if (status === "inprogress" && !isReleasedLocally) {
               const budget = p.escrowBalance ?? p.escrowAmount ?? p.budget ?? p.Budget ?? 0;
               escrowHeld += Number(budget);
             }
@@ -98,17 +128,59 @@ export function AdminRevenue() {
           });
         }
 
+        console.log("AdminRevenue Debug Escrow held:", {
+          projectsLength: projects.length,
+          calculatedEscrowHeld: escrowHeld,
+          dbEscrowFunds,
+          projects: projects.map(p => ({
+            id: p.id || p.Id,
+            status: p.status || p.Status || "",
+            localStatus: localStorage.getItem(`project_status_${p.id || p.Id}`),
+            escrowBalance: p.escrowBalance || p.EscrowBalance || 0,
+            budget: p.budget || p.Budget || 0
+          }))
+        });
+
+        // Build set of projects that have an explicit PlatformFee transaction
+        const projectsWithPlatformFee = new Set();
+        transactions.forEach(t => {
+          const lType = (t.type || t.Type || "").toLowerCase();
+          const projId = t.projectId || t.ProjectId;
+          if (projId && (lType === "platformfee" || lType === "platform_fee")) {
+            projectsWithPlatformFee.add(String(projId).toLowerCase());
+          }
+        });
+
+        // Helper to calculate exact 5% platform fee for a transaction
+        const getPlatformFee = (t) => {
+          const lType = (t.type || t.Type || "").toLowerCase();
+          const projId = t.projectId || t.ProjectId;
+          const projIdLower = projId ? String(projId).toLowerCase() : null;
+          const tAmount = Number(t.amount || t.Amount || 0);
+
+          if (lType === "platformfee" || lType === "platform_fee") {
+            return Math.abs(tAmount);
+          }
+
+          if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
+            // Deduplicate if there is already a PlatformFee transaction
+            if (projIdLower && projectsWithPlatformFee.has(projIdLower)) {
+              return 0;
+            }
+            const projDetails = projIdLower ? projectMap.get(projIdLower) : null;
+            if (projDetails && projDetails.budget > 0) {
+              return projDetails.budget * 0.05;
+            }
+            return tAmount * 5 / 95;
+          }
+
+          return 0;
+        };
+
         // 2. Calculate platform revenue (Total Revenue)
         let totalRevenue = 0;
         transactions.forEach(t => {
-          const lType = t.type?.toLowerCase() || t.Type?.toLowerCase();
-          let fee = 0;
-          if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-            fee = Number(t.amount || t.Amount || 0) * 5 / 95;
-          } else if (lType === "platformfee") {
-            fee = Math.abs(Number(t.amount || t.Amount || 0));
-          }
-          totalRevenue += fee;
+          totalRevenue += getPlatformFee(t);
         });
 
         localReleases.forEach(r => {
@@ -134,14 +206,7 @@ export function AdminRevenue() {
         let lastMonthRevenue = 0;
 
         transactions.forEach(t => {
-          const lType = t.type?.toLowerCase() || t.Type?.toLowerCase();
-          let fee = 0;
-          if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-            fee = Number(t.amount || t.Amount || 0) * 5 / 95;
-          } else if (lType === "platformfee") {
-            fee = Math.abs(Number(t.amount || t.Amount || 0));
-          }
-
+          const fee = getPlatformFee(t);
           if (fee > 0) {
             const date = parseDbDate(t.createdAt || t.CreatedAt);
             if (date >= startOfThisMonth) {
@@ -175,50 +240,48 @@ export function AdminRevenue() {
         }
 
         // 4. Map transactions
-        const myTransactions = transactions
-          .filter(t => {
-            const lType = (t.type || t.Type || "").toLowerCase();
-            return (
-              lType === "releasepayment" ||
-              lType === "escrow_release" ||
-              lType === "escrowrelease" ||
-              lType === "platformfee" ||
-              lType === "platform_fee"
-            );
-          })
-          .map(t => {
-            const lType = (t.type || t.Type || "").toLowerCase();
-            const projIdStr = t.projectId || t.ProjectId;
-            const projDetails = projIdStr ? projectMap.get(String(projIdStr).toLowerCase()) : null;
+        const myTransactions = [];
+        transactions.forEach(t => {
+          const lType = (t.type || t.Type || "").toLowerCase();
+          const isTargetType =
+            lType === "releasepayment" ||
+            lType === "escrow_release" ||
+            lType === "escrowrelease" ||
+            lType === "platformfee" ||
+            lType === "platform_fee";
 
-            const dbSourceVal = t.sourceWalletId || t.SourceWalletId;
-            const dbDestVal = t.destinationWalletId || t.DestinationWalletId;
+          if (!isTargetType) return;
 
-            const clientName = projDetails?.clientName || (dbSourceVal ? userMap.get(String(dbSourceVal).toLowerCase()) : "") || "";
-            const expertName = projDetails?.expertName || (dbDestVal ? userMap.get(String(dbDestVal).toLowerCase()) : "") || "";
-            const projectTitle = projDetails?.title || t.projectTitle || t.ProjectTitle || "Project";
+          const fee = getPlatformFee(t);
+          if (fee <= 0) return; // Skip skipped/double-counted transactions
 
-            let typeLabel = t.type || t.Type || "";
-            let displayAmount = t.amount ?? t.Amount ?? 0;
+          const projIdStr = t.projectId || t.ProjectId;
+          const projDetails = projIdStr ? projectMap.get(String(projIdStr).toLowerCase()) : null;
 
-            if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-              typeLabel = "Escrow Release Fee";
-              displayAmount = displayAmount * 5 / 95;
-            } else if (lType === "platformfee") {
-              typeLabel = "System Platform Fee";
-              displayAmount = Math.abs(displayAmount);
-            }
+          const dbSourceVal = t.sourceWalletId || t.SourceWalletId;
+          const dbDestVal = t.destinationWalletId || t.DestinationWalletId;
 
-            return {
-              id: t.id || t.Id,
-              type: typeLabel,
-              client: clientName,
-              expert: expertName,
-              project: projectTitle,
-              amount: displayAmount,
-              date: t.createdAt || t.CreatedAt ? parseDbDate(t.createdAt || t.CreatedAt).toLocaleDateString("vi-VN") : "",
-            };
+          const clientName = projDetails?.clientName || (dbSourceVal ? userMap.get(String(dbSourceVal).toLowerCase()) : "") || "";
+          const expertName = projDetails?.expertName || (dbDestVal ? userMap.get(String(dbDestVal).toLowerCase()) : "") || "";
+          const projectTitle = projDetails?.title || t.projectTitle || t.ProjectTitle || "Project";
+
+          let typeLabel = t.type || t.Type || "";
+          if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
+            typeLabel = "Escrow Release Fee";
+          } else if (lType === "platformfee" || lType === "platform_fee") {
+            typeLabel = "System Platform Fee";
+          }
+
+          myTransactions.push({
+            id: t.id || t.Id,
+            type: typeLabel,
+            client: clientName,
+            expert: expertName,
+            project: projectTitle,
+            amount: fee,
+            date: t.createdAt || t.CreatedAt ? parseDbDate(t.createdAt || t.CreatedAt).toLocaleDateString("vi-VN") : "",
           });
+        });
 
         // Add local releases as mock transactions
         localReleases.forEach(r => {

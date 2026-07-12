@@ -59,14 +59,28 @@ function getMatchPct(index) {
   return [96, 89, 84, 78, 92, 88, 81][index % 7];
 }
 
-export function getNormalizedStatus(project) {
+export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
   
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
-  const status = (localStatus || dbStatus).toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+             (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
 
   let label = "In Progress";
   let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -246,7 +260,7 @@ export function ExpertDashboard() {
         setExpertDetails(userRes);
         expertDataToPass = userRes;
         expertProfile = userRes?.expertProfile;
-        setActiveReports(reportsRes?.data || []);
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
         
         const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
         const expertReleases = localReleases.filter(r => String(r.expertId).toLowerCase() === String(currentUserId).toLowerCase());
@@ -367,7 +381,7 @@ export function ExpertDashboard() {
 
         // Enrich active contracts with client name and job post details (category, specialization)
         const activeProjList = allUserProjects.filter((p) => {
-          const norm = getNormalizedStatus(p);
+          const norm = getNormalizedStatus(p, activeReports);
           return ["In Progress", "Completed", "Cancel", "Disputed"].includes(norm.label);
         });
 
@@ -607,7 +621,7 @@ export function ExpertDashboard() {
               activeContracts.map((p) => {
                 const clientName = p.clientName || p.client || "Client";
                 const progress = p.progress || 0;
-                const norm = getNormalizedStatus(p);
+                const norm = getNormalizedStatus(p, activeReports);
                 const displayStatus = norm.label;
                 const badgeClass = norm.badgeClass;
 

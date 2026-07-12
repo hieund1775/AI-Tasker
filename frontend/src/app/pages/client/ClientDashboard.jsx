@@ -55,14 +55,29 @@ const formatDate = (dateStr) => {
   }, String(dateStr || "N/A"));
 };
 
-export function getNormalizedStatus(project) {
+export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
   
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
-  const status = (localStatus || dbStatus).toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed since when a project is
+  // Awaiting_Cancellation, a Pending Admin report always means the cancel is not yet approved.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+             (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
 
   let label = "In Progress";
   let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -191,7 +206,7 @@ export function ClientDashboard() {
           api.projects.getByClient(user.id).catch(() => []),
           api.payments.getTransactions(user.id).catch(() => []),
         ]);
-        setActiveReports(reportsRes?.data || []);
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
 
         try {
           const depositedProjectIds = (transactionsList || [])
@@ -288,7 +303,7 @@ export function ClientDashboard() {
   // ---- Stats ---------------------------------------------------------------
   const getProjectsByStatus = (statusList) => {
     return clientProjects.filter((p) => {
-      const norm = getNormalizedStatus(p);
+      const norm = getNormalizedStatus(p, activeReports);
       return statusList.includes(norm.label);
     }).length;
   };
@@ -381,7 +396,7 @@ export function ClientDashboard() {
         <div className="p-6">
           {(() => {
             const activeProjects = clientProjects.filter((p) => {
-              const norm = getNormalizedStatus(p);
+              const norm = getNormalizedStatus(p, activeReports);
               return ["In Progress", "Completed", "Cancel", "Disputed", "Under Review"].includes(norm.label);
             });
 
@@ -420,7 +435,7 @@ export function ClientDashboard() {
                 {activeProjects.map((p) => {
                   const expertName = p.expert || p.assignedExpert?.fullName || p.expertName || p.acceptedExpertName;
                   const progress = p.progress ?? 0;
-                  const norm = getNormalizedStatus(p);
+                  const norm = getNormalizedStatus(p, activeReports);
                   const displayStatus = norm.label;
                   const badgeClass = norm.badgeClass;
 

@@ -25,14 +25,28 @@ import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBa
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 
-export function getNormalizedStatus(project) {
+export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
   
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
-  const status = (localStatus || dbStatus).toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+             (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
 
   let label = "In Progress";
   let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -87,6 +101,7 @@ export function MyProjectsList() {
 
   const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
   const [invitedExpertName, setInvitedExpertName] = useState("");
+  const [activeReports, setActiveReports] = useState([]);
 
   async function loadProjects() {
     if (!user?.id) return;
@@ -95,13 +110,15 @@ export function MyProjectsList() {
       let rawProjects = [];
       let activeProjectsList = [];
       try {
-        const [jobsRes, projectsRes, transactionsList] = await Promise.all([
+        const [jobsRes, projectsRes, transactionsList, reportsRes] = await Promise.all([
           api.jobPosts.getByClientId(user.id).catch(() => []),
           api.projects.getByClient(user.id).catch(() => []),
-          api.payments.getTransactions(user.id).catch(() => [])
+          api.payments.getTransactions(user.id).catch(() => []),
+          api.get("/reports").catch(() => ({ data: [] }))
         ]);
         rawProjects = jobsRes;
         activeProjectsList = projectsRes;
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
 
         try {
           const depositedProjectIds = (transactionsList || [])
@@ -1186,7 +1203,7 @@ export function MyProjectsList() {
   ];
 
   const filteredProjects = projects.filter((project) => {
-    const norm = getNormalizedStatus(project);
+    const norm = getNormalizedStatus(project, activeReports);
     if (statusFilter) {
       return norm.label === statusFilter;
     }
@@ -1253,7 +1270,7 @@ export function MyProjectsList() {
         <div className="space-y-6">
           <div className="space-y-4">
             {filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project) => {
-            const { label: displayStatus, badgeClass } = getNormalizedStatus(project);
+            const { label: displayStatus, badgeClass } = getNormalizedStatus(project, activeReports);
             const category = project.category || project.domain?.name;
             
             const skills = project.projectSkills?.map((s) => s.skillName) || project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];

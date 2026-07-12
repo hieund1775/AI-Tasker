@@ -100,10 +100,11 @@ export function Billing() {
 
     async function fetchData() {
       try {
-        const [wallet, transactions, clientProjects] = await Promise.all([
+        const [wallet, transactions, clientProjects, reportsRes] = await Promise.all([
           api.payments.getWallet(currentUserId).catch(() => null),
           api.payments.getTransactions(currentUserId).catch(() => []),
           api.projects.getByClient(currentUserId).catch(() => []),
+          api.reports.getAll().catch(() => []),
         ]);
 
         if (!cancelled) {
@@ -114,26 +115,246 @@ export function Billing() {
           const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
           const clientReleases = localReleases.filter(r => String(r.clientId).toLowerCase() === String(currentUserId).toLowerCase());
 
+          // Build report mapping
+          const reports = Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []);
+          const projectReportMap = new Map();
+          reports.forEach(r => {
+            const pId = String(r.projectId || r.ProjectId || "").toLowerCase();
+            if (pId && (r.reportType === "cancellation" || r.disputeType === "cancellation")) {
+              projectReportMap.set(pId, r);
+            }
+          });
+
+          // Helper to get cancellation split details dynamically
+          const getCancellationPayouts = (p) => {
+            const projIdLower = String(p.id || p.Id).toLowerCase();
+
+            const localExpertPayout = localStorage.getItem(`cancellation_expert_payout_${projIdLower}`);
+            const localClientRefund = localStorage.getItem(`cancellation_client_refund_${projIdLower}`);
+            if (localExpertPayout !== null && localClientRefund !== null) {
+              return {
+                expertPayout: Number(localExpertPayout),
+                clientRefund: Number(localClientRefund),
+              };
+            }
+
+            const report = projectReportMap.get(projIdLower);
+            const escrowTotal = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+
+            if (report) {
+              const isClientReporter = (report.reporterRole || report.ReporterRole || "").toLowerCase() === "client";
+              const tasks = p.tasks || p.Tasks || [];
+              let progressPercent = 60;
+              if (tasks.length > 0) {
+                const doneCount = tasks.filter(t => t.isDone || t.IsDone || t.status === "Approved").length;
+                progressPercent = Math.round((doneCount / tasks.length) * 100);
+              } else if (report.payoutBreakdown?.progressPercent) {
+                progressPercent = report.payoutBreakdown.progressPercent;
+              }
+
+              const progressRate = progressPercent / 100;
+              const platformFee = Math.round(escrowTotal * 0.05);
+              const penaltyFee = Math.round(escrowTotal * 0.10);
+              const progressAmount = Math.round(escrowTotal * progressRate);
+
+              let expertPayout = 0;
+              let clientRefund = 0;
+
+              if (isClientReporter) {
+                expertPayout = progressAmount + penaltyFee;
+                clientRefund = escrowTotal - platformFee - expertPayout;
+              } else {
+                expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
+                clientRefund = escrowTotal - expertPayout - platformFee;
+              }
+
+              return { expertPayout, clientRefund };
+            }
+
+            const platformFee = Math.round(escrowTotal * 0.05);
+            const penaltyFee = Math.round(escrowTotal * 0.10);
+            const progressAmount = Math.round(escrowTotal * 0.60);
+            return {
+              expertPayout: progressAmount + penaltyFee,
+              clientRefund: escrowTotal - platformFee - (progressAmount + penaltyFee),
+            };
+          };
+
+          const cancelledProjectSplits = new Map();
+          rawProjects.forEach(p => {
+            const projId = p.id || p.Id;
+            const projIdLower = String(projId).toLowerCase();
+            const localStatus = localStorage.getItem(`project_status_${projIdLower}`) || p.status || p.Status || "";
+            const isCancelled = ["cancelled", "cancel_done"].includes(localStatus.toLowerCase());
+            if (isCancelled) {
+              const splits = getCancellationPayouts(p);
+              cancelledProjectSplits.set(projIdLower, {
+                ...splits,
+                escrowTotal: p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 1000,
+                title: p.title || p.jobPostTitle || "Project",
+              });
+            }
+          });
+
+          // Check compensating transactions to skip them
+          const isCompensatingTx = (t) => {
+            const lType = (t.type ?? t.Type ?? "").toLowerCase();
+            if (lType !== "deposit" && lType !== "manualdeposit" && lType !== "withdrawal" && lType !== "withdraw") {
+              return false;
+            }
+            const amt = t.amount ?? t.Amount ?? 0;
+            for (const [projIdLower, split] of cancelledProjectSplits.entries()) {
+              const report = projectReportMap.get(projIdLower);
+              const escrowTotal = split.escrowTotal || 1000;
+              const platformFee = Math.round(escrowTotal * 0.05);
+              if (report) {
+                const stubExpert = report.escrowPayExpert || report.EscrowPayExpert || 285;
+                const stubClient = report.escrowRefundClient || report.EscrowRefundClient || 600;
+                
+                // Standard cancellation differences
+                const diffExpert = split.expertPayout - stubExpert;
+                const diffClient = split.clientRefund - stubClient;
+
+                // Escalated verdict differences
+                const diffExpertEscrow = split.expertPayout - escrowTotal;
+                const diffExpertEscrowWithFee = split.expertPayout - escrowTotal + platformFee;
+                const diffClientEscrow = split.clientRefund - escrowTotal;
+                const diffClientEscrowWithFee = split.clientRefund - escrowTotal + platformFee;
+
+                // Direct payouts in case of failed release/refund
+                const isDirectExpert = Math.abs(amt - split.expertPayout) < 1.0;
+                const isDirectClient = Math.abs(amt - split.clientRefund) < 1.0;
+
+                if (
+                  Math.abs(amt - diffExpert) < 1.0 || 
+                  Math.abs(amt - diffClient) < 1.0 ||
+                  Math.abs(amt - diffExpertEscrow) < 1.0 ||
+                  Math.abs(amt - diffExpertEscrowWithFee) < 1.0 ||
+                  Math.abs(amt - diffClientEscrow) < 1.0 ||
+                  Math.abs(amt - diffClientEscrowWithFee) < 1.0 ||
+                  isDirectExpert ||
+                  isDirectClient
+                ) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+
           const myTransactions = [];
+          const cancelledProjIdsInDb = new Set();
+          // Track EscrowDeposit rows for cancelled projects to transform them
+          const cancelledEscrowDepositRows = new Map(); // projIdLower -> transformed row
+
           if (Array.isArray(transactions)) {
             transactions.forEach(t => {
               const lType = (t.type ?? t.Type ?? "").toLowerCase();
+              const projId = t.projectId || t.ProjectId;
+              const projIdLower = projId ? String(projId).toLowerCase() : null;
+              const tAmount = t.amount ?? t.Amount ?? 0;
+              const tId = t.id || t.Id;
+              const tDate = t.createdAt ?? t.CreatedAt;
+              const tTitle = t.projectTitle || t.ProjectTitle || null;
+
+              if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
+                cancelledProjIdsInDb.add(projIdLower);
+                // For cancelled projects: only keep EscrowDeposit row, transform it to "hủy dự án" with status "cancel"
+                const isEscrowDeposit = lType === "escrow_deposit" || lType === "escrowdeposit";
+                if (isEscrowDeposit && !cancelledEscrowDepositRows.has(projIdLower)) {
+                  cancelledEscrowDepositRows.set(projIdLower, {
+                    id: `cancelled-escrow-${tId}`,
+                    projectId: projId,
+                    amount: tAmount, // negative amount (e.g. -1000)
+                    type: "cancel",  // maps to "hủy dự án"
+                    status: "cancel",
+                    createdAt: tDate,
+                    projectTitle: tTitle || cancelledProjectSplits.get(projIdLower)?.title,
+                  });
+                }
+                return; // Skip all other raw rows for cancelled project
+              }
+
+              if (isCompensatingTx(t)) {
+                return; // Skip compensating transactions
+              }
+
               if (
                 lType !== "releasepayment" &&
                 lType !== "escrow_release" &&
                 lType !== "escrowrelease"
               ) {
                 myTransactions.push({
-                  id: t.id || t.Id,
-                  projectId: t.projectId || t.ProjectId,
-                  amount: t.amount ?? t.Amount,
-                  type: t.type ?? t.Type,
-                  createdAt: t.createdAt ?? t.CreatedAt,
-                  projectTitle: t.projectTitle || t.ProjectTitle || null,
+                  id: tId,
+                  projectId: projId,
+                  amount: tAmount,
+                  type: lType,
+                  createdAt: tDate,
+                  projectTitle: tTitle,
                 });
               }
             });
           }
+
+          // Insert 2 rows for each cancelled project that has records in DB:
+          // Row 1: transformed EscrowDeposit row (negative, type="hủy dự án", status="cancel")
+          // Row 2: client refund row (positive, type="hủy dự án", status="done")
+          cancelledProjIdsInDb.forEach(projIdLower => {
+            const split = cancelledProjectSplits.get(projIdLower);
+            const report = projectReportMap.get(projIdLower);
+            const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+
+            // Row 1: Original escrow deposit transformed to cancelled status
+            const escrowRow = cancelledEscrowDepositRows.get(projIdLower);
+            if (escrowRow) {
+              myTransactions.push(escrowRow);
+            }
+
+            // Row 2: Client refund (what client gets back)
+            myTransactions.push({
+              id: `cancel-refund-${projIdLower}`,
+              projectId: projIdLower,
+              amount: split.clientRefund,
+              type: "cancel",   // maps to "hủy dự án"
+              status: "done",
+              createdAt: tDate,
+              projectTitle: split.title,
+            });
+          });
+
+          // Fallback: also show cancel rows for cancelled projects with NO DB transactions at all
+          // (e.g. admin just executed verdict, DB sync not yet happened)
+          cancelledProjectSplits.forEach((split, projIdLower) => {
+            if (cancelledProjIdsInDb.has(projIdLower)) return; // already handled above
+            const report = projectReportMap.get(projIdLower);
+            const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+            const escrowTotal = split.escrowTotal || 0;
+
+            // Row 1: Escrow deposit (simulated negative row showing original amount locked)
+            if (escrowTotal > 0) {
+              myTransactions.push({
+                id: `cancel-escrow-${projIdLower}`,
+                projectId: projIdLower,
+                amount: -escrowTotal,
+                type: "cancel",
+                status: "cancel",
+                createdAt: tDate,
+                projectTitle: split.title,
+              });
+            }
+            // Row 2: Client refund
+            if (split.clientRefund > 0) {
+              myTransactions.push({
+                id: `cancel-refund-local-${projIdLower}`,
+                projectId: projIdLower,
+                amount: split.clientRefund,
+                type: "cancel",
+                status: "done",
+                createdAt: tDate,
+                projectTitle: split.title,
+              });
+            }
+          });
 
           const transactionProjectIds = new Set(
             myTransactions
@@ -207,10 +428,7 @@ export function Billing() {
               const projId = p.id || p.Id;
               const localStatus = localStorage.getItem(`project_status_${projId}`) || p.status;
               const isCompleted = 
-                localStatus?.toLowerCase() === "completed" || 
-                localStatus?.toLowerCase() === "closed" || 
-                localStatus?.toLowerCase() === "resolved" ||
-                localStatus?.toLowerCase() === "cancelled";
+                ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped"].includes(localStatus?.toLowerCase()?.trim());
               const isReleasedLocally = clientReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
 
               const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
@@ -663,12 +881,18 @@ export function Billing() {
                       lowerType = "escrow_refund";
                       displayStatus = "REPORT";
                       displayAmount = Math.abs(displayAmount) * 0.95;
-                    } else if (localStatus === "cancelled" || localStatus === "stopped") {
+                    } else if (localStatus === "cancelled" || localStatus === "stopped" || localStatus === "cancel_done") {
                       lowerType = "cancel";
-                      displayStatus = "CANCEL";
-                      displayAmount = Math.abs(displayAmount) * 0.95;
+                      displayStatus = "cancel";
+                      displayAmount = -Math.abs(displayAmount);
                     } else {
                       displayStatus = "in progress";
+                      displayAmount = -Math.abs(displayAmount);
+                    }
+                  } else if (lowerType === "cancel") {
+                    // Preserve cancel row status (either "cancel" for negative row or "done" for refund row)
+                    displayStatus = tx.status || "done";
+                    if (displayStatus === "cancel") {
                       displayAmount = -Math.abs(displayAmount);
                     }
                   } else {
@@ -694,7 +918,7 @@ export function Billing() {
                     badgeClass = "bg-warning/10 text-warning border border-warning/20";
                   } else if (displayStatus === "REPORT") {
                     badgeClass = "bg-destructive/10 text-destructive border border-destructive/20";
-                  } else if (displayStatus === "CANCEL") {
+                  } else if (displayStatus === "CANCEL" || displayStatus === "cancel") {
                     badgeClass = "bg-secondary text-muted-foreground border border-border";
                   }
 
@@ -707,7 +931,9 @@ export function Billing() {
                   }
 
                   // Tố cáo/bồi thường: nếu ko bồi thường được (amount <= 0) thì hiển thị "-"
-                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute"].includes(lowerType) && Number(displayAmount || 0) <= 0;
+                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType) &&
+                                           displayStatus !== "cancel" &&
+                                           Number(displayAmount || 0) <= 0;
 
                   return (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
