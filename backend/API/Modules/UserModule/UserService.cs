@@ -560,14 +560,14 @@ public class UserService : IUserService
     public async Task<(DTOs.UserDto? User, string? Token, string? Error)> RefreshTokenAsync(string userId)
     {
         if (!Guid.TryParse(userId, out var guid))
-            return (null, null, "UserId không hợp lệ.");
+            return (null, null, "Invalid user ID format.");
 
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == guid);
         if (user == null)
-            return (null, null, "Không tìm thấy người dùng.");
+            return (null, null, "User not found.");
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
-            return (null, null, "Tài khoản không còn hoạt động.");
+            return (null, null, "User is not active.");
 
         var userDto = new DTOs.UserDto
         {
@@ -595,10 +595,10 @@ public class UserService : IUserService
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user == null)
-            return (false, null, "Không tìm thấy tài khoản với email này.");
+            return (false, null, "Account not found.");
 
         if (!string.Equals(user.Status, "Active", StringComparison.OrdinalIgnoreCase))
-            return (false, null, "Tài khoản không còn hoạt động.");
+            return (false, null, "Account is not active.");
 
         // Tạo token ngẫu nhiên 32 ký tự hex
         var resetToken = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
@@ -618,19 +618,19 @@ public class UserService : IUserService
     public async Task<(bool Success, string? Error)> ResetPasswordAsync(string resetToken, string newPassword)
     {
         if (string.IsNullOrWhiteSpace(resetToken) || string.IsNullOrWhiteSpace(newPassword))
-            return (false, "Token và mật khẩu mới không được để trống.");
+            return (false, "Token and new password cannot be empty.");
 
         var user = await _context.Users
             .FirstOrDefaultAsync(u => u.PasswordResetToken == resetToken);
 
         if (user == null)
-            return (false, "Token không hợp lệ hoặc không tồn tại.");
+            return (false, "Invalid reset token.");
 
         if (user.PasswordResetExpiry == null || user.PasswordResetExpiry < DateTime.UtcNow)
-            return (false, "Token đã hết hạn. Vui lòng yêu cầu đặt lại mật khẩu mới.");
+            return (false, "Reset token has expired.");
 
         if (newPassword.Length < 6)
-            return (false, "Mật khẩu mới phải có ít nhất 6 ký tự.");
+            return (false, "New password must be at least 6 characters.");
 
         user.PasswordHash = HashPassword(newPassword);
         user.PasswordResetToken = null;    // Xóa token sau khi dùng (one-time use)

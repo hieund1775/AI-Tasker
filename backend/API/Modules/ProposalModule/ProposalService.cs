@@ -122,7 +122,7 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             if (hasActiveProposal)
             {
-                throw new InvalidOperationException("Mỗi chuyên gia chỉ có thể có một hồ sơ (proposal) hoạt động cho một công việc. Bạn phải đợi hồ sơ trước đó bị từ chối (Rejected hoặc Declined) mới có thể gửi lại hồ sơ mới.");
+                throw new InvalidOperationException("Each expert can only have one active proposal per job post. You must wait for the previous proposal to be rejected or declined before submitting a new one.");
             }
 
             var proposal = new Proposal
@@ -260,7 +260,7 @@ namespace AITasker_Modular.Modules.ProposalModule
 
             if (!proposal.Status.Equals("Pending", StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException("Chỉ có thể chỉnh sửa hồ sơ đấu thầu khi ở trạng thái Chờ duyệt (Pending).");
+                throw new InvalidOperationException("Proposals can only be modified when in Pending status.");
             }
 
             proposal.BidAmount = dto.BidAmount;

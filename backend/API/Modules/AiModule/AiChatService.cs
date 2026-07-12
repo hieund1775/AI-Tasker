@@ -11,7 +11,7 @@ public class AiChatService
     private readonly GeminiUtil _geminiUtil;
     private readonly IWebHostEnvironment _env;
 
-    // Cache system prompt trong bo nho, chi doc file 1 lan duy nhat luc can (lazy init, thread-safe)
+    // Cache system prompt trong bộ nhớ, chỉ đọc file 1 lần duy nhất lúc cần (lazy init, thread-safe)
     private static string? _cachedSystemPrompt;
     private static readonly object _cacheLock = new();
 
@@ -21,25 +21,25 @@ public class AiChatService
         _env = env;
     }
 
-    // Xu ly mot luot chat: nhan van ban nguoi dung nhap + (tuy chon) file da upload san tren server hoac file form-data gui truc tiep
+    // Xử lý một lượt chat: nhận văn bản người dùng nhập + (tùy chọn) file đã upload sẵn trên server hoặc file form-data gửi trực tiếp
     public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request, IFormFile? file = null)
     {
         var systemPrompt = GetSystemPrompt();
         var partsList = new List<object>();
 
-        // 1. Neu co chuoi tom tat context (danh sach User Story hien tai) cua cac luot truoc,
-        //    nap vao dau luong de AI biet ma sua/them/xoa, khong tao moi hoan toan
+        // 1. Nếu có chuỗi tóm tắt context (danh sách User Story hiện tại) của các lượt trước,
+        //    nạp vào đầu luồng để AI biết mà sửa/thêm/xóa, không tạo mới hoàn toàn
         if (!string.IsNullOrEmpty(request.ContextSummary))
         {
             partsList.Add(new { text = $"[CONTEXT_SUMMARY_TRANG_THAI_CU]:\n{request.ContextSummary}" });
         }
 
-        // 2. Lay tin nhan moi nhat cua User (Expert) gui len
+        // 2. Lấy tin nhắn mới nhất của User (Expert) gửi lên
         var lastUserMsg = request.MessagesHistory?
             .LastOrDefault(m => m.Role.Equals("user", StringComparison.OrdinalIgnoreCase));
         string currentInputText = lastUserMsg?.Content ?? string.Empty;
 
-        // 3. Xu ly File dinh kem (truc tiep tu form-data hoac tu relative path)
+        // 3. Xử lý File đính kèm (trực tiếp từ form-data hoặc từ relative path)
         if (file != null)
         {
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -53,7 +53,7 @@ public class AiChatService
                 }
                 catch (Exception ex)
                 {
-                    partsList.Add(new { text = $"[LOI DOC FILE DOCX: {ex.Message}]" });
+                    partsList.Add(new { text = $"[FILE READ ERROR DOCX: {ex.Message}]" });
                 }
             }
             else if (ext == ".txt")
@@ -66,7 +66,7 @@ public class AiChatService
                 }
                 catch (Exception ex)
                 {
-                    partsList.Add(new { text = $"[LOI DOC FILE TXT: {ex.Message}]" });
+                    partsList.Add(new { text = $"[FILE READ ERROR TXT: {ex.Message}]" });
                 }
             }
             else if (ext == ".pdf" || ext == ".png" || ext == ".jpg" || ext == ".jpeg")
@@ -95,12 +95,12 @@ public class AiChatService
                 }
                 catch (Exception ex)
                 {
-                    partsList.Add(new { text = $"[LOI DOC FILE BINARY: {ex.Message}]" });
+                    partsList.Add(new { text = $"[FILE READ ERROR BINARY: {ex.Message}]" });
                 }
             }
             else
             {
-                partsList.Add(new { text = $"[LOI DOC FILE: Dinh dang file {ext} khong duoc ho tro cho Gemini.]" });
+                partsList.Add(new { text = $"[FILE READ ERROR: File format {ext} is not supported for Gemini.]" });
             }
         }
         else if (!string.IsNullOrEmpty(request.FilePath))
@@ -144,27 +144,27 @@ public class AiChatService
                     }
                     else
                     {
-                        partsList.Add(new { text = $"[LOI DOC FILE: Dinh dang file {ext} khong duoc ho tro cho Gemini.]" });
+                        partsList.Add(new { text = $"[FILE READ ERROR: File format {ext} is not supported for Gemini.]" });
                     }
                 }
                 else
                 {
-                    partsList.Add(new { text = $"[LOI DOC FILE: Khong tim thay file tai {request.FilePath}]" });
+                    partsList.Add(new { text = $"[FILE READ ERROR: File not found at {request.FilePath}]" });
                 }
             }
             catch (Exception ex)
             {
-                partsList.Add(new { text = $"[LOI DOC FILE PRE-SAVED: {ex.Message}]" });
+                partsList.Add(new { text = $"[FILE READ ERROR PRE-SAVED: {ex.Message}]" });
             }
         }
 
-        // 4. Them yeu cau van ban hien tai cua Expert (Use Case goc hoac yeu cau chinh sua)
+        // 4. Thêm yêu cầu văn bản hiện tại của Expert (Use Case gốc hoặc yêu cầu chỉnh sửa)
         if (!string.IsNullOrEmpty(currentInputText))
         {
             partsList.Add(new { text = $"[YEU_CAU_HIEN_TAI]:\n{currentInputText}" });
         }
 
-        // 5. Goi Gemini voi system instruction rieng + ep buoc tra ve dung JSON schema
+        // 5. Gọi Gemini với system instruction riêng + ép buộc trả về đúng JSON schema
         var contents = new object[]
         {
             new { role = "user", parts = partsList }
@@ -172,10 +172,10 @@ public class AiChatService
 
         var rawJson = await _geminiUtil.CallGeminiApiWithJsonModeAsync(systemPrompt, contents);
 
-        // 6. Trich xuat van ban tho tu cau truc phong bi response envelope cua Google
+        // 6. Trích xuất văn bản thô từ cấu trúc phong bì response envelope của Google
         var aiText = ExtractTextFromGeminiResponse(rawJson);
 
-        // 7. Parse JSON an toan ra DTO sach
+        // 7. Parse JSON an toàn ra DTO sạch
         return ParseStructuredResponse(aiText);
     }
 
@@ -197,7 +197,7 @@ public class AiChatService
     }
 
     // -------------------------------------------------------
-    // DOC & CACHE FILE SYSTEM PROMPT (chi doc tu dia 1 lan)
+    // ĐỌC & CACHE FILE SYSTEM PROMPT (chỉ đọc từ đĩa 1 lần)
     // -------------------------------------------------------
     private string GetSystemPrompt()
     {
@@ -228,7 +228,7 @@ public class AiChatService
 
             if (promptPath == null)
             {
-                throw new FileNotFoundException($"Khong tim thay file system prompt tai cac duong dan da thu:\n- " + string.Join("\n- ", pathsToTry));
+                throw new FileNotFoundException($"System prompt file not found at the tried paths:\n- " + string.Join("\n- ", pathsToTry));
             }
 
             _cachedSystemPrompt = File.ReadAllText(promptPath, Encoding.UTF8);
@@ -237,7 +237,7 @@ public class AiChatService
     }
 
     // -------------------------------------------------------
-    // DOC FILE .docx / .txt TU DUONG DAN DA UPLOAD SAN
+    // ĐỌC FILE .docx / .txt TỪ ĐƯỜNG DẪN ĐÃ UPLOAD SẴN
     // -------------------------------------------------------
     private string ReadTextFromFile(string relativePath)
     {
@@ -245,10 +245,10 @@ public class AiChatService
         var fullPath = Path.GetFullPath(Path.Combine(webRoot, relativePath));
 
         if (!fullPath.StartsWith(Path.GetFullPath(webRoot), StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Duong dan file khong hop le.");
+            throw new InvalidOperationException("Invalid file path.");
 
         if (!File.Exists(fullPath))
-            throw new FileNotFoundException("Khong tim thay file tren server.", fullPath);
+            throw new FileNotFoundException("File not found on server.", fullPath);
 
         var ext = Path.GetExtension(fullPath).ToLowerInvariant();
 
@@ -256,7 +256,7 @@ public class AiChatService
         {
             ".txt" => File.ReadAllText(fullPath, Encoding.UTF8),
             ".docx" => ReadDocx(fullPath),
-            _ => throw new NotSupportedException($"Dinh dang file '{ext}' chua duoc ho tro. Chi ho tro .docx, .txt.")
+            _ => throw new NotSupportedException($"File format '{ext}' is not supported. Only .docx, .txt are supported.")
         };
     }
 
@@ -273,7 +273,7 @@ public class AiChatService
     }
 
     // -------------------------------------------------------
-    // CAC HAM BO TRO PHAN TICH RESPONSE CUA GEMINI
+    // CÁC HÀM BỔ TRỢ PHÂN TÍCH RESPONSE CỦA GEMINI
     // -------------------------------------------------------
     private static string ExtractTextFromGeminiResponse(string rawJson)
     {

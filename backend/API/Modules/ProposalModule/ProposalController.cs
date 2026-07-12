@@ -37,9 +37,9 @@ namespace AITasker_Modular.Modules.JobModule
 
                 if (dto.Portfolio != null && dto.Portfolio.Length > 0)
                 {
-                    if (dto.Portfolio.Length > MaxFileSizeBytes) return BadRequest("File Portfolio vượt quá 10MB.");
+                    if (dto.Portfolio.Length > MaxFileSizeBytes) return BadRequest("Portfolio file exceeds 10MB.");
                     var ext = Path.GetExtension(dto.Portfolio.FileName).ToLower();
-                    if (!_allowedExtensions.Contains(ext)) return BadRequest("Định dạng file Portfolio không hợp lệ.");
+                    if (!_allowedExtensions.Contains(ext)) return BadRequest("Invalid portfolio file format.");
 
                     var uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(dto.Portfolio.FileName);
                     var filePath = Path.Combine(uploadsFolder, uniqueFileName);
@@ -49,9 +49,9 @@ namespace AITasker_Modular.Modules.JobModule
 
                 if (dto.Attachment != null && dto.Attachment.Length > 0)
                 {
-                    if (dto.Attachment.Length > MaxFileSizeBytes) return BadRequest("File đính kèm vượt quá 10MB.");
+                    if (dto.Attachment.Length > MaxFileSizeBytes) return BadRequest("Attachment file exceeds 10MB.");
                     var ext = Path.GetExtension(dto.Attachment.FileName).ToLower();
-                    if (!_allowedExtensions.Contains(ext)) return BadRequest("Định dạng file đính kèm không hợp lệ.");
+                    if (!_allowedExtensions.Contains(ext)) return BadRequest("Invalid attachment file format.");
 
                     var uniqueFileName = Guid.NewGuid().ToString() + "_" + Path.GetFileName(dto.Attachment.FileName);
                     var filePath = Path.Combine(uploadsFolder, uniqueFileName);
@@ -69,7 +69,7 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> GetProposalsByJob(Guid jobPostId)
         {
             var result = await _proposalService.GetProposalsByJobPostIdAsync(jobPostId);
-            if (result == null || !result.Any()) return NotFound("Không tìm thấy hồ sơ đấu thầu nào cho công việc này.");
+            if (result == null || !result.Any()) return NotFound("No proposals found for this job post.");
             return Ok(result);
         }
 
@@ -77,7 +77,7 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> GetProposalsByExpert(Guid expertId)
         {
             var result = await _proposalService.GetProposalsByExpertIdAsync(expertId);
-            if (result == null || !result.Any()) return NotFound("Không tìm thấy hồ sơ đấu thầu nào của chuyên gia này.");
+            if (result == null || !result.Any()) return NotFound("No proposals found for this expert.");
             return Ok(result);
         }
 
@@ -85,10 +85,10 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] AcceptProposalStatusDto dto)
         {
             if (dto == null || string.IsNullOrEmpty(dto.Status)) 
-                return BadRequest("Trạng thái không được để trống.");
+                return BadRequest("Status cannot be empty.");
             
             var result = await _proposalService.UpdateProposalStatusAsync(id, dto.Status);
-            if (result == null) return NotFound("Không tìm thấy hồ sơ đấu thầu tương ứng.");
+            if (result == null) return NotFound("Proposal not found.");
             return Ok(result);
         }
 
@@ -108,7 +108,7 @@ namespace AITasker_Modular.Modules.JobModule
                     dto.PortfolioUrl = $"/uploads/{uniqueFileName}";
                 }
                 var result = await _proposalService.UpdateProposalAsync(id, dto);
-                if (result == null) return NotFound("Không tìm thấy hồ sơ đấu thầu tương ứng.");
+                if (result == null) return NotFound("Proposal not found.");
                 return Ok(result);
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
@@ -118,7 +118,7 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> GenerateMilestoneMarkdown(Guid id, [FromQuery] int taskCount, [FromQuery] int deadlineDays)
         {
             var fileUrl = await _proposalService.GenerateProposalMilestoneMarkdownAsync(id, taskCount, deadlineDays);
-            if (fileUrl == null) return NotFound("Không tìm thấy thông tin hồ sơ đấu thầu (Proposal) yêu cầu.");
+            if (fileUrl == null) return NotFound("Requested proposal info not found.");
             return Ok(new { FileUrl = fileUrl });
         }
 
@@ -127,7 +127,7 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> SendExpertAiMessage([FromBody] ExpertAiChatRequest request)
         {
             var job = await _context.JobPosts.FirstOrDefaultAsync(x => x.Id == request.JobPostId);
-            if (job == null) return NotFound("Không tìm thấy thông tin bài đăng dự án.");
+            if (job == null) return NotFound("Job post info not found.");
 
             string promptLower = request.Message.ToLower();
             string responseText = $"[Trợ lý Nghiệp vụ AI AITasker]: Thầy đã ghi nhận phản hồi cho dự án \"{job.Title}\". ";

@@ -24,7 +24,7 @@ public class GeminiUtil
         if (string.IsNullOrWhiteSpace(rawKey))
         {
             throw new InvalidOperationException(
-                "Chua cau hinh Gemini API Key. Hay them bien moi truong GEMINI_API_KEY tren Railway hoac appsettings.json (Gemini:ApiKey).");
+                "Gemini API Key is not configured. Please add the GEMINI_API_KEY environment variable on Railway or appsettings.json (Gemini:ApiKey).");
         }
 
         _apiKey = rawKey.Trim(' ', '"', '\'', '\r', '\n');

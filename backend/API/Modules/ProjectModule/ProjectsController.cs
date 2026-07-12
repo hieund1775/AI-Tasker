@@ -29,7 +29,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> GetById(Guid id, [FromQuery] string role = "expert")
         {
             var project = await _projectService.GetProjectByIdAsync(id);
-            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            if (project == null) return NotFound("Project not found.");
 
             if (role?.Trim().ToLowerInvariant() == "client")
             {
@@ -58,17 +58,17 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
         {
             var result = await _projectService.UpdateProjectStatusAsync(id, status);
-            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            if (result == null) return NotFound("Project not found.");
             return Ok(result);
         }
 
         [HttpPost("{id:guid}/submit-work")]
         public async Task<IActionResult> SubmitWork(Guid id, [FromBody] SubmitWorkDto dto)
         {
-            if (dto == null || string.IsNullOrEmpty(dto.ProjectLink)) return BadRequest("Đường dẫn sản phẩm không được trống.");
+            if (dto == null || string.IsNullOrEmpty(dto.ProjectLink)) return BadRequest("Product link cannot be empty.");
             
             var result = await _projectService.SubmitProjectLinkAsync(id, dto.ProjectLink);
-            if (result == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            if (result == null) return NotFound("Project not found.");
             return Ok(result);
         }
 
@@ -78,7 +78,7 @@ namespace AITasker_Modular.Modules.ProjectModule
             try
             {
                 var result = await _projectService.CreateProjectFromProposalAsync(proposalId);
-                if (result == null) return NotFound("Không tìm thấy hồ sơ đấu thầu tương ứng.");
+                if (result == null) return NotFound("Proposal not found.");
                 return Ok(result);
             }
             catch (InvalidOperationException ex)
@@ -97,22 +97,22 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> EscrowDeposit(Guid id, [FromBody] EscrowDepositDto dto)
         {
             if (dto == null || dto.ClientId == Guid.Empty)
-                return BadRequest("Dữ liệu ký quỹ không hợp lệ.");
+                return BadRequest("Invalid escrow data.");
 
             var project = await _context.Projects
                 .Include(p => p.JobPost)
                 .FirstOrDefaultAsync(p => p.Id == id);
-            if (project == null) return NotFound("Không tìm thấy dự án.");
+            if (project == null) return NotFound("Project not found.");
 
             var amount = dto.Amount > 0 ? dto.Amount : project.EscrowBalance;
             if (amount <= 0)
-                return BadRequest("Số tiền ký quỹ phải lớn hơn 0.");
+                return BadRequest("Escrow amount must be greater than 0.");
 
             var clientWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == dto.ClientId);
-            if (clientWallet == null) return NotFound("Không tìm thấy ví của Client.");
+            if (clientWallet == null) return NotFound("Client wallet not found.");
 
             if (clientWallet.Balance < amount)
-                return BadRequest($"Số dư không đủ. Cần {amount:N0} VND nhưng chỉ có {clientWallet.Balance:N0} VND.");
+                return BadRequest($"Insufficient balance. Need {amount:N0} VND but only have {clientWallet.Balance:N0} VND.");
 
             // Trừ tiền khả dụng và cộng vào escrow của ví Client
             clientWallet.Balance -= amount;
@@ -149,7 +149,7 @@ namespace AITasker_Modular.Modules.ProjectModule
 
             return Ok(new
             {
-                Message = "Ký quỹ thành công.",
+                Message = "Escrow funded successfully.",
                 ProjectId = project.Id,
                 Amount = amount,
                 ClientBalance = clientWallet.Balance,
@@ -170,16 +170,16 @@ namespace AITasker_Modular.Modules.ProjectModule
             var project = await _context.Projects
                 .Include(p => p.JobPost)
                 .FirstOrDefaultAsync(p => p.Id == id);
-            if (project == null) return NotFound("Không tìm thấy dự án.");
+            if (project == null) return NotFound("Project not found.");
 
             if (project.EscrowBalance <= 0)
-                return BadRequest("Dự án không có số dư escrow để giải ngân.");
+                return BadRequest("Project has no escrow balance to release.");
 
             var clientWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ClientId);
             var expertWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == project.ExpertId);
 
-            if (clientWallet == null) return NotFound("Không tìm thấy ví Client.");
-            if (expertWallet == null) return NotFound("Không tìm thấy ví Expert.");
+            if (clientWallet == null) return NotFound("Client wallet not found.");
+            if (expertWallet == null) return NotFound("Expert wallet not found.");
 
             decimal totalBudget = project.EscrowBalance;
             decimal platformFee = Math.Round(totalBudget * 0.05m, 2); // 5% phí sàn
@@ -238,7 +238,7 @@ namespace AITasker_Modular.Modules.ProjectModule
 
             return Ok(new
             {
-                Message = "Giải ngân thành công.",
+                Message = "Payment released successfully.",
                 ProjectId = project.Id,
                 TotalBudget = totalBudget,
                 PlatformFee = platformFee,
@@ -253,7 +253,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> GetProjectTasks(Guid projectId)
         {
             var project = await _projectService.GetProjectByIdAsync(projectId);
-            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            if (project == null) return NotFound("Project not found.");
             
             var tasks = project.Tasks.Select(t => new ExpertTaskDto
             {
@@ -292,7 +292,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> GetTaskById(Guid taskId)
         {
             var result = await _projectService.GetTaskWithTimelineAsync(taskId);
-            if (result == null) return NotFound("Không tìm thấy task tương ứng.");
+            if (result == null) return NotFound("Task not found.");
             return Ok(result);
         }
 
@@ -300,11 +300,11 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> CreateTask(Guid projectId, [FromBody] CreateTaskDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest("Tiêu đề task không được để trống.");
+                return BadRequest("Task title cannot be empty.");
 
             var result = await _projectService.CreateTaskAsync(projectId, dto.Title);
             if (result == null)
-                return NotFound("Không tìm thấy dự án tương ứng.");
+                return NotFound("Project not found.");
 
             return CreatedAtAction(nameof(GetTaskById), new { taskId = result.Id }, result);
         }
@@ -312,9 +312,9 @@ namespace AITasker_Modular.Modules.ProjectModule
         [HttpPut("tasks/{taskId:guid}/status")]
         public async Task<IActionResult> UpdateTaskStatus(Guid taskId, [FromQuery] string status)
         {
-            if (string.IsNullOrEmpty(status)) return BadRequest("Trạng thái không được để trống.");
+            if (string.IsNullOrEmpty(status)) return BadRequest("Status cannot be empty.");
             var result = await _projectService.UpdateTaskStatusAsync(taskId, status);
-            if (result == null) return NotFound("Không tìm thấy task tương ứng.");
+            if (result == null) return NotFound("Task not found.");
             return Ok(result);
         }
 
@@ -326,7 +326,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 // Pass dto.Notes to save the submitted notes
                 var result = await _projectService.SubmitTaskForReviewAsync(taskId, dto?.Notes);
                 if (result == null)
-                    return NotFound("Không tìm thấy task tương ứng.");
+                    return NotFound("Task not found.");
 
                 return Ok(result);
             }
@@ -340,14 +340,14 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> ReviewTask(Guid taskId, [FromBody] ReviewTaskDto dto)
         {
             if (dto == null)
-                return BadRequest("Dữ liệu đánh giá không hợp lệ.");
+                return BadRequest("Invalid review data.");
 
             if (!dto.Approve && string.IsNullOrWhiteSpace(dto.FeedbackContent))
-                return BadRequest("Vui lòng cung cấp phản hồi (feedback) khi không duyệt task.");
+                return BadRequest("Please provide feedback when declining a task.");
 
             var result = await _projectService.ReviewTaskAsync(taskId, dto.Approve, dto.FeedbackContent, dto.FeedbackSenderId);
             if (result == null)
-                return NotFound("Không tìm thấy task tương ứng.");
+                return NotFound("Task not found.");
 
             return Ok(result);
         }
@@ -360,11 +360,11 @@ namespace AITasker_Modular.Modules.ProjectModule
         public async Task<IActionResult> CreateMiniTask(Guid taskId, [FromBody] CreateMiniTaskDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest("Tiêu đề mini-task không được để trống.");
+                return BadRequest("Mini-task title cannot be empty.");
 
             var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.DeadlineDays);
             if (result == null)
-                return NotFound("Không tìm thấy task tương ứng.");
+                return NotFound("Task not found.");
 
             return Ok(result);
         }
@@ -381,7 +381,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 dto.DeadlineDays, 
                 dto.ProductLink, 
                 dto.ProductFile);
-            if (result == null) return NotFound("Không tìm thấy mini-task tương ứng.");
+            if (result == null) return NotFound("Mini-task not found.");
             return Ok(result);
         }
 
@@ -390,7 +390,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         {
             var success = await _projectService.DeleteMiniTaskAsync(miniTaskId);
             if (!success)
-                return NotFound("Không tìm thấy mini-task tương ứng.");
+                return NotFound("Mini-task not found.");
 
             return NoContent();
         }

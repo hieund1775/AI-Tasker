@@ -26,18 +26,18 @@ namespace AITasker_Modular.Modules.InteractionModule
         [HttpPost]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto dto)
         {
-            if (dto == null) return BadRequest("Dữ liệu đánh giá không hợp lệ.");
-            if (dto.Rating < 1 || dto.Rating > 5) return BadRequest("Đánh giá phải từ 1 đến 5 sao.");
+            if (dto == null) return BadRequest("Invalid review data.");
+            if (dto.Rating < 1 || dto.Rating > 5) return BadRequest("Rating must be between 1 and 5 stars.");
 
             var project = await _context.Projects
                 .Include(p => p.JobPost)
                 .FirstOrDefaultAsync(p => p.Id == dto.ProjectId);
 
-            if (project == null) return NotFound("Không tìm thấy dự án tương ứng.");
+            if (project == null) return NotFound("Project not found.");
 
             // Kiểm tra xem dự án đã được đánh giá chưa
             var existingReview = await _context.Reviews.AnyAsync(r => r.ProjectId == dto.ProjectId);
-            if (existingReview) return BadRequest("Dự án này đã được đánh giá trước đó.");
+            if (existingReview) return BadRequest("This project has already been reviewed.");
 
             var review = new Review
             {
@@ -73,7 +73,7 @@ namespace AITasker_Modular.Modules.InteractionModule
             var review = await _context.Reviews
                 .FirstOrDefaultAsync(r => r.ProjectId == projectId);
 
-            if (review == null) return NotFound("Không tìm thấy đánh giá cho dự án này.");
+            if (review == null) return NotFound("Review not found for this project.");
 
             return Ok(new
             {

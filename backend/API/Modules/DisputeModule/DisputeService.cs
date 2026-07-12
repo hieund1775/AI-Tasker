@@ -24,7 +24,7 @@ namespace AITasker_Modular.Modules.DisputeModule
         public async Task<Guid> SubmitProjectReportAsync(Guid projectId, Guid reporterId, string reason, string? evidenceUrl, string? reporterRole, string? reportType, string? description, string? disputeType, string? desiredResolution)
         {
             var projectExists = await _context.Projects.AnyAsync(x => x.Id == projectId);
-            if (!projectExists) throw new KeyNotFoundException("Không tìm thấy dự án tương ứng để khiếu nại.");
+            if (!projectExists) throw new KeyNotFoundException("Project to report/dispute not found.");
 
             var isClient = (reporterRole ?? string.Empty).ToLower() == "client";
 
@@ -71,7 +71,7 @@ namespace AITasker_Modular.Modules.DisputeModule
                 x.Id == staffId && 
                 (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin" || x.Role.ToLower() == "owner") && 
                 x.Status == "Active");
-            if (!isValidRole) throw new UnauthorizedAccessException("Cổng thông tin này chỉ dành riêng cho Ban quản trị đang hoạt động.");
+            if (!isValidRole) throw new UnauthorizedAccessException("This portal is restricted to active administration only.");
 
             return await _context.Reports
                 .Include(r => r.Project).ThenInclude(p => p!.JobPost)
@@ -103,11 +103,11 @@ namespace AITasker_Modular.Modules.DisputeModule
         public async Task<object> TriggerProjectDisputeLockAsync(Guid projectId, string reason, Guid staffId)
         {
             var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
-            if (!staff) throw new UnauthorizedAccessException("Chỉ Staff vận hành có quyền kích hoạt lệnh đóng băng tài chính.");
+            if (!staff) throw new UnauthorizedAccessException("Only operating Staff have permission to trigger a finance lock.");
 
             // TỰ THỰC THI THAY VÌ GỌI QUA PROJECTSERVICE
             var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
-            if (project == null) throw new KeyNotFoundException("Không tìm thấy dự án tương ứng để thực thi lệnh khóa tiền.");
+            if (project == null) throw new KeyNotFoundException("Project to execute escrow lock not found.");
 
             project.Status = "Disputed"; // Tự update trực tiếp
 
@@ -128,25 +128,25 @@ namespace AITasker_Modular.Modules.DisputeModule
             return new {
                 DisputeId = dispute.Id,
                 Deadline = dispute.EvidenceDeadline,
-                NotificationMessage = $"[HỆ THỐNG TÀI PHÁN] Dự án {projectId} đã chuyển trạng thái Disputed. Dòng tiền đóng băng nghiêm ngặt."
+                NotificationMessage = $"[ESCROW SYSTEM] Project {projectId} has transitioned to Disputed status. Escrow balance strictly locked."
             };
         }
 
         public async Task<object> ExecuteDisputeVerdictAsync(Guid disputeId, string winnerRole, string verdictReason, Guid staffId)
         {
             var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
-            if (!staff) throw new UnauthorizedAccessException("Chỉ Staff có quyền thực thi phán quyết tài chính.");
+            if (!staff) throw new UnauthorizedAccessException("Only Staff have permission to execute financial verdicts.");
 
             var dispute = await _context.Disputes.FirstOrDefaultAsync(x => x.Id == disputeId);
-            if (dispute == null) throw new KeyNotFoundException("Không tìm thấy hồ sơ vụ tranh chấp này.");
-            if (dispute.Status == "Resolved") throw new InvalidOperationException("Vụ việc tranh chấp này đã được phân xử xong.");
+            if (dispute == null) throw new KeyNotFoundException("Dispute record not found.");
+            if (dispute.Status == "Resolved") throw new InvalidOperationException("This dispute has already been resolved.");
 
             // TỰ THỰC THI LOGIC DÒNG TIỀN TRỰC TIẾP TẠI ĐÂY
             var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == dispute.ProjectId);
-            if (project == null) throw new KeyNotFoundException("Không tìm thấy dự án liên quan.");
+            if (project == null) throw new KeyNotFoundException("Related project not found.");
 
             decimal moneyToTransfer = project.EscrowBalance;
-            if (moneyToTransfer <= 0) throw new InvalidOperationException("Số tiền đóng băng bằng 0 hoặc không hợp lệ.");
+            if (moneyToTransfer <= 0) throw new InvalidOperationException("Locked escrow balance is 0 or invalid.");
 
             if (winnerRole.ToLower() == "expert") {
                 project.Status = "Withdrawn"; 
@@ -157,7 +157,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
             Guid targetUserId = (winnerRole.ToLower() == "expert") ? project.ExpertId : project.ClientId;
             var targetWallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == targetUserId);
-            if (targetWallet == null) throw new KeyNotFoundException("Không tìm thấy ví tiền trên sàn của người nhận.");
+            if (targetWallet == null) throw new KeyNotFoundException("Recipient's platform wallet not found.");
 
             targetWallet.Balance += moneyToTransfer;
 

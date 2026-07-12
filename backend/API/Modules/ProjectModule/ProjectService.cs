@@ -72,15 +72,15 @@ namespace AITasker_Modular.Modules.ProjectModule;
             var hasUncompleted = await _context.MiniTasks.AnyAsync(mt => mt.TaskId == taskId && !mt.IsCompleted);
             if (hasUncompleted)
             {
-                throw new InvalidOperationException("Vui lòng hoàn thành tất cả các mini-task trước khi gửi duyệt.");
+                throw new InvalidOperationException("Please complete all mini-tasks before submitting for review.");
             }
         }
 
         task.Status = status;
 
-        // [FIX Premature Completion] Da xoa logic tu dong Completed Project + giai ngan tien khoi day.
-        // Viec dong Project va giai ngan CHI duoc thuc hien qua endpoint rieng: POST /api/Projects/{id}/release-payment
-        // sau khi Client chu dong duyet Final Work, khong duoc gop chung voi viec duyet tung Task/MiniTask nho le.
+        // [FIX Premature Completion] Đã xóa logic tự động Completed Project + giải ngân tiền khỏi đây.
+        // Việc đóng Project và giải ngân CHỈ được thực hiện qua endpoint riêng: POST /api/Projects/{id}/release-payment
+        // sau khi Client chủ động duyệt Final Work, không được gộp chung với việc duyệt từng Task/MiniTask nhỏ lẻ.
 
         await _context.SaveChangesAsync();
         return task;

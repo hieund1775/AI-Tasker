@@ -27,7 +27,7 @@ namespace API.Modules.AiModule
         public async Task<IActionResult> SendSession([FromBody] AIChatRequest request)
         {
             if (request == null)
-                return BadRequest(new { error = "Request body khong hop le." });
+                return BadRequest(new { error = "Request body không hợp lệ." });
 
             try
             {
@@ -54,7 +54,7 @@ namespace API.Modules.AiModule
         public async Task<IActionResult> SendSessionForm([FromForm] AIChatFormRequest formInput)
         {
             if (formInput == null)
-                return BadRequest(new { error = "Form data khong hop le." });
+                return BadRequest(new { error = "Form data không hợp lệ." });
 
             try
             {

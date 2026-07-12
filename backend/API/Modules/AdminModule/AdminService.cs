@@ -19,10 +19,10 @@ namespace AITasker_Modular.Modules.AdminModule
         public async Task<Guid> CreateStaffAsync(string username, string password, string fullName, string phoneNumber, Guid ownerId)
         {
             var owner = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId && x.Role.ToLower() == "owner");
-            if (owner == null) throw new UnauthorizedAccessException("Chỉ duy nhất Owner tối thượng có quyền khởi tạo nhân sự vận hành.");
+            if (owner == null) throw new UnauthorizedAccessException("Only the Owner has permission to initialize operating staff.");
 
             var isExist = await _context.Users.AnyAsync(x => x.Email == username);
-            if (isExist) throw new ArgumentException("Tên đăng nhập nội bộ này đã tồn tại.");
+            if (isExist) throw new ArgumentException("This internal username already exists.");
 
             var staff = new ApplicationUser
             {
@@ -46,11 +46,11 @@ namespace AITasker_Modular.Modules.AdminModule
         public async Task<bool> BanStaffAsync(Guid targetStaffId, Guid ownerId)
         {
             var owner = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId && x.Role.ToLower() == "owner");
-            if (owner == null) throw new UnauthorizedAccessException("Quyền lực tối cao thuộc về Owner. Từ chối thao tác.");
+            if (owner == null) throw new UnauthorizedAccessException("Only the Owner has permission to perform this action.");
 
             var targetStaff = await _context.Users.FirstOrDefaultAsync(x => x.Id == targetStaffId);
-            if (targetStaff == null) throw new KeyNotFoundException("Không tìm thấy tài khoản Staff mục tiêu.");
-            if (targetStaff.Role.ToLower() == "owner") throw new InvalidOperationException("Không thể tự khóa chính mình.");
+            if (targetStaff == null) throw new KeyNotFoundException("Target staff account not found.");
+            if (targetStaff.Role.ToLower() == "owner") throw new InvalidOperationException("Cannot ban Owner accounts.");
 
             targetStaff.Status = "Inactive";
             await _context.SaveChangesAsync();
@@ -60,7 +60,7 @@ namespace AITasker_Modular.Modules.AdminModule
         public async Task<object> GetOwnerDashboardAsync(Guid ownerId)
         {
             var owner = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId && x.Role.ToLower() == "owner");
-            if (owner == null) throw new UnauthorizedAccessException("Từ chối truy cập dữ liệu nhạy cảm.");
+            if (owner == null) throw new UnauthorizedAccessException("Access to sensitive data is denied.");
 
             var totalStaffs = await _context.Users.Where(x => x.Role == "Staff").CountAsync();
             var totalProjects = await _context.Projects.CountAsync();
