@@ -511,12 +511,24 @@ export function ExpertDashboard() {
 
   // ---- Computed stat values ------------------------------------------------
   const earningsDisplay = dashboardBalance;
-  const totalEarnedDisplay = dashboardTotalEarned;
-  const totalAssigned = completedProjects.length + activeContracts.length;
-  const successRate =
-    totalAssigned > 0
-      ? Math.round((completedProjects.length / totalAssigned) * 100)
-      : 0;
+
+  const completedCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Completed";
+  }).length;
+
+  const cancelCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Cancel";
+  }).length;
+
+  const reportCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Disputed";
+  }).length;
+
+  const totalForSuccess = completedCount + cancelCount + reportCount;
+  const successRate = totalForSuccess > 0 ? Math.round((completedCount / totalForSuccess) * 100) : 0;
 
   // ---- Stats ---------------------------------------------------------------
   const dashboardStats = [
@@ -527,9 +539,9 @@ export function ExpertDashboard() {
       color: "text-brand-primary bg-brand-primary-light",
     },
     {
-      label: "Total Earned",
-      value: <MoneyDisplay amount={totalEarnedDisplay} />,
-      icon: TrendingUp,
+      label: "Completed",
+      value: completedCount,
+      icon: CheckCircle,
       color: "text-green-600 bg-green-100",
     },
     {
