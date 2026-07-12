@@ -5,6 +5,7 @@ using BCryptTool = BCrypt.Net.BCrypt;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.InteractionModule;
+using AITasker_Modular.Modules.CategoryTagModule;
 
 namespace AITasker_Modular.Modules.UserModule;
 
@@ -167,7 +168,12 @@ public class UserService : IUserService
                 PortfolioUrls = dto.PortfolioUrls,
                 Location = dto.Location,
                 ReputationCredit = 0m,
-                SuccessRate = 0.0
+                SuccessRate = 0.0,
+                Category = dto.Category,
+                Phone = dto.Phone,
+                Website = dto.Website,
+                Industry = dto.Industry,
+                HourlyRate = dto.HourlyRate
             };
             _context.ExpertProfiles.Add(profile);
         }
@@ -179,11 +185,58 @@ public class UserService : IUserService
             profile.Bio = dto.Bio;
             profile.PortfolioUrls = dto.PortfolioUrls;
             profile.Location = dto.Location;
+            profile.Category = dto.Category;
+            profile.Phone = dto.Phone;
+            profile.Website = dto.Website;
+            profile.Industry = dto.Industry;
+            profile.HourlyRate = dto.HourlyRate;
+        }
+
+        // --- UPDATE PROFILE SKILLS ---
+        if (dto.Skills != null)
+        {
+            var existingSkills = await _context.ExpertProfileSkills
+                .Where(s => s.ExpertProfilesUserId == userGuid)
+                .ToListAsync();
+            _context.ExpertProfileSkills.RemoveRange(existingSkills);
+
+            foreach (var skillNameOrId in dto.Skills)
+            {
+                if (string.IsNullOrWhiteSpace(skillNameOrId)) continue;
+
+                Skill? skill = null;
+                if (Guid.TryParse(skillNameOrId, out var skillId))
+                {
+                    skill = await _context.Skills.FindAsync(skillId);
+                }
+                else
+                {
+                    skill = await _context.Skills.FirstOrDefaultAsync(s => s.Name.ToLower() == skillNameOrId.ToLower());
+                }
+
+                if (skill == null)
+                {
+                    skill = new Skill
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = skillNameOrId
+                    };
+                    _context.Skills.Add(skill);
+                    await _context.SaveChangesAsync();
+                }
+
+                var profileSkill = new ExpertProfileSkill
+                {
+                    ExpertProfilesUserId = userGuid,
+                    SkillsId = skill.Id
+                };
+                _context.ExpertProfileSkills.Add(profileSkill);
+            }
         }
 
         await _context.SaveChangesAsync();
         return true;
-     }
+    }
 
     public async Task<bool> UpdateUserAsync(string userId, DTOs.UpdateUserDto dto)
     {
@@ -259,7 +312,10 @@ public class UserService : IUserService
             return null;
 
         var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userGuid);
-        var profile = await _context.ExpertProfiles.FirstOrDefaultAsync(p => p.UserId == userGuid);
+        var profile = await _context.ExpertProfiles
+            .Include(p => p.ExpertProfileSkills)
+                .ThenInclude(eps => eps.Skill)
+            .FirstOrDefaultAsync(p => p.UserId == userGuid);
 
         var jobPosts = await _context.JobPosts
             .Where(j => j.ClientId == userGuid)
@@ -314,7 +370,10 @@ public class UserService : IUserService
         }).ToList();
 
         var projects = await _context.Projects
+            .Include(p => p.Client)
             .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
+            .Include(p => p.JobPost).ThenInclude(jp => jp!.Specialization)
+            .Include(p => p.ProjectSkills).ThenInclude(ps => ps.Skill)
             .Where(p => p.ClientId == userGuid || p.ExpertId == userGuid)
             .Select(p => new DTOs.UserProjectDto
             {
@@ -329,7 +388,10 @@ public class UserService : IUserService
                 ProjectLink = p.ProjectLink,
                 Title = p.JobPost != null ? p.JobPost.Title : string.Empty,
                 Budget = p.JobPost != null ? p.JobPost.Budget : 0,
-                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null
+                Category = p.JobPost != null && p.JobPost.Domain != null ? p.JobPost.Domain.Name : null,
+                ClientName = p.Client != null ? p.Client.FullName : string.Empty,
+                SpecializationName = p.JobPost != null && p.JobPost.Specialization != null ? p.JobPost.Specialization.Name : string.Empty,
+                ProjectSkills = p.ProjectSkills.Select(ps => ps.Skill != null ? ps.Skill.Name : string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
             })
             .ToListAsync();
 
@@ -353,7 +415,15 @@ public class UserService : IUserService
                 PortfolioUrls = profile.PortfolioUrls,
                 Location = profile.Location,
                 ReputationCredit = profile.ReputationCredit,
-                SuccessRate = profile.SuccessRate
+                SuccessRate = profile.SuccessRate,
+                Category = profile.Category,
+                Phone = profile.Phone,
+                Website = profile.Website,
+                Industry = profile.Industry,
+                HourlyRate = profile.HourlyRate,
+                Skills = profile.ExpertProfileSkills != null
+                    ? profile.ExpertProfileSkills.Select(eps => eps.Skill?.Name ?? string.Empty).Where(name => !string.IsNullOrEmpty(name)).ToList()
+                    : new()
             } : null,
             JobPosts = jobPosts,
             Proposals = proposals,

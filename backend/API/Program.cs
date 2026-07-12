@@ -62,10 +62,10 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// --- CÃ¡ÂºÂ¤U HÃƒÅ’NH CORS Ã„ÂÃ¡Â»â€™NG BÃ¡Â»Ëœ: MÃ¡Â»Å¾ RÃ¡Â»ËœNG THÃƒÅ M CÃ¡Â»â€NG 8080 VÃƒâ‚¬ CHO PHÃƒâ€°P WEBHOOK TÃ¡Â»Â° DO ---
+// --- CẤU HÌNH CORS ĐỒNG BỘ: MỞ RỘNG THÊM CỔNG 8080 VÀ CHO PHÉP WEBHOOK TỰ DO ---
 builder.Services.AddCors(options =>
 {
-    // GiÃ¡Â»Â¯ nguyÃƒÂªn Policy cÃ…Â© cÃ¡Â»Â§a nhÃƒÂ³m Ã„â€˜Ã¡Â»Æ’ khÃƒÂ´ng lÃ¡Â»â€”i code FrontEnd cÃ¡Â»Â§a cÃƒÂ¡c bÃ¡ÂºÂ¡n
+    // Giữ nguyên Policy cũ của nhóm để không lỗi code FrontEnd của các bạn
     options.AddPolicy("AllowLocalhost5173",
         policy =>
         {
@@ -75,7 +75,7 @@ builder.Services.AddCors(options =>
                   .AllowCredentials();
         });
 
-    // ThÃƒÂªm Policy mÃ¡Â»Å¸ rÃ¡Â»â„¢ng cho cÃ¡Â»â€¢ng test cÃ¡Â»Â§a Minh Ã„â€˜Ã¡Â»Æ’ thÃƒÂ´ng mÃ¡ÂºÂ¡ch trÃƒÂ¬nh duyÃ¡Â»â€¡t lÃ¡ÂºÂ­p tÃ¡Â»Â©c
+    // Thêm Policy mở rộng cho cổng test của Minh để thông mạch trình duyệt lập tức
     options.AddPolicy("AllowAllTest",
         policy =>
         {
@@ -92,7 +92,7 @@ builder.Services.AddDbContext<DataContext>(options =>
         mySqlOptions => mySqlOptions.EnableRetryOnFailure()
     ));
 
-// --- Ã„ÂÃ„â€šNG KÃƒÂ CÃƒÂC DÃ¡Â»Å CH VÃ¡Â»Â¤ HÃ¡Â»â€  THÃ¡Â»ÂNG GÃ¡Â»ÂC (DI) ---
+// --- ĐĂNG KÝ CÁC DỊCH VỤ HỆ THỐNG GỐC (DI) ---
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICategoryTagService, CategoryTagService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
@@ -100,24 +100,24 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IInteractionService, InteractionService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 
-// --- TÃƒ CH HÃ¡Â»Â¢P HÃ¡Â»â€  THÃ¡Â» NG QUÃ¡ÂºÂ¢N TRÃ¡Â»Å  ADMIN Ã„ Ã¡Â»ËœC LÃ¡ÂºÂ¬P ---
+// --- TÍCH HỢP HỆ THỐNG QUẢN TRỊ ADMIN ĐỘC LẬP ---
 builder.Services.AddScoped<IAdminService, AdminService>();
 
-// --- ÄÄ‚NG KÃ DISPUTE MODULE ---
+// --- ĐĂNG KÝ DISPUTE MODULE ---
 builder.Services.AddScoped<AITasker_Modular.Modules.DisputeModule.IDisputeService, AITasker_Modular.Modules.DisputeModule.DisputeService>();
 
-// --- Äá»’NG Bá»˜ ÄÄ‚NG KÃ Há»† THá»NG JOBPOSTMODULE THá»°C Táº¾ ---
+// --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
 builder.Services.AddScoped<IJobPostService, JobPostService>(); 
 
-// --- ÄÄ‚NG KÃ Há»† THá»NG AI MODULE ---
-builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gá»i ZaloPay
+// --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
+builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
 builder.Services.AddSingleton<GeminiUtil>();
 builder.Services.AddScoped<AiChatService>(); 
 
 var app = builder.Build();
 app.UseResponseCompression();
 
-// --- TÃ¡Â»Â° Ã„ Ã¡Â»ËœNG KHÃ¡Â»Å¾I CHÃ¡ÂºÂ Y VÃƒâ‚¬ MIGRATION DATABASE TOÃƒâ‚¬N CÃ¡Â»Â¤C ---
+// --- TỰ ĐỘNG KHỞI CHẠY VÀ MIGRATION DATABASE TOÀN CỤC ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -216,7 +216,7 @@ using (var scope = app.Services.CreateScope())
                 Id = ownerId,
                 Email = "owner@test.com",
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456", 11),
-                FullName = "Nguyá»…n VÄƒn Owner",
+                FullName = "Nguyễn Văn Owner",
                 Role = "Owner",
                 Status = "Active",
                 CreatedAt = DateTime.UtcNow

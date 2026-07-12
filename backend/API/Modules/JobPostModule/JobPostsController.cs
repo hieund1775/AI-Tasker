@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http; // â”€â”€ THAO TÃC CÆ  Há»ŒC: Báº®T BUá»˜C PHáº¢I THÃŠM Äá»‚ Há»† THá»NG HIá»‚U IFormFile
+using Microsoft.AspNetCore.Http; // ── THAO TÁC CƠ HỌC: BẮT BUỘC PHẢI THÊM ĐỂ HỆ THỐNG HIỂU IFormFile
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using AITasker_Modular.Modules.JobModule; 
@@ -23,7 +23,7 @@ namespace AITasker_Modular.Modules.JobPostModule
         }
 
         // ======================================================================
-        // Cá»”NG THÃŠM Má»šI 1: API UPLOAD Táº¬P TIN ÄA Äá»ŠNH Dáº NG (GIá»šI Háº N Cá»¨NG 10MB)
+        // CỔNG THÊM MỚI 1: API UPLOAD TẬP TIN ĐA ĐỊNH DẠNG (GIỚI HẠN CỨNG 10MB)
         // ======================================================================
         [HttpPost("upload-file")]
         public async Task<IActionResult> UploadAttachment(IFormFile file)
@@ -33,19 +33,19 @@ namespace AITasker_Modular.Modules.JobPostModule
                 var fileUrl = await _jobService.UploadAttachmentAsync(file);
                 if (fileUrl == null) 
                 {
-                    return BadRequest("Táº£i tá»‡p tin tháº¥t báº¡i hoáº·c tá»‡p dá»¯ liá»‡u rá»—ng.");
+                    return BadRequest("Tải tệp tin thất bại hoặc tệp dữ liệu rỗng.");
                 }
                 return Ok(new { Url = fileUrl });
             }
             catch (Exception ex)
             {
-                // Báº¯t toÃ n bá»™ cÃ¡c ngoáº¡i lá»‡ Validation (Sai extension, quÃ¡ dung lÆ°á»£ng) tá»« Service nÃ©m lÃªn
+                // Bắt toàn bộ các ngoại lệ Validation (Sai extension, quá dung lượng) từ Service ném lên
                 return BadRequest(ex.Message);
             }
         }
 
         // ======================================================================
-        // Cá»”NG THÃŠM Má»šI 2: API AI MILESTONE ENGINE - XUáº¤T PHÃ‚N RÃƒ TÃC Vá»¤ SANG FILE .MD
+        // CỔNG THÊM MỚI 2: API AI MILESTONE ENGINE - XUẤT PHÂN RÃ TÁC VỤ SANG FILE .MD
         // ======================================================================
         [HttpPost("generate-milestone-md/{proposalId:guid}")]
         public async Task<IActionResult> GenerateMilestoneMarkdown(Guid proposalId, [FromQuery] int taskCount, [FromQuery] int deadlineDays)
@@ -53,13 +53,13 @@ namespace AITasker_Modular.Modules.JobPostModule
             var fileUrl = await _jobService.GenerateMilestoneMarkdownAsync(proposalId, taskCount, deadlineDays);
             if (fileUrl == null) 
             {
-                return NotFound("KhÃ´ng tÃ¬m tháº¥y thÃ´ng tin Ä‘á» xuáº¥t (Proposal) hoáº·c bÃ i Ä‘Äƒng tÆ°Æ¡ng á»©ng.");
+                return NotFound("Không tìm thấy thông tin đề xuất (Proposal) hoặc bài đăng tương ứng.");
             }
             return Ok(new { FileUrl = fileUrl });
         }
 
         // ======================================================================
-        // Há»† THá»NG API CRUD CÅ¨ Cá»¦A Báº N HÃ™NG (ÄÆ¯á»¢C Báº¢O TOÃ€N NGUYÃŠN Váº¸N 100%)
+        // HỆ THỐNG API CRUD CŨ CỦA BẠN HÙNG (ĐƯỢC BẢO TOÀN NGUYÊN VẸN 100%)
         // ======================================================================
         [HttpGet("search-filter")]
         public async Task<IActionResult> GetFilteredJobs(
@@ -74,7 +74,7 @@ namespace AITasker_Modular.Modules.JobPostModule
             var result = await _jobService.GetFilteredJobsAsync(search, minBudget, maxBudget, status, categoryDomainId, page, pageSize);
             if (result == null || result.Data == null || !result.Data.Any())
             {
-                return NotFound("KhÃ´ng tÃ¬m tháº¥y bÃ i Ä‘Äƒng tuyá»ƒn dá»¥ng nÃ o phÃ¹ há»£p vá»›i bá»™ lá»c.");
+                return NotFound("Không tìm thấy bài đăng tuyển dụng nào phù hợp với bộ lọc.");
             }
             return Ok(result);
         }
@@ -91,7 +91,7 @@ namespace AITasker_Modular.Modules.JobPostModule
             var result = await _jobService.GetJobsAsync(page, pageSize);
             if (result == null || result.Data == null || !result.Data.Any())
             {
-                return NotFound("KhÃ´ng tÃ¬m tháº¥y bÃ i Ä‘Äƒng tuyá»ƒn dá»¥ng nÃ o.");
+                return NotFound("Không tìm thấy bài đăng tuyển dụng nào.");
             }
 
             _cache.Set(cacheKey, result, TimeSpan.FromSeconds(30));
@@ -102,7 +102,7 @@ namespace AITasker_Modular.Modules.JobPostModule
         public async Task<IActionResult> GetJobById(Guid id)
         {
             var result = await _jobService.GetJobPostByIdAsync(id);
-            if (result == null) return NotFound("KhÃ´ng tÃ¬m tháº¥y bÃ i Ä‘Äƒng yÃªu cáº§u.");
+            if (result == null) return NotFound("Không tìm thấy bài đăng yêu cầu.");
             return Ok(result);
         }
 
@@ -134,7 +134,7 @@ namespace AITasker_Modular.Modules.JobPostModule
             var result = await _jobService.GetJobPostsByClientIdAsync(clientId);
             if (result == null || !result.Any())
             {
-                return NotFound("KhÃ´ng tÃ¬m tháº¥y bÃ i Ä‘Äƒng nÃ o cá»§a client nÃ y.");
+                return NotFound("Không tìm thấy bài đăng nào của client này.");
             }
             return Ok(result);
         }
@@ -143,7 +143,7 @@ namespace AITasker_Modular.Modules.JobPostModule
         {
             if (!dto.JobPostId.HasValue && (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Description)))
             {
-                return BadRequest(new { error = "Vui lÃ²ng cung cáº¥p JobPostId hoáº·c nháº­p Ä‘áº§y Ä‘á»§ tiÃªu Ä‘á» (Title) vÃ  mÃ´ táº£ (Description) cá»§a cÃ´ng viá»‡c." });
+                return BadRequest(new { error = "Vui lòng cung cấp JobPostId hoặc nhập đầy đủ tiêu đề (Title) và mô tả (Description) của công việc." });
             }
 
             try
@@ -153,7 +153,7 @@ namespace AITasker_Modular.Modules.JobPostModule
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = $"Lá»—i há»‡ thá»‘ng khi phÃ¢n tÃ­ch gá»£i Ã½: {ex.Message}" });
+                return StatusCode(500, new { error = $"Lỗi hệ thống khi phân tích gợi ý: {ex.Message}" });
             }
         }
 

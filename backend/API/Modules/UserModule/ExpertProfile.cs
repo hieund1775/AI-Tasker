@@ -21,5 +21,12 @@ public class ExpertProfile
     public string? Location { get; set; }
     public double SuccessRate { get; set; }
 
+    // NEW FIELDS:
+    public string? Category { get; set; }
+    public string? Phone { get; set; }
+    public string? Website { get; set; }
+    public string? Industry { get; set; }
+    public decimal HourlyRate { get; set; }
+
     public ICollection<ExpertProfileSkill> ExpertProfileSkills { get; set; } = new List<ExpertProfileSkill>();
 }
