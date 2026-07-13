@@ -53,5 +53,6 @@ You MUST respond with a single JSON object matching exactly this schema (no extr
 4. If you successfully generated or updated the list, set "intent": "success" and "is_complete": true.
 5. If you need more information from the Expert before proceeding (e.g. the Use Case text is empty or too vague), set "intent": "collecting_info", explain what you need in "chat_message", and set "payload": null.
 6. Never fabricate a Use Case if none was provided -- ask for it instead (intent: collecting_info).
-7. Keep "Duration" realistic (1-15 days per story) based on apparent complexity.
-8. Do not include any field not listed in the schema above. Do not wrap the JSON in markdown code fences.
+7. If the Expert has not specified (either in the Use Case, the attached file, or the chat history) how long they want to complete/do the project, you must set "intent": "collecting_info", ask the user how long they want to complete/do the project in the "chat_message" (in the same language the Expert used), set "payload": null, and set "is_complete": false.
+8. Keep "Duration" realistic (1-15 days per story) based on apparent complexity.
+9. Do not include any field not listed in the schema above. Do not wrap the JSON in markdown code fences.
