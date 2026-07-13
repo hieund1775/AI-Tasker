@@ -232,13 +232,29 @@ function mapJobPost(jp) {
   const tasksList = jp.jobPostTasks || jp.JobPostTasks;
   const implementationStr = jp.implementation || jp.Implementation;
 
+  let parsedImplementation = [];
+  if (implementationStr) {
+    try {
+      const parsed = JSON.parse(implementationStr);
+      if (Array.isArray(parsed)) {
+        parsedImplementation = parsed;
+      }
+    } catch (e) {
+      console.warn("Failed to parse implementation string", e);
+    }
+  }
+  const cachedUseCases = loadJobUseCases(jp.id || jp.Id) || [];
+
   if (tasksList && Array.isArray(tasksList) && tasksList.length > 0) {
-    jp.useCases = tasksList.map(task => {
+    jp.useCases = tasksList.map((task, idx) => {
       const miniTasks = task.jobPostMiniTasks || task.JobPostMiniTasks || [];
+      const parsedUc = parsedImplementation.find(u => (u.Title || u.title) === (task.title || task.Title)) || parsedImplementation[idx];
+      const cachedUc = cachedUseCases.find(c => c.title === (task.title || task.Title)) || cachedUseCases[idx];
+      const descVal = task.description || task.Description || parsedUc?.Description || parsedUc?.description || cachedUc?.description || "";
       return {
         id: task.id || task.Id || `uc-${Math.random()}`,
         title: task.title || task.Title || "",
-        description: task.description || task.Description || "",
+        description: descVal,
         originalDurationDays: task.duration || task.Duration || 1,
         durationDays: task.duration || task.Duration || 1,
         requirements: miniTasks.map(mt => ({
@@ -248,36 +264,27 @@ function mapJobPost(jp) {
         }))
       };
     });
-  } else if (implementationStr) {
+  } else if (parsedImplementation.length > 0) {
     // 2. Try parsing field implementation (JSON string storing use cases)
-    try {
-      const parsed = JSON.parse(implementationStr);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        jp.useCases = parsed.map(uc => {
-          const miniTasks = uc.MiniTasks || uc.miniTasks || uc.requirements || [];
-          return {
-            id: uc.id || uc.Id || `uc-${Math.random()}`,
-            title: uc.Title || uc.title || "",
-            description: uc.Description || uc.description || "",
-            originalDurationDays: uc.Duration || uc.durationDays || 1,
-            durationDays: uc.Duration || uc.durationDays || 1,
-            requirements: miniTasks.map(mt => ({
-              id: mt.id || mt.Id || `mt-${Math.random()}`,
-              title: mt.Title || mt.title || "",
-              durationDays: mt.Duration || mt.durationDays || 1
-            }))
-          };
-        });
-      } else {
-        jp.useCases = [];
-      }
-    } catch (e) {
-      jp.useCases = [];
-    }
+    jp.useCases = parsedImplementation.map((uc, idx) => {
+      const miniTasks = uc.MiniTasks || uc.miniTasks || uc.requirements || [];
+      const cachedUc = cachedUseCases.find(c => c.title === (uc.Title || uc.title)) || cachedUseCases[idx];
+      return {
+        id: uc.id || uc.Id || `uc-${Math.random()}`,
+        title: uc.Title || uc.title || "",
+        description: uc.Description || uc.description || cachedUc?.description || "",
+        originalDurationDays: uc.Duration || uc.duration || uc.durationDays || 1,
+        durationDays: uc.Duration || uc.duration || uc.durationDays || 1,
+        requirements: miniTasks.map(mt => ({
+          id: mt.id || mt.Id || `mt-${Math.random()}`,
+          title: mt.Title || mt.title || "",
+          durationDays: mt.Duration || mt.duration || mt.durationDays || 1
+        }))
+      };
+    });
   } else {
     // 3. Fallback: localStorage (saved during post on this machine)
-    const cached = loadJobUseCases(jp.id || jp.Id);
-    jp.useCases = cached || [];
+    jp.useCases = cachedUseCases;
   }
   return jp;
 }

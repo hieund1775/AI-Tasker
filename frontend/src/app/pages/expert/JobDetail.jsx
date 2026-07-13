@@ -236,25 +236,15 @@ export function JobDetail() {
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
                 <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2 text-left">
                     <p className="font-bold text-foreground text-sm">
-                      User Story #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
+                      User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
                     </p>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{uc.originalDurationDays || uc.durationDays || 1} days</span>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
                   </div>
                   {uc.description ? (
-                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
+                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">Description: {uc.description}</p>
                   ) : null}
-                  {safeArray(uc.requirements).length > 0 && (
-                    <ul className="pl-3 border-l-2 border-brand-primary/20 space-y-1 mt-1">
-                      {safeArray(uc.requirements).map((req, j) => (
-                        <li key={j} className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>• {req.title}</span>
-                          <span className="text-xs bg-secondary px-1.5 py-0.5 rounded ml-2 shrink-0">{req.durationDays || 1} days</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
               ))}
             </div>

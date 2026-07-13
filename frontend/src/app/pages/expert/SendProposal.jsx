@@ -671,22 +671,21 @@ export function SendProposal() {
                       return (
                         <div key={uc.id} className="border border-border rounded-xl overflow-hidden">
                           {/* ── Use Case Header (read-only) ── */}
-                          <div className="p-4 bg-accent-light/30 border-b border-border">
+                          <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                  Client User Story
+                                <span className="font-bold text-foreground text-sm">
+                                  UserStory: {uc.title || uc.nameAndDeadline}
                                 </span>
-                                <h4 className="font-semibold text-foreground text-sm">
-                                  {uc.title || uc.nameAndDeadline}
-                                </h4>
                               </div>
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                                 {uc.originalDurationDays || 1} days
                               </span>
                             </div>
                             {uc.description && (
-                              <p className="text-xs text-muted-foreground mt-2">{uc.description}</p>
+                              <p className="text-xs text-muted-foreground pl-3 border-l-2 border-border">
+                                Description: {uc.description}
+                              </p>
                             )}
                           </div>
 

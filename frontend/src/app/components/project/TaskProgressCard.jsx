@@ -12,6 +12,8 @@ import {
   Send,
   RotateCcw,
   Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { Button } from "../ui/button.jsx";
@@ -53,6 +55,7 @@ export function TaskProgressCard({
   const [isDeclineDisabled, setIsDeclineDisabled] = useState(false);
   const [showViewProductModal, setShowViewProductModal] = useState(false);
   const [isDeclineUnlocked, setIsDeclineUnlocked] = useState(false);
+  const [showMinis, setShowMinis] = useState(false);
 
   const handleApproveTask = async () => {
     try {
@@ -192,7 +195,7 @@ export function TaskProgressCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-left">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
+            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60" : "text-foreground"
               }`}>
               {task.title}
             </h3>
@@ -258,18 +261,72 @@ export function TaskProgressCard({
       </div>
 
       {/* Mini task stats */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-        <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-4 h-4 text-success" />
-          <span>
-            {task.completedMiniTasks}/{task.totalMiniTasks} Minitasks
-          </span>
+      <div className="flex items-center justify-between text-sm text-muted-foreground mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            <span>
+              {task.completedMiniTasks}/{task.totalMiniTasks} Minitasks
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock3 className="w-4 h-4 text-primary" />
+            <span>{task.progress}% completed</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Clock3 className="w-4 h-4 text-primary" />
-          <span>{task.progress}% completed</span>
-        </div>
+        {task.miniTasks && task.miniTasks.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowMinis(!showMinis)}
+            className="flex items-center gap-1 text-xs text-brand-primary hover:text-brand-primary-hover font-semibold transition-colors cursor-pointer border border-brand-primary/20 px-2 py-1 rounded-md bg-brand-primary/5"
+          >
+            {showMinis ? (
+              <>
+                Hide Minitasks
+                <ChevronUp className="w-3.5 h-3.5" />
+              </>
+            ) : (
+              <>
+                Show Minitasks
+                <ChevronDown className="w-3.5 h-3.5" />
+              </>
+            )}
+          </button>
+        )}
       </div>
+
+      {/* Expanded Minitasks Checklist */}
+      {showMinis && task.miniTasks && task.miniTasks.length > 0 && (
+        <div className="mt-3 p-3 bg-secondary/40 border border-border/80 rounded-lg space-y-2 text-left animate-fade-in mb-3">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide block mb-1">Minitask Checklist:</span>
+          <div className="space-y-2">
+            {task.miniTasks.map((mt, mtIdx) => {
+              const isMtCompleted = mt.isCompleted || mt.status === "completed" || mt.status === "done";
+              return (
+                <div key={mt.id || mtIdx} className="flex items-center justify-between text-xs gap-3 py-0.5">
+                  <span className={cn(
+                    "font-medium leading-tight",
+                    isMtCompleted ? "text-foreground/55" : "text-foreground"
+                  )}>
+                    {mt.title || `Minitask #${mtIdx + 1}`}
+                  </span>
+                  <div className="flex-shrink-0">
+                    {isMtCompleted ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-success/10 text-success rounded font-semibold text-[10px]">
+                        <Check className="w-3 h-3" /> Done
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-destructive/10 text-destructive rounded font-semibold text-[10px]">
+                        <X className="w-3 h-3" /> Pending
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
 
 

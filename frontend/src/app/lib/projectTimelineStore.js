@@ -186,11 +186,11 @@ export function getExpertButtonConfig(statusKey) {
 
 export function getOverallProgress(tasks = []) {
   if (!tasks || !tasks.length) return 0;
-  
+
   let totalMiniTasks = 0;
   let completedMiniTasks = 0;
   let totalTasksPercent = 0;
-  
+
   for (const task of tasks) {
     const { completed, total, percent } = deriveTaskProgress(task);
     if (total > 0 && ((task.miniTasks && task.miniTasks.length > 0) || (task.MiniTasks && task.MiniTasks.length > 0))) {
@@ -199,27 +199,27 @@ export function getOverallProgress(tasks = []) {
     }
     totalTasksPercent += percent;
   }
-  
+
   if (totalMiniTasks > 0) {
     return Math.round((completedMiniTasks / totalMiniTasks) * 100);
   }
-  
+
   return Math.round(totalTasksPercent / tasks.length);
 }
 
 export function deriveTaskProgress(task) {
   if (!task) return { completed: 0, total: 0, percent: 0 };
-  
+
   const status = (task.status || task.Status || "").toLowerCase();
   const isDone = status === "completed" || status === "approved" || status === "done" || task.approvalStatus?.toLowerCase() === "approved" || task.approval?.toLowerCase() === "approved" || task.approval?.toLowerCase() === "quick accepted";
 
   const miniTasks = task.miniTasks || task.MiniTasks || [];
   const total = miniTasks.length;
-  
+
   if (isDone) {
     return { completed: total > 0 ? total : 1, total: total > 0 ? total : 1, percent: 100 };
   }
-  
+
   if (total > 0) {
     const completed = miniTasks.filter(
       mt => mt.isCompleted === true || mt.IsCompleted === true || mt.status === "done" || mt.status === "completed" || mt.Status === "done" || mt.Status === "completed"
@@ -227,7 +227,7 @@ export function deriveTaskProgress(task) {
     const percent = Math.round((completed / total) * 100);
     return { completed, total, percent };
   }
-  
+
   return {
     completed: 0,
     total: 1,

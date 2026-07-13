@@ -559,17 +559,17 @@ export function MyProjectsList() {
 
           {safeArray(selectedProject.useCases).length > 0 && (
             <div className="border-t border-border/60 pt-6">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project Timeline Root (Use Cases)</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project User Stories</h4>
               <div className="space-y-3">
                 {safeArray(selectedProject.useCases).map((uc, i) => (
                   <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-left">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-foreground">
-                        Use Case #{i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `Use Case #${i + 1}`}</span>
+                        User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `User Story #${i + 1}`}</span>
                       </p>
                       {uc.description && (
                         <p className="text-muted-foreground leading-relaxed pl-3 border-l-2 border-border mt-1">
-                          {uc.description}
+                          Description: {uc.description}
                         </p>
                       )}
                     </div>
@@ -745,18 +745,22 @@ export function MyProjectsList() {
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                               {/* ── Use Case Header ── */}
-                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                    Client Use Case
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                                <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-foreground text-sm">
+                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                    {uc.originalDurationDays || 1} days
                                   </span>
-                                  <h4 className="font-semibold text-foreground text-sm">
-                                    {uc.title || uc.nameAndDeadline}
-                                  </h4>
                                 </div>
-                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                  {uc.originalDurationDays || 1} days
-                                </span>
+                                {uc.description && (
+                                  <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                    Description: {uc.description}
+                                  </p>
+                                )}
                               </div>
 
                               {/* ── Tasks ── */}
@@ -785,6 +789,16 @@ export function MyProjectsList() {
                                           )}
                                         </div>
                                       </div>
+
+                                      {/* Minitasks */}
+                                      {task.miniTasks && task.miniTasks.length > 0 && (
+                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          {task.miniTasks.map((mt, mtIdx) => (
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ))
                                 )}
@@ -816,6 +830,16 @@ export function MyProjectsList() {
                                 )}
                               </div>
                             </div>
+
+                            {/* Minitasks */}
+                            {task.miniTasks && task.miniTasks.length > 0 && (
+                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                {task.miniTasks.map((mt, mtIdx) => (
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -1045,18 +1069,22 @@ export function MyProjectsList() {
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                               {/* ── Use Case Header ── */}
-                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                    Client Use Case
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                                <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-foreground text-sm">
+                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                    {uc.originalDurationDays || 1} days
                                   </span>
-                                  <h4 className="font-semibold text-foreground text-sm">
-                                    {uc.title || uc.nameAndDeadline}
-                                  </h4>
                                 </div>
-                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                  {uc.originalDurationDays || 1} days
-                                </span>
+                                {uc.description && (
+                                  <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                    Description: {uc.description}
+                                  </p>
+                                )}
                               </div>
 
                               {/* ── Tasks ── */}
@@ -1085,6 +1113,16 @@ export function MyProjectsList() {
                                           )}
                                         </div>
                                       </div>
+
+                                      {/* Minitasks */}
+                                      {task.miniTasks && task.miniTasks.length > 0 && (
+                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          {task.miniTasks.map((mt, mtIdx) => (
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ))
                                 )}
@@ -1116,6 +1154,16 @@ export function MyProjectsList() {
                                 )}
                               </div>
                             </div>
+
+                            {/* Minitasks */}
+                            {task.miniTasks && task.miniTasks.length > 0 && (
+                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                {task.miniTasks.map((mt, mtIdx) => (
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

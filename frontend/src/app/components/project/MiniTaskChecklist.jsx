@@ -241,7 +241,7 @@ export function MiniTaskChecklist({
                   className={cn(
                     "text-sm",
                     isDone
-                      ? "text-muted-foreground line-through decoration-muted-foreground/30"
+                      ? "text-muted-foreground"
                       : "text-foreground font-medium"
                   )}
                 >

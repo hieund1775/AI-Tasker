@@ -294,18 +294,22 @@ export function ProposalDetail() {
                         return (
                           <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                             {/* ── Use Case Header ── */}
-                            <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                  Client Use Case
+                            <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                              <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground text-sm">
+                                    UserStory: {uc.title || uc.nameAndDeadline}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                  {uc.originalDurationDays || 1} days
                                 </span>
-                                <h4 className="font-semibold text-foreground text-sm">
-                                  {uc.title || uc.nameAndDeadline}
-                                </h4>
                               </div>
-                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                {uc.originalDurationDays || 1} days
-                              </span>
+                              {uc.description && (
+                                <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                  Description: {uc.description}
+                                </p>
+                              )}
                             </div>
 
                             {/* ── Tasks ── */}

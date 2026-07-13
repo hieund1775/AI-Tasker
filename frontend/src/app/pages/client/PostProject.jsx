@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { saveJobUseCases } from "../../../services/api.js";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePlanner.jsx";
@@ -197,6 +197,7 @@ export function PostProject() {
       
       return {
         Title: uc.title,
+        Description: uc.description || "",
         Duration: Number(uc.originalDurationDays) || 1,
         MiniTasks: miniTasksPayload
       };
@@ -222,6 +223,10 @@ export function PostProject() {
     try {
       console.log("Submitting project to API:", payload);
       const createdJob = await api.jobPosts.create(payload);
+
+      if (createdJob?.id) {
+        saveJobUseCases(createdJob.id, normalizedUseCases);
+      }
 
       if (invitedExpert && createdJob?.id) {
         const coverLetterObj = {

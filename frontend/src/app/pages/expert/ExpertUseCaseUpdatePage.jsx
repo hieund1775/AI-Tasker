@@ -323,9 +323,9 @@ export function ExpertUseCaseUpdatePage() {
                                   <Square className="w-5 h-5 text-gray-300 shrink-0" />
                                 )}
                                 <h4 className={cn(
-                                  "font-bold text-gray-800 text-sm",
-                                  isTaskCompleted && "line-through text-gray-450"
-                                )}>
+                                   "font-bold text-gray-800 text-sm",
+                                   isTaskCompleted && "text-gray-450"
+                                 )}>
                                   Task {tIdx + 1}: {task.title || "No Title"}
                                 </h4>
                               </button>
@@ -424,7 +424,7 @@ export function ExpertUseCaseUpdatePage() {
                                       ) : (
                                         <Square className="w-4 h-4 text-gray-300 shrink-0" />
                                       )}
-                                      <span className={cn("text-xs font-medium text-gray-700", isCompleted && "line-through text-gray-400")}>
+                                      <span className={cn("text-xs font-medium text-gray-700", isCompleted && "text-gray-400")}>
                                         {mt.title}
                                       </span>
                                     </button>
