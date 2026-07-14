@@ -276,7 +276,7 @@ export function AdminDisputes() {
         emptyMessage="No progress reports found."
         actions={(row) => (
           <Link
-            to={`/admin/disputes/${row.id}`}
+            to={`${window.location.pathname.startsWith("/owner") ? "/owner" : "/admin"}/disputes/${row.id}`}
             className="px-3 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />

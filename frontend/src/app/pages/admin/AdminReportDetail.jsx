@@ -1047,7 +1047,7 @@ export function AdminReportDetail() {
   if (error || !report) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <BackButton fallback="/admin/disputes" className="mb-6">
+        <BackButton fallback={window.location.pathname.startsWith("/owner") ? "/owner/reports" : "/admin/disputes"} className="mb-6">
           Back to Dispute List
         </BackButton>
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
@@ -1106,7 +1106,7 @@ export function AdminReportDetail() {
   // -----------------------------------------------------------------------
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/disputes" className="mb-4">
+      <BackButton fallback={window.location.pathname.startsWith("/owner") ? "/owner/reports" : "/admin/disputes"} className="mb-4">
         Back to Dispute List
       </BackButton>
 

@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
-import { ShieldPlus, ShieldCheck, Users, AlertTriangle, Briefcase, Star, FileText, Tag, LayoutDashboard } from "lucide-react";
+import { ShieldPlus, Users, Briefcase, Star, FileText, Tag, LayoutDashboard, DollarSign } from "lucide-react";
 
 export function OwnerLayout() {
   const location = useLocation();
@@ -7,14 +7,15 @@ export function OwnerLayout() {
   const menuItems = [
     { label: "Dashboard", to: "/owner/dashboard", icon: LayoutDashboard },
     { label: "Create Admin", to: "/owner/create-admin", icon: ShieldPlus },
-    { label: "Manage Admins", to: "/owner/manage-admins", icon: ShieldCheck },
-    { label: "Manage Users", to: "/owner/users", icon: Users },
-    { label: "Manage Reports", to: "/owner/reports", icon: AlertTriangle },
-    { label: "Manage Projects", to: "/owner/projects", icon: Briefcase },
-    { label: "Manage Reviews", to: "/owner/reviews", icon: Star },
-    { label: "Manage Job Posts", to: "/owner/job-posts", icon: FileText },
-    { label: "Categories/Skills", to: "/owner/category-tags", icon: Tag },
+    { label: "User Management", to: "/owner/users", icon: Users },
+    { label: "Report Progress", to: "/owner/reports", icon: FileText },
+    { label: "Project Management", to: "/owner/projects", icon: Briefcase },
+    { label: "Review Management", to: "/owner/reviews", icon: Star },
+    { label: "Job Post Management", to: "/owner/job-posts", icon: FileText },
+    { label: "Skills & Categories", to: "/owner/category-tags", icon: Tag },
+    { label: "Revenue Report", to: "/owner/revenue", icon: DollarSign },
   ];
+
 
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">

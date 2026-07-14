@@ -47,8 +47,9 @@ import { AdminCategoryTags } from "./pages/admin/AdminCategoryTags.jsx";
 // Owner Pages
 import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
 import { CreateAdmin } from "./pages/owner/CreateAdmin.jsx";
-import { ManageAdmins } from "./pages/owner/ManageAdmins.jsx";
 import { OwnerProfile } from "./pages/owner/OwnerProfile.jsx";
+import { OwnerRevenue } from "./pages/owner/OwnerRevenue.jsx";
+
 
 // Layouts
 import { AdminLayout } from "./components/layout/AdminLayout.jsx";
@@ -158,7 +159,8 @@ export const router = createBrowserRouter([
                 children: [
                   { path: "owner/dashboard", Component: OwnerDashboard },
                   { path: "owner/create-admin", Component: CreateAdmin },
-                  { path: "owner/manage-admins", Component: ManageAdmins },
+                  { path: "owner/revenue", Component: OwnerRevenue },
+                  { path: "owner/disputes/:id", Component: AdminReportDetail },
                   { path: "owner/profile", Component: OwnerProfile },
                   // Owner-specific management pages (reuse Admin components)
                   { path: "owner/users", Component: OwnerUsers },

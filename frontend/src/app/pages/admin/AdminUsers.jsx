@@ -14,6 +14,7 @@ import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
 // Status & Role configs
@@ -44,6 +45,10 @@ const ROLE_FILTER_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export function AdminUsers({ excludeRoles = [] }) {
+  const { role: userRole } = useAuth();
+  const rawRole = (userRole || "").toLowerCase();
+  const currentUserRole = rawRole === "staff" ? "admin" : rawRole;
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,8 +64,14 @@ export function AdminUsers({ excludeRoles = [] }) {
         (u) => !excludeRoles.includes((u.role || "").toLowerCase()),
       );
     }
+    // Admin cannot see owner accounts
+    if (currentUserRole === "admin") {
+      result = result.filter(
+        (u) => (u.role || "").toLowerCase() !== "owner"
+      );
+    }
     return result;
-  }, [users, excludeRoles]);
+  }, [users, excludeRoles, currentUserRole]);
 
   // Modal state
   const [lockModal, setLockModal] = useState(null); // { userId, userName, currentStatus }
@@ -73,7 +84,15 @@ export function AdminUsers({ excludeRoles = [] }) {
     setError(null);
     try {
       const result = await api.users.list();
-      setUsers(Array.isArray(result) ? result : result?.data || []);
+      const rawData = Array.isArray(result) ? result : result?.data || [];
+      const normalizedData = rawData.map(u => {
+        const roleLower = (u.role || u.Role || "").trim().toLowerCase();
+        return {
+          ...u,
+          role: roleLower === "staff" ? "admin" : roleLower
+        };
+      });
+      setUsers(normalizedData);
     } catch (err) {
       setError(err.message || "Unable to load user list.");
       setUsers([]);
@@ -147,15 +166,20 @@ export function AdminUsers({ excludeRoles = [] }) {
         { label: "Expert", value: "expert" },
         { label: "Admin", value: "admin" },
       ],
-      render: (val) => (
-        <span
-          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            ROLE_COLORS[val?.toLowerCase()] || "bg-secondary text-foreground/80"
-          }`}
-        >
-          {val || "—"}
-        </span>
-      ),
+      render: (val) => {
+        if (!val) return "—";
+        const normalized = val.trim().toLowerCase();
+        const displayLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        return (
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              ROLE_COLORS[normalized] || "bg-secondary text-foreground/80"
+            }`}
+          >
+            {displayLabel}
+          </span>
+        );
+      },
     },
     {
       key: "status",
@@ -184,7 +208,7 @@ export function AdminUsers({ excludeRoles = [] }) {
   // -----------------------------------------------------------------------
   return (
     <div className="space-y-6">
-      
+
 
       <h1 className="text-2xl font-bold text-foreground mb-2">
         User Management
@@ -211,8 +235,13 @@ export function AdminUsers({ excludeRoles = [] }) {
         loading={loading}
         emptyMessage="No users found."
         actions={(row) => {
+          const rowRole = (row.role || "").toLowerCase();
           // Don't allow locking owner accounts
-          if (row.role?.toLowerCase() === "owner") return null;
+          if (rowRole === "owner") return null;
+          // Admin cannot lock other admin accounts (but Owner can)
+          if (currentUserRole === "admin" && rowRole === "admin") {
+            return null;
+          }
           const isLocked =
             row.status === "suspended" ||
             row.status === "locked" ||
@@ -229,11 +258,10 @@ export function AdminUsers({ excludeRoles = [] }) {
                   })
                 }
                 disabled={actionLoading}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${
-                  isLocked
-                    ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                    : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                }`}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${isLocked
+                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  }`}
               >
                 {isLocked ? (
                   <>
