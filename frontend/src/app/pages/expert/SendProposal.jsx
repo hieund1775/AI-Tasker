@@ -11,6 +11,7 @@ import {
   GitBranch,
   Lightbulb,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -40,6 +41,16 @@ export function SendProposal() {
     durationDays: 14,
     acknowledged: false,
   });
+
+  const [autoPrompt, setAutoPrompt] = useState(null);
+
+  const handleGenerateMiniTaskForUseCase = (uc) => {
+    setAutoPrompt({
+      title: uc.title || uc.nameAndDeadline || "User Story",
+      description: uc.description || ""
+    });
+    setShowAIPlanner(true);
+  };
 
   // ---- Use case aware task initialization ----
   // ponytail: flatMap ensures each use case only emits its own tasks — no cross-contamination
@@ -687,6 +698,16 @@ export function SendProposal() {
                                 Description: {uc.description}
                               </p>
                             )}
+                            <div className="flex justify-end mt-2">
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateMiniTaskForUseCase(uc)}
+                                className="h-8 px-3 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm animate-pulse"
+                              >
+                                <Sparkles className="w-3.5 h-3.5" />
+                                Generate Minitask
+                              </button>
+                            </div>
                           </div>
 
                           {/* ── Tasks ── */}
@@ -1092,6 +1113,8 @@ export function SendProposal() {
                 onApplyTasks={handleApplyAITasks}
                 existingTasks={tasks}
                 clientUseCases={project?.useCases || []}
+                autoPrompt={autoPrompt}
+                clearAutoPrompt={() => setAutoPrompt(null)}
               />
             </div>
           </aside>

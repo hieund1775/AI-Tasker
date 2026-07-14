@@ -59,7 +59,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
-  
+
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
   let status = (localStatus || dbStatus).toLowerCase();
@@ -72,7 +72,7 @@ export function getNormalizedStatus(project, activeReports = []) {
       const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
       const rStatus = (r.status || r.Status || "").toLowerCase();
       return rProjId === String(projId).toLowerCase() &&
-             (rStatus === "pending admin" || rStatus === "pending");
+        (rStatus === "pending admin" || rStatus === "pending");
     });
     if (report) {
       status = "inprogress";
@@ -213,7 +213,7 @@ export function ClientDashboard() {
             .filter(tx => tx.type === "EscrowDeposit")
             .map(tx => String(tx.projectId || tx.ProjectId).toLowerCase());
           localStorage.setItem("deposited_project_ids", JSON.stringify(depositedProjectIds));
-        } catch (e) {}
+        } catch (e) { }
 
         const enrichedJobs = (await Promise.all(
           (clientJobs || []).map(async (job) => {

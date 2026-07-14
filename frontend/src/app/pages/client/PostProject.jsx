@@ -100,7 +100,7 @@ export function PostProject() {
         id: `uc-${Date.now()}-${i}`,
         title: uc.title || uc.nameAndDeadline || "",
         description: uc.description || "",
-        originalDurationDays: Number(uc.originalDurationDays || uc.durationDays || uc.durationValue || 1),
+        originalDurationDays: "",
         requirements: uc.requirements || [],
       }));
       setUseCases(mapped);
@@ -590,8 +590,8 @@ export function PostProject() {
                         </label>
                         <input
                           type="number" min="1"
-                          value={uc.originalDurationDays || 1}
-                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
+                          value={uc.originalDurationDays || ""}
+                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
                           className="w-32 px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card"
                           required
                         />

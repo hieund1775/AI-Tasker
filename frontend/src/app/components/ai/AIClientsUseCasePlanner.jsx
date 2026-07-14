@@ -39,7 +39,7 @@ function parseUseCasesFromText(text) {
           useCases.push({
             title: title,
             description: description || `Specification: ${title}`,
-            originalDurationDays: 5
+            originalDurationDays: ""
           });
           matched = true;
           break;
@@ -57,7 +57,7 @@ function parseUseCasesFromText(text) {
           useCases.push({
             title: title.slice(0, 60),
             description: description || cleaned,
-            originalDurationDays: 5
+            originalDurationDays: ""
           });
         }
       }
@@ -68,7 +68,7 @@ function parseUseCasesFromText(text) {
     useCases.push({
       title: text.trim().slice(0, 50),
       description: text.trim(),
-      originalDurationDays: 5
+      originalDurationDays: ""
     });
   }
   
@@ -81,17 +81,14 @@ function parseUseCasesFromPayload(payload) {
     const title = task.Title || task.title || `Use Case ${idx + 1}`;
     const description = Array.isArray(task.MiniTasks || task.miniTasks)
       ? (task.MiniTasks || task.miniTasks)
-          .map(mt => `- ${mt.Title || mt.title} (Duration: ${mt.Duration || mt.duration || 1} days)`)
+          .map(mt => `- ${mt.Title || mt.title}`)
           .join("\n")
       : "";
-    const originalDurationDays = Array.isArray(task.MiniTasks || task.miniTasks)
-      ? (task.MiniTasks || task.miniTasks).reduce((sum, mt) => sum + (Number(mt.Duration || mt.duration) || 1), 0)
-      : 5;
     return {
       id: `uc-ai-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
       title,
       description,
-      originalDurationDays: Math.max(1, originalDurationDays)
+      originalDurationDays: ""
     };
   });
 }
@@ -300,7 +297,6 @@ export function AIClientsUseCasePlanner({
                         <div key={index} className="bg-secondary/60 border border-border rounded-lg p-2.5 text-xs space-y-1">
                           <p className="font-semibold text-foreground">{uc.title}</p>
                           <p className="text-muted-foreground leading-normal">{uc.description}</p>
-                          <p className="text-accent font-medium">{uc.originalDurationDays} days</p>
                         </div>
                       ))}
                     </div>
