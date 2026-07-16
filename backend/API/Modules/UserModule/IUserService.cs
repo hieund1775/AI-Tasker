@@ -21,4 +21,5 @@ public interface IUserService
     Task<(bool Success, string? Error)> ResetPasswordAsync(string resetToken, string newPassword);
     Task<(bool Success, string? Error)> VerifyEmailAsync(string email, string token);
     Task<(bool Success, string? ResendToken, string? Error)> ResendVerificationEmailAsync(string email, string baseUrl);
+    Task<bool> DeleteUserFullyAsync(string userId);
 }

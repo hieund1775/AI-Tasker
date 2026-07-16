@@ -337,6 +337,35 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// DELETE /api/users/{id}
+    /// Xóa hoàn toàn người dùng và dữ liệu liên quan. Chỉ dành cho tài khoản Owner.
+    /// </summary>
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest(new { message = "User ID không được để trống." });
+
+        // Xác thực quyền Owner
+        var (_, errorResult) = await this.ValidateOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
+        try
+        {
+            var success = await _userService.DeleteUserFullyAsync(id);
+            if (!success)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            return Ok(new { message = "Xóa tài khoản người dùng và tất cả dữ liệu liên quan thành công." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Đã xảy ra lỗi khi xóa người dùng: {ex.Message}" });
+        }
+    }
+
 }
 
 public class SetUserActiveDto

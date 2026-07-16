@@ -135,7 +135,9 @@ public class UserService : IUserService
             DestinationWalletId = wallet.UserId,
             Amount = amount,
             Type = "Deposit",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Status = "Success",
+            Description = "Nạp tiền vào tài khoản: " + amount.ToString("N0") + " VND"
         };
         _context.TransactionLogs.Add(log);
 
@@ -165,7 +167,9 @@ public class UserService : IUserService
             SourceWalletId = wallet.UserId,
             Amount = amount,
             Type = "Withdraw",
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            Status = "Success",
+            Description = "Rút tiền khỏi tài khoản: " + amount.ToString("N0") + " VND"
         };
         _context.TransactionLogs.Add(log);
 
@@ -744,5 +748,178 @@ public class UserService : IUserService
         await _emailService.SendEmailAsync(normalizedEmail, emailSubject, emailBody);
 
         return (true, verificationToken, null);
+    }
+
+    /// <summary>
+    /// Xóa hoàn toàn một tài khoản người dùng và tất cả dữ liệu liên quan trong DB.
+    /// Sử dụng Transaction để đảm bảo tính toàn vẹn dữ liệu.
+    /// </summary>
+    public async Task<bool> DeleteUserFullyAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var userGuid))
+            return false;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+        if (user == null)
+            return false;
+
+        var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+        return await executionStrategy.ExecuteAsync(async () =>
+        {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // 1. Lấy danh sách các thực thể liên quan của user
+                var userJobPostIds = await _context.JobPosts.Where(jp => jp.ClientId == userGuid).Select(jp => jp.Id).ToListAsync();
+                var userProjectIds = await _context.Projects.Where(p => p.ClientId == userGuid || p.ExpertId == userGuid).Select(p => p.Id).ToListAsync();
+                var userProposalIds = await _context.Proposals.Where(p => p.ExpertId == userGuid).Select(p => p.Id).ToListAsync();
+                
+                // Lấy thêm các Proposals gửi cho các Job Post của user này (khi user là Client)
+                var jobPostProposalIds = await _context.Proposals.Where(p => userJobPostIds.Contains(p.JobPostId)).Select(p => p.Id).ToListAsync();
+                
+                // Tổng hợp tất cả proposal liên quan cần xóa
+                var allRelatedProposalIds = userProposalIds.Concat(jobPostProposalIds).Distinct().ToList();
+
+                // 2. Xóa các bảng WBS của Proposal (ProposalMiniTask và ProposalTask)
+                if (allRelatedProposalIds.Any())
+                {
+                    var proposalTasks = await _context.ProposalTasks.Where(pt => allRelatedProposalIds.Contains(pt.ProposalId)).ToListAsync();
+                    var proposalTaskIds = proposalTasks.Select(pt => pt.Id).ToList();
+
+                    var proposalMiniTasks = await _context.ProposalMiniTasks.Where(pmt => proposalTaskIds.Contains(pmt.ProposalTaskId)).ToListAsync();
+                    _context.ProposalMiniTasks.RemoveRange(proposalMiniTasks);
+                    _context.ProposalTasks.RemoveRange(proposalTasks);
+                }
+
+                // 3. Xóa các bảng WBS của JobPost (JobPostMiniTask và JobPostTask)
+                if (userJobPostIds.Any())
+                {
+                    var jobPostTasks = await _context.JobPostTasks.Where(jpt => userJobPostIds.Contains(jpt.JobPostId)).ToListAsync();
+                    var jobPostTaskIds = jobPostTasks.Select(jpt => jpt.Id).ToList();
+
+                    var jobPostMiniTasks = await _context.JobPostMiniTasks.Where(jpmt => jobPostTaskIds.Contains(jpmt.JobPostTaskId)).ToListAsync();
+                    _context.JobPostMiniTasks.RemoveRange(jobPostMiniTasks);
+                    _context.JobPostTasks.RemoveRange(jobPostTasks);
+                }
+
+                // 4. Xóa WBS của Project (MiniTask và ProjectTask)
+                if (userProjectIds.Any())
+                {
+                    var projectTasks = await _context.ProjectTasks.Where(pt => userProjectIds.Contains(pt.ProjectId)).ToListAsync();
+                    var projectTaskIds = projectTasks.Select(pt => pt.Id).ToList();
+
+                    var miniTasks = await _context.MiniTasks.Where(mt => projectTaskIds.Contains(mt.TaskId)).ToListAsync();
+                    _context.MiniTasks.RemoveRange(miniTasks);
+                    _context.ProjectTasks.RemoveRange(projectTasks);
+                }
+
+                // 5. Xóa Project Skills
+                if (userProjectIds.Any())
+                {
+                    var projectSkills = await _context.ProjectSkills.Where(ps => userProjectIds.Contains(ps.ProjectsId)).ToListAsync();
+                    _context.ProjectSkills.RemoveRange(projectSkills);
+                }
+
+                // 6. Xóa JobPost Skills
+                if (userJobPostIds.Any())
+                {
+                    var jobPostSkills = await _context.JobPostSkills.Where(js => userJobPostIds.Contains(js.JobPostsId)).ToListAsync();
+                    _context.JobPostSkills.RemoveRange(jobPostSkills);
+                }
+
+                // 7. Xóa Contracts, Disputes và Reports liên quan tới Project
+                if (userProjectIds.Any())
+                {
+                    var contracts = await _context.Contracts.Where(c => userProjectIds.Contains(c.ProjectId)).ToListAsync();
+                    _context.Contracts.RemoveRange(contracts);
+
+                    var disputes = await _context.Disputes.Where(d => userProjectIds.Contains(d.ProjectId)).ToListAsync();
+                    _context.Disputes.RemoveRange(disputes);
+
+                    var reports = await _context.Reports.Where(r => userProjectIds.Contains(r.ProjectId)).ToListAsync();
+                    _context.Reports.RemoveRange(reports);
+                }
+
+                // Xóa thêm Disputes và Reports do user xử lý (HandlerStaffId) hoặc gửi (ReporterId)
+                var staffDisputes = await _context.Disputes.Where(d => d.HandlerStaffId == userGuid).ToListAsync();
+                _context.Disputes.RemoveRange(staffDisputes);
+
+                var staffOrReporterReports = await _context.Reports.Where(r => r.ReporterId == userGuid || r.HandlerStaffId == userGuid).ToListAsync();
+                _context.Reports.RemoveRange(staffOrReporterReports);
+
+                // 8. Xóa Proposal AI Chats
+                var aiChats = await _context.ProposalAiChats.Where(c => c.ExpertId == userGuid || userJobPostIds.Contains(c.JobPostId)).ToListAsync();
+                _context.ProposalAiChats.RemoveRange(aiChats);
+
+                // 9. Xóa Proposals
+                if (allRelatedProposalIds.Any())
+                {
+                    var proposals = await _context.Proposals.Where(p => allRelatedProposalIds.Contains(p.Id)).ToListAsync();
+                    _context.Proposals.RemoveRange(proposals);
+                }
+
+                // 10. Xóa Projects
+                if (userProjectIds.Any())
+                {
+                    var projects = await _context.Projects.Where(p => userProjectIds.Contains(p.Id)).ToListAsync();
+                    _context.Projects.RemoveRange(projects);
+                }
+
+                // 11. Xóa JobPosts
+                if (userJobPostIds.Any())
+                {
+                    var jobPosts = await _context.JobPosts.Where(jp => userJobPostIds.Contains(jp.Id)).ToListAsync();
+                    _context.JobPosts.RemoveRange(jobPosts);
+                }
+
+                // 12. Xóa Messages & Conversations
+                var userConversations = await _context.Conversations.Where(c => c.ClientId == userGuid || c.ExpertId == userGuid).ToListAsync();
+                var userConversationIds = userConversations.Select(c => c.Id).ToList();
+
+                var messages = await _context.Messages.Where(m => userConversationIds.Contains(m.ConversationId) || m.SenderId == userGuid).ToListAsync();
+                _context.Messages.RemoveRange(messages);
+                _context.Conversations.RemoveRange(userConversations);
+
+                // 13. Xóa Reviews
+                var reviews = await _context.Reviews.Where(r => r.CreatedById == userGuid || r.TargetUserId == userGuid).ToListAsync();
+                _context.Reviews.RemoveRange(reviews);
+
+                // 14. Xóa Expert Profile liên quan (nếu có)
+                var profile = await _context.ExpertProfiles.FirstOrDefaultAsync(p => p.UserId == userGuid);
+                if (profile != null)
+                {
+                    var profileSkills = await _context.ExpertProfileSkills.Where(eps => eps.ExpertProfilesUserId == userGuid).ToListAsync();
+                    var profileDomains = await _context.DomainExpertProfiles.Where(dep => dep.ExpertProfilesUserId == userGuid).ToListAsync();
+                    
+                    _context.ExpertProfileSkills.RemoveRange(profileSkills);
+                    _context.DomainExpertProfiles.RemoveRange(profileDomains);
+                    _context.ExpertProfiles.Remove(profile);
+                }
+
+                // 15. Xóa Transaction Logs & Wallet của User
+                var walletLogs = await _context.TransactionLogs.Where(tl => tl.SourceWalletId == userGuid || tl.DestinationWalletId == userGuid).ToListAsync();
+                _context.TransactionLogs.RemoveRange(walletLogs);
+
+                var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userGuid);
+                if (wallet != null)
+                {
+                    _context.Wallets.Remove(wallet);
+                }
+
+                // 16. Xóa User cuối cùng
+                _context.Users.Remove(user);
+
+                // Lưu thay đổi & Commit transaction
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
     }
 }

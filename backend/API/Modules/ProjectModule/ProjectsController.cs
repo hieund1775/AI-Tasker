@@ -142,7 +142,9 @@ namespace AITasker_Modular.Modules.ProjectModule
                 DestinationWalletId = null, // Giữ trong escrow
                 Amount = amount,
                 Type = "EscrowDeposit",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Status = "Success",
+                Description = $"Ký quỹ dự án: {project.JobPost?.Title ?? "Dự án"}"
             });
 
             await _context.SaveChangesAsync();
@@ -220,7 +222,10 @@ namespace AITasker_Modular.Modules.ProjectModule
                 DestinationWalletId = expertWallet.UserId,
                 Amount = expertNetPay,
                 Type = "ReleasePayment",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Status = "Success",
+                PlatformFee = platformFee,
+                Description = $"Giải ngân dự án: {project.JobPost?.Title ?? "Dự án"}"
             });
 
             // Ghi phí sàn vào SystemTransactionLogs
