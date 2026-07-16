@@ -4,6 +4,7 @@ using AITasker_Modular.Database;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AITasker_Modular.Migrations
 {
     [DbContext(typeof(DataContext))]
-    partial class DataContextModelSnapshot : ModelSnapshot
+    [Migration("20260712082702_AddNewExpertProfileFields")]
+    partial class AddNewExpertProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -102,7 +105,7 @@ namespace AITasker_Modular.Migrations
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             TotalBalance = 0m,
-                            UpdatedAt = new DateTime(2026, 7, 16, 2, 26, 57, 62, DateTimeKind.Utc).AddTicks(2204)
+                            UpdatedAt = new DateTime(2026, 7, 12, 8, 26, 58, 908, DateTimeKind.Utc).AddTicks(8366)
                         });
                 });
 
@@ -894,12 +897,6 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime?>("EmailVerificationExpiry")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("EmailVerificationToken")
                         .HasColumnType("longtext");
 
                     b.Property<string>("FullName")

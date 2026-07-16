@@ -10,8 +10,9 @@ using AITasker_Modular.Modules.AdminModule;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
-using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 using System;
+using AITasker_Modular.Helpers;
+using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
@@ -113,6 +114,7 @@ builder.Services.AddScoped<IJobPostService, JobPostService>();
 builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
 builder.Services.AddSingleton<GeminiUtil>();
 builder.Services.AddScoped<AiChatService>(); 
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 var app = builder.Build();
 app.UseResponseCompression();
