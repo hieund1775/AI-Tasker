@@ -1,5 +1,5 @@
 import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 
 function HoverCard({ ...props }) {
   return <HoverCardPrimitive.Root data-slot="hover-card" {...props} />;
@@ -11,12 +11,7 @@ function HoverCardTrigger({ ...props }) {
   );
 }
 
-function HoverCardContent({
-  className,
-  align = "center",
-  sideOffset = 4,
-  ...props
-}) {
+function HoverCardContent({ className, align = "center", sideOffset = 4, ...props }) {
   return (
     <HoverCardPrimitive.Portal data-slot="hover-card-portal">
       <HoverCardPrimitive.Content

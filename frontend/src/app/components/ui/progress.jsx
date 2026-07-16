@@ -1,5 +1,5 @@
 import * as ProgressPrimitive from "@radix-ui/react-progress";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 
 function Progress({ className, value, ...props }) {
   return (

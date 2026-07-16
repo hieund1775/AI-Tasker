@@ -1,18 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
+import { useAuth } from "../../hooks/useAuth.js";
+import { Button } from "../../components/ui/button.jsx";
+import api from "../../../services/api.js";
 import {
   Bell,
   CheckCheck,
   FileText,
   MessageSquare,
-  DollarSign,
+  ReceiptText,
   RefreshCcw,
   AlertCircle,
   Clock,
+  Sparkles,
 } from "lucide-react";
 
-// TODO: Replace with API call when backend is ready
-import { DEMO_CLIENT_ID } from "../../lib/demoConfig.js";
 import { timeAgo } from "../../lib/dateUtils.js";
 
 // ---------------------------------------------------------------------------
@@ -22,7 +24,7 @@ import { timeAgo } from "../../lib/dateUtils.js";
 const typeIcons = {
   proposal: FileText,
   task: CheckCheck,
-  payment: DollarSign,
+  payment: ReceiptText,
   extension: RefreshCcw,
   message: MessageSquare,
   system: AlertCircle,
@@ -30,158 +32,259 @@ const typeIcons = {
 };
 
 const typeColors = {
-  proposal: "bg-purple-100 text-purple-700",
-  task: "bg-blue-100 text-blue-700",
-  payment: "bg-green-100 text-green-700",
-  extension: "bg-orange-100 text-orange-700",
-  message: "bg-indigo-100 text-indigo-700",
-  system: "bg-gray-100 text-gray-700",
-  dispute: "bg-red-100 text-red-700",
+  proposal: "bg-accent/10 text-accent",
+  task: "bg-success/10 text-success",
+  payment: "bg-success/10 text-success",
+  extension: "bg-warning/10 text-warning",
+  message: "bg-primary/10 text-primary",
+  system: "bg-muted text-muted-foreground",
+  dispute: "bg-destructive/10 text-destructive",
 };
+
+const typeBorderColors = {
+  proposal: "border-l-accent",
+  task: "border-l-success",
+  payment: "border-l-success",
+  extension: "border-l-warning",
+  message: "border-l-primary",
+  system: "border-l-muted-foreground",
+  dispute: "border-l-destructive",
+};
+
+const typeLabels = {
+  proposal: "Proposal",
+  task: "Task Update",
+  payment: "Payment",
+  extension: "Extension",
+  message: "Message",
+  system: "System",
+  dispute: "Dispute",
+};
+
+// ---------------------------------------------------------------------------
+// Date grouping helper
+// ---------------------------------------------------------------------------
+
+function groupByDate(notifications) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const groups = { Today: [], Yesterday: [], Earlier: [] };
+
+  for (const n of notifications) {
+    const created = new Date(n.createdAt);
+    created.setHours(0, 0, 0, 0);
+    if (created.getTime() === today.getTime()) {
+      groups.Today.push(n);
+    } else if (created.getTime() === yesterday.getTime()) {
+      groups.Yesterday.push(n);
+    } else {
+      groups.Earlier.push(n);
+    }
+  }
+
+  return Object.entries(groups)
+    .filter(([_, items]) => items.length > 0)
+    .map(([label, items]) => ({ label, items }));
+}
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function NotificationsPage() {
+  const { role, user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchNotifications() {
-      // TODO: Replace with API call when backend is ready
-      const data = [];
-      if (!cancelled && Array.isArray(data)) {
-        setNotifications(data);
+  const fetchNotifications = async () => {
+    try {
+      const data = await api.notifications.getList({ userId: user?.id });
+      if (Array.isArray(data)) {
+        const filtered = data.filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014");
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setNotifications(filtered);
       }
-      if (!cancelled) setLoading(false);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchNotifications();
-    return () => { cancelled = true; };
+
+    const handleUpdate = () => {
+      fetchNotifications();
+    };
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+    };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const groups = useMemo(() => groupByDate(notifications), [notifications]);
 
-  const handleMarkRead = (id) => {
-    // Optimistic update
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    );
-    // TODO: Replace with API call when backend is ready
+  const handleMarkRead = async (id) => {
+    try {
+      await api.notifications.markRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+      );
+    } catch (err) {
+      console.error("Failed to mark notification as read:", err);
+    }
   };
 
-  const handleMarkAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-    setActionFeedback("All notifications marked as read.");
-    setTimeout(() => setActionFeedback(null), 3000);
-    // TODO: Replace with API call when backend is ready
+  const handleMarkAllRead = async () => {
+    try {
+      await api.notifications.markAllRead({ userId: user?.id });
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      setActionFeedback("All notifications marked as read.");
+      setTimeout(() => setActionFeedback(null), 3000);
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
   };
 
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 bg-gray-200 rounded-xl" />
+          <div className="h-8 bg-secondary rounded w-48" />
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-20 bg-secondary rounded-xl" />
           ))}
         </div>
       </div>
     );
   }
 
+  const themeDot = role === "expert" ? "bg-success" : role === "client" ? "bg-destructive" : "bg-primary";
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
-          <p className="text-gray-600 mt-1">
-            {unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
-              : "All caught up!"}
-          </p>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4 -mt-8 mb-6 border-b border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
+            {unreadCount > 0 && (
+              <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-bold">
+                {unreadCount}
+              </span>
+            )}
+          </div>
+          {unreadCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={CheckCheck}
+              onClick={handleMarkAllRead}
+            >
+              Mark All Read
+            </Button>
+          )}
         </div>
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={handleMarkAllRead}
-            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2"
-          >
-            <CheckCheck className="w-4 h-4" /> Mark All as Read
-          </button>
-        )}
       </div>
 
       {/* Feedback */}
       {actionFeedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success animate-fade-in">
           {actionFeedback}
         </div>
       )}
 
-      {/* Notification list */}
+      {/* Notification list grouped by date */}
       {notifications.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">No notifications</h3>
-          <p className="text-sm text-gray-400">You&apos;re all caught up!</p>
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
+          <div className="relative w-20 h-20 mx-auto mb-5">
+            <div className="absolute inset-0 rounded-full bg-muted/40 animate-pulse" />
+            <div className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+              <Bell className="w-9 h-9 text-muted-foreground/30" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-foreground/70 mb-2">All caught up!</h3>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            When someone interacts with your projects, proposals, or messages, you&apos;ll see notifications here.
+          </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {notifications.map((notif) => {
-            const Icon = typeIcons[notif.type] || Bell;
-            const colorClass = typeColors[notif.type] || "bg-gray-100 text-gray-700";
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <div key={group.label}>
+              {/* Group header */}
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
+                {group.label}
+              </h3>
 
-            const content = (
-              <div
-                className={`flex items-start gap-4 p-5 rounded-xl border transition cursor-pointer ${
-                  notif.isRead
-                    ? "bg-white border-gray-200 hover:border-gray-300"
-                    : "bg-blue-50/40 border-blue-200 hover:border-blue-300"
-                }`}
-                onClick={() => !notif.isRead && handleMarkRead(notif.id)}
-              >
-                {/* Icon */}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
+              <div className="space-y-1.5">
+                {group.items.map((notif) => {
+                  const Icon = typeIcons[notif.type] || Bell;
+                  const iconBg = notif.isRead ? "bg-muted text-muted-foreground" : typeColors[notif.type] || "bg-primary/10 text-primary";
+                  const borderColor = notif.isRead ? "" : typeBorderColors[notif.type] || "border-l-accent";
+                  const typeLabel = typeLabels[notif.type] || "Update";
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className={`text-sm ${notif.isRead ? "font-medium text-gray-700" : "font-semibold text-gray-900"}`}>
-                      {notif.title}
-                      {!notif.isRead && (
-                        <span className="inline-block w-2 h-2 bg-blue-600 rounded-full ml-2 align-middle" />
-                      )}
-                    </h3>
-                    <span className="text-xs text-gray-400 flex-shrink-0 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {timeAgo(notif.createdAt)}
-                    </span>
-                  </div>
-                  <p className={`text-sm mt-1 ${notif.isRead ? "text-gray-500" : "text-gray-700"}`}>
-                    {notif.description || notif.message}
-                  </p>
-                </div>
+                  const content = (
+                    <div
+                      className={`group flex items-start gap-4 p-4 rounded-xl border border-border transition-all duration-200 cursor-pointer
+                        ${notif.isRead
+                          ? "bg-card hover:bg-secondary/30 border-l-4 border-l-transparent"
+                          : `bg-card border-l-4 ${borderColor} shadow-sm hover:shadow-md hover:-translate-y-0.5`
+                        }`}
+                      onClick={() => !notif.isRead && handleMarkRead(notif.id)}
+                    >
+                      {/* Icon */}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105 ${iconBg}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                {typeLabel}
+                              </span>
+                              {!notif.isRead && (
+                                <span className={`inline-block w-2 h-2 ${themeDot} rounded-full animate-sparkle-pulse`} />
+                              )}
+                            </div>
+                            <h3 className={`text-sm ${notif.isRead ? "font-medium text-foreground/60" : "font-semibold text-foreground"}`}>
+                              {notif.title}
+                            </h3>
+                          </div>
+                          <span className="text-xs text-muted-foreground flex-shrink-0 flex items-center gap-1 pt-0.5">
+                            <Clock className="w-3 h-3" />
+                            {timeAgo(notif.createdAt)}
+                          </span>
+                        </div>
+                        <p className={`text-sm mt-1 leading-relaxed ${notif.isRead ? "text-muted-foreground/60" : "text-foreground/75"}`}>
+                          {notif.message || notif.description || notif.content}
+                        </p>
+                      </div>
+                    </div>
+                  );
+
+                  const redirectUrl = notif.linkTo || notif.actionUrl || notif.linkUrl || notif.link;
+                  if (redirectUrl) {
+                    return (
+                      <Link key={notif.id} to={redirectUrl} className="block">
+                        {content}
+                      </Link>
+                    );
+                  }
+                  return <div key={notif.id}>{content}</div>;
+                })}
               </div>
-            );
-
-            // Wrap in Link if there's an actionUrl, otherwise plain div
-            if (notif.actionUrl) {
-              return (
-                <Link key={notif.id} to={notif.actionUrl} className="block">
-                  {content}
-                </Link>
-              );
-            }
-            return <div key={notif.id}>{content}</div>;
-          })}
+            </div>
+          ))}
         </div>
       )}
     </div>

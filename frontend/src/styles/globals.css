@@ -1,4 +1,34 @@
-/* Expert Dashboard — responsive panel heights */
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* ── Selection styling ── */
+::selection {
+  background: color-mix(in srgb, #3b82f6 20%, transparent);
+  color: inherit;
+}
+
+/* ── Smooth page transitions ── */
+main {
+  animation: page-enter 0.25s ease-out;
+}
+
+/* ── Expert Dashboard — responsive panel heights ── */
 .expert-dashboard-panel {
   overflow-y: auto;
 }
@@ -9,4 +39,12 @@
     min-height: unset !important;
     max-height: 600px;
   }
+}
+
+/* ── Table row hover utility ── */
+.table-row-hover tbody tr {
+  transition: background-color 0.15s ease;
+}
+.table-row-hover tbody tr:hover {
+  background-color: color-mix(in srgb, var(--accent) 3%, transparent);
 }

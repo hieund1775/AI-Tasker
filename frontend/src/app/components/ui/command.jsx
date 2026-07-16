@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Command as CommandPrimitive } from "cmdk";
 import { SearchIcon } from "lucide-react";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 import {
   Dialog,
   DialogContent,
@@ -23,12 +23,7 @@ function Command({ className, ...props }) {
   );
 }
 
-function CommandDialog({
-  title = "Command Palette",
-  description = "Search for a command to run...",
-  children,
-  ...props
-}) {
+function CommandDialog({ title = "Command Palette", description = "Search for a command to run...", children, ...props }) {
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">

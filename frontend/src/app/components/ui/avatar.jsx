@@ -1,5 +1,5 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
-import { cn } from "../lib/utils.js";
+import { cn } from "../../lib/utils.js";
 
 function Avatar({ className, ...props }) {
   return (

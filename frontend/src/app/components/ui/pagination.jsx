@@ -1,9 +1,5 @@
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  MoreHorizontalIcon,
-} from "lucide-react";
-import { cn } from "../lib/utils.js";
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
+import { cn } from "../../lib/utils.js";
 import { buttonVariants } from "./button.jsx";
 
 function Pagination({ className, ...props }) {
@@ -83,7 +79,7 @@ function PaginationEllipsis({ className, ...props }) {
     <span
       aria-hidden
       data-slot="pagination-ellipsis"
-      className={cn("flex size-9 items-center justify-center", className)}
+      className={cn("flex size-10 items-center justify-center", className)}
       {...props}
     >
       <MoreHorizontalIcon className="size-4" />
