@@ -1,20 +1,18 @@
-using AITasker_Modular.Modules.AiModule;
-
 namespace AITasker_Modular.Modules.AiModule;
 
-public class AiChatService
+public class MiniTaskAnalysisService
 {
     private readonly GeminiUtil _geminiUtil;
     private readonly AiPromptHelper _promptHelper;
-    private const string PromptFileName = "ai-system-prompt.md";
+    private const string PromptFileName = "minitask-system-prompt.md";
 
-    public AiChatService(GeminiUtil geminiUtil, AiPromptHelper promptHelper)
+    public MiniTaskAnalysisService(GeminiUtil geminiUtil, AiPromptHelper promptHelper)
     {
         _geminiUtil = geminiUtil;
         _promptHelper = promptHelper;
     }
 
-    public async Task<AiStructuredResponse> ProcessChatSessionAsync(AIChatRequest request)
+    public async Task<AiStructuredResponse> AnalyzeMiniTasksAsync(MiniTaskAnalysisRequest request)
     {
         var systemPrompt = _promptHelper.GetSystemPrompt(PromptFileName);
         var partsList = new List<object>();

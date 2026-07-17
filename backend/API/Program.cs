@@ -3,10 +3,10 @@ using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
-using AITasker_Modular.Modules.JobPostModule; 
+using AITasker_Modular.Modules.JobPostModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Modules.AdminModule; 
+using AITasker_Modular.Modules.AdminModule;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
@@ -108,13 +108,17 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<AITasker_Modular.Modules.DisputeModule.IDisputeService, AITasker_Modular.Modules.DisputeModule.DisputeService>();
 
 // --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
-builder.Services.AddScoped<IJobPostService, JobPostService>(); 
+builder.Services.AddScoped<IJobPostService, JobPostService>();
 
 // --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
 builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
 builder.Services.AddSingleton<GeminiUtil>();
-builder.Services.AddScoped<AiChatService>(); 
+builder.Services.AddScoped<AiChatService>();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.MiniTaskAnalysisService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.AiPromptHelper>();
 
 var app = builder.Build();
 app.UseResponseCompression();

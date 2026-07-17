@@ -7,16 +7,12 @@ public class AIChatRequest
     [JsonPropertyName("messages_history")]
     public List<AIMessageDto> MessagesHistory { get; set; } = new();
 
-    // Chuỗi tóm tắt ngữ cảnh cũ do FE lưu trữ và gửi ngược lên
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 
-    // Giữ lại để không lỗi code FrontEnd cũ
     [JsonPropertyName("current_draft")]
     public object? CurrentDraft { get; set; }
 
-    // Đường dẫn tương đối của file đã upload sẵn qua /api/FileUpload/upload
-    // Ví dụ: "uploads/chat-files/abc123.docx"
     [JsonPropertyName("file_path")]
     public string? FilePath { get; set; }
 }
@@ -24,10 +20,23 @@ public class AIChatRequest
 public class AIMessageDto
 {
     [JsonPropertyName("role")]
-    public string Role { get; set; } = string.Empty; // "user" | "assistant"
+    public string Role { get; set; } = string.Empty;
 
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+}
+
+// Request cho tinh nang phan tich MiniTask tu Use Case
+public class MiniTaskAnalysisRequest
+{
+    [JsonPropertyName("messages_history")]
+    public List<AIMessageDto> MessagesHistory { get; set; } = new();
+
+    [JsonPropertyName("context_summary")]
+    public string ContextSummary { get; set; } = string.Empty;
+
+    [JsonPropertyName("file_path")]
+    public string? FilePath { get; set; }
 }
 
 public class AiStructuredResponse
@@ -38,11 +47,9 @@ public class AiStructuredResponse
     [JsonPropertyName("chat_message")]
     public string ChatMessage { get; set; } = string.Empty;
 
-    // Chứa bất kỳ cấu trúc JSON nào (Hợp đồng, Use Case, User Story...) dựa trên đề bài mới nhất
     [JsonPropertyName("payload")]
     public object? Payload { get; set; }
 
-    // Trả chuỗi tóm tắt context mới về cho FE lưu trữ để phục vụ lượt gọi sau
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 
@@ -55,7 +62,7 @@ public class AiStructuredResponse
     public static AiStructuredResponse ParseError(string rawText) => new()
     {
         Intent = "error",
-        ChatMessage = "The AI system cannot synchronize the dynamic data structure. Please resubmit the command.",
-        ValidationErrors = new List<string> { $"Data structure error: {rawText[..Math.Min(rawText.Length, 40)]}" }
+        ChatMessage = "He thong AI khong the dong bo hoa cau truc du lieu dong. Vui long gui lai cau lenh.",
+        ValidationErrors = new List<string> { $"Loi cau truc du lieu: {rawText[..Math.Min(rawText.Length, 40)]}" }
     };
 }
