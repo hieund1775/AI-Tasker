@@ -7,16 +7,12 @@ public class AIChatRequest
     [JsonPropertyName("messages_history")]
     public List<AIMessageDto> MessagesHistory { get; set; } = new();
 
-    // Chuoi tom tat ngu canh cu do FE luu tru va gui nguoc len
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 
-    // Giu lai de khong loi code FrontEnd cu
     [JsonPropertyName("current_draft")]
     public object? CurrentDraft { get; set; }
 
-    // Duong dan tuong doi cua file da upload san qua /api/FileUpload/upload
-    // Vi du: "uploads/chat-files/abc123.docx"
     [JsonPropertyName("file_path")]
     public string? FilePath { get; set; }
 }
@@ -24,10 +20,23 @@ public class AIChatRequest
 public class AIMessageDto
 {
     [JsonPropertyName("role")]
-    public string Role { get; set; } = string.Empty; // "user" | "assistant"
+    public string Role { get; set; } = string.Empty;
 
     [JsonPropertyName("content")]
     public string Content { get; set; } = string.Empty;
+}
+
+// Request cho tinh nang phan tich MiniTask tu Use Case
+public class MiniTaskAnalysisRequest
+{
+    [JsonPropertyName("messages_history")]
+    public List<AIMessageDto> MessagesHistory { get; set; } = new();
+
+    [JsonPropertyName("context_summary")]
+    public string ContextSummary { get; set; } = string.Empty;
+
+    [JsonPropertyName("file_path")]
+    public string? FilePath { get; set; }
 }
 
 public class AiStructuredResponse
@@ -38,11 +47,9 @@ public class AiStructuredResponse
     [JsonPropertyName("chat_message")]
     public string ChatMessage { get; set; } = string.Empty;
 
-    // Chua bat ky cau truc JSON nao (Hop dong, Use Case, User Story...) dua tren de bai moi nhat
     [JsonPropertyName("payload")]
     public object? Payload { get; set; }
 
-    // Tra chuoi tom tat context moi ve cho FE luu tru de phuc vu luot goi sau
     [JsonPropertyName("context_summary")]
     public string ContextSummary { get; set; } = string.Empty;
 

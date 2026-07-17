@@ -1,4 +1,4 @@
-﻿using AITasker_Modular.Database;
+using AITasker_Modular.Database;
 using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
@@ -107,7 +107,9 @@ builder.Services.AddScoped<IJobPostService, JobPostService>();
 // --- ÄÄ‚NG KÃ Há»† THá»NG AI MODULE ---
 builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gá»i ZaloPay
 builder.Services.AddSingleton<GeminiUtil>();
-builder.Services.AddScoped<AiChatService>(); 
+builder.Services.AddScoped<AiChatService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.MiniTaskAnalysisService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.AiPromptHelper>(); 
 
 var app = builder.Build();
 
