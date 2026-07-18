@@ -27,13 +27,65 @@ public class EmailService : IEmailService
     {
         var provider = _configuration["EmailSettings:Provider"] ?? "SMTP";
 
-        if (provider.Equals("Resend", StringComparison.OrdinalIgnoreCase))
+        if (provider.Equals("Brevo", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendViaBrevoAsync(toEmail, subject, body);
+        }
+        else if (provider.Equals("Resend", StringComparison.OrdinalIgnoreCase))
         {
             await SendViaResendAsync(toEmail, subject, body);
         }
         else
         {
             await SendViaSmtpAsync(toEmail, subject, body);
+        }
+    }
+
+    private async Task SendViaBrevoAsync(string toEmail, string subject, string body)
+    {
+        var apiKey = _configuration["EmailSettings:ApiKey"];
+        var senderName = _configuration["EmailSettings:SenderName"] ?? "AI-Tasker System";
+        var senderEmail = _configuration["EmailSettings:SenderEmail"] ?? "no-reply@aitasker.com";
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            _logger.LogWarning("Brevo ApiKey is not configured. Email printed to console instead.");
+            LogMockEmail(toEmail, subject, body);
+            return;
+        }
+
+        try
+        {
+            var client = _httpClientFactory.CreateClient();
+            client.Timeout = TimeSpan.FromSeconds(5);
+            client.DefaultRequestHeaders.Add("api-key", apiKey);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var payload = new
+            {
+                sender = new { name = senderName, email = senderEmail },
+                to = new[] { new { email = toEmail } },
+                subject = subject,
+                htmlContent = body
+            };
+
+            var response = await client.PostAsJsonAsync("https://api.brevo.com/v3/smtp/email", payload);
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation($"Email sent to {toEmail} successfully via Brevo API.");
+            }
+            else
+            {
+                var errorResponse = await response.Content.ReadAsStringAsync();
+                _logger.LogError($"Failed to send email via Brevo API. Status code: {response.StatusCode}. Response: {errorResponse}");
+                LogMockEmail(toEmail, subject, body);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to send email to {toEmail} via Brevo. Falling back to logger.");
+            LogMockEmail(toEmail, subject, body);
         }
     }
 
