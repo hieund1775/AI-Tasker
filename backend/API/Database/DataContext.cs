@@ -59,6 +59,11 @@ public class DataContext : DbContext
     public DbSet<JobPostTask> JobPostTasks { get; set; }
     public DbSet<JobPostMiniTask> JobPostMiniTasks { get; set; }
     
+    // NEW DB SETS FOR REQUIREMENT FIXES:
+    public DbSet<ProjectExtension> ProjectExtensions { get; set; }
+    public DbSet<ProjectActivityLog> ProjectActivityLogs { get; set; }
+    public DbSet<TaskProgressLog> TaskProgressLogs { get; set; }
+    
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<Report> Reports { get; set; }
     public DbSet<Contract> Contracts { get; set; }

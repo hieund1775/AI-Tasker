@@ -10,6 +10,8 @@ public interface IUserService
     Task<bool> UpdateUserAsync(string userId, DTOs.UpdateUserDto dto);
     Task<(System.Collections.Generic.List<DTOs.UserDto>? Users, string? Error)> GetAllUsersAsync(string requesterId);
     Task<DTOs.UserDetailDto?> GetUserDetailByIdAsync(string id);
+    Task<DTOs.UserDto?> GetUserByIdAsync(string id);
+    Task<DTOs.DashboardStatsDto?> GetDashboardStatsAsync(Guid userId);
     Task<bool> IsStaffOrOwnerAsync(string userId);
     Task<bool> IsOwnerAsync(string userId);
     Task<bool> SetUserActiveStatusAsync(string userId, bool isActive);

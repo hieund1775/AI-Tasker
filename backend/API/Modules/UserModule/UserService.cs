@@ -922,4 +922,72 @@ public class UserService : IUserService
             }
         });
     }
+
+    public async Task<DTOs.UserDto?> GetUserByIdAsync(string id)
+    {
+        if (!Guid.TryParse(id, out var userGuid))
+            return null;
+
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+        if (user == null)
+            return null;
+
+        return new DTOs.UserDto
+        {
+            Id = user.Id.ToString(),
+            Email = user.Email,
+            FullName = user.FullName,
+            Role = user.Role,
+            Status = user.Status,
+            AvatarUrl = user.AvatarUrl,
+            CreatedAt = user.CreatedAt,
+            PhoneNumber = user.PhoneNumber
+        };
+    }
+
+    public async Task<DTOs.DashboardStatsDto?> GetDashboardStatsAsync(Guid userId)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return null;
+
+        var role = user.Role.Trim().ToLowerInvariant();
+        
+        int posted = 0;
+        int active = 0;
+        int completed = 0;
+        int proposals = 0;
+        decimal totalSpent = 0;
+
+        if (role == "client")
+        {
+            posted = await _context.JobPosts.CountAsync(j => j.ClientId == userId);
+            active = await _context.Projects.CountAsync(p => p.ClientId == userId && p.Status == "In Progress");
+            completed = await _context.Projects.CountAsync(p => p.ClientId == userId && p.Status == "Completed");
+            proposals = await _context.Proposals.CountAsync(p => p.JobPost != null && p.JobPost.ClientId == userId);
+            
+            totalSpent = await _context.TransactionLogs
+                .Where(t => t.SourceWalletId == userId && (t.Type == "ReleasePayment" || t.Type == "EscrowDeposit"))
+                .SumAsync(t => t.Amount);
+        }
+        else if (role == "expert")
+        {
+            posted = 0;
+            active = await _context.Projects.CountAsync(p => p.ExpertId == userId && p.Status == "In Progress");
+            completed = await _context.Projects.CountAsync(p => p.ExpertId == userId && p.Status == "Completed");
+            proposals = await _context.Proposals.CountAsync(p => p.ExpertId == userId);
+            
+            totalSpent = await _context.TransactionLogs
+                .Where(t => t.DestinationWalletId == userId && t.Type == "ReleasePayment")
+                .SumAsync(t => t.Amount);
+        }
+
+        return new DTOs.DashboardStatsDto
+        {
+            Posted = posted,
+            Active = active,
+            Completed = completed,
+            Proposals = proposals,
+            TotalSpent = totalSpent
+        };
+    }
 }

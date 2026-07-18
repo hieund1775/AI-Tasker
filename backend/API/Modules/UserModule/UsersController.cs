@@ -366,6 +366,53 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// GET /api/users/me
+    /// Lấy thông tin user hiện tại từ token.
+    /// </summary>
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentUser()
+    {
+        var (requesterId, errorResult) = this.GetRequesterId();
+        if (errorResult != null) return errorResult;
+
+        var user = await _userService.GetUserByIdAsync(requesterId!);
+        if (user == null)
+            return NotFound(new { message = "User not found." });
+
+        var isActive = !string.Equals(user.Status, "Disabled", StringComparison.OrdinalIgnoreCase) 
+                       && !string.Equals(user.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
+
+        return Ok(new
+        {
+            id = user.Id,
+            email = user.Email,
+            fullName = user.FullName,
+            role = user.Role,
+            isActive = isActive
+        });
+    }
+
+    /// <summary>
+    /// GET /api/users/{userId}/dashboard-stats
+    /// Lấy thống kê tổng quan Dashboard.
+    /// </summary>
+    [HttpGet("{userId:guid}/dashboard-stats")]
+    public async Task<IActionResult> GetDashboardStats(Guid userId)
+    {
+        var stats = await _userService.GetDashboardStatsAsync(userId);
+        if (stats == null)
+            return NotFound(new { message = "User stats not found." });
+
+        return Ok(new
+        {
+            posted = stats.Posted,
+            active = stats.Active,
+            completed = stats.Completed,
+            proposals = stats.Proposals,
+            totalSpent = stats.TotalSpent
+        });
+    }
 }
 
 public class SetUserActiveDto
