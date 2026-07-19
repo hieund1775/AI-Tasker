@@ -668,8 +668,6 @@ public class ReportsController : ControllerBase
             EscrowPayExpert = r.EscrowPayExpert,
             PlatformFee = r.PlatformFee,
             PartnerRejectionReason = r.PartnerRejectionReason,
-            PartnerExplanation = r.PartnerExplanation,
-            PartnerEvidenceUrl = r.PartnerEvidenceUrl,
             AdminNote = r.AdminNote,
             ClientExplanation = r.ClientExplanation,
             ClientExplanationReason = r.ClientExplanationReason,

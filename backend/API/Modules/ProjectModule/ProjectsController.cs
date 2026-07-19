@@ -605,7 +605,7 @@ namespace AITasker_Modular.Modules.ProjectModule
             }
 
             extension.Status = normalizedStatus;
-            extension.ClientNote = req.ClientNote;
+            extension.ResponseNote = req.ResponseNote;
             extension.UpdatedAt = DateTime.UtcNow;
 
             if (normalizedStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase))
@@ -653,7 +653,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 Id = Guid.NewGuid(),
                 ProjectId = extension.ProjectId,
                 Action = normalizedStatus.Equals("Accepted", StringComparison.OrdinalIgnoreCase) ? "ExtensionApproved" : "ExtensionRejected",
-                Description = $"Yêu cầu gia hạn được duyệt: {normalizedStatus}. Ghi chú: {req.ClientNote}",
+                Description = $"Yêu cầu gia hạn được duyệt: {normalizedStatus}. Ghi chú: {req.ResponseNote}",
                 CreatedAt = DateTime.UtcNow,
                 ActorName = "Client"
             });
@@ -665,7 +665,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 id = extension.Id,
                 projectId = extension.ProjectId,
                 status = extension.Status,
-                clientNote = extension.ClientNote,
+                responseNote = extension.ResponseNote,
                 updatedAt = extension.UpdatedAt
             });
         }
@@ -803,7 +803,7 @@ namespace AITasker_Modular.Modules.ProjectModule
     public class ResolveExtensionRequest
     {
         public string Status { get; set; } = "Accepted";
-        public string? ClientNote { get; set; }
+        public string? ResponseNote { get; set; }
     }
 
     public class SubmitTaskLogRequest

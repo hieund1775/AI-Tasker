@@ -18,7 +18,7 @@ namespace AITasker_Modular.Modules.ProjectModule
         [Required]
         [MaxLength(50)]
         public string Status { get; set; } = "Pending"; // "Pending", "Accepted", "Rejected"
-        public string? ClientNote { get; set; }
+        public string? ResponseNote { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

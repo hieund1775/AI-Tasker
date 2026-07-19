@@ -9,11 +9,10 @@ namespace AITasker_Modular.Modules.InteractionModule
         public Guid ProjectId { get; set; }
         public Guid ClientId { get; set; }
         public Guid ExpertId { get; set; }
-        public string ContractTerms { get; set; } = string.Empty;
+        public string Terms { get; set; } = string.Empty;
+        public string? Notes { get; set; }
         public string Status { get; set; } = "Pending"; // "Pending" | "Active" | "Terminated"
-        public decimal TotalValue { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? SignedAt { get; set; }
 
         [System.Text.Json.Serialization.JsonIgnore]
         public Project? Project { get; set; }
