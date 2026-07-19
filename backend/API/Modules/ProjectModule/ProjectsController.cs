@@ -55,11 +55,34 @@ namespace AITasker_Modular.Modules.ProjectModule
         }
 
         [HttpPut("{id:guid}/status")]
-        public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
+        public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] ForceUpdateStatusDto dto)
         {
-            var result = await _projectService.UpdateProjectStatusAsync(id, status);
-            if (result == null) return NotFound("Project not found.");
-            return Ok(result);
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Status))
+                return BadRequest("Status cannot be empty.");
+
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound("Project not found.");
+
+            var cleanStatus = dto.Status.Trim();
+            project.Status = cleanStatus;
+
+            _context.ProjectActivityLogs.Add(new ProjectActivityLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = id,
+                Action = "ProjectStatusForceUpdated",
+                Description = $"Trạng thái dự án bị thay đổi trực tiếp thành: '{cleanStatus}'",
+                CreatedAt = DateTime.UtcNow,
+                ActorName = "System"
+            });
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                projectId = project.Id,
+                status = project.Status
+            });
         }
 
         [HttpPost("{id:guid}/submit-work")]
@@ -420,6 +443,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 EndDate = project.EndDate,
                 ProjectLink = project.ProjectLink,
                 ConversationId = project.ConversationId,
+                Metadata = project.Metadata,
                 Title = project.JobPost?.Title ?? string.Empty,
                 Budget = project.JobPost?.Budget ?? 0,
                 Category = project.JobPost?.Domain?.Name,
@@ -472,6 +496,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 EndDate = project.EndDate,
                 ProjectLink = project.ProjectLink,
                 ConversationId = project.ConversationId,
+                Metadata = project.Metadata,
                 Title = project.JobPost?.Title ?? string.Empty,
                 Budget = project.JobPost?.Budget ?? 0,
                 Category = project.JobPost?.Domain?.Name,
@@ -731,6 +756,40 @@ namespace AITasker_Modular.Modules.ProjectModule
                 updatedAt = task.UpdatedAt
             });
         }
+
+
+        /// <summary>
+        /// PUT /api/Projects/{projectId}/metadata
+        /// Lưu trữ lý do hủy kèo hoặc phân chia tiền tệ khi hủy dự án
+        /// </summary>
+        [HttpPut("{projectId:guid}/metadata")]
+        public async Task<IActionResult> UpdateProjectMetadata(Guid projectId, [FromBody] UpdateMetadataDto dto)
+        {
+            if (dto == null) return BadRequest("Metadata body is empty.");
+
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null) return NotFound("Project not found.");
+
+            project.Metadata = dto.Metadata;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                projectId = project.Id,
+                metadata = project.Metadata
+            });
+        }
+    }
+
+    public class ForceUpdateStatusDto
+    {
+        public string Status { get; set; } = string.Empty;
+    }
+
+    public class UpdateMetadataDto
+    {
+        public string? Metadata { get; set; }
     }
 
     // --- DTO CLASSES FOR NEW ENDPOINTS ---

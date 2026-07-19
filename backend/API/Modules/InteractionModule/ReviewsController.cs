@@ -81,7 +81,9 @@ namespace AITasker_Modular.Modules.InteractionModule
                 projectId = review.ProjectId,
                 rating = review.Rating,
                 comment = review.Comment,
-                createdAt = review.CreatedAt
+                createdAt = review.CreatedAt,
+                expertReply = review.ExpertReply,
+                replyCreatedAt = review.ReplyCreatedAt
             });
         }
 
@@ -109,7 +111,9 @@ namespace AITasker_Modular.Modules.InteractionModule
                 clientName = r.CreatedBy?.FullName ?? "Khách hàng ẩn danh",
                 rating = r.Rating,
                 comment = r.Comment ?? string.Empty,
-                createdAt = r.CreatedAt
+                createdAt = r.CreatedAt,
+                expertReply = r.ExpertReply,
+                replyCreatedAt = r.ReplyCreatedAt
             }).ToList();
 
             return Ok(new
@@ -119,6 +123,64 @@ namespace AITasker_Modular.Modules.InteractionModule
                 reviews = reviewsList
             });
         }
+
+        /// <summary>
+        /// PUT /api/Reviews/{reviewId}
+        /// Cho phép Client chỉnh sửa đánh giá
+        /// </summary>
+        [HttpPut("{reviewId:guid}")]
+        public async Task<IActionResult> UpdateReview(Guid reviewId, [FromBody] UpdateReviewDto dto)
+        {
+            if (dto == null) return BadRequest("Invalid update data.");
+            if (dto.Rating < 1 || dto.Rating > 5) return BadRequest("Rating must be between 1 and 5 stars.");
+
+            var review = await _context.Reviews.FindAsync(reviewId);
+            if (review == null) return NotFound("Review not found.");
+
+            review.Rating = dto.Rating;
+            review.Comment = dto.Comment;
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                id = review.Id,
+                projectId = review.ProjectId,
+                rating = review.Rating,
+                comment = review.Comment,
+                createdAt = review.CreatedAt,
+                expertReply = review.ExpertReply,
+                replyCreatedAt = review.ReplyCreatedAt
+            });
+        }
+
+        /// <summary>
+        /// POST /api/Reviews/{reviewId}/reply
+        /// Cho phép Expert trả lời đánh giá của Client
+        /// </summary>
+        [HttpPost("{reviewId:guid}/reply")]
+        public async Task<IActionResult> ReplyToReview(Guid reviewId, [FromBody] ReplyToReviewDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.ReplyContent))
+                return BadRequest("Reply content cannot be empty.");
+
+            var review = await _context.Reviews.FindAsync(reviewId);
+            if (review == null) return NotFound("Review not found.");
+
+            review.ExpertReply = dto.ReplyContent;
+            review.ReplyCreatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                id = review.Id,
+                projectId = review.ProjectId,
+                rating = review.Rating,
+                comment = review.Comment,
+                createdAt = review.CreatedAt,
+                expertReply = review.ExpertReply,
+                replyCreatedAt = review.ReplyCreatedAt
+            });
+        }
     }
 
     public class CreateReviewDto
@@ -126,5 +188,16 @@ namespace AITasker_Modular.Modules.InteractionModule
         public Guid ProjectId { get; set; }
         public int Rating { get; set; }
         public string? Comment { get; set; }
+    }
+
+    public class UpdateReviewDto
+    {
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    public class ReplyToReviewDto
+    {
+        public string ReplyContent { get; set; } = string.Empty;
     }
 }
