@@ -17,7 +17,7 @@ public class MiniTask
     public string? FeedbackContent { get; set; }
     public Guid? FeedbackSenderId { get; set; }
     public DateTime CreatedAt { get; set; }
-    public DateTime? Deadline { get; set; }
+    public int Duration { get; set; }
 
     // =========================================================================
     // THÊM MỚI 2 THUỘC TÍNH NÀY:

@@ -187,6 +187,21 @@ public class InteractionService : IInteractionService
                         systemWallet.TotalBalance += transactionLog.Amount;
                         systemWallet.UpdatedAt = DateTime.UtcNow;
                     }
+
+                    var sysLog = new SystemTransactionLog
+                    {
+                        Id = Guid.NewGuid(),
+                        ProjectId = transactionLog.ProjectId ?? Guid.Empty,
+                        Amount = transactionLog.Amount,
+                        Type = "PlatformFee",
+                        Description = transactionLog.Description ?? "Phí dịch vụ hệ thống",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.SystemTransactionLogs.Add(sysLog);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    return transactionLog;
                 }
 
                 transactionLog.Id = Guid.NewGuid();

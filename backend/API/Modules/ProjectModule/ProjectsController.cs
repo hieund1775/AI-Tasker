@@ -303,7 +303,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                     FeedbackContent = mt.FeedbackContent,
                     FeedbackSenderId = mt.FeedbackSenderId,
                     CreatedAt = mt.CreatedAt,
-                    Deadline = mt.Deadline,
+                    Duration = mt.Duration,
                     ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
                     ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                 }).ToList()
@@ -390,7 +390,7 @@ namespace AITasker_Modular.Modules.ProjectModule
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
                 return BadRequest("Mini-task title cannot be empty.");
 
-            var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.DeadlineDays);
+            var result = await _projectService.CreateMiniTaskAsync(taskId, dto.Title, dto.Duration);
             if (result == null)
                 return NotFound("Task not found.");
 
@@ -406,7 +406,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                 dto.IsCompleted, 
                 dto.FeedbackContent, 
                 dto.FeedbackSenderId, 
-                dto.DeadlineDays, 
+                dto.Duration, 
                 dto.ProductLink, 
                 dto.ProductFile);
             if (result == null) return NotFound("Mini-task not found.");
@@ -472,7 +472,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                         FeedbackContent = mt.FeedbackContent,
                         FeedbackSenderId = mt.FeedbackSenderId,
                         CreatedAt = mt.CreatedAt,
-                        Deadline = mt.Deadline,
+                        Duration = mt.Duration,
                         ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
                         ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                     }).ToList()
@@ -525,7 +525,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                         FeedbackContent = mt.FeedbackContent,
                         FeedbackSenderId = mt.FeedbackSenderId,
                         CreatedAt = mt.CreatedAt,
-                        Deadline = mt.Deadline,
+                        Duration = mt.Duration,
                         ProductLink = mt.ProductLink, // THÊM MỚI MAPPING
                         ProductFile = mt.ProductFile  // THÊM MỚI MAPPING
                     }).ToList()
@@ -617,10 +617,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                         .ToListAsync();
                     foreach (var mt in miniTasks)
                     {
-                        if (mt.Deadline.HasValue)
-                        {
-                            mt.Deadline = mt.Deadline.Value.AddDays(extension.RequestedDays);
-                        }
+                        mt.Duration += extension.RequestedDays;
                     }
                 }
                 else
@@ -635,10 +632,7 @@ namespace AITasker_Modular.Modules.ProjectModule
                         .ToListAsync();
                     foreach (var mt in miniTasks)
                     {
-                        if (mt.Deadline.HasValue)
-                        {
-                            mt.Deadline = mt.Deadline.Value.AddDays(extension.RequestedDays);
-                        }
+                        mt.Duration += extension.RequestedDays;
                     }
 
                     if (extension.Project != null)

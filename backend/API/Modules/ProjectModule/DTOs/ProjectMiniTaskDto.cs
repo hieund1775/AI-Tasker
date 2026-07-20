@@ -11,7 +11,7 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
         public string? FeedbackContent { get; set; }
         public Guid? FeedbackSenderId { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DateTime? Deadline { get; set; }
+        public int Duration { get; set; }
         // THÊM MỚI 2 TRƯỜNG NÀY:
         public string? ProductLink { get; set; }
         public string? ProductFile { get; set; }

@@ -132,34 +132,6 @@ using (var scope = app.Services.CreateScope())
         var db = services.GetRequiredService<DataContext>();
         await db.Database.MigrateAsync();
 
-        using (var command = db.Database.GetDbConnection().CreateCommand())
-        {
-            await db.Database.OpenConnectionAsync();
-            command.CommandText = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'JobPosts' AND COLUMN_NAME = 'Deadline';";
-            var dataType = (string?)await command.ExecuteScalarAsync();
-            if (dataType != null && (dataType.Equals("datetime", StringComparison.OrdinalIgnoreCase) || dataType.Equals("datetime2", StringComparison.OrdinalIgnoreCase)))
-            {
-                command.CommandText = "ALTER TABLE JobPosts DROP COLUMN Deadline; ALTER TABLE JobPosts ADD Deadline INT NOT NULL DEFAULT 0;";
-                await command.ExecuteNonQueryAsync();
-            }
-
-            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Deadline';";
-            var miniTaskDeadlineCol = (string?)await command.ExecuteScalarAsync();
-            if (miniTaskDeadlineCol == null)
-            {
-                command.CommandText = "ALTER TABLE MiniTasks ADD Deadline DATETIME NULL;";
-                await command.ExecuteNonQueryAsync();
-            }
-
-            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Duration';";
-            var miniTaskDurationCol = (string?)await command.ExecuteScalarAsync();
-            if (miniTaskDurationCol == null)
-            {
-                command.CommandText = "ALTER TABLE MiniTasks ADD Duration INT NOT NULL DEFAULT 0;";
-                await command.ExecuteNonQueryAsync();
-            }
-        }
-
         // Seed Domains
         if (!await db.Domains.AnyAsync())
         {
@@ -454,7 +426,7 @@ using (var scope = app.Services.CreateScope())
                 Title = "Viết script python cào log click",
                 IsCompleted = false,
                 CreatedAt = DateTime.UtcNow,
-                Deadline = DateTime.UtcNow.AddDays(7)
+                Duration = 7
             });
         }
 

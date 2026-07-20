@@ -25,16 +25,15 @@ public class Task
     public ICollection<MiniTask> MiniTasks { get; set; } = new List<MiniTask>();
 
     [NotMapped]
+    public int Duration => MiniTasks?.Sum(m => m.Duration) ?? 0;
+
+    [NotMapped]
     public DateTime? Deadline
     {
         get
         {
-            if (MiniTasks == null || !MiniTasks.Any()) return null;
-            var validDeadlines = MiniTasks
-                .Where(m => m.Deadline.HasValue)
-                .Select(m => m.Deadline!.Value)
-                .ToList();
-            return validDeadlines.Any() ? validDeadlines.Max() : null;
+            if (Project == null) return null;
+            return Project.StartDate.AddDays(Duration);
         }
     }
 

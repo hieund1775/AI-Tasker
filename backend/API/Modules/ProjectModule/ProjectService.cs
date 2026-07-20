@@ -28,7 +28,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
         _context = context;
     }
 
-    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, string? title, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? deadlineDays, string? productLink, string? productFile)
+    public async Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, string? title, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? duration, string? productLink, string? productFile)
     {
         var miniTask = await _context.MiniTasks.FirstOrDefaultAsync(x => x.Id == miniTaskId);
         if (miniTask == null) return null;
@@ -44,10 +44,10 @@ namespace AITasker_Modular.Modules.ProjectModule;
             miniTask.FeedbackContent = feedbackContent;
         }
         
-        // Cập nhật deadline nếu số ngày được truyền vào
-        if (deadlineDays.HasValue)
+        // Cập nhật duration nếu số ngày được truyền vào
+        if (duration.HasValue)
         {
-            miniTask.Deadline = DateTime.UtcNow.AddDays(deadlineDays.Value);
+            miniTask.Duration = duration.Value;
         }
 
         miniTask.ProductLink = productLink;
@@ -101,7 +101,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
         return task;
     }
 
-    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? deadlineDays)
+    public async Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? duration)
     {
         var miniTask = new MiniTask
         {
@@ -110,7 +110,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
             Title = title,
             IsCompleted = false,
             CreatedAt = DateTime.UtcNow,
-            Deadline = deadlineDays.HasValue ? DateTime.UtcNow.AddDays(deadlineDays.Value) : null
+            Duration = duration ?? 0
         };
 
         _context.MiniTasks.Add(miniTask);
@@ -279,7 +279,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
                                             Title = mDto.Title,
                                             IsCompleted = false,
                                             CreatedAt = DateTime.UtcNow,
-                                            Deadline = DateTime.UtcNow.AddDays(mDto.Duration)
+                                            Duration = mDto.Duration
                                         };
                                         _context.MiniTasks.Add(mt);
                                     }
@@ -316,7 +316,7 @@ namespace AITasker_Modular.Modules.ProjectModule;
                             Title = propMini.Title,
                             IsCompleted = false,
                             CreatedAt = DateTime.UtcNow,
-                            Deadline = DateTime.UtcNow.AddDays(propMini.Duration)
+                            Duration = propMini.Duration
                         };
                         _context.MiniTasks.Add(miniTask);
                     }
