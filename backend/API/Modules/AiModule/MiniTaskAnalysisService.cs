@@ -12,9 +12,17 @@ public class MiniTaskAnalysisService
 
     public async Task<AiStructuredResponse> AnalyzeMiniTasksAsync(MiniTaskAnalysisRequest request)
     {
-        var isClient = request.UserRole != null && request.UserRole.Equals("client", StringComparison.OrdinalIgnoreCase);
-        var promptFileName = isClient ? "client-minitask-system-prompt.md" : "expert-minitask-system-prompt.md";
-        var systemPrompt = _promptHelper.GetSystemPrompt(promptFileName);
+        if (request.UserRole != null && request.UserRole.Equals("client", StringComparison.OrdinalIgnoreCase))
+        {
+            return new AiStructuredResponse
+            {
+                Intent = "error",
+                ChatMessage = "Khach hang (Client) chi su dung AI Chat de soan thao User Story. Tinh nang phan tich MiniTask chi tiet danh rieng cho Chuyen gia (Expert).",
+                ValidationErrors = new List<string> { "Chuc nang analyze-minitasks khong ho tro vai tro Client." }
+            };
+        }
+
+        var systemPrompt = _promptHelper.GetSystemPrompt("expert-minitask-system-prompt.md");
         var partsList = new List<object>();
 
         if (!string.IsNullOrEmpty(request.ContextSummary))
