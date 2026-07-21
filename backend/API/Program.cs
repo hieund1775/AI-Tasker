@@ -118,6 +118,7 @@ builder.Services.AddScoped<AiChatService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.MiniTaskAnalysisService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.ExpertIntroService>();
 builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.AiPromptHelper>();
 
 var app = builder.Build();

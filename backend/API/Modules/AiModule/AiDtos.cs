@@ -72,3 +72,69 @@ public class AiStructuredResponse
         ValidationErrors = new List<string> { $"Loi cau truc du lieu: {rawText[..Math.Min(rawText.Length, 40)]}" }
     };
 }
+
+// DTO request cho tinh nang tu dong tao Introduction / Bio cho Expert
+public class GenerateExpertIntroRequest
+{
+    [JsonPropertyName("expert_id")]
+    public Guid ExpertId { get; set; }
+
+    // Target Project params (optional - dùng khi Expert muốn ứng tuyển vào 1 bài Post / Dự án cụ thể)
+    [JsonPropertyName("target_job_post_id")]
+    public Guid? TargetJobPostId { get; set; }
+
+    [JsonPropertyName("target_project_title")]
+    public string? TargetProjectTitle { get; set; }
+
+    [JsonPropertyName("target_project_description")]
+    public string? TargetProjectDescription { get; set; }
+
+    [JsonPropertyName("tone")]
+    public string? Tone { get; set; } = "Persuasive"; // E.g. Professional, Persuasive, Technical, Concise
+
+    [JsonPropertyName("purpose")]
+    public string? Purpose { get; set; } = "Proposal Introduction"; // E.g. Profile Bio, Proposal Introduction
+
+    [JsonPropertyName("custom_highlights")]
+    public string? CustomHighlights { get; set; }
+
+    [JsonPropertyName("language")]
+    public string? Language { get; set; } = "vi";
+}
+
+// DTO response cho tinh nang tu dong tao Introduction / Bio cho Expert
+public class GenerateExpertIntroResponse
+{
+    [JsonPropertyName("expert_id")]
+    public Guid ExpertId { get; set; }
+
+    [JsonPropertyName("generated_introduction")]
+    public string GeneratedIntroduction { get; set; } = string.Empty;
+
+    [JsonPropertyName("key_highlights")]
+    public List<string> KeyHighlights { get; set; } = new();
+
+    [JsonPropertyName("suggested_tagline")]
+    public string SuggestedTagline { get; set; } = string.Empty;
+
+    [JsonPropertyName("match_reasons")]
+    public List<string> MatchReasons { get; set; } = new();
+
+    [JsonPropertyName("used_data_summary")]
+    public ExpertIntroDataSummary UsedDataSummary { get; set; } = new();
+}
+
+public class ExpertIntroDataSummary
+{
+    [JsonPropertyName("skills_count")]
+    public int SkillsCount { get; set; }
+
+    [JsonPropertyName("projects_count")]
+    public int ProjectsCount { get; set; }
+
+    [JsonPropertyName("reviews_count")]
+    public int ReviewsCount { get; set; }
+
+    [JsonPropertyName("has_target_project")]
+    public bool HasTargetProject { get; set; }
+}

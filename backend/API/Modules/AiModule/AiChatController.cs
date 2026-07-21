@@ -9,11 +9,16 @@ namespace API.Modules.AiModule
     {
         private readonly AiChatService _aiChatService;
         private readonly MiniTaskAnalysisService _miniTaskAnalysisService;
+        private readonly ExpertIntroService _expertIntroService;
 
-        public AiChatController(AiChatService aiChatService, MiniTaskAnalysisService miniTaskAnalysisService)
+        public AiChatController(
+            AiChatService aiChatService,
+            MiniTaskAnalysisService miniTaskAnalysisService,
+            ExpertIntroService expertIntroService)
         {
             _aiChatService = aiChatService;
             _miniTaskAnalysisService = miniTaskAnalysisService;
+            _expertIntroService = expertIntroService;
         }
 
         // Sinh/chinh sua User Story tu Use Case
@@ -65,6 +70,36 @@ namespace API.Modules.AiModule
             catch (Exception ex)
             {
                 return StatusCode(500, new { error = "Loi he thong: " + ex.Message });
+            }
+        }
+
+        // Tu dong tao Introduction/Bio cho Expert dua tren Profile va du lieu du an
+        [HttpPost("generate-expert-introduction")]
+        public async Task<IActionResult> GenerateExpertIntroduction([FromBody] GenerateExpertIntroRequest request)
+        {
+            if (request == null || request.ExpertId == Guid.Empty)
+                return BadRequest(new { error = "Request body hoặc ExpertId không hợp lệ." });
+
+            try
+            {
+                var result = await _expertIntroService.GenerateExpertIntroductionAsync(request);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(502, new { error = "Lỗi kết nối API Gemini: " + ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Lỗi hệ thống: " + ex.Message });
             }
         }
     }
