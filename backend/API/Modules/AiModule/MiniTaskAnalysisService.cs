@@ -4,8 +4,6 @@ public class MiniTaskAnalysisService
 {
     private readonly GeminiUtil _geminiUtil;
     private readonly AiPromptHelper _promptHelper;
-    private const string PromptFileName = "minitask-system-prompt.md";
-
     public MiniTaskAnalysisService(GeminiUtil geminiUtil, AiPromptHelper promptHelper)
     {
         _geminiUtil = geminiUtil;
@@ -14,7 +12,9 @@ public class MiniTaskAnalysisService
 
     public async Task<AiStructuredResponse> AnalyzeMiniTasksAsync(MiniTaskAnalysisRequest request)
     {
-        var systemPrompt = _promptHelper.GetSystemPrompt(PromptFileName);
+        var isClient = request.UserRole != null && request.UserRole.Equals("client", StringComparison.OrdinalIgnoreCase);
+        var promptFileName = isClient ? "client-minitask-system-prompt.md" : "expert-minitask-system-prompt.md";
+        var systemPrompt = _promptHelper.GetSystemPrompt(promptFileName);
         var partsList = new List<object>();
 
         if (!string.IsNullOrEmpty(request.ContextSummary))

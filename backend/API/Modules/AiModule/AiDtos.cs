@@ -15,6 +15,9 @@ public class AIChatRequest
 
     [JsonPropertyName("file_path")]
     public string? FilePath { get; set; }
+
+    [JsonPropertyName("user_role")]
+    public string? UserRole { get; set; }
 }
 
 public class AIMessageDto
@@ -37,6 +40,9 @@ public class MiniTaskAnalysisRequest
 
     [JsonPropertyName("file_path")]
     public string? FilePath { get; set; }
+
+    [JsonPropertyName("user_role")]
+    public string? UserRole { get; set; }
 }
 
 public class AiStructuredResponse
