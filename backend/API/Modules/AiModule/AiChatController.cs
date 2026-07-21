@@ -23,8 +23,23 @@ namespace API.Modules.AiModule
             if (request == null)
                 return BadRequest(new { error = "Request body khong hop le." });
 
-            var result = await _aiChatService.ProcessChatSessionAsync(request);
-            return Ok(result);
+            try
+            {
+                var result = await _aiChatService.ProcessChatSessionAsync(request);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(502, new { error = "Loi ket noi API Gemini: " + ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Loi he thong: " + ex.Message });
+            }
         }
 
         // Phan tich mot Use Case thanh danh sach MiniTask chi tiet hon User Story
@@ -34,8 +49,23 @@ namespace API.Modules.AiModule
             if (request == null)
                 return BadRequest(new { error = "Request body khong hop le." });
 
-            var result = await _miniTaskAnalysisService.AnalyzeMiniTasksAsync(request);
-            return Ok(result);
+            try
+            {
+                var result = await _miniTaskAnalysisService.AnalyzeMiniTasksAsync(request);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(502, new { error = "Loi ket noi API Gemini: " + ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Loi he thong: " + ex.Message });
+            }
         }
     }
 }
