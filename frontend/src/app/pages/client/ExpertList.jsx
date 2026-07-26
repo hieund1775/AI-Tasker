@@ -64,6 +64,8 @@ export function ExpertList() {
   const [loading, setLoading] = useState(true);
   const [categoriesList, setCategoriesList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     async function loadExperts() {
@@ -126,14 +128,59 @@ export function ExpertList() {
               category: resolvedCatName || "AI & Computing",
               location: profile.location || "N/A",
               bio: profile.bio || u.bio || "No biography provided.",
-              rating: 4.8,
+              rating: null,
               completedProjects: profile.completedProjects || 0,
-              hourlyRate: profile.hourlyRate || 50,
+              hourlyRate: profile.hourlyRate || 0,
               skills: resolvedExpertSkills,
               avatar: null,
             };
           });
         setExperts(expertsOnly);
+
+        // Load full profile + evaluate for each expert in parallel
+        const expertIds = expertsOnly.map(e => e.id);
+        if (expertIds.length > 0) {
+          const [userResults, reviewResults] = await Promise.all([
+            Promise.allSettled(expertIds.map(eid => api.users.getById(eid))),
+            Promise.allSettled(expertIds.map(eid => api.reviews.getExpertReviews(eid))),
+          ]);
+
+          // Map full user data (completed projects from projects array, hourlyRate)
+          const userMap = {};
+          userResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const u = result.value;
+              const allProjects = u.projects || u.Projects || [];
+              const completedCount = allProjects.filter(p =>
+                ["completed", "complete", "resolved"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              userMap[expertIds[idx]] = {
+                completedProjects: completedCount,
+                hourlyRate: u.expertProfile?.hourlyRate || 0,
+              };
+            }
+          });
+
+          // Map evaluate (average rating)
+          const ratingMap = {};
+          reviewResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const reviewsList = result.value.reviews || [];
+              if (reviewsList.length > 0) {
+                const totalRating = reviewsList.reduce((sum, r) => sum + (r.rating || 0), 0);
+                const avg = (totalRating / reviewsList.length).toFixed(1).replace(".0", "");
+                ratingMap[expertIds[idx]] = avg;
+              }
+            }
+          });
+
+          setExperts(prev => prev.map(e => ({
+            ...e,
+            rating: ratingMap[e.id] || null,
+            completedProjects: userMap[e.id]?.completedProjects ?? e.completedProjects,
+            hourlyRate: userMap[e.id]?.hourlyRate ?? e.hourlyRate,
+          })));
+        }
       } catch (err) {
         console.error("Failed to load experts list:", err);
       } finally {
@@ -237,6 +284,7 @@ export function ExpertList() {
     setSelectedTech(new Set());
     setSelectedRatings(new Set());
     setSelectedExperience(new Set());
+    setCurrentPage(1);
   };
 
   const hasActiveFilters =
@@ -287,6 +335,11 @@ export function ExpertList() {
 
     return true;
   });
+
+  // Pagination
+  const totalPages = Math.max(Math.ceil(filtered.length / itemsPerPage), 1);
+  const activePage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedExperts = filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
 
   // ---- Render --------------------------------------------------------------
   return (
@@ -428,8 +481,9 @@ export function ExpertList() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((expert) => (
+          {paginatedExperts.map((expert) => (
             <div
               key={expert.id}
               className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors shadow-sm flex flex-col justify-between"
@@ -440,10 +494,16 @@ export function ExpertList() {
                   <h3 className="font-semibold text-foreground text-[15px] leading-snug">
                     {expert.name}
                   </h3>
-                  <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold inline-flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-success text-success" />
-                    {expert.rating}
-                  </span>
+                  {expert.rating && Number(expert.rating) > 0 ? (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold inline-flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-success text-success" />
+                      {expert.rating}
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs font-medium">
+                      None
+                    </span>
+                  )}
                 </div>
 
                 {/* ── Title + location ── */}
@@ -482,14 +542,14 @@ export function ExpertList() {
                     <span className="font-semibold text-foreground">
                       {expert.completedProjects}
                     </span>{" "}
-                    projects
+                    completed projects
                   </span>
                   <span className="text-muted-foreground/60">·</span>
                   <span className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
-                      ${expert.hourlyRate}
-                    </span>
-                    /hr
+                      {expert.hourlyRate}
+                    </span>{" "}
+                    USD/hr
                   </span>
                 </div>
               </div>
@@ -508,6 +568,47 @@ export function ExpertList() {
             </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-6 mt-6 border-t border-border">
+            <span className="text-sm text-muted-foreground">
+              Showing {(activePage - 1) * itemsPerPage + 1} to {Math.min(activePage * itemsPerPage, filtered.length)} of {filtered.length} experts
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      activePage === i + 1
+                        ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={activePage === totalPages}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

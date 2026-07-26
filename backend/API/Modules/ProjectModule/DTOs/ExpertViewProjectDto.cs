@@ -17,6 +17,7 @@ namespace AITasker_Modular.Modules.ProjectModule.DTOs
         public DateTime? EndDate { get; set; }
         public string? ProjectLink { get; set; }
         public Guid? ConversationId { get; set; }
+        public string? Metadata { get; set; }
         public string Title { get; set; } = string.Empty;
         public decimal Budget { get; set; }
         public string? Category { get; set; }

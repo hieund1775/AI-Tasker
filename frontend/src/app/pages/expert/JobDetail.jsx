@@ -10,13 +10,14 @@ import {
   Layers,
   CheckCircle2,
   FileText,
+  Paperclip,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
-import api from "../../../services/api.js";
+import api, { enrichFileUrl } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 
 export function JobDetail() {
@@ -66,6 +67,7 @@ export function JobDetail() {
 
         let invitationProposal = null;
         let hasSubmittedProp = false;
+        let extendedDeadlineStr = null;
         if (user && user.role === "expert") {
           try {
             const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
@@ -75,6 +77,17 @@ export function JobDetail() {
             hasSubmittedProp = myProposals.some(
               (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
             );
+            // Check for accepted proposal with extended deadline
+            const acceptedProposal = myProposals.find(p =>
+              p.jobPostId === project.id &&
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+            );
+            if (acceptedProposal?.projectId) {
+              try {
+                const storedDeadline = localStorage.getItem(`project_deadline_${acceptedProposal.projectId}`);
+                if (storedDeadline) extendedDeadlineStr = storedDeadline;
+              } catch (e) { /* ignore */ }
+            }
           } catch (e) {
             console.error("Failed to load proposals for job:", e);
           }
@@ -86,6 +99,7 @@ export function JobDetail() {
           setJob({
             ...project,
             client: clientInfo,
+            _extendedDeadline: extendedDeadlineStr, // store extended deadline for display
           });
           setInvitation(invitationProposal);
           setHasSubmitted(hasSubmittedProp);
@@ -161,8 +175,29 @@ export function JobDetail() {
 
   const deadlineText = (() => {
     if (!job.deadline) return null;
+
+    // Use extended deadline from localStorage if available (project extension approved)
+    if (job._extendedDeadline) {
+      return safeDateFormat(job._extendedDeadline, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, String(job._extendedDeadline));
+    }
+
+    // Convert numeric deadline (days) to actual date based on job creation date
     const num = Number(job.deadline);
-    if (!Number.isNaN(num) && num < 1000) return `${num} days`;
+    if (!Number.isNaN(num) && num < 1000) {
+      const startDate = new Date(job.createdAt || job.CreatedAt || Date.now());
+      if (!Number.isNaN(startDate.getTime())) {
+        const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+        return safeDateFormat(deadlineDate.toISOString(), {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }, `${num} days`);
+      }
+    }
     return safeDateFormat(job.deadline, {
       year: "numeric",
       month: "short",
@@ -277,6 +312,90 @@ export function JobDetail() {
               <p className="text-xs text-muted-foreground italic">No required skills listed.</p>
             )}
           </div>
+        </SectionCard>
+
+        {/* Project Attachments */}
+        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg">
+          {(() => {
+            const cached = job._attachments;
+            const rawBE = job.attachmentUrl || job.AttachmentUrl;
+            let files = [];
+            if (Array.isArray(cached) && cached.length > 0) {
+              files = cached;
+            } else if (typeof rawBE === "string" && rawBE.trim().length > 0) {
+              try {
+                const parsed = JSON.parse(rawBE);
+                files = Array.isArray(parsed) ? parsed : [{ name: rawBE.split("/").pop(), url: rawBE }];
+              } catch {
+                files = [{ name: rawBE.split("/").pop(), url: rawBE }];
+              }
+            }
+
+            // Deduplicate files by url
+            const uniqueFiles = [];
+            const seenUrls = new Set();
+            for (const f of files) {
+              const rawU = typeof f === "string" ? f : (f.url || f.Url || f.name);
+              if (rawU && !seenUrls.has(rawU)) {
+                seenUrls.add(rawU);
+                uniqueFiles.push(f);
+              }
+            }
+
+            if (uniqueFiles.length === 0) {
+              return <p className="text-sm text-muted-foreground italic">None</p>;
+            }
+
+            return (
+              <div className="flex flex-wrap gap-2">
+                {uniqueFiles.map((file, idx) => {
+                  const rawUrl = typeof file === "string" ? file : (file.url || file.Url || file.path || file.Path || "#");
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+
+                  let fileName = typeof file === "object" ? (file.name || file.Name || file.originalName || file.fileName) : null;
+                  if (!fileName && typeof rawUrl === "string") {
+                    const baseName = rawUrl.split("/").pop() || "Attachment";
+                    fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                    if (!fileName) fileName = baseName;
+                  }
+
+                  const handleDownloadFile = async (e) => {
+                    e.preventDefault();
+                    if (!fileUrl || fileUrl === "#") return;
+                    try {
+                      const res = await fetch(fileUrl);
+                      const blob = await res.blob();
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = fileName || "Project_Attachment";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      console.warn("Direct blob download failed, falling back to window.open:", err);
+                      window.open(fileUrl, "_blank");
+                    }
+                  };
+
+                  return (
+                    <a
+                      key={idx}
+                      href={fileUrl}
+                      onClick={handleDownloadFile}
+                      download={fileName || true}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                      title={`Download ${fileName}`}
+                    >
+                      <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{fileName || "Attachment"}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </SectionCard>
 
         {/* Stats */}

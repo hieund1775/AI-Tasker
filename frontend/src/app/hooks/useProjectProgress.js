@@ -89,9 +89,10 @@ export function useProjectProgress(projectId, role) {
       }
 
       // Derive final delivery fields
-      let parsedLink = { projectLink: proj.projectLink || proj.ProjectLink || "", projectFile: "", declineReason: "" };
+      let parsedLink = { projectLink: "", projectFile: "", declineReason: "" };
       const rawProjectLink = proj.projectLink || proj.ProjectLink || "";
-      if (rawProjectLink && rawProjectLink.trim().startsWith("{")) {
+      const isJsonString = typeof rawProjectLink === "string" && rawProjectLink.trim().startsWith("{");
+      if (isJsonString) {
         try {
           parsedLink = JSON.parse(rawProjectLink);
         } catch (e) {
@@ -99,7 +100,7 @@ export function useProjectProgress(projectId, role) {
         }
       }
       
-      proj.finalProjectLink = parsedLink.projectLink || rawProjectLink || "";
+      proj.finalProjectLink = isJsonString ? (parsedLink.projectLink || "") : rawProjectLink;
       proj.finalProjectFile = parsedLink.projectFile || proj.projectFile || proj.ProjectFile || "";
       proj.finalWorkDeclineReason = parsedLink.declineReason || proj.declineReason || proj.DeclineReason || "";
 
@@ -154,7 +155,7 @@ export function useProjectProgress(projectId, role) {
               localStorage.setItem(`project_status_${projectId}`, "inprogress");
             } else {
               // Initialize default status when all tasks are approved
-              const hasLink = !!(parsedLink.projectLink || proj.projectLink || proj.ProjectLink);
+              const hasLink = !!(parsedLink.projectLink || parsedLink.projectFile || proj.projectLink || proj.ProjectLink);
               const defaultStatus = hasLink ? "under_review" : "inprogress";
               localStorage.setItem(`project_status_${projectId}`, defaultStatus);
               proj.status = defaultStatus;
@@ -175,6 +176,7 @@ export function useProjectProgress(projectId, role) {
         proj.finalDeliveryStatus = "";
       }
 
+      // Backend now provides extension data, no need to merge from localStorage
       setProject(proj);
 
       let projTasks = [];

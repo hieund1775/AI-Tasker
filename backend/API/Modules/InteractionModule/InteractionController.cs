@@ -29,7 +29,27 @@ namespace AITasker_Modular.Modules.InteractionModule
         [HttpPost("transaction")]
         public async Task<IActionResult> Transaction([FromBody] TransactionLog transactionLog)
         {
-            return Ok(await _service.RecordTransactionAsync(transactionLog));
+            try
+            {
+                var result = await _service.RecordTransactionAsync(transactionLog);
+                return Ok(result);
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Collections.Generic.KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi xử lý hệ thống: " + ex.Message });
+            }
         }
     }
 }

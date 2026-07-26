@@ -7,13 +7,13 @@
 //   badge       — optional badge next to title
 //   actions     — optional action area (right-aligned in header)
 //   icon        — optional Lucide icon before title
-//   iconColor   — Tailwind color for icon container (default: "text-accent bg-accent-light")
+//   iconColor   — Tailwind color for icon container
 //   children    — card body content
 //   className   — additional classes
-//   variant     — "default" | "glass" | "subtle" | "warning" | "branded"
-//   padding     — override default padding ("sm" | "md" | "lg")
+//   variant     — "default" | "glass" | "subtle" | "warning" | "branded" | "gradient"
+//   padding     — "sm" | "md" | "lg"
 //   hover       — enable hover lift (default false)
-//   noBorder    — remove border for seamless layouts
+//   noBorder    — remove border
 // =============================================================================
 
 import { cn } from "../../lib/utils.js";
@@ -25,11 +25,12 @@ const PADDING = {
 };
 
 const VARIANTS = {
-  default: "bg-card border border-border shadow-sm",
-  glass: "bg-card/70 backdrop-blur-sm border border-border/60 shadow-sm",
+  default: "bg-card border border-border/70 shadow-sm",
+  glass: "glass-panel",
   subtle: "bg-secondary/60 border border-border/40 shadow-none",
   warning: "bg-card border border-warning/20 shadow-sm",
   branded: "bg-card border border-accent/15 shadow-sm",
+  gradient: "bg-card border border-border/70 shadow-sm gradient-card-surface",
 };
 
 export function SectionCard({
@@ -52,14 +53,13 @@ export function SectionCard({
   return (
     <div
       className={cn(
-        "rounded-2xl",
+        "rounded-2xl transition-all duration-300",
         noBorder ? "shadow-none" : v,
         p,
-        hover && "card-hover",
+        hover && "hover:shadow-md hover:border-accent/20 hover:-translate-y-0.5",
         className,
       )}
     >
-      {/* Section header */}
       {(title || actions || badge || Icon) && (
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -83,7 +83,7 @@ export function SectionCard({
                 </h3>
               )}
               {subtitle && (
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground/75 mt-0.5">
                   {subtitle}
                 </p>
               )}
@@ -97,7 +97,6 @@ export function SectionCard({
         </div>
       )}
 
-      {/* Body */}
       {children}
     </div>
   );

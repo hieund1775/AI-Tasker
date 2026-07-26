@@ -1,20 +1,19 @@
 import { cn } from "../../lib/utils.js";
 import { SearchX, FolderOpen, BellOff, MessageSquareOff, FileText, AlertTriangle, PackageOpen } from "lucide-react";
-import { motion } from "motion/react";
 
 // =============================================================================
-// EmptyState — reusable empty/not-found placeholder (premium design).
+// EmptyState — reusable empty/not-found placeholder.
 //
 // Props:
 //   icon         — Lucide icon component (optional, auto-detects based on type)
 //   title        — heading text (required)
 //   description  — supporting text (optional)
 //   action       — React node for a CTA button/link (optional)
-//   illustration — React node (optional) — rendered above the icon for branded visuals
+//   illustration — React node (optional)
 //   className    — additional classes for the outer wrapper
 //   size         — "sm" | "md" | "lg" (default "md")
 //   variant      — "default" | "minimal" (no border/bg, just centered content)
-//   type         — "empty" | "not-found" | "error" | "no-projects" | "no-notifications" | "no-messages" | "no-proposals"
+//   type         — "empty" | "not-found" | "error" | "no-projects" | etc.
 // =============================================================================
 
 const SIZES = {
@@ -106,16 +105,13 @@ export function EmptyState({
 
   const content = (
     <>
-      {/* Illustration (optional) */}
       {illustration && (
         <div className="mx-auto mb-5 flex items-center justify-center">
           {illustration}
         </div>
       )}
 
-      {/* Icon with decorative ring */}
       <div className="relative mx-auto mb-4 inline-flex items-center justify-center">
-        {/* Decorative dotted ring */}
         <div
           aria-hidden="true"
           className={cn(
@@ -125,10 +121,7 @@ export function EmptyState({
           style={{ borderColor: 'var(--border)' }}
         />
         {ResolvedIcon && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
+          <div
             className={cn(
               "rounded-full flex items-center justify-center relative z-[1]",
               s.iconWrapper,
@@ -136,7 +129,7 @@ export function EmptyState({
             )}
           >
             <ResolvedIcon className={cn(s.icon, t.iconColor)} />
-          </motion.div>
+          </div>
         )}
       </div>
 
@@ -156,22 +149,14 @@ export function EmptyState({
 
   if (variant === "minimal") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className={cn("text-center py-8 relative", className)}
-      >
+      <div className={cn("text-center py-8 relative", className)}>
         {content}
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
+    <div
       className={cn(
         "bg-card rounded-xl border border-border text-center relative",
         s.wrapper,
@@ -179,6 +164,6 @@ export function EmptyState({
       )}
     >
       {content}
-    </motion.div>
+    </div>
   );
 }

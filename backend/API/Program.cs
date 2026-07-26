@@ -3,15 +3,16 @@ using AITasker_Modular.Modules.CategoryTagModule;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.JobModule;
-using AITasker_Modular.Modules.JobPostModule; 
+using AITasker_Modular.Modules.JobPostModule;
 using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.UserModule;
-using AITasker_Modular.Modules.AdminModule; 
+using AITasker_Modular.Modules.AdminModule;
 using Microsoft.EntityFrameworkCore;
 using AITasker_Modular.Modules.ProposalModule;
 using AITasker_Modular.Modules.AiModule;
-using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 using System;
+using AITasker_Modular.Helpers;
+using ProjectTask = AITasker_Modular.Modules.ProjectModule.Task;
 
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
@@ -107,12 +108,18 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<AITasker_Modular.Modules.DisputeModule.IDisputeService, AITasker_Modular.Modules.DisputeModule.DisputeService>();
 
 // --- ĐỒNG BỘ ĐĂNG KÝ HỆ THỐNG JOBPOSTMODULE THỰC TẾ ---
-builder.Services.AddScoped<IJobPostService, JobPostService>(); 
+builder.Services.AddScoped<IJobPostService, JobPostService>();
 
 // --- ĐĂNG KÝ HỆ THỐNG AI MODULE ---
 builder.Services.AddHttpClient(); // IHttpClientFactory cho PaymentController gọi ZaloPay
 builder.Services.AddSingleton<GeminiUtil>();
-builder.Services.AddScoped<AiChatService>(); 
+builder.Services.AddScoped<AiChatService>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.MiniTaskAnalysisService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.ExpertIntroService>();
+builder.Services.AddScoped<AITasker_Modular.Modules.AiModule.AiPromptHelper>();
 
 var app = builder.Build();
 app.UseResponseCompression();
@@ -125,34 +132,6 @@ using (var scope = app.Services.CreateScope())
     {
         var db = services.GetRequiredService<DataContext>();
         await db.Database.MigrateAsync();
-
-        using (var command = db.Database.GetDbConnection().CreateCommand())
-        {
-            await db.Database.OpenConnectionAsync();
-            command.CommandText = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'JobPosts' AND COLUMN_NAME = 'Deadline';";
-            var dataType = (string?)await command.ExecuteScalarAsync();
-            if (dataType != null && (dataType.Equals("datetime", StringComparison.OrdinalIgnoreCase) || dataType.Equals("datetime2", StringComparison.OrdinalIgnoreCase)))
-            {
-                command.CommandText = "ALTER TABLE JobPosts DROP COLUMN Deadline; ALTER TABLE JobPosts ADD Deadline INT NOT NULL DEFAULT 0;";
-                await command.ExecuteNonQueryAsync();
-            }
-
-            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Deadline';";
-            var miniTaskDeadlineCol = (string?)await command.ExecuteScalarAsync();
-            if (miniTaskDeadlineCol == null)
-            {
-                command.CommandText = "ALTER TABLE MiniTasks ADD Deadline DATETIME NULL;";
-                await command.ExecuteNonQueryAsync();
-            }
-
-            command.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MiniTasks' AND COLUMN_NAME = 'Duration';";
-            var miniTaskDurationCol = (string?)await command.ExecuteScalarAsync();
-            if (miniTaskDurationCol == null)
-            {
-                command.CommandText = "ALTER TABLE MiniTasks ADD Duration INT NOT NULL DEFAULT 0;";
-                await command.ExecuteNonQueryAsync();
-            }
-        }
 
         // Seed Domains
         if (!await db.Domains.AnyAsync())
@@ -448,7 +427,7 @@ using (var scope = app.Services.CreateScope())
                 Title = "Viết script python cào log click",
                 IsCompleted = false,
                 CreatedAt = DateTime.UtcNow,
-                Deadline = DateTime.UtcNow.AddDays(7)
+                Duration = 7
             });
         }
 

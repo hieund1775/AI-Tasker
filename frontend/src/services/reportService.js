@@ -36,8 +36,40 @@ import api from "./api.js";
  * @param {object} payload
  * @returns {Promise<object>} created report
  */
+export async function uploadEvidenceFiles(evidenceList = []) {
+  if (!Array.isArray(evidenceList) || evidenceList.length === 0) return null;
+  const processed = [];
+  for (const item of evidenceList) {
+    if (item.file instanceof File) {
+      try {
+        const formData = new FormData();
+        formData.append("file", item.file);
+        const uploadRes = await api.post("/JobPosts/upload-file", formData, { isFormData: true }).catch(() => null);
+        const fileUrl = uploadRes?.url || uploadRes?.fileUrl || uploadRes?.data || "";
+        processed.push({
+          fileName: item.file.name,
+          fileUrl: fileUrl || item.file.name,
+          note: item.note || ""
+        });
+      } catch {
+        processed.push({
+          fileName: item.file.name,
+          fileUrl: item.file.name,
+          note: item.note || ""
+        });
+      }
+    } else if (item.file || item.fileUrl || item.name) {
+      processed.push({
+        fileName: (item.file && item.file.name) ? item.file.name : (item.fileName || item.name || "Evidence File"),
+        fileUrl: item.fileUrl || (typeof item.file === "string" ? item.file : ""),
+        note: item.note || ""
+      });
+    }
+  }
+  return processed.length > 0 ? JSON.stringify(processed) : null;
+}
+
 export async function createReport(payload) {
-  // Try to get reporterId from localStorage
   let reporterId = payload.reporterId;
   if (!reporterId) {
     try {
@@ -50,6 +82,13 @@ export async function createReport(payload) {
     } catch (e) {}
   }
 
+  let finalEvidenceUrl = payload.evidenceUrl || null;
+  if (Array.isArray(payload.evidence)) {
+    finalEvidenceUrl = await uploadEvidenceFiles(payload.evidence);
+  } else if (typeof payload.evidence === "string") {
+    finalEvidenceUrl = payload.evidence;
+  }
+
   const fullPayload = {
     projectId: payload.projectId,
     reporterId: reporterId,
@@ -59,9 +98,7 @@ export async function createReport(payload) {
     description: payload.description,
     disputeType: payload.disputeType,
     desiredResolution: payload.desiredResolution,
-    evidenceUrl: payload.evidenceUrl || (Array.isArray(payload.evidence) && payload.evidence.length > 0 
-      ? (typeof payload.evidence[0].file === "string" ? payload.evidence[0].file : (payload.evidence[0].name || "Uploaded file"))
-      : (typeof payload.evidence === "string" ? payload.evidence : null)),
+    evidenceUrl: finalEvidenceUrl,
   };
 
   if (fullPayload.reportType === "cancellation") {

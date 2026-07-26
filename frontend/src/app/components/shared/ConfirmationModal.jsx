@@ -17,11 +17,11 @@ import { Loader2 } from "lucide-react";
 
 const variantStyles = {
   danger:
-    "bg-destructive text-destructive-foreground hover:bg-destructive/85",
+    "bg-destructive text-destructive-foreground hover:bg-destructive/85 shadow-sm",
   warning:
-    "bg-warning text-warning-foreground hover:bg-warning/85",
+    "bg-warning text-warning-foreground hover:bg-warning/85 shadow-sm",
   default:
-    "bg-primary text-primary-foreground hover:bg-primary-hover",
+    "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm",
 };
 
 export function ConfirmationModal({

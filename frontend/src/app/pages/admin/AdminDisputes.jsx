@@ -119,18 +119,27 @@ export function AdminDisputes() {
       ),
     },
     {
-      key: "status",
+      key: "disputeType",
       label: "Dispute Type",
+      filterOptions: [
+        { value: "financial", label: "Financial Dispute" },
+        { value: "cancellation", label: "Cancellation Request" },
+        { value: "quality", label: "Quality Dispute" },
+        { value: "deadline", label: "Deadline Delay" },
+        { value: "communication", label: "Communication Issue" },
+        { value: "other", label: "Other" },
+      ],
       render: (val, row) => {
         const reportTypes = {
-          financial: "Financial dispute",
-          communication: "Communication issue",
-          quality: "Quality dispute",
-          deadline: "Deadline delay",
-          other: "Other dispute",
-          cancellation: "Cancellation request",
+          financial: "Financial Dispute",
+          communication: "Communication Issue",
+          quality: "Quality Dispute",
+          deadline: "Deadline Delay",
+          other: "Other",
+          cancellation: "Cancellation Request",
         };
-        const label = reportTypes[row.disputeType] || "Deadline delay";
+        const disputeKey = row.disputeType || val || "other";
+        const label = reportTypes[disputeKey] || disputeKey;
         const colors = {
           financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
           communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
@@ -139,7 +148,7 @@ export function AdminDisputes() {
           other: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
           cancellation: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
         };
-        const badgeClass = colors[row.disputeType] || colors.other;
+        const badgeClass = colors[disputeKey] || colors.other;
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
             {label}

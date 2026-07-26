@@ -18,6 +18,8 @@ import {
   Download,
   ExternalLink,
   FileText,
+  Upload,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "../../components/ui/button.jsx";
 import { useProjectProgress, deriveTaskDisplayStatus } from "../../hooks/useProjectProgress.js";
@@ -28,10 +30,12 @@ import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
+import { getTaskDeadlineInfo, isTaskOverdue } from "../../lib/taskDeadlineUtils.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 import { api } from "../../../services/api.js";
+import { enrichFileUrl } from "../../../services/api.js";
 import {
   notifyTaskSubmittedForReview,
   notifyTaskApproved,
@@ -42,6 +46,55 @@ import {
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+
+// ── Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) ──
+function resolveProductFile(productFile) {
+  if (!productFile) return null;
+  if (typeof productFile === "object" && (productFile.url || productFile.path)) {
+    const rawUrl = productFile.url || productFile.path;
+    return {
+      url: rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl),
+      name: productFile.name || rawUrl.split("/").pop(),
+    };
+  }
+  try {
+    const parsed = JSON.parse(productFile);
+    if (parsed && (parsed.url || parsed.fileUrl || parsed.path)) {
+      const fileUrl = parsed.url || parsed.fileUrl || parsed.path;
+      return {
+        url: fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl),
+        name: parsed.name || parsed.originalName || fileUrl.split("/").pop(),
+      };
+    }
+  } catch {
+    // Legacy: plain text filename or URL
+  }
+  const cleanStr = String(productFile).trim();
+  if (!cleanStr) return null;
+  return {
+    url: cleanStr.startsWith("http") ? cleanStr : enrichFileUrl(cleanStr),
+    name: cleanStr.split("/").pop().split("\\").pop(),
+  };
+}
+
+async function downloadFileBlob(rawUrl, fileName) {
+  if (!rawUrl || rawUrl === "#") return;
+  const enriched = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+  try {
+    const response = await fetch(enriched);
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = fileName || enriched.split("/").pop() || "downloaded-file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (err) {
+    window.open(enriched, "_blank");
+  }
+}
 
 // =============================================================================
 // TaskDetailPage — dedicated task detail page for both client and expert.
@@ -106,6 +159,7 @@ export default function TaskDetailPage() {
   const [showProductModal, setShowProductModal] = useState(false);
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
+  const [productFileObject, setProductFileObject] = useState(null);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
 
   // Client view product modal state
@@ -151,13 +205,34 @@ export default function TaskDetailPage() {
   // ---- Handlers ----
 
   const handleProductSubmit = useCallback(async () => {
-    if (!productLinkInput.trim() && !productFileInput.trim()) {
+    if (!productLinkInput.trim() && !productFileObject) {
       toast.error("Please provide a product link or file!");
       return;
     }
     setProductSubmitLoading(true);
     try {
-      const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
+      let productFileValue = "";
+      if (productFileObject) {
+        const formData = new FormData();
+        formData.append("file", productFileObject);
+        try {
+          const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+          if (result?.url) {
+            productFileValue = JSON.stringify({
+              url: result.url,
+              name: productFileObject.name,
+              size: productFileObject.size,
+              type: productFileObject.type,
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to upload product file:", err);
+          toast.error("File upload failed. Please try again.");
+          setProductSubmitLoading(false);
+          return;
+        }
+      }
+      const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileValue);
       if (success) {
         toast.success("Product submitted successfully!");
         setShowProductModal(false);
@@ -179,7 +254,7 @@ export default function TaskDetailPage() {
     } finally {
       setProductSubmitLoading(false);
     }
-  }, [taskId, productLinkInput, productFileInput, handleSubmitProduct, project, expert, task, projectId]);
+  }, [taskId, productLinkInput, productFileObject, handleSubmitProduct, project, expert, task, projectId]);
 
   const handleDoneClick = useCallback(async () => {
     setSubmitLoading(true);
@@ -336,7 +411,7 @@ export default function TaskDetailPage() {
 
   const displayStatus = task ? deriveTaskDisplayStatus(task) : "Not Started";
   const isDone = displayStatus === "Done";
-  const isWaitingForApproval = 
+  const isWaitingForApproval =
     task?.status?.toLowerCase() === "pending approval" ||
     task?.status?.toLowerCase() === "pending_approval" ||
     task?.status?.toLowerCase() === "waiting_for_approval" ||
@@ -351,8 +426,11 @@ export default function TaskDetailPage() {
   const isInProgress = displayStatus === "In Progress";
   const isDisputed = project?.status?.toLowerCase() === "disputed";
 
-  // Deadline info for badge
-  const deadlineInfo = task?.deadline ? getDeadlineInfo(task.deadline) : null;
+  // Deadline info for badge — use computed deadline from taskDeadlineUtils
+  const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, taskId, null) : null;
+  const computedDeadline = taskDeadlineData?.deadline || task?.deadline;
+  const deadlineInfo = computedDeadline ? getDeadlineInfo(computedDeadline) : null;
+  const taskOverdue = projectId ? isTaskOverdue(projectId, taskId, null) : false;
 
   // Expert can toggle mini task checkboxes when task is not Done and not waiting for approval
   const canToggleMiniTasks = isExpert && !isDone && !isWaitingForApproval && !isDisputed;
@@ -424,7 +502,7 @@ export default function TaskDetailPage() {
   }
 
   // ---- Deadline formatting ----
-  const deadlineText = safeDateFormat(task.deadline, {
+  const deadlineText = safeDateFormat(computedDeadline, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -442,11 +520,6 @@ export default function TaskDetailPage() {
         badge={
           <div className="flex items-center gap-2">
             <StatusBadge status={displayStatus} entity="task" />
-            {deadlineInfo && deadlineInfo.urgency !== "normal" && (
-              <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", getDeadlineStatusClass(deadlineInfo.urgency))}>
-                {deadlineInfo.remainingText}
-              </span>
-            )}
           </div>
         }
         actions={
@@ -472,14 +545,7 @@ export default function TaskDetailPage() {
       />
 
       {/* Task stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
-          <p className="font-semibold text-foreground text-sm flex items-center justify-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            {deadlineText}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-card rounded-xl border border-border p-3 text-center">
           <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
           <p className="font-semibold text-foreground text-sm">
@@ -538,16 +604,30 @@ export default function TaskDetailPage() {
                 <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Attached File</span>
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <span className="text-xs text-foreground/80 font-mono truncate">
-                    {task.productFile}
+                    {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
                   </span>
-                  <a
-                    href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
-                    download
-                    className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                    title="Download file"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a
+                      href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                      title="View file"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const r = resolveProductFile(task.productFile);
+                        if (r) downloadFileBlob(r.url, r.name);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                      title="Download file"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -747,6 +827,7 @@ export default function TaskDetailPage() {
                       onClick={() => {
                         setProductLinkInput(task.productLink || "");
                         setProductFileInput(task.productFile || "");
+                        setProductFileObject(null);
                         setShowProductModal(true);
                       }}
                       className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -963,22 +1044,41 @@ export default function TaskDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  File Name
+                  Attach File
                 </label>
-                <input
-                  type="text"
-                  value={productFileInput}
-                  onChange={(e) => setProductFileInput(e.target.value)}
-                  placeholder="project_output_v1.zip"
-                  className="w-full px-3.5 py-2 text-sm border border-input rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
-                />
+                <label className="flex items-center gap-2 px-3.5 py-2.5 text-sm border border-dashed border-input rounded-xl cursor-pointer hover:border-brand-primary/50 hover:bg-secondary/60 transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className={productFileObject ? "text-foreground font-medium" : "text-muted-foreground"}>
+                    {productFileObject ? productFileObject.name : "Choose file..."}
+                  </span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      setProductFileObject(file || null);
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {productFileObject && (
+                  <button
+                    type="button"
+                    onClick={() => setProductFileObject(null)}
+                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Remove file
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-3 border-t border-border">
               <Button
                 variant="outline"
                 size="default"
-                onClick={() => setShowProductModal(false)}
+                onClick={() => {
+                  setShowProductModal(false);
+                  setProductFileObject(null);
+                }}
                 disabled={productSubmitLoading}
               >
                 Cancel
@@ -988,7 +1088,7 @@ export default function TaskDetailPage() {
                 size="default"
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
-                disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileInput.trim())}
+                disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileObject)}
                 className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
               >
                 {productSubmitLoading ? "Submitting..." : "Submit"}
@@ -1043,19 +1143,33 @@ export default function TaskDetailPage() {
                           )}
                           {task?.productFile && (
                             <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Product File Name</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
                               <div className="flex items-center justify-between gap-2 mt-1">
                                 <span className="text-sm text-foreground/80 font-medium font-mono truncate">
-                                  {task.productFile}
+                                  {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
                                 </span>
-                                <a
-                                  href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
-                                  download
-                                  className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                  title="Download file"
-                                >
-                                  <Download className="w-4 h-4" />
-                                </a>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <a
+                                    href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                    title="View file"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const r = resolveProductFile(task.productFile);
+                                      if (r) downloadFileBlob(r.url, r.name);
+                                    }}
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                                    title="Download file"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -1089,19 +1203,33 @@ export default function TaskDetailPage() {
                                   )}
                                   {mt.productFile && (
                                     <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
-                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">File Name</span>
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
                                       <div className="flex items-center justify-between gap-2 mt-0.5">
                                         <span className="text-xs text-foreground/80 font-medium font-mono truncate">
-                                          {mt.productFile}
+                                          {(() => { const r = resolveProductFile(mt.productFile); return r ? r.name : mt.productFile; })()}
                                         </span>
-                                        <a
-                                          href={mt.productFile.startsWith("http") ? mt.productFile : `https://${mt.productFile}`}
-                                          download
-                                          className="p-1 flex-shrink-0 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                          title="Download file"
-                                        >
-                                          <Download className="w-3 h-3" />
-                                        </a>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                          <a
+                                            href={(() => { const r = resolveProductFile(mt.productFile); return r ? r.url : "#"; })()}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                            title="View file"
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                          </a>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              const r = resolveProductFile(mt.productFile);
+                                              if (r) downloadFileBlob(r.url, r.name);
+                                            }}
+                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                                            title="Download file"
+                                          >
+                                            <Download className="w-3 h-3" />
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   )}

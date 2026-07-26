@@ -25,7 +25,7 @@
 
 /* ── Smooth page transitions ── */
 main {
-  animation: page-enter 0.25s ease-out;
+  animation: page-enter 0.3s ease-out;
 }
 
 /* ── Expert Dashboard — responsive panel heights ── */
@@ -43,8 +43,8 @@ main {
 
 /* ── Table row hover utility ── */
 .table-row-hover tbody tr {
-  transition: background-color 0.15s ease;
+  transition: background-color 0.2s ease;
 }
 .table-row-hover tbody tr:hover {
-  background-color: color-mix(in srgb, var(--accent) 3%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 4%, transparent);
 }

@@ -29,8 +29,6 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         // Thông tin đối chứng từ bên bị hủy
         public string? PartnerRejectionReason { get; set; }
-        public string? PartnerExplanation { get; set; }
-        public string? PartnerEvidenceUrl { get; set; }
         
         public string? ClientExplanation { get; set; }
         public string? ClientExplanationReason { get; set; }

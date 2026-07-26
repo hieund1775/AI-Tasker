@@ -25,4 +25,6 @@ public class ApplicationUser
     public string? PhoneNumber { get; set; }
     public string? PasswordResetToken { get; set; }     // Token dùng để reset mật khẩu
     public DateTime? PasswordResetExpiry { get; set; } // Hạn sử dụng của token (15 phút)
+    public string? EmailVerificationToken { get; set; }   // Token dùng để xác thực email
+    public DateTime? EmailVerificationExpiry { get; set; } // Hạn sử dụng của token xác thực
 }

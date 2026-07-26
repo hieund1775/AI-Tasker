@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X } from "lucide-react";
+import { useParams, useNavigate, useSearchParams } from "react-router";
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -8,8 +8,8 @@ import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import api from "../../../services/api.js";
-import { createReport } from "../../../services/reportService.js";
+import api, { enrichFileUrl } from "../../../services/api.js";
+import { createReport, uploadEvidenceFiles } from "../../../services/reportService.js";
 import { cancelProjectContract } from "../../../services/escrowService.js";
 import {
   notifyFinalWorkSubmitted,
@@ -36,6 +36,14 @@ export default function ExpertProjectDetail() {
   const currentProjectId = projectId || id;
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Auto-open report dialog for OverDue from TaskProgressCard
+  useEffect(() => {
+    if (searchParams.get("reportType") === "overdue") {
+      setShowCancelModal(true);
+    }
+  }, [searchParams]);
 
   const {
     project,
@@ -52,6 +60,7 @@ export default function ExpertProjectDetail() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [projectLink, setProjectLink] = useState("");
   const [projectFile, setProjectFile] = useState("");
+  const [projectFileObject, setProjectFileObject] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dispute / Report states
@@ -124,10 +133,12 @@ export default function ExpertProjectDetail() {
     "delivery_accepted",
   ]);
 
-  // Expert: no cancellation allowed if project is 100% completed
+  // Expert: no cancellation allowed if all tasks are approved (100% completed) or terminal
   const isProjectFullyDone =
     allTasksApproved
-    && (HARD_TERMINAL_STATUSES.has(normalizedStatus) || FINAL_DELIVERY_DONE.has(normalizedFinalDeliveryStatus) || project?.finalDeliveryAccepted);
+    || HARD_TERMINAL_STATUSES.has(normalizedStatus)
+    || FINAL_DELIVERY_DONE.has(normalizedFinalDeliveryStatus)
+    || project?.finalDeliveryAccepted;
 
   // Expert can only cancel when: progress >= 30% and at least 1 completed task
   const atLeastOneTaskDone = tasks && tasks.some(t => {
@@ -181,20 +192,21 @@ export default function ExpertProjectDetail() {
 
   const handleExpertSubmitExplanation = async (explanationData) => {
     try {
-      const isCancellation = report.reportType === "cancellation" || report.disputeType === "cancellation";
+      const isCancellation = report?.reportType === "cancellation" || report?.disputeType === "cancellation";
       if (isCancellation) {
         await api.put(`/reports/${report.id}/partner-reject-cancel`, {
           partnerRejectionReason: explanationData.reason || explanationData.description || "Decline contract cancellation request",
         });
       } else {
-        const evidenceUrl = Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0
-          ? (typeof explanationData.evidence[0].file === "string" ? explanationData.evidence[0].file : (explanationData.evidence[0].name || "Uploaded file"))
-          : null;
+        let evidenceUrl = explanationData.evidenceUrl || null;
+        if (Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0) {
+          evidenceUrl = await uploadEvidenceFiles(explanationData.evidence);
+        }
         await api.put(`/reports/${report.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
           explanation: explanationData.description || explanationData.reason || "",
           desiredResolution: explanationData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
-          userId: user?.id
+          userId: user?.id || user?.Id
         });
       }
       toast.success("Response explanation submitted successfully!");
@@ -225,8 +237,8 @@ export default function ExpertProjectDetail() {
         reason: finalReason,
         description: finalReason,
         evidenceUrl: evidenceFileName || "",
-        reportType: "cancellation",
-        disputeType: "cancellation",
+        reportType: searchParams.get("reportType") === "overdue" ? "overdue" : "cancellation",
+        disputeType: searchParams.get("reportType") === "overdue" ? "overdue" : "cancellation",
       });
       setShowCancelModal(false);
       setShowSendConfirmDialog(false);
@@ -827,14 +839,14 @@ export default function ExpertProjectDetail() {
         </AnimatedReveal>
 
         {/* Project Final Handover Section */}
-        {allTasksApproved && project.status !== "completed" && !isDisputed && (
+        {allTasksApproved && !isDisputed && (
           <AnimatedReveal delay={2}>
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
               <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
                 <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
               </h2>
 
-              {project.finalWorkDeclineReason && (
+              {project.finalWorkDeclineReason && project.status !== "completed" && (
                 <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
                   <strong className="block font-semibold mb-1">Revision Requested:</strong>
                   {project.finalWorkDeclineReason}
@@ -844,7 +856,11 @@ export default function ExpertProjectDetail() {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-secondary/60 p-4 rounded-xl font-sans">
                 <div className="space-y-1">
                   <p className="text-sm text-foreground/80">
-                    {project.finalDeliveryStatus === "Final Product Submitted" ? (
+                    {project.status === "completed" ? (
+                      <span className="text-success font-semibold flex items-center gap-1.5">
+                        ✓ Project completed. Payment has been released.
+                      </span>
+                    ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
                       <span className="text-brand-primary font-semibold flex items-center gap-1.5">
                         ✓ Submitted. Waiting for Client review.
                       </span>
@@ -854,15 +870,94 @@ export default function ExpertProjectDetail() {
                       </span>
                     )}
                   </p>
-                  {project.finalDeliveryStatus === "Final Product Submitted" && (
+                  {(project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" || project.status === "completed") && (
                     <div className="text-xs text-muted-foreground space-y-0.5 mt-1 pt-1 border-t border-border">
-                      <p><strong>Project Link:</strong> <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline">{project.finalProjectLink}</a></p>
-                      <p><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{project.finalProjectFile}</span></p>
+                      <p>
+                        <strong>Project Link:</strong>{" "}
+                        {project.finalProjectLink ? (
+                          <a href={project.finalProjectLink} target="_blank" rel="noreferrer" className="text-brand-primary hover:underline font-medium">{project.finalProjectLink}</a>
+                        ) : (
+                          <span className="font-semibold text-muted-foreground">None</span>
+                        )}
+                      </p>
+                      {project.finalProjectFile && (() => {
+                        let fileInfo = null;
+                        try {
+                          const parsed = JSON.parse(project.finalProjectFile);
+                          if (parsed && (parsed.url || parsed.fileUrl || parsed.path)) {
+                            const fileUrl = parsed.url || parsed.fileUrl || parsed.path;
+                            fileInfo = {
+                              url: fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl),
+                              name: parsed.name || parsed.originalName || fileUrl.split("/").pop(),
+                            };
+                          }
+                        } catch {
+                          const cleanStr = String(project.finalProjectFile).trim();
+                          fileInfo = {
+                            url: cleanStr.startsWith("http") ? cleanStr : enrichFileUrl(cleanStr),
+                            name: cleanStr.split("/").pop().split("\\").pop(),
+                          };
+                        }
+                        if (!fileInfo) return null;
+                        return (
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <span><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{fileInfo.name}</span></span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const token = sessionStorage.getItem("token") || sessionStorage.getItem("authToken") || sessionStorage.getItem("jwt");
+                                    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                                    const response = await fetch(fileInfo.url, { headers });
+                                    const blob = await response.blob();
+                                    const type = response.headers.get("content-type") || blob.type || "application/octet-stream";
+                                    const viewUrl = URL.createObjectURL(new Blob([blob], { type }));
+                                    window.open(viewUrl, "_blank");
+                                    setTimeout(() => URL.revokeObjectURL(viewUrl), 30000);
+                                  } catch { window.open(fileInfo.url, "_blank"); }
+                                }}
+                                className="p-1 text-brand-primary hover:opacity-70 transition cursor-pointer"
+                                title="View file"
+                              >
+                                🔍
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const token = sessionStorage.getItem("token") || sessionStorage.getItem("authToken") || sessionStorage.getItem("jwt");
+                                    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                                    const response = await fetch(fileInfo.url, { headers });
+                                    const blob = await response.blob();
+                                    const dlUrl = URL.createObjectURL(blob);
+                                    const a = document.createElement("a");
+                                    a.href = dlUrl; a.download = fileInfo.name;
+                                    document.body.appendChild(a); a.click(); a.remove();
+                                    URL.revokeObjectURL(dlUrl);
+                                  } catch { window.open(fileInfo.url, "_blank"); }
+                                }}
+                                className="p-1 text-brand-primary hover:opacity-70 transition cursor-pointer"
+                                title="Download file"
+                              >
+                                ⬇️
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
 
-                {project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
+                {project.status === "completed" ? (
+                  <button
+                    disabled
+                    className="h-11 px-6 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                  >
+                    ✓ Completed
+                  </button>
+                ) : project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
                   <button
                     type="button"
                     onClick={() => setShowSubmitModal(true)}
@@ -910,25 +1005,42 @@ export default function ExpertProjectDetail() {
               </div>
               <div>
                 <h3 className="text-lg font-bold text-foreground font-sans">Submit Final Deliverables</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Please provide product link and file for final delivery</p>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Provide project file (required) and optional product link for final delivery</p>
               </div>
+            </div>
+
+            {/* Info notice banner */}
+            <div className="mx-6 mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5 text-xs text-blue-600 dark:text-blue-400 font-sans">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+              <span><strong>Project file</strong> is required for final delivery handover. <strong>Project link</strong> is optional and can be provided if available.</span>
             </div>
 
             {/* Form */}
             <form
               onSubmit={async (e) => {
                 e.preventDefault();
-                if (!projectLink.trim()) {
-                  toast.error("Please provide Project Link.");
-                  return;
-                }
-                if (!projectFile.trim()) {
-                  toast.error("Please provide Project File name (.zip, .rar).");
+                const trimmedLink = projectLink.trim();
+                if (!projectFileObject) {
+                  toast.error("Please attach a Project File to complete final delivery.");
                   return;
                 }
                 setIsSubmitting(true);
                 try {
-                  await handleSubmitProjectFinalWork(projectLink.trim(), projectFile.trim());
+                  let finalProjectFile = "";
+                  if (projectFileObject) {
+                    const formData = new FormData();
+                    formData.append("file", projectFileObject);
+                    const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+                    if (result?.url) {
+                      finalProjectFile = JSON.stringify({
+                        url: result.url,
+                        name: projectFileObject.name,
+                        size: projectFileObject.size,
+                        type: projectFileObject.type,
+                      });
+                    }
+                  }
+                  await handleSubmitProjectFinalWork(trimmedLink, finalProjectFile);
                   toast.success("Final deliverables submitted successfully!");
                   // Notify client that expert submitted final work
                   notifyFinalWorkSubmitted({
@@ -938,6 +1050,8 @@ export default function ExpertProjectDetail() {
                     projectId: currentProjectId,
                   }).catch(() => { });
                   setShowSubmitModal(false);
+                  setProjectFileObject(null);
+                  setProjectLink("");
                 } catch (err) {
                   toast.error("Failed to submit deliverables.");
                 } finally {
@@ -948,11 +1062,10 @@ export default function ExpertProjectDetail() {
             >
               <div>
                 <label className="block text-foreground/80 font-semibold mb-1">
-                  Project Link <span className="text-red-500">*</span>
+                  Project Link <span className="text-xs text-muted-foreground font-normal">(Optional)</span>
                 </label>
                 <input
                   type="text"
-                  required
                   placeholder="e.g. https://github.com/username/project"
                   value={projectLink}
                   onChange={(e) => setProjectLink(e.target.value)}
@@ -962,16 +1075,31 @@ export default function ExpertProjectDetail() {
 
               <div>
                 <label className="block text-foreground/80 font-semibold mb-1">
-                  Project Files (.zip, .rar) <span className="text-red-500">*</span>
+                  Project Files <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. sourcecode-v1.zip"
-                  value={projectFile}
-                  onChange={(e) => setProjectFile(e.target.value)}
-                  className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
-                />
+                <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-input rounded-[10px] cursor-pointer hover:border-brand-primary/50 hover:bg-secondary/60 transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className={projectFileObject ? "text-foreground font-medium text-sm" : "text-muted-foreground text-sm"}>
+                    {projectFileObject ? projectFileObject.name : "Choose file (.zip, .rar, .pdf, ...)"}
+                  </span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      setProjectFileObject(file || null);
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {projectFileObject && (
+                  <button
+                    type="button"
+                    onClick={() => setProjectFileObject(null)}
+                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Remove file
+                  </button>
+                )}
               </div>
 
               {/* Footer */}
@@ -979,7 +1107,10 @@ export default function ExpertProjectDetail() {
                 <button
                   type="button"
                   disabled={isSubmitting}
-                  onClick={() => setShowSubmitModal(false)}
+                  onClick={() => {
+                    setShowSubmitModal(false);
+                    setProjectFileObject(null);
+                  }}
                   className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
                   Cancel
@@ -1141,27 +1272,6 @@ export default function ExpertProjectDetail() {
               Submit Response to Report
             </DialogTitle>
           </DialogHeader>
-          <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left mb-4">
-            {report?.reporterRole === "client" ? (
-              <>
-                <p className="font-semibold text-foreground">Dispute Content from Client:</p>
-                <p className="text-foreground/85"><strong>Reason:</strong> {report?.reason || report?.reportName}</p>
-                <p className="text-foreground/85"><strong>Details:</strong> {report?.description}</p>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-foreground">Response explanation from Client:</p>
-                {report?.clientExplanation ? (
-                  <>
-                    <p className="text-foreground/85"><strong>Reason:</strong> {report?.clientExplanationReason || "—"}</p>
-                    <p className="text-foreground/85"><strong>Details:</strong> {report?.clientExplanation}</p>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground italic">Client has not submitted a response explanation yet.</p>
-                )}
-              </>
-            )}
-          </div>
           <ReportForm
             project={project}
             onSubmit={async (formData) => {

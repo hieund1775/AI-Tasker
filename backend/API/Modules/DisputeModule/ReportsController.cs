@@ -278,7 +278,10 @@ public class ReportsController : ControllerBase
                 DestinationWalletId = project.ClientId,
                 Amount = report.EscrowRefundClient,
                 Type = "EscrowRefund",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Status = "Success",
+                Description = $"Hoàn tiền từ khiếu nại {report.Id}",
+                ReportId = report.Id
             });
 
             // Giao dịch giải ngân Expert (ReleasePayment)
@@ -290,7 +293,11 @@ public class ReportsController : ControllerBase
                 DestinationWalletId = project.ExpertId,
                 Amount = report.EscrowPayExpert,
                 Type = "ReleasePayment",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Status = "Success",
+                PlatformFee = report.PlatformFee,
+                Description = $"Thanh toán từ khiếu nại {report.Id}",
+                ReportId = report.Id
             });
 
             project.EscrowBalance = 0;
@@ -661,8 +668,6 @@ public class ReportsController : ControllerBase
             EscrowPayExpert = r.EscrowPayExpert,
             PlatformFee = r.PlatformFee,
             PartnerRejectionReason = r.PartnerRejectionReason,
-            PartnerExplanation = r.PartnerExplanation,
-            PartnerEvidenceUrl = r.PartnerEvidenceUrl,
             AdminNote = r.AdminNote,
             ClientExplanation = r.ClientExplanation,
             ClientExplanationReason = r.ClientExplanationReason,

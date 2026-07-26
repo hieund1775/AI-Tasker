@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import api from "../../services/api.js";
 import { getProjectAuditLogs, formatAuditMessage } from "../lib/auditTrail.js";
 
 import {
@@ -10,6 +11,7 @@ import {
   resolveExtension,
   resetProjectTimeline,
   deriveTaskStatus,
+  getEffectiveDeadlineDate,
 } from "../lib/projectTimelineStore.js";
 
 // =============================================================================
@@ -34,6 +36,9 @@ export function useProjectTimeline(role, projectId) {
   const [rejectReason, setRejectReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Live countdown tick — triggers re-render every 10 seconds for real-time deadline display
+  const [tick, setTick] = useState(0);
+
   // Track activity version so we re-fetch timeline after navigation-back
   const [activityVersion, setActivityVersion] = useState(0);
 
@@ -55,68 +60,10 @@ export function useProjectTimeline(role, projectId) {
         if (!cancelled) {
           setProject(data);
 
-          // Seed logs if empty to ensure Activity Timeline is immediately populated
-          if (data && Array.isArray(data.tasks)) {
-            try {
-              const logs = JSON.parse(localStorage.getItem("aitasker_audit_logs") || "[]");
-              const projectLogs = logs.filter(log => log.projectId === data.id);
-              if (projectLogs.length === 0) {
-                const seeded = [];
-                data.tasks.forEach(task => {
-                  const taskStatus = deriveTaskStatus(task);
-                  const taskTitle = task.title || "";
-                  
-                  if (task.miniTasks) {
-                    task.miniTasks.forEach((mt, idx) => {
-                      if (mt.isCompleted === true || mt.status === "done" || mt.status === "completed") {
-                        seeded.push({
-                          id: `seed-mt-${mt.id || idx}`,
-                          projectId: data.id,
-                          taskId: task.id,
-                          miniTaskId: mt.id || null,
-                          action: "mini_task_completed",
-                          actor: "Expert",
-                          actorName: "Expert",
-                          timestamp: new Date(Date.now() - 3600000 * 3).toISOString(),
-                          details: mt.title || ""
-                        });
-                      }
-                    });
-                  }
-
-                  if (taskStatus === "Completed" || task.status?.toLowerCase() === "completed" || task.status?.toLowerCase() === "done") {
-                    seeded.push({
-                      id: `seed-task-app-${task.id}`,
-                      projectId: data.id,
-                      taskId: task.id,
-                      action: "task_approved",
-                      actor: "Client",
-                      actorName: "Client",
-                      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
-                      details: `Milestone: ${taskTitle}`
-                    });
-                  } else if (taskStatus === "Pending Review" || task.status?.toLowerCase() === "pending approval" || task.status?.toLowerCase() === "pending_approval") {
-                    seeded.push({
-                      id: `seed-task-sub-${task.id}`,
-                      projectId: data.id,
-                      taskId: task.id,
-                      action: "task_submitted_for_review",
-                      actor: "Expert",
-                      actorName: "Expert",
-                      timestamp: new Date(Date.now() - 3600000).toISOString(),
-                      details: `Milestone: ${taskTitle}`
-                    });
-                  }
-                });
-                if (seeded.length > 0) {
-                  const combinedLogs = [...seeded, ...logs];
-                  localStorage.setItem("aitasker_audit_logs", JSON.stringify(combinedLogs));
-                }
-              }
-            } catch (e) {
-              console.warn("Failed to seed audit logs", e);
-            }
-          }
+          // Backend now provides activityLogs inside the project response, or we fetch them separately via API.
+          // Wait, api.timeline.getActivityLogs needs to be called to fetch the logs.
+          const logs = await api.timeline.getActivityLogs(projectId).catch(() => []);
+          setProject(prev => ({ ...prev, activityLogs: logs || [] }));
         }
       } catch (err) {
         if (!cancelled) {
@@ -130,6 +77,14 @@ export function useProjectTimeline(role, projectId) {
     fetchTimeline();
     return () => { cancelled = true; };
   }, [projectId, activityVersion]);
+
+  // ── Live countdown tick ──
+  useEffect(() => {
+    const isActive = project && ["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase());
+    if (!isActive) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 10000); // every 10s
+    return () => clearInterval(interval);
+  }, [project?.status, project?.id]);
 
   // ---- Poll sessionStorage for activity version changes (navigation-back detection) ----
   useEffect(() => {
@@ -167,18 +122,21 @@ export function useProjectTimeline(role, projectId) {
   // ---- Derived values ----
   const tasks = project?.tasks || [];
   const overallProgress = getOverallProgress(tasks);
-  const projectLogs = getProjectAuditLogs(projectId).map(log => ({
-    id: log.id,
-    actor: log.actorName || log.actor,
-    time: log.timestamp,
-    message: formatAuditMessage(log)
-  }));
+  const rawLogs = project?.activityLogs || [];
+  const projectLogs = Array.isArray(rawLogs) ? rawLogs.map(log => ({
+    id: log.id || log.Id,
+    actor: log.actorName || log.ActorName || log.actor || log.Actor,
+    time: log.createdAt || log.CreatedAt || log.timestamp,
+    message: log.description || log.Description || formatAuditMessage(log)
+  })) : [];
 
   const completedTasks = tasks.filter(
     (task) => deriveTaskStatus(task) === "Completed",
   ).length;
 
-  const deadlineInfo = getDeadlineInfo(project?.projectDeadlineDate);
+  const deadlineInfo = getDeadlineInfo(
+    getEffectiveDeadlineDate(project)?.toISOString()
+  );
 
   // ---- Scroll to last opened / submitted task after data loads ----
   useEffect(() => {

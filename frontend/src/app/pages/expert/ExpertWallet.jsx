@@ -50,6 +50,7 @@ const typeLabels = {
   platformfee: "platform fee",
   platform_fee: "platform fee",
   cancel: "cancellation request",
+  verdict: "report",
 };
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,21 @@ export function ExpertWallet() {
           const getCancellationPayouts = (p) => {
             const projIdLower = String(p.id || p.Id).toLowerCase();
 
+            // 1. Try to get from Backend Metadata
+            const metadataStr = p.metadata || p.Metadata;
+            if (metadataStr) {
+              try {
+                const md = JSON.parse(metadataStr);
+                if (typeof md.expertPayout !== "undefined" && typeof md.clientRefund !== "undefined") {
+                  return {
+                    expertPayout: Number(md.expertPayout),
+                    clientRefund: Number(md.clientRefund),
+                  };
+                }
+              } catch(e) {}
+            }
+
+            // 2. Fallback to localStorage (legacy)
             const localExpertPayout = localStorage.getItem(`cancellation_expert_payout_${projIdLower}`);
             const localClientRefund = localStorage.getItem(`cancellation_client_refund_${projIdLower}`);
             if (localExpertPayout !== null && localClientRefund !== null) {
@@ -199,7 +215,7 @@ export function ExpertWallet() {
               if (report) {
                 const stubExpert = report.escrowPayExpert || report.EscrowPayExpert || 285;
                 const stubClient = report.escrowRefundClient || report.EscrowRefundClient || 600;
-                
+
                 // Standard cancellation differences
                 const diffExpert = split.expertPayout - stubExpert;
                 const diffClient = split.clientRefund - stubClient;
@@ -215,7 +231,7 @@ export function ExpertWallet() {
                 const isDirectClient = Math.abs(amt - split.clientRefund) < 1.0;
 
                 if (
-                  Math.abs(amt - diffExpert) < 1.0 || 
+                  Math.abs(amt - diffExpert) < 1.0 ||
                   Math.abs(amt - diffClient) < 1.0 ||
                   Math.abs(amt - diffExpertEscrow) < 1.0 ||
                   Math.abs(amt - diffExpertEscrowWithFee) < 1.0 ||
@@ -244,10 +260,25 @@ export function ExpertWallet() {
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
 
-              // Skip ALL transactions for cancelled projects — we'll insert a single clean cancel row
+              // Skip ALL transactions for cancelled projects — we'll insert clean rows instead
               if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
                 cancelledProjIdsInDb.add(projIdLower);
                 return; // Skip all raw DB rows for cancelled projects
+              }
+
+              // Skip deposit transactions matching dispute verdict payout amounts
+              if (lType === "deposit" || lType === "manualdeposit") {
+                let isVerdictDeposit = false;
+                cancelledProjectSplits.forEach((split, pid) => {
+                  const dvRaw = localStorage.getItem(`dispute_verdict_${pid}`);
+                  if (!dvRaw) return;
+                  try {
+                    const dv = JSON.parse(dvRaw);
+                    const netAmount = dv.expertReceives - dv.expertFee;
+                    if (Math.abs(tAmount - netAmount) < 1) isVerdictDeposit = true;
+                  } catch (e) {}
+                });
+                if (isVerdictDeposit) return;
               }
 
               if (isCompensatingTx(t)) {
@@ -285,32 +316,74 @@ export function ExpertWallet() {
             });
           }
 
-          // Insert exactly ONE clean consolidated "cancel project" transaction for each cancelled project
+          // Helper to add verdict rows for dispute verdict cancelled projects
+          function addExpertVerdictRows(projIdLower, split, tDate) {
+            const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+            if (!dvRaw) return;
+            try {
+              const dv = JSON.parse(dvRaw);
+              if (dv.expertReceives > 0) {
+                myTransactions.push({
+                  id: `verdict-payout-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: dv.expertReceives,
+                  type: "verdict",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+                if (dv.expertFee > 0) {
+                  myTransactions.push({
+                    id: `verdict-fee-${projIdLower}`,
+                    projectId: projIdLower,
+                    amount: -dv.expertFee,
+                    type: "platform_fee",
+                    status: "done",
+                    createdAt: tDate,
+                    projectTitle: split.title,
+                  });
+                }
+              }
+            } catch (e) { /* invalid JSON — skip */ }
+          }
+
+          // Insert cancelled project rows — dispute verdict vs cancellation negotiation
           cancelledProjIdsInDb.forEach(projIdLower => {
             const split = cancelledProjectSplits.get(projIdLower);
             const report = projectReportMap.get(projIdLower);
             const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+            const disputeVerdict = localStorage.getItem(`dispute_verdict_${projIdLower}`);
 
-            myTransactions.push({
-              id: `cancel-payout-${projIdLower}`,
-              projectId: projIdLower,
-              amount: split.expertPayout,
-              type: "cancel", // maps to "cancel project"
-              status: "done",
-              createdAt: tDate,
-              projectTitle: split.title,
-            });
-          });
-
-          // Fallback: for cancelled projects with NO DB transactions yet, still show cancel row
-          cancelledProjectSplits.forEach((split, projIdLower) => {
-            if (cancelledProjIdsInDb.has(projIdLower)) return; // already handled above
-            const report = projectReportMap.get(projIdLower);
-            const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
-
-            if (split.expertPayout > 0) {
+            if (disputeVerdict) {
+              addExpertVerdictRows(projIdLower, split, tDate);
+            } else if (report) {
+              // Report flow: verdict payout + platform fee (2 rows)
               myTransactions.push({
-                id: `cancel-payout-local-${projIdLower}`,
+                id: `cancel-payout-${projIdLower}`,
+                projectId: projIdLower,
+                amount: split.expertPayout,
+                type: "verdict",
+                status: "done",
+                createdAt: tDate,
+                projectTitle: split.title,
+              });
+              const pFee = Math.round((split.escrowTotal || 1000) * 0.05);
+              if (pFee > 0) {
+                myTransactions.push({
+                  id: `cancel-fee-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: -pFee,
+                  type: "platform_fee",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                  description: "systemfee",
+                });
+              }
+            } else {
+              // Cancel flow: single consolidated row (payout already net from backend)
+              myTransactions.push({
+                id: `cancel-payout-${projIdLower}`,
                 projectId: projIdLower,
                 amount: split.expertPayout,
                 type: "cancel",
@@ -318,6 +391,57 @@ export function ExpertWallet() {
                 createdAt: tDate,
                 projectTitle: split.title,
               });
+            }
+          });
+
+          // Fallback: for cancelled projects with NO DB transactions yet
+          cancelledProjectSplits.forEach((split, projIdLower) => {
+            if (cancelledProjIdsInDb.has(projIdLower)) return;
+            const report = projectReportMap.get(projIdLower);
+            const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+            const disputeVerdict = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+
+            if (disputeVerdict) {
+              addExpertVerdictRows(projIdLower, split, tDate);
+            } else if (report) {
+              // Report flow: verdict payout + platform fee (2 rows)
+              if (split.expertPayout > 0) {
+                myTransactions.push({
+                  id: `cancel-payout-local-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.expertPayout,
+                  type: "verdict",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+                const pFee = Math.round((split.escrowTotal || 1000) * 0.05);
+                if (pFee > 0) {
+                  myTransactions.push({
+                    id: `cancel-fee-local-${projIdLower}`,
+                    projectId: projIdLower,
+                    amount: -pFee,
+                    type: "platform_fee",
+                    status: "done",
+                    createdAt: tDate,
+                    projectTitle: split.title,
+                    description: "systemfee",
+                  });
+                }
+              }
+            } else {
+              // Cancel flow: single consolidated row
+              if (split.expertPayout > 0) {
+                myTransactions.push({
+                  id: `cancel-payout-local-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.expertPayout,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+              }
             }
           });
 
@@ -342,12 +466,29 @@ export function ExpertWallet() {
           let adjustedBalance = wallet?.balance ?? 0;
           let adjustedTotalEarned = wallet?.totalEarned ?? 0;
 
-          // Adjust total earned for cancelled projects:
-          // Because releaseEscrow is always called on DB when cancelling projects, DB wallet.totalEarned is inflated by escrowTotal.
-          // We subtract escrowTotal and add split.expertPayout to get the correct historical Total Earned value.
+          // Adjust total earned for cancelled projects based on actual verdict data
           cancelledProjectSplits.forEach((split, projIdLower) => {
-            const escrowTotal = split.escrowTotal || 1000;
-            adjustedTotalEarned += (split.expertPayout - escrowTotal);
+            const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+            if (dvRaw) {
+              try {
+                const dv = JSON.parse(dvRaw);
+                if (dv.expertReceives > 0) {
+                  adjustedTotalEarned += (dv.expertReceives - dv.expertFee);
+                }
+                // expertReceives = 0 → expert lost → no adjustment
+              } catch (e) {}
+              return;
+            }
+            // Check if report flow or cancel flow
+            const hasReport = projectReportMap.has(projIdLower);
+            if (hasReport) {
+              // Report flow: subtract 5% platform fee
+              const platformFee = Math.round((split.escrowTotal || 1000) * 0.05);
+              adjustedTotalEarned += Math.max(0, split.expertPayout - platformFee);
+            } else {
+              // Cancel flow: payout is already net from backend
+              adjustedTotalEarned += split.expertPayout;
+            }
           });
 
           // Helper: parse DB date string correctly as UTC
@@ -377,7 +518,7 @@ export function ExpertWallet() {
 
             if (match) {
               // DB confirmed this deposit - mark as acked so we won't double-count next time
-              try { localStorage.setItem(ackKey, "1"); } catch(e) {}
+              try { localStorage.setItem(ackKey, "1"); } catch (e) { }
               // wallet.balance already has this amount - don't add
             } else {
               // Webhook not yet processed by DB - add manually for immediate feedback
@@ -397,7 +538,7 @@ export function ExpertWallet() {
           const activeProj = expertProjects.filter((p) => {
             const projId = p.id || p.Id;
             const localStatus = localStorage.getItem(`project_status_${projId}`) || p.status;
-            const isCompleted = 
+            const isCompleted =
               ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped"].includes(localStatus?.toLowerCase()?.trim());
             const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
 
@@ -456,6 +597,12 @@ export function ExpertWallet() {
                 projectTitle: r.projectTitle || "Project",
               });
             }
+          });
+
+          myTransactions.sort((a, b) => {
+            const timeA = parseDbDate(a.createdAt);
+            const timeB = parseDbDate(b.createdAt);
+            return timeB - timeA;
           });
 
           setData({
@@ -533,40 +680,16 @@ export function ExpertWallet() {
     try {
       const resolvedUserId = user?.id || user?.Id;
       const res = await api.payments.withdraw(resolvedUserId, amount);
-      
+
       setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
-      
+
       try {
         localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
-      } catch (e) {}
-      
-      const [wallet, transactions] = await Promise.all([
-        api.users.getWallet(resolvedUserId).catch(() => null),
-        api.payments.getTransactions(resolvedUserId).catch(() => []),
-      ]);
+      } catch (e) { }
 
-      const myTransactions = Array.isArray(transactions)
-        ? transactions.map(t => ({
-            id: t.id || t.Id,
-            projectId: t.projectId || t.ProjectId,
-            amount: t.amount ?? t.Amount,
-            type: t.type ?? t.Type,
-            createdAt: t.createdAt ?? t.CreatedAt,
-            projectTitle: t.projectTitle || t.ProjectTitle || null,
-          }))
-        : [];
-
-      setData(prev => ({
-        ...prev,
-        wallet: {
-          balance: wallet?.balance ?? (prev.wallet.balance - amount),
-          pendingBalance: prev.wallet.pendingBalance,
-          totalEarned: wallet?.totalEarned ?? prev.wallet.totalEarned,
-        },
-        transactions: myTransactions,
-      }));
+      window.dispatchEvent(new Event("aitasker_db_update"));
 
     } catch (err) {
       console.error("Withdraw failed:", err);
@@ -614,11 +737,10 @@ export function ExpertWallet() {
       {/* Feedback banner */}
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${
-            feedback.type === "success"
+          className={`mb-6 p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
               ? "bg-success-light text-success border border-success/20"
               : "bg-destructive-light text-destructive border border-destructive/20"
-          }`}
+            }`}
         >
           {feedback.message}
         </div>
@@ -746,7 +868,8 @@ export function ExpertWallet() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.transactions.map((tx) => {
-                  const dateObj = new Date(tx.createdAt);
+                  const rawStr = tx.createdAt || "";
+                  const dateObj = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : ""));
                   const dateStr = dateObj.toLocaleDateString("vi-VN", {
                     day: "2-digit",
                     month: "2-digit",
@@ -772,19 +895,26 @@ export function ExpertWallet() {
                   const badgeClass = displayStatus === "in progress"
                     ? "bg-warning/10 text-warning border border-warning/20"
                     : displayStatus === "cancel"
-                    ? "bg-secondary text-muted-foreground border border-border"
-                    : "bg-success/10 text-success border border-success/20";
+                      ? "bg-secondary text-muted-foreground border border-border"
+                      : "bg-success/10 text-success border border-success/20";
 
                   // Process description display as requested
                   let displayDesc = tx.description;
-                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "deposit";
-                  else if (lowerType === "withdrawal") displayDesc = "withdrawal";
+                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
+                  else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
+                  else if (lowerType === "verdict") displayDesc = "report successful";
+                  else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
                   else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType)) {
                     displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : (tx.description || "Project: AI-Tasker");
                   }
 
+                  let displayAmount = tx.amount ?? tx.Amount ?? 0;
+                  if (lowerType === "withdrawal" || lowerType === "withdraw") {
+                    displayAmount = -Math.abs(displayAmount);
+                  }
+
                   // Report/Compensation: if cannot compensate (amount <= 0), show "-"
-                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType) && Number(tx.amount || 0) <= 0;
+                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute", "cancel", "verdict"].includes(lowerType) && Number(displayAmount || 0) <= 0;
 
                   return (
                     <tr key={tx.id} className="hover:bg-secondary/50">
@@ -797,7 +927,7 @@ export function ExpertWallet() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                        {isNoCompensation ? "-" : <MoneyDisplay amount={tx.amount ?? tx.Amount ?? 0} />}
+                        {isNoCompensation ? "-" : <MoneyDisplay amount={displayAmount} />}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span

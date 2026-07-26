@@ -192,12 +192,14 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
         role: m.role === "user" ? "user" : "assistant",
         content: m.text
       }));
-      historyPayload.push({ role: "user", content: userMsgText });
+      const enforcedPrompt = userMsgText + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]";
+      historyPayload.push({ role: "user", content: enforcedPrompt });
 
       // Call general backend AiChat endpoint matching C# AIChatRequest
       const response = await api.ai.sendSession({
         messages_history: historyPayload,
         context_summary: contextSummary || "",
+        user_role: "expert",
         file_path: "",
         current_draft: {
           jobPostId: jobPostId,
@@ -281,14 +283,20 @@ Description: ${autoPrompt.description}`;
     setApplied(false);
 
     try {
-      const historyPayload = messages.map(m => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text
-      }));
+      const historyPayload = messages.map((m, idx) => {
+        const isLastUser = m.role === "user" && idx === messages.map(msg => msg.role).lastIndexOf("user");
+        return {
+          role: m.role === "user" ? "user" : "assistant",
+          content: isLastUser
+            ? m.text + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]"
+            : m.text
+        };
+      });
 
       const response = await api.ai.sendSession({
         messages_history: historyPayload,
         context_summary: contextSummary || "",
+        user_role: "expert",
         current_draft: {
           jobPostId: jobPostId,
           expertId: expertId,

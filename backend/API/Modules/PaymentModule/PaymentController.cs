@@ -210,16 +210,20 @@ namespace AITasker.API.Modules.PaymentModule
                 wallet.Balance += depositAmount;
 
                 // ===== BƯỚC 5: GHI TRANSACTION LOG =====
-                var txLog = new TransactionLog
-                {
-                    Id = Guid.NewGuid(),
-                    ProjectId = null,
-                    SourceWalletId = null,
-                    DestinationWalletId = wallet.UserId,
-                    Amount = depositAmount,
-                    Type = "Deposit",
-                    CreatedAt = DateTime.UtcNow
-                };
+                 var txLog = new TransactionLog
+                 {
+                     Id = Guid.NewGuid(),
+                     ProjectId = null,
+                     SourceWalletId = null,
+                     DestinationWalletId = wallet.UserId,
+                     Amount = depositAmount,
+                     Type = "Deposit",
+                     CreatedAt = DateTime.UtcNow,
+                     Status = "Success",
+                     Description = $"Nạp tiền ZaloPay giao dịch {appTransId}",
+                     BankReferenceNo = appTransId,
+                     IsSandbox = true // Hoặc cấu hình tùy biến theo AppSettings.json
+                 };
                 _context.TransactionLogs.Add(txLog);
 
                 await _context.SaveChangesAsync();
@@ -259,16 +263,19 @@ namespace AITasker.API.Modules.PaymentModule
 
             wallet.Balance += (decimal)req.Amount;
 
-            _context.TransactionLogs.Add(new TransactionLog
-            {
-                Id = Guid.NewGuid(),
-                ProjectId = null,
-                SourceWalletId = null,
-                DestinationWalletId = wallet.UserId,
-                Amount = (decimal)req.Amount,
-                Type = "ManualDeposit",
-                CreatedAt = DateTime.UtcNow
-            });
+             _context.TransactionLogs.Add(new TransactionLog
+             {
+                 Id = Guid.NewGuid(),
+                 ProjectId = null,
+                 SourceWalletId = null,
+                 DestinationWalletId = wallet.UserId,
+                 Amount = (decimal)req.Amount,
+                 Type = "ManualDeposit",
+                 CreatedAt = DateTime.UtcNow,
+                 Status = "Success",
+                 Description = "Nạp tiền thủ công qua cổng DEV",
+                 IsSandbox = true
+             });
 
             await _context.SaveChangesAsync();
 
@@ -312,17 +319,28 @@ namespace AITasker.API.Modules.PaymentModule
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
-            var result = logs.Select(t => new
-            {
-                t.Id,
-                t.ProjectId,
-                ProjectTitle = t.Project != null && t.Project.JobPost != null ? t.Project.JobPost.Title : null,
-                t.SourceWalletId,
-                t.DestinationWalletId,
-                t.Amount,
-                t.Type,
-                t.CreatedAt
-            });
+             var result = logs.Select(t => new
+             {
+                 t.Id,
+                 t.ProjectId,
+                 ProjectTitle = t.Project != null && t.Project.JobPost != null ? t.Project.JobPost.Title : null,
+                 t.SourceWalletId,
+                 t.DestinationWalletId,
+                 t.Amount,
+                 t.Type,
+                 t.CreatedAt,
+                 t.Status,
+                 t.UpdatedAt,
+                 t.Description,
+                 t.BankReferenceNo,
+                 t.IsSandbox,
+                 t.GatewayFee,
+                 t.PlatformFee,
+                 t.BankCode,
+                 t.BankAccountNumber,
+                 t.BankAccountName,
+                 t.ReportId
+             });
 
             return Ok(result);
         }

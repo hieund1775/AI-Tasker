@@ -145,6 +145,8 @@ export const router = createBrowserRouter([
                   { path: "admin/category-tags", Component: AdminCategoryTags },
                   { path: "admin/revenue", Component: AdminRevenue },
                   { path: "admin/profile", Component: AdminProfile },
+                  { path: "admin/profile-client/:id", Component: ClientProfile },
+                  { path: "admin/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
                 ],
               }
             ],
@@ -162,6 +164,8 @@ export const router = createBrowserRouter([
                   { path: "owner/revenue", Component: OwnerRevenue },
                   { path: "owner/disputes/:id", Component: AdminReportDetail },
                   { path: "owner/profile", Component: OwnerProfile },
+                  { path: "owner/profile-client/:id", Component: ClientProfile },
+                  { path: "owner/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
                   // Owner-specific management pages (reuse Admin components)
                   { path: "owner/users", Component: OwnerUsers },
                   { path: "owner/projects", Component: OwnerProjects },
@@ -177,6 +181,7 @@ export const router = createBrowserRouter([
           // ----- Common routes (any authenticated role) -----
           { path: "notifications", Component: NotificationsPage },
           { path: "expert/profile/:id", element: <PublicExpertProfile viewerRole="public" /> },
+          { path: "client/profile/:id", Component: ClientProfile },
           { path: "messenger", Component: Messenger },
           { path: "messenger/:id", Component: Messenger },
           { path: "tasks/:taskId/update", Component: TaskUpdatePage },

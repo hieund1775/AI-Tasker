@@ -21,8 +21,6 @@ namespace AITasker_Modular.Modules.DisputeModule
         public decimal EscrowPayExpert { get; set; }
         public decimal PlatformFee { get; set; }
         public string? PartnerRejectionReason { get; set; }
-        public string? PartnerExplanation { get; set; }
-        public string? PartnerEvidenceUrl { get; set; }
         public string? AdminNote { get; set; }
 
         // Explanation fields for type1/type2

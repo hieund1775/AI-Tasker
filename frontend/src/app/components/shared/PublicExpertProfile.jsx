@@ -10,6 +10,10 @@ import {
   MessageSquare,
   Briefcase,
   User,
+  TrendingUp,
+  XCircle,
+  AlertTriangle,
+  Calendar,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
 import { safeArray, safeNumberFormat } from "../../lib/safety.js";
@@ -45,6 +49,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   const [completedProjects, setCompletedProjects] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [interactions, setInteractions] = useState({});
+  const [stats, setStats] = useState({
+    completed: 0,
+    cancel: 0,
+    report: 0,
+    success: "0",
+    evaluate: 0,
+  });
 
   useEffect(() => {
     const initialInteractions = {};
@@ -90,6 +101,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               category: apiExpert.expertProfile?.category || apiExpert.category || localCache.category || "",
               specialization: apiExpert.expertProfile?.specialization || apiExpert.expertProfile?.major || apiExpert.specialization || localCache.specialization || "",
               location: apiExpert.expertProfile?.location || apiExpert.location || "Not updated",
+              createdAt: apiExpert.createdAt || null,
               rating: (() => {
                 let totalRating = 0;
                 let ratedCount = 0;
@@ -118,65 +130,27 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               skills: apiExpert.expertProfile?.skills?.length ? apiExpert.expertProfile.skills : (apiExpert.skills?.length ? apiExpert.skills : (localCache.skills || [])),
               email: apiExpert.email || "",
               phone: apiExpert.phoneNumber || apiExpert.phone || apiExpert.expertProfile?.phone || "Not updated",
+              website: apiExpert.expertProfile?.website || localCache.website || "",
+              industry: apiExpert.expertProfile?.industry || localCache.industry || "",
+              portfolioUrls: apiExpert.expertProfile?.portfolioUrls || localCache.portfolioUrls || "",
               portfolio: apiExpert.portfolio || [],
               clientReviews: (reviewData && reviewData.reviews)
-                ? reviewData.reviews.map((r) => {
-                    const pId = r.projectId;
-                    
-                    // Check expert reply
-                    let expertReply = null;
-                    const rawReply = localStorage.getItem(`review_expert_reply_${pId}`);
-                    if (rawReply) {
-                      try {
-                        expertReply = JSON.parse(rawReply);
-                      } catch (e) {}
-                    }
-
-                    // Check client edited review
-                    let editedReview = null;
-                    const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
-                    if (rawEdited) {
-                      try {
-                        editedReview = JSON.parse(rawEdited);
-                      } catch (e) {}
-                    }
-
-                    return {
-                      projectId: pId,
-                      clientName: r.clientName || "Client",
-                      rating: r.rating,
-                      comment: r.comment || "",
-                      date: r.createdAt,
-                      expertReply: expertReply,
-                      editedReview: editedReview,
-                    };
-                  })
-                : (apiExpert.clientReviews || []).map((r) => {
-                    const pId = r.projectId || r.id;
-                    let expertReply = null;
-                    if (pId) {
-                      const rawReply = localStorage.getItem(`review_expert_reply_${pId}`);
-                      if (rawReply) {
-                        try { expertReply = JSON.parse(rawReply); } catch (e) {}
-                      }
-                    }
-                    let editedReview = null;
-                    if (pId) {
-                      const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
-                      if (rawEdited) {
-                        try { editedReview = JSON.parse(rawEdited); } catch (e) {}
-                      }
-                    }
-                    return {
-                      projectId: pId,
-                      clientName: r.clientName || r.name || "Client",
-                      rating: r.rating,
-                      comment: r.comment || r.review || "",
-                      date: r.date,
-                      expertReply: expertReply,
-                      editedReview: editedReview,
-                    };
-                  }),
+                ? reviewData.reviews.map((r) => ({
+                    projectId: r.projectId,
+                    clientName: r.clientName || "Client",
+                    rating: r.rating,
+                    comment: r.comment || "",
+                    date: r.createdAt,
+                    expertReply: r.expertReply ? { replyText: r.expertReply, date: r.replyCreatedAt } : null,
+                  }))
+                : (apiExpert.clientReviews || []).map((r) => ({
+                    projectId: r.projectId || r.id,
+                    clientName: r.clientName || r.name || "Client",
+                    rating: r.rating,
+                    comment: r.comment || r.review || "",
+                    date: r.date,
+                    expertReply: r.expertReply ? { replyText: r.expertReply, date: r.replyCreatedAt } : null,
+                  })),
             });
 
             // Map the completed projects list to display publicly below
@@ -251,6 +225,50 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             });
 
             setCompletedProjects(detailedCompletedProjects);
+
+            // Calculate stats (same as ExpertProfile)
+            const cancelCount = allProjects.filter((p) => {
+              const status = (p.status || p.Status || "").toLowerCase();
+              return ["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"].includes(status);
+            }).length;
+            const reportCount = allProjects.filter((p) => {
+              const status = (p.status || p.Status || "").toLowerCase();
+              return ["disputed"].includes(status);
+            }).length;
+            const totalForSuccess = completedList.length + cancelCount + reportCount;
+            const successVal = totalForSuccess > 0 ? `${Math.round((completedList.length / totalForSuccess) * 100)}%` : "0%";
+
+            // Calculate evaluate from reviews
+            let totalRating = 0;
+            let ratedCount = 0;
+            completedList.forEach((p) => {
+              const pId = p.id || p.Id;
+              const rawEdited = localStorage.getItem(`project_review_edited_${pId}`) || localStorage.getItem(`project_review_override_${pId}`);
+              let rVal = 0;
+              if (rawEdited) {
+                try { rVal = JSON.parse(rawEdited).rating || 0; } catch (e) {}
+              }
+              if (rVal > 0) {
+                totalRating += rVal;
+                ratedCount++;
+              } else {
+                const dbReview = dbReviewsList.find(r => r.projectId === pId);
+                if (dbReview && dbReview.rating > 0) {
+                  totalRating += dbReview.rating;
+                  ratedCount++;
+                }
+              }
+            });
+            const evaluateVal = ratedCount > 0 ? (totalRating / ratedCount).toFixed(1).replace(".0", "") : "0";
+
+            setStats({
+              completed: completedList.length,
+              cancel: cancelCount,
+              report: reportCount,
+              success: successVal,
+              evaluate: evaluateVal,
+            });
+
             setCurrentPage(1);
           }
         }
@@ -351,14 +369,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   };
 
   const getBackLink = () => {
-    switch (viewerRole) {
-      case "client":
-        return { to: "/client/experts", label: "Back to Experts" };
-      case "expert":
-        return { to: "/expert/dashboard", label: "Back to Dashboard" };
-      default:
-        return { to: "/", label: "Back" };
+    const r = authUser?.role?.toLowerCase();
+    if (r === "client") return { to: "/client/experts", label: "Back to Experts" };
+    if (r === "expert") return { to: "/expert/dashboard", label: "Back to Dashboard" };
+    if (r === "admin" || r === "owner" || r === "staff") {
+      return { to: `/${r === "staff" ? "admin" : r}/users`, label: "Back to Users" };
     }
+    return { to: "/", label: "Back" };
   };
 
   const backLink = getBackLink();
@@ -447,7 +464,6 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
-                  <p className="text-foreground/80 font-medium">{expert.title}</p>
                   <p className="text-muted-foreground text-sm">{expert.email}</p>
                 </div>
               </div>
@@ -521,6 +537,16 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                       Specialization: {resolvedSpec}
                     </span>
                   )}
+                  {expert.createdAt && (
+                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      Joined {new Date(expert.createdAt).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  )}
                   {expert.rating != null && (
                     <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -538,7 +564,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             })()}
 
             {/* Contact details */}
-            {(expert.email || expert.phone) && (
+            {(expert.email || expert.phone || expert.website || expert.industry) && (
               <div className="mt-5 pt-5 border-t border-border/60 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
                 {expert.email && (
                   <p className="text-muted-foreground">
@@ -550,24 +576,89 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                     <span className="font-semibold text-foreground/80">Phone Number:</span> {expert.phone}
                   </p>
                 )}
+                {expert.website && (
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">Website:</span>{" "}
+                    <a href={expert.website} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      {expert.website}
+                    </a>
+                  </p>
+                )}
+                {expert.industry && (
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">Industry:</span> {expert.industry}
+                  </p>
+                )}
+                {expert.portfolioUrls && (
+                  <p className="text-muted-foreground">
+                    <span className="font-semibold text-foreground/80">Portfolio URL:</span>{" "}
+                    <a href={expert.portfolioUrls} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                      {expert.portfolioUrls}
+                    </a>
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Bio */}
-            {expert.bio && (
-              <div className="mt-5 pt-5 border-t border-border/60">
-                <h3 className="text-sm font-semibold text-foreground/80 mb-2">About</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">{expert.bio}</p>
-              </div>
-            )}
           </div>
 
-          {/* Detailed sections card */}
+          {/* Statistics cards */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {[
+              {
+                label: "Completed",
+                value: stats.completed,
+                icon: CheckCircle,
+                color: "text-success bg-success-light",
+              },
+              {
+                label: "Cancel",
+                value: stats.cancel,
+                icon: XCircle,
+                color: "text-red-500 bg-red-500/10",
+              },
+              {
+                label: "Report",
+                value: stats.report,
+                icon: AlertTriangle,
+                color: "text-warning bg-warning-light",
+              },
+              {
+                label: "Success Rate",
+                value: stats.success,
+                icon: TrendingUp,
+                color: "text-accent bg-accent-light",
+              },
+              {
+                label: "Evaluate",
+                value: stats.evaluate,
+                icon: Star,
+                color: "text-primary bg-primary-light",
+              },
+            ].map((stat, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-xl border border-border p-4 shadow-sm text-left"
+              >
+                <div
+                  className={`w-10 h-10 ${stat.color} rounded-lg flex items-center justify-center mb-2.5`}
+                >
+                  <stat.icon className="w-[18px] h-[18px]" />
+                </div>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  {stat.label}
+                </p>
+                <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Skills card */}
           <div className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6">
             {/* Skills */}
             {resolvedSkills.length > 0 && (
               <section>
-                <h3 className="font-semibold text-foreground mb-3">Skills</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Skills</h3>
                 <div className="flex flex-wrap gap-2">
                   {resolvedSkills.map((skill, i) => (
                     <span
@@ -576,26 +667,6 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                     >
                       {skill}
                     </span>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Portfolio */}
-            {expert.portfolio?.length > 0 && (
-              <section>
-                <h3 className="font-semibold text-foreground mb-3">Portfolio</h3>
-                <div className="grid gap-3">
-                  {expert.portfolio.map((item, i) => (
-                    <div
-                      key={i}
-                      className="border border-border rounded-lg p-4 hover:border-blue-200 transition-colors"
-                    >
-                      <h4 className="font-medium text-foreground">{item.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {item.description}
-                      </p>
-                    </div>
                   ))}
                 </div>
               </section>

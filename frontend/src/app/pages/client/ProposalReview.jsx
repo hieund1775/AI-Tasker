@@ -69,28 +69,30 @@ export function ProposalReview() {
               .toUpperCase()
               .slice(0, 2);
 
-            // Aggregate attachments from BE flat database (portfolio and attachmentUrl)
-            const attachments = [];
-            if (proposal.portfolio) {
-              const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
-              attachments.push({
-                id: "portfolio-file",
-                name: proposal.portfolio.split("/").pop() || "Portfolio Document",
-                type: isImg ? "image/png" : "document",
-                fileType: isImg ? "image/png" : "document",
-                url: enrichFileUrl(proposal.portfolio)
-              });
-            }
-            if (proposal.attachmentUrl) {
-              const isImg = proposal.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
-              attachments.push({
-                id: "attachment-file",
-                name: proposal.attachmentUrl.split("/").pop() || "Attached Document",
-                type: isImg ? "image/png" : "document",
-                fileType: isImg ? "image/png" : "document",
-                url: enrichFileUrl(proposal.attachmentUrl)
-              });
-            }
+            // Aggregate attachments from parsed coverLetter + BE flat database fields
+            const rawParsedAttachments = parsed?.attachments || [];
+            const attachments = [...rawParsedAttachments];
+
+            const checkAndAddBEFile = (rawPath, fallbackTitle, idPrefix) => {
+              if (!rawPath || typeof rawPath !== "string") return;
+              const fileUrl = enrichFileUrl(rawPath);
+              const exists = attachments.some(a => a.url === fileUrl || a.url === rawPath);
+              if (!exists) {
+                const rawName = rawPath.split("/").pop() || fallbackTitle;
+                const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawName);
+                attachments.push({
+                  id: `${idPrefix}-${Date.now()}`,
+                  name: cleanName || rawName,
+                  type: isImg ? "image/png" : "document",
+                  fileType: isImg ? "image/png" : "document",
+                  url: fileUrl
+                });
+              }
+            };
+
+            checkAndAddBEFile(proposal.portfolio || proposal.Portfolio || proposal.portfolioUrl || proposal.PortfolioUrl, "Portfolio Document", "portfolio");
+            checkAndAddBEFile(proposal.attachmentUrl || proposal.AttachmentUrl || proposal.attachment || proposal.Attachment, "Attached Document", "attachment");
 
             // Dynamically construct useCaseBreakdown if project has useCases
             const useCases = project?.useCases || [];

@@ -1,4 +1,4 @@
-﻿const { request } = require('@playwright/test');
+const { request } = require('@playwright/test');
 (async () => {
     console.log("🚀 START: PLAYWRIGHT KIỂM THỬ TỰ ĐỘNG TOÀN BỘ ENDPOINTS BE...");
     console.log("==================================================================");
@@ -16,14 +16,20 @@
     try {
         const mockLog = {
             id: "3fa85f64-5517-4c33-8a26-153a3a123456",
-            sourceWalletId: "3fa85f64-5517-4c33-8a26-153a3a123deb",
-            destinationWalletId: "3fa85f64-5517-4c33-8a26-153a3a123dec",
+            sourceWalletId: null,
+            destinationWalletId: "11111111-1111-1111-1111-111111111111",
             amount: 500000,
-            description: "Playwright Automated Test Escrow Hold",
+            description: "Playwright Automated Test Deposit",
+            type: "ManualDeposit",
             createdAt: new Date().toISOString()
         };
         const res = await apiContext.post('/api/interactions/transaction', { data: mockLog });
-        console.log("✅ VÍ & KÝ QUỸ OK: Đã thông mạch và ghi nhận giao dịch ví cá nhân.\n");
+        if (res.ok()) {
+            console.log("✅ VÍ & KÝ QUỸ OK: Đã thông mạch và ghi nhận giao dịch ví cá nhân.\n");
+        } else {
+            const errText = await res.text();
+            console.log("❌ VÍ LỖI: Cổng phản hồi mã lỗi " + res.status() + " - " + errText + "\n");
+        }
     } catch (e) { console.log("❌ VÍ LỖI: Lỗi thực thi giao dịch tài chính.\n"); }
     console.log("🔹 3. Đang quét luồng dữ liệu thông tin Hợp đồng số...");
     try {

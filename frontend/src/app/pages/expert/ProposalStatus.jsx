@@ -28,6 +28,41 @@ function findConversationId(projectId, expertId) {
   return conv ? conv.id : null;
 }
 
+/**
+ * Compute deadline display text for a proposal.
+ * Shows actual deadline date (including extensions) instead of just "X days".
+ */
+function getProposalDeadlineText(proposal) {
+  // For accepted/in-progress proposals, check extended deadline from project in localStorage
+  const acceptedStatuses = ["accepted", "pending_escrow", "pending_pay", "in_progress", "active", "completed"];
+  const projId = proposal.projectId || proposal.ProjectId;
+  if (projId && acceptedStatuses.includes(proposal.status?.toLowerCase())) {
+    const storedDeadline = localStorage.getItem(`project_deadline_${projId}`);
+    if (storedDeadline) {
+      return safeDateFormat(storedDeadline, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, String(storedDeadline));
+    }
+  }
+
+  // Convert numeric deadline (days) to actual date based on job creation date
+  const deadlineDays = Number(proposal.durationDays || proposal.project?.deadline || 0);
+  if (deadlineDays > 0) {
+    const startDate = new Date(proposal.project?.createdAt || proposal.project?.CreatedAt || proposal.createdAt || Date.now());
+    if (!Number.isNaN(startDate.getTime())) {
+      const deadlineDate = new Date(startDate.getTime() + deadlineDays * 24 * 60 * 60 * 1000);
+      return safeDateFormat(deadlineDate.toISOString(), {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, `${deadlineDays} days`);
+    }
+  }
+  return `${deadlineDays || "—"} days`;
+}
+
 // ---------------------------------------------------------------------------
 // Relative time helper
 // ---------------------------------------------------------------------------
@@ -234,7 +269,7 @@ export function ProposalStatus() {
                           Bid: <span className="font-bold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
                         </span>
                         <span className="text-muted-foreground">
-                          Duration: <span className="font-medium text-foreground">{proposal.durationDays} days</span>
+                          Deadline: <span className="font-medium text-foreground">{getProposalDeadlineText(proposal)}</span>
                         </span>
                       </div>
 
