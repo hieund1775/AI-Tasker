@@ -4,250 +4,18 @@ import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
-const CATEGORY_DATA = {
-  "Engineering & Science": {
-    specializations: [
-      "Aerospace Engineering",
-      "Chemical Engineering",
-      "Civil Engineering",
-      "Electrical Engineering",
-      "Mechanical Engineering",
-      "Environmental Science",
-      "Biotechnology",
-      "Physics"
-    ],
-    skills: {
-      "Aerospace Engineering": ["Aerodynamics", "Propulsion", "CAD/CAM", "MATLAB"],
-      "Chemical Engineering": ["Process Simulation", "ASPEN Plus", "Thermodynamics", "Chemical Synthesis"],
-      "Civil Engineering": ["AutoCAD", "Structural Analysis", "Revit", "GIS Mapping"],
-      "Electrical Engineering": ["Circuit Design", "FPGA Programming", "Verilog", "Altium Designer"],
-      "Mechanical Engineering": ["SolidWorks", "Finite Element Analysis (FEA)", "Thermodynamics", "Robotics"],
-      "Environmental Science": ["Environmental Impact Assessment", "GIS Mapping", "Water Quality Analysis", "Ecology"],
-      "Biotechnology": ["CRISPR Gene Editing", "Bioinformatics", "Cell Culture", "PCR Analysis"],
-      "Physics": ["Quantum Mechanics", "Computational Physics", "Data Analysis", "LaTeX Documenting"]
-    }
-  },
-  "Sales & Marketing": {
-    specializations: [
-      "Digital Marketing",
-      "Search Engine Optimization (SEO)",
-      "Social Media Management",
-      "Content Marketing",
-      "Email Marketing",
-      "Sales Strategy",
-      "Brand Management",
-      "Market Research"
-    ],
-    skills: {
-      "Digital Marketing": ["Google Ads", "Facebook Ads Manager", "Google Analytics", "PPC Campaigns"],
-      "Search Engine Optimization (SEO)": ["Keyword Research", "On-Page SEO", "Link Building", "SEMrush/Ahrefs"],
-      "Social Media Management": ["Content Scheduling", "Copywriting", "Canva Designing", "Community Management"],
-      "Content Marketing": ["SEO Writing", "Blogging", "Content Strategy", "Copywriting"],
-      "Email Marketing": ["Mailchimp", "HubSpot", "Email Copywriting", "A/B Testing Campaigns"],
-      "Sales Strategy": ["Lead Generation", "Cold Calling", "CRM (Salesforce)", "Sales Pitch Negotiation"],
-      "Brand Management": ["Brand Identity", "Public Relations", "Market Trend Analysis", "Visual Brand Book"],
-      "Market Research": ["Data Collection", "Survey Design", "Competitive Analysis", "SPSS Statistics"]
-    }
-  },
-  "Business, Accounting, Human Resources & Legal": {
-    specializations: [
-      "Financial Accounting",
-      "Auditing",
-      "Corporate Law",
-      "Intellectual Property",
-      "Recruitment & Talent Acquisition",
-      "Employee Relations",
-      "Business Strategy",
-      "Project Management"
-    ],
-    skills: {
-      "Financial Accounting": ["Quickbooks", "GAAP Compliance", "Financial Reporting", "Tax Preparation"],
-      "Auditing": ["Internal Audit", "Risk Assessment", "SOX Compliance", "Financial Analysis"],
-      "Corporate Law": ["Contract Drafting", "Due Diligence", "Mergers & Acquisitions", "Corporate Governance"],
-      "Intellectual Property": ["Patent Filing", "Trademark Law", "Copyrights Law", "IP Strategy"],
-      "Recruitment & Talent Acquisition": ["ATS Systems", "Candidate Sourcing", "Interviewing Techniques", "Executive Search"],
-      "Employee Relations": ["Conflict Resolution", "HR Policy Design", "Onboarding Programs", "Performance Management"],
-      "Business Strategy": ["Market Entry Strategy", "SWOT Analysis", "Financial Modeling", "Management Consulting"],
-      "Project Management": ["Scrum Framework", "Agile Methodologies", "Jira/Asana Management", "PMP Standards"]
-    }
-  },
-  "Product Sourcing & Manufacturing": {
-    specializations: [
-      "Supply Chain Management",
-      "Logistics",
-      "Product Design",
-      "Quality Control",
-      "Manufacturing Engineering",
-      "Vendor Relations",
-      "Inventory Management"
-    ],
-    skills: {
-      "Supply Chain Management": ["ERP Systems", "Sales & Operations Planning (S&OP)", "Procurement", "Strategic Sourcing"],
-      "Logistics": ["Freight Coordination", "Route Planning", "Third-Party Logistics (3PL)", "Warehouse Management"],
-      "Product Design": ["CAD Prototyping", "Ergonomics Study", "Material Selection", "DFM (Design for Manufacturing)"],
-      "Quality Control": ["Six Sigma", "Lean Manufacturing", "ISO 9001 Auditing", "QA Inspections"],
-      "Manufacturing Engineering": ["CNC Programming", "Automation Systems", "PLC Programming", "Assembly Line Layout"],
-      "Vendor Relations": ["Contract Negotiation", "Supplier Audit", "Global Sourcing", "Cost Estimation"],
-      "Inventory Management": ["FIFO/LIFO Operations", "Demand Forecasting", "WMS Software", "Cycle Counting"]
-    }
-  },
-  "Mobile Phones & Computing": {
-    specializations: [
-      "Software Engineering",
-      "Mobile App Development",
-      "UI/UX Design",
-      "Cloud Computing",
-      "Cyber Security",
-      "Database Administration",
-      "Devops",
-      "Computer Networks"
-    ],
-    skills: {
-      "Software Engineering": ["Java", "C++", "Python", "Go", "Rust", "System Design", "Algorithms"],
-      "Mobile App Development": ["Swift (iOS)", "Kotlin (Android)", "React Native", "Flutter", "Mobile SDKs"],
-      "UI/UX Design": ["Figma", "Wireframing", "User Research", "Interactive Prototyping", "Adobe XD"],
-      "Cloud Computing": ["AWS", "Google Cloud Platform (GCP)", "Microsoft Azure", "Cloud Architecture"],
-      "Cyber Security": ["Penetration Testing", "Network Security", "Cryptography", "CISSP Standards", "Firewall Auditing"],
-      "Database Administration": ["PostgreSQL", "MongoDB", "MySQL", "Query Performance Tuning", "Database Schema Design"],
-      "Devops": ["Docker Containers", "CI/CD Pipelines", "Kubernetes Orchestration", "Terraform IaC", "Ansible Automation"],
-      "Computer Networks": ["TCP/IP Protocols", "Cisco CCNA", "Virtual Private Networks (VPN)", "Network Troubleshooting"]
-    }
-  },
-  "Translation & Languages": {
-    specializations: [
-      "English Translation",
-      "Spanish Translation",
-      "French Translation",
-      "Chinese Translation",
-      "Interpretation",
-      "Localization",
-      "Proofreading & Editing"
-    ],
-    skills: {
-      "English Translation": ["English Grammar", "English-to-Vietnamese Translation", "Proofreading", "Localization Strategy"],
-      "Spanish Translation": ["Spanish Grammar", "Spanish-to-English Translation", "Spanish Subtitling", "Localization"],
-      "French Translation": ["French Grammar", "French-to-English Translation", "French Localization"],
-      "Chinese Translation": ["Mandarin/Cantonese Translation", "Chinese-to-English Translation", "Document Translation"],
-      "Interpretation": ["Consecutive Interpretation", "Simultaneous Interpretation", "Active Listening", "Medical/Legal Interpretation"],
-      "Localization": ["CAT Tools (Trados)", "Software UI Localization", "Cultural Adaptation Strategy"],
-      "Proofreading & Editing": ["Copy Editing", "Grammar & Syntax Correction", "Style Guide Compliance (APA/MLA)"]
-    }
-  },
-  "Trades & Services": {
-    specializations: [
-      "Electrical Work",
-      "Plumbing",
-      "Carpentry",
-      "HVAC Services",
-      "Auto Repair",
-      "Cleaning Services",
-      "Landscaping"
-    ],
-    skills: {
-      "Electrical Work": ["Electrical Wiring", "Circuit Troubleshooting", "Reading Blueprints", "Safety Compliance (NEC)"],
-      "Plumbing": ["Pipe Fitting", "Drain Cleaning", "Leak Detection", "Commercial Piping Blueprints"],
-      "Carpentry": ["Fine Woodworking", "Framing", "Cabinetry", "Power Tools Operation"],
-      "HVAC Services": ["Air Conditioning Installation", "Heating Systems Repair", "Refrigerant Management", "HVAC Diagnostics"],
-      "Auto Repair": ["Engine Diagnostics", "Brake Systems Repair", "Suspension Tuning", "Automotive Electrical Systems"],
-      "Cleaning Services": ["Commercial Cleaning", "Deep Cleaning", "Sanitization Standards", "Eco-friendly Cleaning Products"],
-      "Landscaping": ["Lawn Care", "Garden Design", "Irrigation Systems Setup", "Horticulture Expertise"]
-    }
-  },
-  "Freight, Shipping & Transportation": {
-    specializations: [
-      "Freight Forwarding",
-      "Fleet Management",
-      "Customs Brokerage",
-      "Warehouse Management",
-      "Route Optimization",
-      "Courier Services"
-    ],
-    skills: {
-      "Freight Forwarding": ["Customs Regulations", "Bill of Lading Drafting", "International Shipping Compliance", "Carrier Booking"],
-      "Fleet Management": ["GPS Tracking Systems", "Vehicle Maintenance Scheduling", "Driver Scheduling", "Fuel Management"],
-      "Customs Brokerage": ["Import/Export Documentation", "Tariff Classification (HS Code)", "Regulatory Compliance"],
-      "Warehouse Management": ["OSHA Safety Standards", "Material Handling", "Inventory Audits", "Forklift Operations"],
-      "Route Optimization": ["Route Planning Software", "Last-Mile Delivery Logistics", "Cost Management"],
-      "Courier Services": ["Local Delivery Management", "Time Management", "Customer Service Excellence"]
-    }
-  },
-  "Telecommunications": {
-    specializations: [
-      "Network Engineering",
-      "Wireless Communications",
-      "Telephony Systems",
-      "Fiber Optics",
-      "Satellite Communications",
-      "RF Engineering"
-    ],
-    skills: {
-      "Network Engineering": ["VoIP", "SIP Protocols", "Cisco IOS", "Telecom Network Design"],
-      "Wireless Communications": ["5G/4G Network Deployment", "LTE Architecture", "WiFi Protocols", "Antenna Engineering"],
-      "Telephony Systems": ["PBX Systems Configuration", "Unified Communications (UCaaS)", "Call Center Routing"],
-      "Fiber Optics": ["Optical Fiber Splicing", "OTDR Testing", "FTTH Installation"],
-      "Satellite Communications": ["VSAT Systems Installation", "Link Budgets Calculation", "RF Systems Calibration"],
-      "RF Engineering": ["RF Simulation", "Spectrum Analysis", "Microwave Link Systems"]
-    }
-  },
-  "Education": {
-    specializations: [
-      "Curriculum Development",
-      "Online Tutoring",
-      "Special Education",
-      "Language Instruction",
-      "Instructional Design",
-      "Educational Consulting"
-    ],
-    skills: {
-      "Curriculum Development": ["Lesson Planning", "Learning Objectives Definition", "Educational Standards Alignment"],
-      "Online Tutoring": ["Zoom Classroom Management", "Interactive Whiteboards", "Subject Matter Tutoring (Math/Science)"],
-      "Special Education": ["IEP (Individualized Education Program) Development", "Behavioral Intervention", "Differentiated Instruction"],
-      "Language Instruction": ["ESL/EFL Teaching", "Language Pedagogy", "Pronunciation Coaching"],
-      "Instructional Design": ["E-Learning Development", "Articulate Storyline", "LMS Administration (Moodle/Canvas)"],
-      "Educational Consulting": ["Academic Advising", "College Admissions Counseling", "Educational Technology Assessment"]
-    }
-  },
-  "Health & Medicine": {
-    specializations: [
-      "General Medicine",
-      "Nursing",
-      "Physical Therapy",
-      "Medical Writing",
-      "Healthcare Administration",
-      "Clinical Research",
-      "Nutrition & Dietetics"
-    ],
-    skills: {
-      "General Medicine": ["Medical Diagnostics", "Patient Care Protocols", "Medical Terminology"],
-      "Nursing": ["Patient Monitoring", "IV Administration", "Wound Care", "Electronic Medical Records (EMR)"],
-      "Physical Therapy": ["Physical Rehabilitation", "Therapeutic Exercise", "Patient Mobility Assessment"],
-      "Medical Writing": ["Clinical Trial Reports", "Medical Copyediting", "Regulatory Document Prep", "AMA Style Compliance"],
-      "Healthcare Administration": ["HIPAA Compliance", "Medical Billing & Coding", "Clinic Operations Management"],
-      "Clinical Research": ["GCP Guidelines", "Protocol Design", "Data Collection", "Clinical Trials Management"],
-      "Nutrition & Dietetics": ["Meal Planning", "Dietary Assessment", "Clinical Nutrition Programs"]
-    }
-  },
-  "Artificial Intelligence": {
-    specializations: [
-      "Machine Learning",
-      "Natural Language Processing",
-      "Computer Vision",
-      "Deep Learning",
-      "Generative AI",
-      "MLOps",
-      "AI Agent Development"
-    ],
-    skills: {
-      "Machine Learning": ["Python", "Scikit-Learn", "Regression Models", "Classification & Clustering"],
-      "Natural Language Processing": ["Hugging Face Transformers", "BERT", "Text Tokenization", "Semantic Search"],
-      "Computer Vision": ["OpenCV Library", "YOLO Object Detection", "Image Segmentation", "PyTorch Vision"],
-      "Deep Learning": ["Deep Neural Networks", "TensorFlow Framework", "Keras API", "PyTorch Library", "CNN/RNN Architectures"],
-      "Generative AI": ["OpenAI API Integration", "LangChain Framework", "RAG Systems Setup", "Vector Databases (Pinecone/Chroma)", "Prompt Engineering"],
-      "MLOps": ["MLflow Experiment Tracking", "DVC (Data Version Control)", "AWS SageMaker", "Dockerizing ML Models"],
-      "AI Agent Development": ["Semantic Kernel Framework", "AutoGen", "CrewAI Orchestration", "LangGraph", "AI Agent Tooling"]
-    }
-  }
-};
+export const getExpertProfileKey = (userId) => `aitasker_expert_profile_${userId}`;
+
+export function getLocalExpertProfile(userId) {
+  try {
+    const raw = localStorage.getItem(getExpertProfileKey(userId));
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+export function saveLocalExpertProfile(userId, data) {
+  localStorage.setItem(getExpertProfileKey(userId), JSON.stringify(data));
+}
 
 export function EditExpertProfile() {
   const navigate = useNavigate();
@@ -272,6 +40,14 @@ export function EditExpertProfile() {
   });
 
   const [skills, setSkills] = useState([]);
+  const [allCategories, setAllCategories] = useState([]);
+  const [allSkills, setAllSkills] = useState([]);
+
+  // Fetch category and skill lists
+  useEffect(() => {
+    api.categoryTags.getCategories().then((res) => setAllCategories(res || [])).catch(() => { });
+    api.categoryTags.getSkills().then((res) => setAllSkills(res || [])).catch(() => { });
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -280,6 +56,7 @@ export function EditExpertProfile() {
         ...prev,
         name: user.name || "",
         email: user.email || "",
+        phone: user.phoneNumber || user.phone || "",
       }));
       return;
     }
@@ -291,9 +68,9 @@ export function EditExpertProfile() {
           setFormData({
             name: res.fullName || "",
             email: res.email || "",
-            phone: res.expertProfile?.phone || res.status || "",
+            phone: res.phoneNumber || res.status || "",
             jobTitle: res.expertProfile?.jobTitle || "",
-            category: res.expertProfile?.category || "",
+            category: res.expertProfile?.category || res.expertProfile?.major || "",
             specialization: res.expertProfile?.specialization || res.expertProfile?.major || "",
             location: res.expertProfile?.location || "",
             portfolioUrls: res.expertProfile?.portfolioUrls || "",
@@ -302,7 +79,7 @@ export function EditExpertProfile() {
             website: res.expertProfile?.website || "",
             industry: res.expertProfile?.industry || "",
           });
-          if (res.expertProfile?.skills) {
+          if (res.expertProfile?.skills && res.expertProfile.skills.length > 0) {
             setSkills(res.expertProfile.skills);
           }
         }
@@ -322,7 +99,12 @@ export function EditExpertProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (skills.length === 0) {
-      setError("Vui lòng chọn ít nhất một kỹ năng.");
+      setError("Please select at least one skill.");
+      return;
+    }
+    const phoneRegex = /^0\d{9}$/;
+    if (!phoneRegex.test(formData.phone.trim())) {
+      setError("Invalid phone number (must start with 0 and contain 10 digits).");
       return;
     }
     setError("");
@@ -330,44 +112,66 @@ export function EditExpertProfile() {
 
     try {
       const apiPayload = {
-        jobTitle: formData.jobTitle || "Chưa cập nhật",
-        major: formData.specialization || "Chưa cập nhật",
+        jobTitle: formData.jobTitle || "Not updated",
+        major: formData.specialization || "Not updated",
         category: formData.category,
         specialization: formData.specialization,
         skills: skills,
-        bio: formData.bio || "Chưa có giới thiệu",
+        bio: formData.bio || "No introduction yet",
         portfolioUrls: formData.portfolioUrls || "",
-        location: formData.location || "Chưa cập nhật",
-        phone: formData.phone.trim(),
+        location: formData.location || "Not updated",
+        phone: formData.phone,
         hourlyRate: Number(formData.hourlyRate) || 0,
         website: formData.website || "",
         industry: formData.industry || "",
       };
 
+      // Save profile to backend — category, specialization, skills are persisted in the DB
       await Promise.all([
-        api.users.update(user.id, { 
+        api.users.update(user.id, {
           fullName: formData.name.trim(),
           email: formData.email.trim(),
-          status: formData.phone.trim()
+          phoneNumber: formData.phone.trim(),
         }),
         completeExpertProfile(apiPayload),
       ]);
 
-      const storedUser = localStorage.getItem("aitasker_user_info");
+      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.name.trim();
-        localStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        if (localStorage.getItem("aitasker_user_info")) {
+          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
+        }
       }
 
-      alert("Hồ sơ đã được lưu thành công!");
+      // Save dropped fields to localStorage as fallback
+      const localProfile = {
+        category: formData.category,
+        specialization: formData.specialization,
+        skills: skills,
+        phone: formData.phone.trim(),
+        website: formData.website || "",
+        industry: formData.industry || "",
+        hourlyRate: Number(formData.hourlyRate) || 0,
+      };
+      saveLocalExpertProfile(user.id, localProfile);
+      // Dispatch custom event to sync with ExpertProfile.jsx
+      window.dispatchEvent(new CustomEvent("expert_profile_updated"));
+
+      alert("Profile saved successfully!");
       navigate("/expert/profile", { replace: true });
     } catch (err) {
-      setError(err.message || "Có lỗi xảy ra khi lưu. Vui lòng thử lại!");
+      setError(err.message || "An error occurred while saving. Please try again!");
     } finally {
       setLoading(false);
     }
   };
+  const uniqueCategories = Array.from(new Map(allCategories.map(c => [c.name, c])).values());
+  const selectedCat = uniqueCategories.find((c) => c.id === formData.category || c.name === formData.category);
+  const specializationsList = selectedCat ? Array.from(new Map((selectedCat.specializations || []).map(s => [s.name, s])).values()) : [];
+  const uniqueSkills = Array.from(new Map(allSkills.map(s => [s.name, s])).values());
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -383,7 +187,7 @@ export function EditExpertProfile() {
 
         <h1 className="text-2xl font-bold text-foreground">
           {user?.hasProfile === false
-            ? "Hoàn thiện hồ sơ để bắt đầu"
+            ? "Complete profile to start"
             : "Edit Expert Profile"}
         </h1>
       </div>
@@ -445,9 +249,9 @@ export function EditExpertProfile() {
               required
             >
               <option value="">-- Select Category --</option>
-              {Object.keys(CATEGORY_DATA).map((catName) => (
-                <option key={catName} value={catName}>
-                  {catName}
+              {uniqueCategories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
                 </option>
               ))}
             </select>
@@ -459,7 +263,7 @@ export function EditExpertProfile() {
               Specialization <span className="text-red-500">*</span>
             </label>
             <select
-              value={formData.specialization}
+              value={formData.specialization?.name || formData.specialization}
               onChange={(e) => {
                 const spec = e.target.value;
                 setFormData(prev => ({ ...prev, specialization: spec }));
@@ -470,12 +274,11 @@ export function EditExpertProfile() {
               required
             >
               <option value="">-- Select Specialization --</option>
-              {formData.category &&
-                CATEGORY_DATA[formData.category]?.specializations.map((specName) => (
-                  <option key={specName} value={specName}>
-                    {specName}
-                  </option>
-                ))}
+              {specializationsList.map((spec) => (
+                <option key={spec.id} value={spec.id}>
+                  {spec.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -493,18 +296,18 @@ export function EditExpertProfile() {
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">Select skills that apply to your specialization:</p>
               <div className="flex flex-wrap gap-2">
-                {CATEGORY_DATA[formData.category]?.skills[formData.specialization]?.map((skName) => {
+                {uniqueSkills.map((sk) => {
+                  const skName = sk.name;
                   const isSelected = skills.includes(skName);
                   return (
                     <button
-                      key={skName}
+                      key={sk.id}
                       type="button"
                       onClick={() => toggleSkill(skName)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                        isSelected
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${isSelected
                           ? "bg-brand-primary border-brand-primary text-brand-primary-foreground shadow-sm"
                           : "bg-card border-input text-foreground/80 hover:border-brand-primary"
-                      }`}
+                        }`}
                     >
                       {skName}
                     </button>
@@ -537,8 +340,8 @@ export function EditExpertProfile() {
             <input
               type="tel"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
+              disabled
+              className="w-full px-4 py-2 border border-border bg-secondary/60 text-muted-foreground rounded-lg cursor-not-allowed font-medium outline-none"
               required
             />
           </div>

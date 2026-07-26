@@ -95,17 +95,18 @@ function groupByDate(notifications) {
 // ---------------------------------------------------------------------------
 
 export function NotificationsPage() {
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState(null);
 
   const fetchNotifications = async () => {
     try {
-      const data = await api.notifications.getList();
+      const data = await api.notifications.getList({ userId: user?.id });
       if (Array.isArray(data)) {
-        data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        setNotifications(data);
+        const filtered = data.filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014");
+        filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setNotifications(filtered);
       }
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
@@ -142,7 +143,7 @@ export function NotificationsPage() {
 
   const handleMarkAllRead = async () => {
     try {
-      await api.notifications.markAllRead();
+      await api.notifications.markAllRead({ userId: user?.id });
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setActionFeedback("All notifications marked as read.");
       setTimeout(() => setActionFeedback(null), 3000);
@@ -265,13 +266,13 @@ export function NotificationsPage() {
                           </span>
                         </div>
                         <p className={`text-sm mt-1 leading-relaxed ${notif.isRead ? "text-muted-foreground/60" : "text-foreground/75"}`}>
-                          {notif.message || notif.description}
+                          {notif.message || notif.description || notif.content}
                         </p>
                       </div>
                     </div>
                   );
 
-                  const redirectUrl = notif.linkTo || notif.actionUrl;
+                  const redirectUrl = notif.linkTo || notif.actionUrl || notif.linkUrl || notif.link;
                   if (redirectUrl) {
                     return (
                       <Link key={notif.id} to={redirectUrl} className="block">

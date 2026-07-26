@@ -1,36 +1,14 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   User,
   MapPin,
   Calendar,
-  Edit,
   Shield,
 } from "lucide-react";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { listUsers } from "../../../data/mockDatabase.js";
+import api from "../../../services/api.js";
 
-/**
- * Resolve the full admin user object from auth email → mock DB.
- * Falls back to the demo admin user-002 if email lookup fails.
- */
-function resolveAdmin(userFromAuth) {
-  if (userFromAuth?.email) {
-    const found = listUsers().find(
-      (u) => u.email === userFromAuth.email && u.role === "admin"
-    );
-    if (found) return found;
-  }
-  if (userFromAuth?.id) {
-    const found = listUsers().find(
-      (u) => u.id === userFromAuth.id && u.role === "admin"
-    );
-    if (found) return found;
-  }
-  // Fallback: return demo admin (user-002)
-  return listUsers().find((u) => u.id === "user-002") || null;
-}
 
 export function AdminProfile() {
   const { user: authUser } = useAuth();
@@ -38,15 +16,20 @@ export function AdminProfile() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const resolved = resolveAdmin(authUser);
-    setAdmin(resolved);
-    setLoading(false);
+    if (!authUser?.id) {
+      setLoading(false);
+      return;
+    }
+    api.users.getById(authUser.id)
+      .then(setAdmin)
+      .catch(err => console.error("Failed to fetch admin:", err))
+      .finally(() => setLoading(false));
   }, [authUser]);
 
   // ---- Loading state ----
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto w-full space-y-6">
         <div className="animate-pulse bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-muted rounded-xl" />
@@ -63,18 +46,12 @@ export function AdminProfile() {
   // ---- Not-found state ----
   if (!admin) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/admin/dashboard" className="mb-4">Back to Dashboard</BackButton>
+      <div className="max-w-4xl mx-auto w-full space-y-6">
+        
         <div className="bg-card rounded-2xl border border-border shadow-sm p-12 text-center">
           <User className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-muted-foreground mb-2">Profile not available</h2>
-          <p className="text-sm text-muted-foreground mb-4">Complete your profile to get started.</p>
-          <Link
-            to="/admin/profile/edit"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
-          >
-            <Edit className="w-4 h-4" /> Edit Profile
-          </Link>
+          <p className="text-sm text-muted-foreground mb-4">You cannot edit this profile.</p>
         </div>
       </div>
     );
@@ -91,8 +68,8 @@ export function AdminProfile() {
     : "?";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      <BackButton fallback="/admin/dashboard" className="mb-2">Back to Dashboard</BackButton>
+    <div className="max-w-4xl mx-auto w-full space-y-6">
+      
 
       {/* ── Profile header card ── */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
@@ -116,12 +93,6 @@ export function AdminProfile() {
             </div>
           </div>
 
-          <Link
-            to="/admin/profile/edit"
-            className="h-11 px-5 border border-input rounded-[14px] hover:bg-secondary/60 text-base font-semibold inline-flex items-center gap-2 transition-colors flex-shrink-0"
-          >
-            <Edit className="w-4 h-4" /> Edit Profile
-          </Link>
         </div>
 
         {/* ── Meta details ── */}

@@ -11,16 +11,70 @@ import {
   X,
   MessageSquare,
   Clock,
+  Paperclip,
+  File as FileIcon,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { toast } from "sonner";
-import api from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import { notifyProposalDecision } from "../../../services/notificationHelper.js";
 
-import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass } from "../../lib/projectTimelineStore.js";
+import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getOverallProgress } from "../../lib/projectTimelineStore.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
+
+export function getNormalizedStatus(project, activeReports = []) {
+  const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+  const projId = project.projectId || project.id || project.Id;
+  const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
+  
+  const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
+  const dbStatus = (project.status || project.Status || "").toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+             (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
+
+  let label = "In Progress";
+  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+
+  if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
+    label = "Completed";
+    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+  } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
+    label = "Cancel";
+    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+  } else if (status === "disputed") {
+    label = "Disputed";
+    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+  } else {
+    const hasProjectRecord = !!project.projectId;
+    const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
+
+    const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
+    const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+
+    if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
+      label = "Open";
+      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+    }
+  }
+
+  return { label, badgeClass };
+}
 
 export function MyProjectsList() {
   const { user } = useAuth();
@@ -30,6 +84,8 @@ export function MyProjectsList() {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Sub-view page states: "list" | "details" | "proposals"
   const [view, setView] = useState("list");
@@ -42,26 +98,111 @@ export function MyProjectsList() {
   const [propLoading, setPropLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [showEscrowConfirm, setShowEscrowConfirm] = useState(false);
+  
+  // Proposal filter states
+  const [propSearch, setPropSearch] = useState("");
+  const [propSort, setPropSort] = useState("recent");
 
   const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
+  const [invitedExpertName, setInvitedExpertName] = useState("");
+  const [activeReports, setActiveReports] = useState([]);
 
   async function loadProjects() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      const userRes = await api.users.getById(user.id);
+      let rawProjects = [];
+      let activeProjectsList = [];
+      try {
+        const [jobsRes, projectsRes, transactionsList, reportsRes] = await Promise.all([
+          api.jobPosts.getByClientId(user.id).catch(() => []),
+          api.projects.getByClient(user.id).catch(() => []),
+          api.payments.getTransactions(user.id).catch(() => []),
+          api.get("/reports").catch(() => ({ data: [] }))
+        ]);
+        rawProjects = jobsRes;
+        activeProjectsList = projectsRes;
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
+
+        try {
+          const depositedProjectIds = (transactionsList || [])
+            .filter(tx => tx.type === "EscrowDeposit")
+            .map(tx => String(tx.projectId || tx.ProjectId).toLowerCase());
+          localStorage.setItem("deposited_project_ids", JSON.stringify(depositedProjectIds));
+        } catch (e) {}
+      } catch (err) {
+        console.warn("Failed to fetch client jobs or active projects", err);
+      }
       
-      const rawProjects = userRes?.jobPosts || [];
       const projectsWithCounts = await Promise.all(
         rawProjects.map(async (project) => {
+          const matchingProject = (activeProjectsList || []).find(
+            proj => (proj.jobPostId === project.id || proj.JobPostId === project.id)
+          );
+          
+          const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+          const clientReleases = localReleases.filter(r => r.clientId === user.id);
+          let isReleasedLocally = false;
+          if (matchingProject) {
+            isReleasedLocally = clientReleases.some(r => r.projectId === (matchingProject.id || matchingProject.Id));
+            const localStatus = localStorage.getItem(`project_status_${matchingProject.id || matchingProject.Id}`);
+            if (isReleasedLocally || localStatus === "completed") {
+              matchingProject.status = "Completed";
+              matchingProject.Status = "Completed";
+            }
+          }
+
+          let overallProgress = 0;
+          if (matchingProject) {
+            try {
+              const fullProj = await api.projects.getById(matchingProject.id || matchingProject.Id);
+              if (fullProj && fullProj.tasks) {
+                overallProgress = getOverallProgress(fullProj.tasks);
+              }
+            } catch (err) {
+              console.warn("Failed to load full project detail in MyProjectsPage for progress mapping:", err);
+            }
+          }
+
+          const hasOverriddenCompleted = isReleasedLocally || (matchingProject && localStorage.getItem(`project_status_${matchingProject.id || matchingProject.Id}`) === "completed");
+          
+          let actualStatus = project.status || "";
+          if (matchingProject) {
+            actualStatus = matchingProject.status || matchingProject.Status || project.status || "";
+            if (hasOverriddenCompleted) {
+              actualStatus = "Completed";
+            }
+          }
+
           try {
             const proposals = await api.proposals.getByJob(project.id);
+            const acceptedProp = proposals.find(p => 
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+            );
+            const hasAcceptedProposal = !!acceptedProp;
+            const acceptedExpertName = acceptedProp ? (acceptedProp.expertName || acceptedProp.ExpertName || acceptedProp.expert || "") : "";
+            
             return {
               ...project,
+              status: actualStatus,
+              projectId: matchingProject ? (matchingProject.id || matchingProject.Id) : null,
+              escrowBalance: matchingProject ? (matchingProject.escrowBalance ?? matchingProject.EscrowBalance) : 0,
               proposalCount: proposals.length,
+              isAcceptedProject: hasAcceptedProposal,
+              acceptedExpertName: acceptedExpertName,
+              progress: overallProgress,
             };
           } catch {
-            return { ...project, proposalCount: 0 };
+            return { 
+              ...project, 
+              status: actualStatus,
+              projectId: matchingProject ? (matchingProject.id || matchingProject.Id) : null,
+              escrowBalance: matchingProject ? (matchingProject.escrowBalance ?? matchingProject.EscrowBalance) : 0,
+              proposalCount: 0, 
+              isAcceptedProject: false, 
+              acceptedExpertName: "",
+              progress: overallProgress,
+            };
           }
         })
       );
@@ -99,7 +240,17 @@ export function MyProjectsList() {
     }
   }, [projects]);
 
-  // Handle deep-linking from notifications
+  // Sync state to URL parameters (for preserving active view on F5)
+  useEffect(() => {
+    if (selectedProject?.id && view !== "list") {
+      const currentParams = new URLSearchParams(location.search);
+      currentParams.set("projectId", selectedProject.id);
+      currentParams.set("view", view);
+      navigate(`?${currentParams.toString()}`, { replace: true });
+    }
+  }, [selectedProject?.id, view]);
+
+  // Handle deep-linking from notifications or URL reload (F5)
   useEffect(() => {
     if (projects.length === 0) return;
     const params = new URLSearchParams(location.search);
@@ -112,15 +263,17 @@ export function MyProjectsList() {
         setView(vType);
       }
     }
-  }, [projects, location.search]);
+  }, [projects]);
 
   // Check for successful invite parameter
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("inviteSuccess") === "true") {
       setShowInviteSuccessBanner(true);
+      setInvitedExpertName(params.get("expertName") || "");
     } else {
       setShowInviteSuccessBanner(false);
+      setInvitedExpertName("");
     }
   }, [location.search]);
 
@@ -130,6 +283,8 @@ export function MyProjectsList() {
       setProposal(null);
       setProposalsList([]);
       setViewedProposal(null);
+      setPropSearch("");
+      setPropSort("recent");
       return;
     }
     let cancelled = false;
@@ -137,6 +292,14 @@ export function MyProjectsList() {
     async function fetchProposals() {
       setPropLoading(true);
       try {
+        // Load categories to resolve GUIDs to display names
+        let allCategories = [];
+        try {
+          allCategories = await api.categoryTags.getCategories();
+        } catch (e) {
+          console.warn("Failed to load categories for name resolution:", e);
+        }
+
         const list = await api.proposals.getByJob(selectedProject.id);
         const submittedList = list.filter(p => p.isSubmitted !== false);
         if (submittedList.length === 0) {
@@ -156,28 +319,107 @@ export function MyProjectsList() {
               console.error("Failed to load expert info:", err);
             }
 
-            let parsed = {};
-            try {
-              parsed = JSON.parse(targetProp.coverLetter);
-            } catch (e) {
-              parsed = {
-                coverLetter: targetProp.coverLetter,
-                professionalIntro: targetProp.coverLetter,
-              };
+            // Resolve category and specialization names from GUIDs
+            const rawCategory = expUser?.expertProfile?.category || null;
+            const rawSpecialization = expUser?.expertProfile?.major || null;
+            let resolvedCategory = rawCategory;
+            let resolvedSpecialization = rawSpecialization;
+            if (rawCategory) {
+              const matchedCat = allCategories.find(c => c.id === rawCategory);
+              if (matchedCat) {
+                resolvedCategory = matchedCat.name;
+                // Resolve specialization within the matched category
+                if (rawSpecialization && matchedCat.specializations) {
+                  const matchedSpec = matchedCat.specializations.find(s => s.id === rawSpecialization);
+                  if (matchedSpec) resolvedSpecialization = matchedSpec.name;
+                }
+              }
             }
+
+            // Calculate success rate from expert's projects (same as ExpertProfile)
+            let expertSuccessRate = null;
+            const allExpertProjects = expUser?.projects || expUser?.Projects || [];
+            if (allExpertProjects.length > 0) {
+              const completedCount = allExpertProjects.filter(p =>
+                ["completed", "complete", "resolved"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              const cancelCount = allExpertProjects.filter(p =>
+                ["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              const reportCount = allExpertProjects.filter(p =>
+                ["disputed"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              const totalForSuccess = completedCount + cancelCount + reportCount;
+              if (totalForSuccess > 0) {
+                expertSuccessRate = Math.round((completedCount / totalForSuccess) * 100);
+              }
+            }
+
+            // Get evaluate from reviews (same as ExpertProfile)
+            let expertEvaluate = null;
+            try {
+              const reviewRes = await api.reviews.getExpertReviews(targetProp.expertId);
+              if (reviewRes) {
+                const reviewsList = reviewRes.reviews || [];
+                if (reviewsList.length > 0) {
+                  const totalRating = reviewsList.reduce((sum, r) => sum + (r.rating || 0), 0);
+                  expertEvaluate = (totalRating / reviewsList.length).toFixed(1).replace(".0", "");
+                }
+              }
+            } catch (e) {
+              console.warn("Failed to load expert reviews:", e);
+            }
+
+            const parsed = parseProposalWbs(targetProp.implementation || targetProp.coverLetter, targetProp);
+
+            const rawParsedAttachments = parsed?.attachments || [];
+            const attachments = [...rawParsedAttachments];
+
+            const checkAndAddBEFile = (rawPath, fallbackTitle, idPrefix) => {
+              if (!rawPath || typeof rawPath !== "string") return;
+              const fileUrl = enrichFileUrl(rawPath);
+              const exists = attachments.some(a => a.url === fileUrl || a.url === rawPath);
+              if (!exists) {
+                const rawName = rawPath.split("/").pop() || fallbackTitle;
+                const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawName);
+                attachments.push({
+                  id: `${idPrefix}-${Date.now()}`,
+                  name: cleanName || rawName,
+                  type: isImg ? "image/png" : "document",
+                  fileType: isImg ? "image/png" : "document",
+                  url: fileUrl
+                });
+              }
+            };
+
+            checkAndAddBEFile(targetProp.portfolio || targetProp.Portfolio || targetProp.portfolioUrl || targetProp.PortfolioUrl, "Portfolio Document", "portfolio");
+            checkAndAddBEFile(targetProp.attachmentUrl || targetProp.AttachmentUrl || targetProp.attachment || targetProp.Attachment, "Attached Document", "attachment");
+
+            // Dynamically construct useCaseBreakdown if project has useCases
+            const useCases = selectedProject?.useCases || [];
+            const useCaseBreakdown = useCases.map(uc => {
+              const ucTasks = parsed.tasks.filter(t => t.useCaseId === uc.id);
+              return {
+                useCaseId: uc.id,
+                useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+                originalDuration: uc.originalDurationDays || 1,
+                tasks: ucTasks
+              };
+            });
 
             return {
               ...targetProp,
-              proposalTitle: parsed.proposalTitle || "Proposal",
-              coverLetter: parsed.professionalIntro || parsed.coverLetter || "",
-              technicalApproach: parsed.technicalApproach || "",
-              timelineMilestones: parsed.timelineMilestones || "",
-              dependencies: parsed.dependencies || "",
-              durationDays: parsed.durationDays || targetProp.estimatedDays || 0,
-              tasks: parsed.tasks || [],
-              attachments: parsed.attachments || [],
+              ...parsed,
+              useCaseBreakdown,
+              coverLetter: parsed.professionalIntro || targetProp.introduction || "",
+              attachments,
               expertName: expUser?.fullName || "AI Expert",
-              expertTitle: expUser?.expertProfile?.jobTitle || "AI Expert",
+              expertCategory: resolvedCategory,
+              expertSpecialization: resolvedSpecialization,
+              expertSkills: expUser?.expertProfile?.skills || [],
+              expertSuccessRate,
+              expertEvaluate,
             };
           })
         );
@@ -189,7 +431,17 @@ export function MyProjectsList() {
           } else {
             setProposal(null);
           }
-          setProposalsList(enrichedList);
+          const filteredList = enrichedList.filter(
+            (p) => p.status?.toLowerCase() !== "declined" && !(p.status?.toLowerCase() === "pending" && (Number(p.bidAmount) || 0) === 0)
+          );
+          setProposalsList(filteredList);
+
+          // Sync viewedProposal with newly updated DB data
+          setViewedProposal(prev => {
+            if (!prev) return null;
+            const updated = enrichedList.find(p => p.id === prev.id);
+            return updated || prev;
+          });
         }
       } catch (err) {
         console.error("Failed to fetch proposals:", err);
@@ -222,11 +474,16 @@ export function MyProjectsList() {
   const handleDeclineProposal = async (proposalId) => {
     setActionLoading(true);
     try {
-      await api.proposals.delete(proposalId);
-      toast.success("Proposal has been declined and deleted successfully!");
+      await api.proposals.updateStatus(proposalId, "Declined");
+      toast.success("Proposal has been declined successfully!");
+      
+      // Update local state immediately
+      setProposalsList((prev) => prev.filter((p) => p.id !== proposalId));
       if (viewedProposal?.id === proposalId) {
         setViewedProposal(null);
       }
+      setProposal(null);
+
       await loadProjects();
       setDbUpdateVersion(prev => prev + 1);
     } catch (err) {
@@ -239,17 +496,58 @@ export function MyProjectsList() {
   const handleAcceptProposal = async (p) => {
     setActionLoading(true);
     try {
-      // Update project status to "pending_pay"
-      await api.jobPosts.update(selectedProject.id, { status: "pending_pay" });
-      // Update proposal status to "pending_pay"
+      // 1. Update Proposal status to pending_pay on Backend
       await api.proposals.updateStatus(p.id, "pending_pay");
+
+      // 2. Create project from proposal on Backend to generate actual projectId
+      try {
+        await api.projects.createFromProposal(p.id);
+      } catch (projErr) {
+        console.warn("Failed to create project from proposal, continuing anyway:", projErr);
+      }
+
+      try {
+        const skillsList = selectedProject.jobPostSkills || selectedProject.JobPostSkills || [];
+        const skillIds = skillsList.map(s => s.skillsId || s.SkillsId || s.skillId || s.skill?.id || s.skill?.Id || s.Skill?.id || s.Skill?.Id).filter(Boolean);
+
+        await api.jobPosts.update(selectedProject.id, {
+          title: selectedProject.title,
+          description: selectedProject.description || "Project description",
+          budget: selectedProject.budget || 100,
+          deadline: selectedProject.deadline || 14,
+          domainId: selectedProject.domainId || selectedProject.domain?.id || selectedProject.Domain?.Id || null,
+          specializationId: selectedProject.specializationId || selectedProject.specialization?.id || selectedProject.Specialization?.Id || null,
+          durationValue: selectedProject.durationValue || 0,
+          durationUnit: selectedProject.durationUnit || "Days",
+          skillIds: skillIds.length > 0 ? skillIds : (selectedProject.skillIds || selectedProject.SkillIds || [])
+        });
+      } catch (jobUpdateErr) {
+        console.warn("Failed to update job post metadata, continuing anyway:", jobUpdateErr);
+      }
       
-      toast.success("Proposal has been accepted successfully!");
-      setViewedProposal(null);
+      toast.success("Proposal has been accepted successfully! Please set up escrow to start the project.");
+
+      // Notify selected expert + reject others
+      const otherProposals = proposalsList.filter(prop => prop.id !== p.id);
+      notifyProposalDecision({
+        selectedExpertId: p.expertId,
+        clientName: user?.fullName || user?.name || "Client",
+        jobTitle: selectedProject?.title || "Project",
+        proposalId: p.id,
+        otherProposals: otherProposals.map(op => ({ id: op.id, expertId: op.expertId })),
+      }).catch(() => {});
+
+      // 3. Update local state to pending_pay to display escrow button
+      const acceptedProposal = { ...p, status: "pending_pay" };
+      setProposal(acceptedProposal);
+      setViewedProposal(acceptedProposal);
+      setProposalsList(prev => prev.map(item => item.id === p.id ? acceptedProposal : item));
+
       setShowEscrowConfirm(false);
       await loadProjects();
       setDbUpdateVersion(prev => prev + 1);
     } catch (err) {
+      console.error("Failed to accept proposal:", err);
       toast.error(err.message || "Failed to accept proposal.");
     } finally {
       setActionLoading(false);
@@ -279,11 +577,36 @@ export function MyProjectsList() {
   // VIEW: DETAILS
   // =========================================================================
   if (view === "details" && selectedProject) {
-    const skills = selectedProject.jobPostSkills?.map((s) => s.skill?.name) || selectedProject.requiredSkills || [];
+    const skills = selectedProject.jobPostSkills?.map((s) => s.skill?.name || s.skillName || s.skill?.Name).filter(Boolean) || selectedProject.requiredSkills || [];
     const deadlineText = (() => {
       if (!selectedProject.deadline) return "N/A";
+
+      // Check for extended project deadline from localStorage
+      const projId = selectedProject.projectId || selectedProject.id;
+      if (projId) {
+        const localDeadline = localStorage.getItem(`project_deadline_${projId}`);
+        if (localDeadline) {
+          return safeDateFormat(localDeadline, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }, String(localDeadline));
+        }
+      }
+
       const num = Number(selectedProject.deadline);
-      if (!Number.isNaN(num) && num < 1000) return `${num} days`;
+      if (!Number.isNaN(num) && num < 1000) {
+        const startDate = new Date(selectedProject.createdAt || selectedProject.CreatedAt || Date.now());
+        if (!Number.isNaN(startDate.getTime())) {
+          const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+          return safeDateFormat(deadlineDate.toISOString(), {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }, `${num} days`);
+        }
+        return `${num} days`;
+      }
       return safeDateFormat(selectedProject.deadline, {
         year: "numeric",
         month: "short",
@@ -303,7 +626,9 @@ export function MyProjectsList() {
 
         {showInviteSuccessBanner && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
-            <span className="font-semibold text-sm">bạn đã thêm chuyên gia mới thành công</span>
+            <span className="font-semibold text-sm">
+              Successfully invited expert {invitedExpertName ? `"${invitedExpertName}" ` : ""}
+            </span>
             <button
               onClick={() => setShowInviteSuccessBanner(false)}
               className="text-green-650 hover:text-green-800 transition-colors"
@@ -330,17 +655,17 @@ export function MyProjectsList() {
 
           {safeArray(selectedProject.useCases).length > 0 && (
             <div className="border-t border-border/60 pt-6">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project Timeline Root (Use Cases)</h4>
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project User Stories</h4>
               <div className="space-y-3">
                 {safeArray(selectedProject.useCases).map((uc, i) => (
                   <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-left">
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-foreground">
-                        Use Case #{i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `Use Case #${i + 1}`}</span>
+                        User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `User Story #${i + 1}`}</span>
                       </p>
                       {uc.description && (
                         <p className="text-muted-foreground leading-relaxed pl-3 border-l-2 border-border mt-1">
-                          {uc.description}
+                          Description: {uc.description}
                         </p>
                       )}
                     </div>
@@ -358,12 +683,12 @@ export function MyProjectsList() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Category</h4>
-              <p className="text-base text-foreground font-medium">{selectedProject.aiCategoryDomain?.name || selectedProject.category || "N/A"}</p>
+              <p className="text-base text-foreground font-medium">{selectedProject.domain?.name || selectedProject.category || "N/A"}</p>
             </div>
-            {selectedProject.specialization && (
+            {(selectedProject.specialization || selectedProject.specializationName) && (
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Specialization / Area of expertise</h4>
-                <p className="text-base text-foreground font-medium">{selectedProject.specialization}</p>
+                <p className="text-base text-foreground font-medium">{selectedProject.specialization?.name || selectedProject.specializationName || selectedProject.specialization}</p>
               </div>
             )}
           </div>
@@ -408,7 +733,90 @@ export function MyProjectsList() {
 
           <div className="border-t border-border/60 pt-6">
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Expert</h4>
-            <p className="text-base text-foreground font-semibold">{selectedProject.assignedExpert ? selectedProject.assignedExpert.fullName : ""}</p>
+            <p className="text-base text-foreground font-semibold">
+              {selectedProject.assignedExpert
+                ? selectedProject.assignedExpert.fullName
+                : (selectedProject.acceptedExpertName || (invitedExpertName ? `${invitedExpertName} (Invited)` : "Not Assigned"))}
+            </p>
+          </div>
+
+          {/* Project Attachments */}
+          <div className="border-t border-border/60 pt-6">
+            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Project Attachments</h4>
+            {(() => {
+              const cached = selectedProject._attachments;
+              const rawBE = selectedProject.attachmentUrl || selectedProject.AttachmentUrl;
+              let files = [];
+              if (Array.isArray(cached) && cached.length > 0) {
+                files = cached;
+              } else if (typeof rawBE === "string" && rawBE.trim().length > 0) {
+                try {
+                  const parsed = JSON.parse(rawBE);
+                  files = Array.isArray(parsed) ? parsed : [{ name: rawBE.split("/").pop(), url: rawBE }];
+                } catch {
+                  files = [{ name: rawBE.split("/").pop(), url: rawBE }];
+                }
+              }
+
+              // Deduplicate files by url
+              const uniqueFiles = [];
+              const seenUrls = new Set();
+              for (const f of files) {
+                const rawU = typeof f === "string" ? f : (f.url || f.Url || f.name);
+                if (rawU && !seenUrls.has(rawU)) {
+                  seenUrls.add(rawU);
+                  uniqueFiles.push(f);
+                }
+              }
+
+              if (uniqueFiles.length === 0) {
+                return <p className="text-sm text-muted-foreground italic">None</p>;
+              }
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {uniqueFiles.map((file, idx) => {
+                    const rawUrl = typeof file === "string" ? file : (file.url || file.Url || "#");
+                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+                    const rawFileName = (typeof file === "object" ? file.name : null) || rawUrl.split("/").pop() || "Attachment";
+                    const cleanName = rawFileName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                    const finalName = cleanName || rawFileName;
+
+                    const handleDownloadFile = async (e) => {
+                      e.preventDefault();
+                      if (!fileUrl || fileUrl === "#") return;
+                      try {
+                        const res = await fetch(fileUrl);
+                        const blob = await res.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = blobUrl;
+                        a.download = finalName;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                      } catch (err) {
+                        window.open(fileUrl, "_blank");
+                      }
+                    };
+
+                    return (
+                      <a
+                        key={idx}
+                        href={fileUrl}
+                        onClick={handleDownloadFile}
+                        download={finalName}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer max-w-full overflow-hidden"
+                        title={`Download ${finalName}`}
+                      >
+                        <FileIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                        <span className="truncate max-w-[240px] sm:max-w-[320px] block">{finalName}</span>
+                      </a>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -512,18 +920,22 @@ export function MyProjectsList() {
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                               {/* ── Use Case Header ── */}
-                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                    Client Use Case
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                                <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-foreground text-sm">
+                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                    {uc.originalDurationDays || 1} days
                                   </span>
-                                  <h4 className="font-semibold text-foreground text-sm">
-                                    {uc.title || uc.nameAndDeadline}
-                                  </h4>
                                 </div>
-                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                  {uc.originalDurationDays || 1} days
-                                </span>
+                                {uc.description && (
+                                  <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                    Description: {uc.description}
+                                  </p>
+                                )}
                               </div>
 
                               {/* ── Tasks ── */}
@@ -534,24 +946,20 @@ export function MyProjectsList() {
                                   ucTasks.map((task, idx) => (
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                          <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          {task.completionDays && (
-                                            <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                              {task.completionDays} days
-                                            </span>
-                                          )}
-                                          {task.price != null && (
-                                            <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                              <MoneyDisplay amount={task.price} />
-                                            </span>
-                                          )}
-                                        </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
+
+                                      {/* Minitasks */}
+                                      {task.miniTasks && task.miniTasks.length > 0 && (
+                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          {task.miniTasks.map((mt, mtIdx) => (
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ))
                                 )}
@@ -565,24 +973,20 @@ export function MyProjectsList() {
                       <div className="space-y-3 mt-2">
                         {proposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {task.completionDays && (
-                                  <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                    {task.completionDays} days
-                                  </span>
-                                )}
-                                {task.price != null && (
-                                  <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                    <MoneyDisplay amount={task.price} />
-                                  </span>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
+
+                            {/* Minitasks */}
+                            {task.miniTasks && task.miniTasks.length > 0 && (
+                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                {task.miniTasks.map((mt, mtIdx) => (
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -607,12 +1011,63 @@ export function MyProjectsList() {
                     </p>
                   </div>
                 )}
+
+                {/* Attached Assets for Client (Single Accepted Proposal Detail) */}
+                {proposal.attachments && proposal.attachments.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {proposal.attachments.map((att, idx) => {
+                        const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
+                        let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                        if (!rawName && typeof rawUrl === "string") {
+                          rawName = rawUrl.split("/").pop() || "Attachment";
+                        }
+                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                        const finalName = cleanName || rawName;
+
+                        const handleDownloadFile = async (e) => {
+                          e.preventDefault();
+                          if (!rawUrl || rawUrl === "#") return;
+                          try {
+                            const res = await fetch(rawUrl);
+                            const blob = await res.blob();
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = blobUrl;
+                            a.download = finalName;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                          } catch (err) {
+                            window.open(rawUrl, "_blank");
+                          }
+                        };
+
+                        return (
+                          <a
+                            key={att.id || idx}
+                            href={rawUrl}
+                            onClick={handleDownloadFile}
+                            download={finalName}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer max-w-full overflow-hidden"
+                            title={`Download ${finalName}`}
+                          >
+                            <FileIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate max-w-[240px] sm:max-w-[320px] block">{finalName}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Escrow payment direct button for single accepted proposal */}
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-sm text-left">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Hình thức ký quỹ (Escrow Setup)</h3>
+                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Escrow Setup</h3>
                   
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
@@ -622,7 +1077,7 @@ export function MyProjectsList() {
                       className="mt-1 w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50"
                     />
                     <label htmlFor="agreeEscrowSingle" className="text-sm text-foreground/80 font-medium">
-                      Ký xác nhận rằng bạn có muốn ký quỹ số tiền <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> để thực hiện dự án này.
+                      Confirm that you want to deposit <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
                     </label>
                   </div>
 
@@ -631,31 +1086,38 @@ export function MyProjectsList() {
                     onClick={() => {
                       const checked = document.getElementById("agreeEscrowSingle")?.checked;
                       if (!checked) {
-                        toast.error("Vui lòng tích chọn ký xác nhận trước khi tiếp tục!");
+                        toast.error("Please check the confirmation box before proceeding!");
                         return;
                       }
                       navigate("/client/billing", {
                         state: {
                           escrowRedirect: true,
-                          projectId: selectedProject.id,
+                          projectId: selectedProject.projectId || selectedProject.id,
                           projectTitle: selectedProject.title,
                           amount: proposal.bidAmount,
-                          proposalId: proposal.id
+                          proposalId: proposal.id,
+                          expertId: proposal.expertId
                         }
                       });
                     }}
                     className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
                   >
-                    Xác nhận ký quỹ
+                    Confirm Escrow Deposit
                   </button>
                 </div>
               )}
               
               {proposal.status?.toLowerCase() === "accepted" && (
-                <div className="pt-6 border-t border-border/60 flex items-center justify-end">
+                <div className="pt-6 border-t border-border/60 flex items-center justify-end gap-3">
                   <Link
-                    to="/messenger"
-                    className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    to={`/client/projects/${selectedProject.projectId || selectedProject.id}`}
+                    className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                  >
+                    <Briefcase className="w-4 h-4" /> Manage Project Progress
+                  </Link>
+                  <Link
+                    to={`/messenger/${proposal.expertId}`}
+                    className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" /> Contact Expert
                   </Link>
@@ -664,16 +1126,49 @@ export function MyProjectsList() {
             </div>
           ) : proposalsList.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground italic font-medium">
-              Chưa có proposal nào được gửi cho dự án này.
+              No proposals have been submitted for this project yet.
             </div>
           ) : viewedProposal === null ? (
             /* Proposals list view */
             <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2 text-left">
-                Submitted Proposals ({proposalsList.length})
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider text-left">
+                  Submitted Proposals ({proposalsList.length})
+                </h3>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="text"
+                    placeholder="Search expert name..."
+                    value={propSearch}
+                    onChange={(e) => setPropSearch(e.target.value)}
+                    className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm"
+                  />
+                  <select
+                    value={propSort}
+                    onChange={(e) => setPropSort(e.target.value)}
+                    className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+                  >
+                    <option value="recent">Newest</option>
+                    <option value="lowest_bid">Lowest Bid</option>
+                    <option value="highest_bid">Highest Bid</option>
+                    <option value="fastest">Fastest (Days)</option>
+                  </select>
+                </div>
+              </div>
               <div className="space-y-3">
-                {proposalsList.map((p) => {
+                {proposalsList
+                  .filter((p) => {
+                    if (!propSearch.trim()) return true;
+                    return p.expertName?.toLowerCase().includes(propSearch.toLowerCase());
+                  })
+                  .sort((a, b) => {
+                    if (propSort === "lowest_bid") return Number(a.bidAmount) - Number(b.bidAmount);
+                    if (propSort === "highest_bid") return Number(b.bidAmount) - Number(a.bidAmount);
+                    if (propSort === "fastest") return Number(a.durationDays) - Number(b.durationDays);
+                    // default recent
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                  })
+                  .map((p) => {
                   return (
                     <div
                       key={p.id}
@@ -681,14 +1176,45 @@ export function MyProjectsList() {
                     >
                       <div className="text-left">
                         <h4 className="font-bold text-foreground text-base">{p.expertName}</h4>
-                        <p className="text-sm text-muted-foreground font-medium mt-0.5">{p.expertTitle}</p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                          {p.expertCategory && (
+                            <span className="font-medium">Category: {p.expertCategory}</span>
+                          )}
+                          {p.expertSpecialization && (
+                            <>
+                              <span className="text-muted-foreground/30">|</span>
+                              <span className="font-medium">Specialization: {p.expertSpecialization}</span>
+                            </>
+                          )}
+                        </div>
+                        {p.expertSkills?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {p.expertSkills.slice(0, 4).map((skill, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-secondary text-muted-foreground rounded-md text-[10px] font-medium">
+                                {skill}
+                              </span>
+                            ))}
+                            {p.expertSkills.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground font-medium">+{p.expertSkills.length - 4}</span>
+                            )}
+                          </div>
+                        )}
                         <p className="text-base font-bold text-brand-primary mt-2">
                           Bid: <MoneyDisplay amount={p.bidAmount} /> · {p.durationDays} days
                         </p>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span>
+                            Success Rate: {p.expertSuccessRate != null ? `${p.expertSuccessRate}%` : "N/A"}
+                          </span>
+                          <span className="text-muted-foreground/40">|</span>
+                          <span>
+                            Evaluate: {p.expertEvaluate != null && Number(p.expertEvaluate) > 0 ? p.expertEvaluate : "None"}
+                          </span>
+                        </div>
                         {p.createdAt && (
                           <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
                             <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                            Gửi lúc: {safeDateFormat(p.createdAt, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            Submitted: {safeDateFormat(p.createdAt, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                           </p>
                         )}
                       </div>
@@ -713,19 +1239,9 @@ export function MyProjectsList() {
           ) : (
             /* Proposal Details page (swapped flow, replaces the list view) */
             <div className="space-y-6 text-left">
-              <button
-                onClick={() => {
-                  setViewedProposal(null);
-                  setShowEscrowConfirm(false);
-                }}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground mb-2 transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back to proposals list
-              </button>
-
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border/60 pb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">{viewedProposal.proposalTitle}</h3>
+                  <h3 className="text-lg font-bold text-foreground">Proposal</h3>
                   <p className="text-base text-muted-foreground mt-1">
                     Expert: <span className="font-semibold text-foreground/80">{viewedProposal.expertName}</span>
                   </p>
@@ -736,7 +1252,7 @@ export function MyProjectsList() {
                     {viewedProposal.status}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Submitted {viewedProposal.createdAt ? new Date(viewedProposal.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
+                    Submitted {safeDateFormat(viewedProposal.createdAt, { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, "—")}
                   </p>
                 </div>
               </div>
@@ -781,18 +1297,22 @@ export function MyProjectsList() {
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                               {/* ── Use Case Header ── */}
-                              <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2 text-left">
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                    Client Use Case
+                              <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                                <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-foreground text-sm">
+                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                    {uc.originalDurationDays || 1} days
                                   </span>
-                                  <h4 className="font-semibold text-foreground text-sm">
-                                    {uc.title || uc.nameAndDeadline}
-                                  </h4>
                                 </div>
-                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                  {uc.originalDurationDays || 1} days
-                                </span>
+                                {uc.description && (
+                                  <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                    Description: {uc.description}
+                                  </p>
+                                )}
                               </div>
 
                               {/* ── Tasks ── */}
@@ -803,24 +1323,20 @@ export function MyProjectsList() {
                                   ucTasks.map((task, idx) => (
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                          <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          {task.completionDays && (
-                                            <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                              {task.completionDays} days
-                                            </span>
-                                          )}
-                                          {task.price != null && (
-                                            <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                              <MoneyDisplay amount={task.price} />
-                                            </span>
-                                          )}
-                                        </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
+
+                                      {/* Minitasks */}
+                                      {false && task.miniTasks && task.miniTasks.length > 0 && (
+                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          {task.miniTasks.map((mt, mtIdx) => (
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
                                   ))
                                 )}
@@ -834,24 +1350,20 @@ export function MyProjectsList() {
                       <div className="space-y-3 mt-2">
                         {viewedProposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {task.completionDays && (
-                                  <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                    {task.completionDays} days
-                                  </span>
-                                )}
-                                {task.price != null && (
-                                  <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                    <MoneyDisplay amount={task.price} />
-                                  </span>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
+
+                            {/* Minitasks */}
+                            {false && task.miniTasks && task.miniTasks.length > 0 && (
+                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                {task.miniTasks.map((mt, mtIdx) => (
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -874,6 +1386,57 @@ export function MyProjectsList() {
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {viewedProposal.dependencies}
                     </p>
+                  </div>
+                )}
+
+                {/* Attached Assets for Client (ViewedProposal Detail) */}
+                {viewedProposal.attachments && viewedProposal.attachments.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {viewedProposal.attachments.map((att, idx) => {
+                        const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
+                        let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                        if (!rawName && typeof rawUrl === "string") {
+                          rawName = rawUrl.split("/").pop() || "Attachment";
+                        }
+                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                        const finalName = cleanName || rawName;
+
+                        const handleDownloadFile = async (e) => {
+                          e.preventDefault();
+                          if (!rawUrl || rawUrl === "#") return;
+                          try {
+                            const res = await fetch(rawUrl);
+                            const blob = await res.blob();
+                            const blobUrl = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = blobUrl;
+                            a.download = finalName;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(blobUrl);
+                          } catch (err) {
+                            window.open(rawUrl, "_blank");
+                          }
+                        };
+
+                        return (
+                          <a
+                            key={att.id || idx}
+                            href={rawUrl}
+                            onClick={handleDownloadFile}
+                            download={finalName}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer max-w-full overflow-hidden"
+                            title={`Download ${finalName}`}
+                          >
+                            <FileIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                            <span className="truncate max-w-[240px] sm:max-w-[320px] block">{finalName}</span>
+                          </a>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -906,24 +1469,18 @@ export function MyProjectsList() {
   // VIEW: LIST
   // =========================================================================
   const STATUS_OPTIONS = [
-    { value: "", label: "Tất cả trạng thái" },
-    { value: "reviewing_proposals", label: "Đang duyệt đề xuất" },
-    { value: "pending_escrow", label: "Chờ ký quỹ" },
-    { value: "in_progress", label: "Đang thực hiện" },
-    { value: "completed", label: "Đã hoàn thành" },
-    { value: "cancelled", label: "Đã hủy" },
-    { value: "contract_cancelled", label: "Đã hủy hợp đồng" },
-    { value: "disputed", label: "Đang tranh chấp" },
-    { value: "awaiting_cancellation", label: "Đang yêu cầu hủy" },
-    { value: "cancel_done", label: "Đã hủy thành công" },
-    { value: "settled_dispute", label: "Settled dispute" },
+    { value: "", label: "All Statuses" },
+    { value: "Open", label: "Open" },
+    { value: "In Progress", label: "In Progress" },
+    { value: "Completed", label: "Complete" },
+    { value: "Disputed", label: "Disputed" },
+    { value: "Cancel", label: "Cancel" },
   ];
 
   const filteredProjects = projects.filter((project) => {
-    const proposalCount = project.proposalCount || 0;
-    const statusKey = deriveProjectStatusKey(project, { proposalCount });
+    const norm = getNormalizedStatus(project, activeReports);
     if (statusFilter) {
-      return statusKey === statusFilter;
+      return norm.label === statusFilter;
     }
     return true;
   });
@@ -937,10 +1494,13 @@ export function MyProjectsList() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
             >
               {STATUS_OPTIONS.map((opt) => (
@@ -982,20 +1542,42 @@ export function MyProjectsList() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredProjects.map((project) => {
-            const proposalCount = project.proposalCount || 0;
-            const statusKey = deriveProjectStatusKey(project, { proposalCount });
-            const displayStatus = getStatusLabel(statusKey);
-            const badgeClass = getStatusBadgeClass(statusKey);
-            const progress = getProjectProgress(project.id);
-            const category = project.aiCategoryDomain;
+        <div className="space-y-6">
+          <div className="space-y-4">
+            {filteredProjects.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((project) => {
+            const { label: displayStatus, badgeClass } = getNormalizedStatus(project, activeReports);
+            const category = project.category || project.domain?.name;
             
-            const skills = project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
+            const skills = project.projectSkills?.map((s) => s.skillName) || project.jobPostSkills?.map((s) => s.skill?.name) || project.requiredSkills || [];
             const deadlineText = (() => {
               if (!project.deadline) return null;
+
+              // Check for extended project deadline from localStorage
+              const pId = project.projectId || project.id;
+              if (pId) {
+                const localDeadline = localStorage.getItem(`project_deadline_${pId}`);
+                if (localDeadline) {
+                  return safeDateFormat(localDeadline, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  }, String(localDeadline));
+                }
+              }
+
               const num = Number(project.deadline);
-              if (!Number.isNaN(num) && num < 1000) return `${num} days`;
+              if (!Number.isNaN(num) && num < 1000) {
+                const startDate = new Date(project.createdAt || project.CreatedAt || Date.now());
+                if (!Number.isNaN(startDate.getTime())) {
+                  const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+                  return safeDateFormat(deadlineDate.toISOString(), {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  }, `${num} days`);
+                }
+                return `${num} days`;
+              }
               return safeDateFormat(project.deadline, {
                 year: "numeric",
                 month: "short",
@@ -1008,27 +1590,27 @@ export function MyProjectsList() {
                 key={project.id}
                 className={cn(
                   "bg-card rounded-xl border p-6 hover:shadow-md transition-all duration-200",
-                  ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase())
+                  displayStatus === "Disputed"
                     ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 shadow-lg shadow-red-900/30"
                     : "border-border hover:border-border/80"
                 )}
               >
-                {/* ── Top row: title + status badge + health ── */}
+                {/* ── Top row: title + status badge ── */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <h3 className={cn(
                         "font-semibold text-lg leading-snug",
-                        ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase()) ? "text-red-100" : "text-foreground"
+                        displayStatus === "Disputed" ? "text-red-100" : "text-foreground"
                       )}>
                         {project.title}
                       </h3>
                     </div>
                     <p className={cn(
                       "text-sm",
-                      ["disputed", "under_review", "under review"].includes(project.status?.toLowerCase()) ? "text-red-200/70" : "text-muted-foreground"
+                      displayStatus === "Disputed" ? "text-red-200/70" : "text-muted-foreground"
                     )}>
-                      {project.aiCategoryDomain?.name || project.category || "Artificial Intelligence"}
+                      {project.domain?.name || "Artificial Intelligence"}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
@@ -1037,32 +1619,9 @@ export function MyProjectsList() {
                     >
                       {displayStatus}
                     </span>
-                    {/* Project health badge */}
-                    {(() => {
-                      if (!project.deadline) return null;
-                      const dl = Number(project.deadline);
-                      const days = Number.isNaN(dl) ? null : (dl < 1000 ? dl : null);
-                      if (days === null) return null;
-                      if (days <= 3) return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-destructive/10 text-destructive border border-destructive/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />At Risk</span>;
-                      if (days <= 7) return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning border border-warning/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />Needs Attention</span>;
-                      return <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success border border-success/20 inline-flex items-center gap-1"><Clock className="w-3 h-3" />On Track</span>;
-                    })()}
                   </div>
                 </div>
 
-                {/* ── Progress bar ── */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
-                    <span className="text-xs font-bold text-foreground">{progress}%</span>
-                  </div>
-                  <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-accent to-accent-hover rounded-full transition-all duration-700"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
 
                 {/* ── Metadata grid ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-secondary/40 rounded-lg p-3 border border-border/60">
@@ -1087,7 +1646,7 @@ export function MyProjectsList() {
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Expert</span>
                     <span className="font-medium text-foreground text-sm">
-                      {project.assignedExpert ? project.assignedExpert.fullName : "—"}
+                      {project.assignedExpert ? project.assignedExpert.fullName : "Not Assigned"}
                     </span>
                   </div>
                 </div>
@@ -1120,6 +1679,47 @@ export function MyProjectsList() {
             );
           })}
         </div>
+
+        {/* Pagination Controls */}
+        {Math.ceil(filteredProjects.length / itemsPerPage) > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t border-border mt-6">
+            <span className="text-sm text-muted-foreground">
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredProjects.length)} of {filteredProjects.length} projects
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.ceil(filteredProjects.length / itemsPerPage) }).map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      currentPage === i + 1
+                        ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProjects.length / itemsPerPage), p + 1))}
+                disabled={currentPage === Math.ceil(filteredProjects.length / itemsPerPage)}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
       )}
     </div>
   );

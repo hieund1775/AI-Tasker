@@ -14,6 +14,7 @@ export function SignUpPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    phoneNumber: "",
     password: "",
     confirmPassword: "",
   });
@@ -26,8 +27,13 @@ export function SignUpPage() {
     e.preventDefault();
     setError("");
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.password) {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.phoneNumber.trim() || !formData.password) {
       setError("All fields are required.");
+      return;
+    }
+    const phonePattern = /^0[0-9]{9}$/;
+    if (!phonePattern.test(formData.phoneNumber.trim())) {
+      setError("Invalid phone number format (must be 10 digits and start with 0).");
       return;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -44,6 +50,7 @@ export function SignUpPage() {
       const isSuccess = await register({
         name: formData.name.trim(),
         email: formData.email.trim(),
+        phoneNumber: formData.phoneNumber.trim(),
         password: formData.password,
         confirmPassword: formData.confirmPassword,
         role,
@@ -51,7 +58,7 @@ export function SignUpPage() {
 
       if (isSuccess) {
         alert(
-          "Đăng ký thành công! Hệ thống sẽ chuyển bạn đến trang Đăng nhập.",
+          "Registration successful! Redirecting to login page.",
         );
         navigate("/login", { replace: true });
       }
@@ -197,6 +204,22 @@ export function SignUpPage() {
                 }}
                 className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
                 placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Phone Number
+              </label>
+              <input
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => {
+                  setFormData({ ...formData, phoneNumber: e.target.value });
+                  setError("");
+                }}
+                className="w-full h-10 px-3.5 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
+                placeholder="e.g., 0912345678"
                 required
               />
             </div>

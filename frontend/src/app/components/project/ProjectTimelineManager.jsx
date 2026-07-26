@@ -50,6 +50,7 @@ export function ProjectTimelineManager({ role, projectId }) {
     completedTasks,
     deadlineInfo,
     hasPendingExtension,
+    projectLogs,
 
     // Actions
     retry,
@@ -60,9 +61,12 @@ export function ProjectTimelineManager({ role, projectId }) {
     handleRejectExtension,
   } = useProjectTimeline(role, projectId);
 
-  // ---- Compute chat link for messaging the project client ----
-  // TODO: Replace with API call to get project client info and conversation
-  const chatUrl = "/messenger";
+  // Compute chat link for messaging the counterparty
+  const chatUrl = project
+    ? role === "expert"
+      ? `/messenger/${project.clientId || ""}`
+      : `/messenger/${project.expertId || ""}`
+    : "/messenger";
 
   // ---- Loading state ----
   if (loading) {
@@ -141,21 +145,18 @@ export function ProjectTimelineManager({ role, projectId }) {
                   </div>
 
                   <div
-                    className={`rounded-xl px-4 py-3 ${
-                      deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
-                    }`}
+                    className={`rounded-xl px-4 py-3 ${deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
+                      }`}
                   >
                     <p
-                      className={`text-xs mb-1 ${
-                        deadlineInfo.isOverdue ? "text-destructive" : "text-success"
-                      }`}
+                      className={`text-xs mb-1 ${deadlineInfo.isOverdue ? "text-destructive" : "text-success"
+                        }`}
                     >
                       Countdown
                     </p>
                     <p
-                      className={`font-semibold ${
-                        deadlineInfo.isOverdue ? "text-destructive" : "text-success"
-                      }`}
+                      className={`font-semibold ${deadlineInfo.isOverdue ? "text-destructive" : "text-success"
+                        }`}
                     >
                       {deadlineInfo.remainingText || "N/A"}
                     </p>
@@ -281,7 +282,7 @@ export function ProjectTimelineManager({ role, projectId }) {
       </div>
 
       {/* Activity log — extracted component */}
-      <ActivityLogPanel projectLogs={project?.projectLogs} />
+      <ActivityLogPanel projectLogs={projectLogs} />
     </div>
   );
 }

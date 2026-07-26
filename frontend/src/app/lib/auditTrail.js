@@ -1,11 +1,39 @@
 // =============================================================================
 // Audit Trail — centralized audit log management for task and project activity.
 //
-// All functions delegate to mockDatabase.js which stores audit entries in
+// All functions now mock or delegate to C# backend
 // the runtime overlay (survives soft page refreshes during a session).
 // =============================================================================
 
-import { addAuditEntry, getAuditLogs } from "../../data/mockDatabase.js";
+const getAuditLogs = (filter = {}) => {
+  try {
+    const logs = JSON.parse(localStorage.getItem("aitasker_audit_logs") || "[]");
+    return logs.filter(log => {
+      if (filter.taskId && log.taskId !== filter.taskId) return false;
+      if (filter.projectId && log.projectId !== filter.projectId) return false;
+      return true;
+    });
+  } catch (e) {
+    return [];
+  }
+};
+
+const addAuditEntry = (entry) => {
+  try {
+    const logs = JSON.parse(localStorage.getItem("aitasker_audit_logs") || "[]");
+    const newEntry = {
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: new Date().toISOString(),
+      ...entry,
+    };
+    logs.unshift(newEntry); // Newest first
+    localStorage.setItem("aitasker_audit_logs", JSON.stringify(logs));
+    return newEntry;
+  } catch (e) {
+    console.error("Failed to add audit entry", e);
+    return null;
+  }
+};
 
 /**
  * Add an audit log entry for a task action.

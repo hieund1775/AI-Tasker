@@ -29,7 +29,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
                 type="checkbox"
                 checked={checked}
                 onChange={() => onToggle(opt.value)}
-                className="w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50 accent-brand-primary"
+                className="w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50 accent-brand-primary flex-shrink-0"
               />
               <span className="text-sm text-foreground/80 group-hover:text-foreground">
                 {opt.label}
@@ -62,33 +62,125 @@ export function ExpertList() {
 
   const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [skillsList, setSkillsList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     async function loadExperts() {
       try {
         setLoading(true);
-        const res = await api.experts.list();
-        // Filter out experts (even if they don't have a complete profile)
+        const [res, cats, skills] = await Promise.all([
+          api.experts.list().catch(() => []),
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+        
+        setCategoriesList(cats || []);
+        setSkillsList(skills || []);
+
         const expertsOnly = (res || [])
           .filter((u) => u.role?.toLowerCase() === "expert")
           .map((u) => {
             const profile = u.expertProfile || {};
+            
+            // Decode Expert Category Name
+            let resolvedCatName = profile.category || u.category || "";
+            const matchedCat = (cats || []).find(c => c.id === resolvedCatName);
+            if (matchedCat) {
+              resolvedCatName = matchedCat.name;
+            }
+
+            // Decode Expert Specialization Name
+            let resolvedSpecName = profile.specialization || profile.major || u.specialization || "";
+            let foundSpec = false;
+            for (const cat of (cats || [])) {
+              const matchedSpec = cat.specializations?.find(s => s.id === resolvedSpecName);
+              if (matchedSpec) {
+                resolvedSpecName = matchedSpec.name;
+                foundSpec = true;
+                break;
+              }
+            }
+            if (!foundSpec && resolvedSpecName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedSpecName = "AI Specialist";
+            }
+
+            if (resolvedCatName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedCatName = "AI & Computing";
+            }
+
+            // Decode Expert Skills
+            const resolvedExpertSkills = (profile.skills || []).map(sk => {
+              if (typeof sk === "string" && sk.startsWith("skill-")) {
+                const match = (skills || []).find(s => s.id === sk);
+                return match ? match.name : sk;
+              }
+              return typeof sk === "string" ? sk : sk?.name || "";
+            });
+
             return {
               id: u.id,
               name: u.fullName,
-              title: profile.jobTitle || profile.major || u.specialization || "AI Specialist",
-              specialization: profile.major || u.specialization || "AI Specialist",
-              category: profile.category || u.category || "AI & Computing",
+              title: profile.jobTitle || resolvedSpecName || "AI Specialist",
+              specialization: resolvedSpecName || "AI Specialist",
+              category: resolvedCatName || "AI & Computing",
               location: profile.location || "N/A",
               bio: profile.bio || u.bio || "No biography provided.",
-              rating: 4.8,
+              rating: null,
               completedProjects: profile.completedProjects || 0,
-              hourlyRate: profile.hourlyRate || 50,
-              skills: profile.skills || [],
+              hourlyRate: profile.hourlyRate || 0,
+              skills: resolvedExpertSkills,
               avatar: null,
             };
           });
         setExperts(expertsOnly);
+
+        // Load full profile + evaluate for each expert in parallel
+        const expertIds = expertsOnly.map(e => e.id);
+        if (expertIds.length > 0) {
+          const [userResults, reviewResults] = await Promise.all([
+            Promise.allSettled(expertIds.map(eid => api.users.getById(eid))),
+            Promise.allSettled(expertIds.map(eid => api.reviews.getExpertReviews(eid))),
+          ]);
+
+          // Map full user data (completed projects from projects array, hourlyRate)
+          const userMap = {};
+          userResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const u = result.value;
+              const allProjects = u.projects || u.Projects || [];
+              const completedCount = allProjects.filter(p =>
+                ["completed", "complete", "resolved"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              userMap[expertIds[idx]] = {
+                completedProjects: completedCount,
+                hourlyRate: u.expertProfile?.hourlyRate || 0,
+              };
+            }
+          });
+
+          // Map evaluate (average rating)
+          const ratingMap = {};
+          reviewResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const reviewsList = result.value.reviews || [];
+              if (reviewsList.length > 0) {
+                const totalRating = reviewsList.reduce((sum, r) => sum + (r.rating || 0), 0);
+                const avg = (totalRating / reviewsList.length).toFixed(1).replace(".0", "");
+                ratingMap[expertIds[idx]] = avg;
+              }
+            }
+          });
+
+          setExperts(prev => prev.map(e => ({
+            ...e,
+            rating: ratingMap[e.id] || null,
+            completedProjects: userMap[e.id]?.completedProjects ?? e.completedProjects,
+            hourlyRate: userMap[e.id]?.hourlyRate ?? e.hourlyRate,
+          })));
+        }
       } catch (err) {
         console.error("Failed to load experts list:", err);
       } finally {
@@ -100,44 +192,62 @@ export function ExpertList() {
 
   // ---- Filter options derived from expert data -----------------------------
 
-  // Category options: unique category items
+  // Category options: retrieve fully from Backend categories API (Filter duplicates)
   const categoryOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => {
-      if (e.category) items.add(e.category);
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (cat.name && !list.some(item => item.value === cat.name)) {
+        list.push({
+          value: cat.name,
+          label: cat.name,
+          count: experts.filter((e) => e.category === cat.name).length,
+        });
+      }
     });
-    return [...items].sort().map((cat) => ({
-      value: cat,
-      label: cat,
-      count: experts.filter((e) => e.category === cat).length,
-    }));
-  }, [experts]);
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
 
-  // Domain expertise: unique items from expert specializations (split by comma)
+  // Domain expertise: retrieve fully from Backend categories API
+  // Only retrieve specializations officially belonging to Backend categories
   const domainOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => {
-      e.specialization.split(/,\s*/).forEach((s) => {
-        if (s.trim()) items.add(s.trim());
-      });
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (Array.isArray(cat.specializations)) {
+        cat.specializations.forEach((spec) => {
+          if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
+            // Count actual matching experts
+            const count = experts.filter((e) => e.specialization === spec.name).length;
+            
+            if (!list.some(item => item.value === spec.name)) {
+              list.push({
+                value: spec.name,
+                label: spec.name,
+                count: count,
+              });
+            }
+          }
+        });
+      }
     });
-    return [...items].sort().map((domain) => ({
-      value: domain,
-      label: domain,
-      count: experts.filter((e) => e.specialization.includes(domain)).length,
-    }));
-  }, [experts]);
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
 
-  // Core technology: unique skills across all experts
+  // Core technology (Skills): retrieve fully from Backend skills API (Filter duplicates)
   const techOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => e.skills.forEach((s) => items.add(s)));
-    return [...items].sort().map((skill) => ({
-      value: skill,
-      label: skill,
-      count: experts.filter((e) => e.skills.includes(skill)).length,
-    }));
-  }, [experts]);
+    const list = [];
+    skillsList.forEach((skill) => {
+      if (skill.name && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) { // Only use real skill names
+        if (!list.some(item => item.value === skill.name)) {
+          list.push({
+            value: skill.name,
+            label: skill.name,
+            count: experts.filter((e) => e.skills.includes(skill.name)).length,
+          });
+        }
+      }
+    });
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [skillsList, experts]);
 
   // Rating tiers derived from actual expert ratings
   const ratingOptions = useMemo(() => {
@@ -174,6 +284,7 @@ export function ExpertList() {
     setSelectedTech(new Set());
     setSelectedRatings(new Set());
     setSelectedExperience(new Set());
+    setCurrentPage(1);
   };
 
   const hasActiveFilters =
@@ -225,6 +336,11 @@ export function ExpertList() {
     return true;
   });
 
+  // Pagination
+  const totalPages = Math.max(Math.ceil(filtered.length / itemsPerPage), 1);
+  const activePage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedExperts = filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+
   // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -248,11 +364,10 @@ export function ExpertList() {
         <button
           type="button"
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${
-            showFilters || hasActiveFilters
+          className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${showFilters || hasActiveFilters
               ? "border-primary bg-primary-light text-primary"
               : "border-border text-foreground hover:bg-secondary"
-          }`}
+            }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           Filters
@@ -366,8 +481,9 @@ export function ExpertList() {
           </p>
         </div>
       ) : (
+        <>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filtered.map((expert) => (
+          {paginatedExperts.map((expert) => (
             <div
               key={expert.id}
               className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors shadow-sm flex flex-col justify-between"
@@ -378,10 +494,16 @@ export function ExpertList() {
                   <h3 className="font-semibold text-foreground text-[15px] leading-snug">
                     {expert.name}
                   </h3>
-                  <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold inline-flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-success text-success" />
-                    {expert.rating}
-                  </span>
+                  {expert.rating && Number(expert.rating) > 0 ? (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold inline-flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-success text-success" />
+                      {expert.rating}
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs font-medium">
+                      None
+                    </span>
+                  )}
                 </div>
 
                 {/* ── Title + location ── */}
@@ -420,14 +542,14 @@ export function ExpertList() {
                     <span className="font-semibold text-foreground">
                       {expert.completedProjects}
                     </span>{" "}
-                    projects
+                    completed projects
                   </span>
                   <span className="text-muted-foreground/60">·</span>
                   <span className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
-                      ${expert.hourlyRate}
-                    </span>
-                    /hr
+                      {expert.hourlyRate}
+                    </span>{" "}
+                    USD/hr
                   </span>
                 </div>
               </div>
@@ -446,6 +568,47 @@ export function ExpertList() {
             </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-6 mt-6 border-t border-border">
+            <span className="text-sm text-muted-foreground">
+              Showing {(activePage - 1) * itemsPerPage + 1} to {Math.min(activePage * itemsPerPage, filtered.length)} of {filtered.length} experts
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      activePage === i + 1
+                        ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={activePage === totalPages}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

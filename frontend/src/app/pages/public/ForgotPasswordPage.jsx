@@ -1,18 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Mail, CheckCircle, X } from "lucide-react";
+import { forgotPassword } from "../../../services/authService";
 
 /**
  * ForgotPasswordPage — password reset request screen.
- * TODO: Connect to backend API for email sending.
  */
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
 
@@ -26,8 +27,15 @@ export function ForgotPasswordPage() {
       return;
     }
 
-    // TODO: POST /api/auth/forgot-password
-    setSubmitted(true);
+    setLoading(true);
+    try {
+      await forgotPassword(email.trim());
+      setSubmitted(true);
+    } catch (err) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -99,9 +107,10 @@ export function ForgotPasswordPage() {
 
             <button
               type="submit"
-              className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors"
+              disabled={loading}
+              className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors flex items-center justify-center disabled:opacity-50"
             >
-              Send Reset Link
+              {loading ? "Sending..." : "Send Reset Link"}
             </button>
 
             <div className="text-center">

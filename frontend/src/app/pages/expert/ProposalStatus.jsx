@@ -28,6 +28,41 @@ function findConversationId(projectId, expertId) {
   return conv ? conv.id : null;
 }
 
+/**
+ * Compute deadline display text for a proposal.
+ * Shows actual deadline date (including extensions) instead of just "X days".
+ */
+function getProposalDeadlineText(proposal) {
+  // For accepted/in-progress proposals, check extended deadline from project in localStorage
+  const acceptedStatuses = ["accepted", "pending_escrow", "pending_pay", "in_progress", "active", "completed"];
+  const projId = proposal.projectId || proposal.ProjectId;
+  if (projId && acceptedStatuses.includes(proposal.status?.toLowerCase())) {
+    const storedDeadline = localStorage.getItem(`project_deadline_${projId}`);
+    if (storedDeadline) {
+      return safeDateFormat(storedDeadline, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, String(storedDeadline));
+    }
+  }
+
+  // Convert numeric deadline (days) to actual date based on job creation date
+  const deadlineDays = Number(proposal.durationDays || proposal.project?.deadline || 0);
+  if (deadlineDays > 0) {
+    const startDate = new Date(proposal.project?.createdAt || proposal.project?.CreatedAt || proposal.createdAt || Date.now());
+    if (!Number.isNaN(startDate.getTime())) {
+      const deadlineDate = new Date(startDate.getTime() + deadlineDays * 24 * 60 * 60 * 1000);
+      return safeDateFormat(deadlineDate.toISOString(), {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, `${deadlineDays} days`);
+    }
+  }
+  return `${deadlineDays || "—"} days`;
+}
+
 // ---------------------------------------------------------------------------
 // Relative time helper
 // ---------------------------------------------------------------------------
@@ -110,14 +145,14 @@ export function ProposalStatus() {
   }, [user?.id]);
 
   const STATUS_OPTIONS = [
-    { value: "", label: "Tất cả trạng thái" },
-    { value: "pending", label: "Đang chờ (Pending)" },
-    { value: "under_review", label: "Đang xem xét (Under Review)" },
-    { value: "pending_escrow", label: "Chờ ký quỹ (Pending Payment)" },
-    { value: "accepted", label: "Được chấp nhận (Accepted)" },
-    { value: "declined", label: "Từ chối (Declined)" },
-    { value: "withdrawn", label: "Đã rút (Withdrawn)" },
-    { value: "expired", label: "Đã quá hạn (Expired)" },
+    { value: "", label: "All Statuses" },
+    { value: "pending", label: "Pending" },
+    { value: "under_review", label: "Under Review" },
+    { value: "pending_escrow", label: "Pending Payment" },
+    { value: "accepted", label: "Accepted" },
+    { value: "declined", label: "Declined" },
+    { value: "withdrawn", label: "Withdrawn" },
+    { value: "expired", label: "Expired" },
   ];
 
   const filteredProposals = proposals.filter((proposal) => {
@@ -139,7 +174,7 @@ export function ProposalStatus() {
         />
         {proposals.length > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Trạng thái:</span>
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -177,9 +212,9 @@ export function ProposalStatus() {
         </div>
       ) : filteredProposals.length === 0 ? (
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-foreground/60 mb-2">Không tìm thấy đề xuất</h3>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">No proposals found</h3>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-5">
-            Không có đề xuất nào có trạng thái phù hợp với bộ lọc đã chọn.
+            No proposals match the selected filters.
           </p>
         </div>
       ) : (
@@ -234,7 +269,7 @@ export function ProposalStatus() {
                           Bid: <span className="font-bold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
                         </span>
                         <span className="text-muted-foreground">
-                          Duration: <span className="font-medium text-foreground">{proposal.durationDays} days</span>
+                          Deadline: <span className="font-medium text-foreground">{getProposalDeadlineText(proposal)}</span>
                         </span>
                       </div>
 

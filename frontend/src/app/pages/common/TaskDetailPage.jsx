@@ -14,8 +14,12 @@ import {
   RotateCcw,
   X,
   Check,
+  MessageSquare,
+  Download,
   ExternalLink,
   FileText,
+  Upload,
+  Paperclip,
 } from "lucide-react";
 import { Button } from "../../components/ui/button.jsx";
 import { useProjectProgress, deriveTaskDisplayStatus } from "../../hooks/useProjectProgress.js";
@@ -26,10 +30,12 @@ import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
+import { getTaskDeadlineInfo, isTaskOverdue } from "../../lib/taskDeadlineUtils.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
-import { updateTask } from "../../../data/mockDatabase.js";
+import { api } from "../../../services/api.js";
+import { enrichFileUrl } from "../../../services/api.js";
 import {
   notifyTaskSubmittedForReview,
   notifyTaskApproved,
@@ -40,6 +46,55 @@ import {
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+
+// ── Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) ──
+function resolveProductFile(productFile) {
+  if (!productFile) return null;
+  if (typeof productFile === "object" && (productFile.url || productFile.path)) {
+    const rawUrl = productFile.url || productFile.path;
+    return {
+      url: rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl),
+      name: productFile.name || rawUrl.split("/").pop(),
+    };
+  }
+  try {
+    const parsed = JSON.parse(productFile);
+    if (parsed && (parsed.url || parsed.fileUrl || parsed.path)) {
+      const fileUrl = parsed.url || parsed.fileUrl || parsed.path;
+      return {
+        url: fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl),
+        name: parsed.name || parsed.originalName || fileUrl.split("/").pop(),
+      };
+    }
+  } catch {
+    // Legacy: plain text filename or URL
+  }
+  const cleanStr = String(productFile).trim();
+  if (!cleanStr) return null;
+  return {
+    url: cleanStr.startsWith("http") ? cleanStr : enrichFileUrl(cleanStr),
+    name: cleanStr.split("/").pop().split("\\").pop(),
+  };
+}
+
+async function downloadFileBlob(rawUrl, fileName) {
+  if (!rawUrl || rawUrl === "#") return;
+  const enriched = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+  try {
+    const response = await fetch(enriched);
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = fileName || enriched.split("/").pop() || "downloaded-file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (err) {
+    window.open(enriched, "_blank");
+  }
+}
 
 // =============================================================================
 // TaskDetailPage — dedicated task detail page for both client and expert.
@@ -95,7 +150,7 @@ export default function TaskDetailPage() {
 
   // Revision modal state (3-step flow)
   const [showRevisionModal, setShowRevisionModal] = useState(false);
-  const [revisionStep, setRevisionStep] = useState("select-type"); // "select-type" | "select-tasks" | "write-reason"
+  const [revisionStep, setRevisionStep] = useState("write-reason"); // "select-type" | "select-tasks" | "write-reason"
   const [revisionType, setRevisionType] = useState("entire"); // "entire" | "mini"
   const [selectedMiniTaskIds, setSelectedMiniTaskIds] = useState(new Set());
   const [revisionFeedback, setRevisionFeedback] = useState("");
@@ -104,6 +159,7 @@ export default function TaskDetailPage() {
   const [showProductModal, setShowProductModal] = useState(false);
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
+  const [productFileObject, setProductFileObject] = useState(null);
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
 
   // Client view product modal state
@@ -127,12 +183,16 @@ export default function TaskDetailPage() {
   const handleEvidenceSubmit = useCallback(async () => {
     setEvidenceSubmitting(true);
     try {
-      handleSubmitHandoverEvidence(taskId, {
+      const success = await handleSubmitHandoverEvidence(taskId, {
         gitSha: "",
         reportLink: "",
         explanation: "Handover evidence submitted by Expert.",
       });
-      toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+      if (success) {
+        toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+      } else {
+        toast.error("Failed to submit evidence.");
+      }
       setShowEvidenceModal(false);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
@@ -145,49 +205,78 @@ export default function TaskDetailPage() {
   // ---- Handlers ----
 
   const handleProductSubmit = useCallback(async () => {
-    if (!productLinkInput.trim() && !productFileInput.trim()) {
-      toast.error("Vui lòng cung cấp link sản phẩm hoặc file!");
+    if (!productLinkInput.trim() && !productFileObject) {
+      toast.error("Please provide a product link or file!");
       return;
     }
     setProductSubmitLoading(true);
     try {
-      await handleSubmitProduct(taskId, productLinkInput.trim(), productFileInput.trim());
-      toast.success("Sản phẩm đã được nộp thành công!");
-      setShowProductModal(false);
+      let productFileValue = "";
+      if (productFileObject) {
+        const formData = new FormData();
+        formData.append("file", productFileObject);
+        try {
+          const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+          if (result?.url) {
+            productFileValue = JSON.stringify({
+              url: result.url,
+              name: productFileObject.name,
+              size: productFileObject.size,
+              type: productFileObject.type,
+            });
+          }
+        } catch (err) {
+          console.warn("Failed to upload product file:", err);
+          toast.error("File upload failed. Please try again.");
+          setProductSubmitLoading(false);
+          return;
+        }
+      }
+      const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileValue);
+      if (success) {
+        toast.success("Product submitted successfully!");
+        setShowProductModal(false);
 
-      notifyTaskSubmittedForReview({
-        clientUserId: project?.clientId,
-        expertName: expert?.fullName || "Expert",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => { });
+        notifyTaskSubmittedForReview({
+          clientUserId: project?.clientId || project?.ClientId || client?.id,
+          expertName: expert?.fullName || "Expert",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+      } else {
+        toast.error("Failed to submit product.");
+      }
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể nộp sản phẩm.");
+      toast.error("Failed to submit product.");
     } finally {
       setProductSubmitLoading(false);
     }
-  }, [taskId, productLinkInput, productFileInput, handleSubmitProduct, project, expert, task, projectId]);
+  }, [taskId, productLinkInput, productFileObject, handleSubmitProduct, project, expert, task, projectId]);
 
   const handleDoneClick = useCallback(async () => {
     setSubmitLoading(true);
     try {
-      handleSubmitForReview(taskId);
-      toast.success("Task submitted for client review!");
-      // Notify client
-      notifyTaskSubmittedForReview({
-        clientUserId: project?.clientId,
-        expertName: expert?.fullName || "Expert",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => { });
-      // Redirect back to project progress
-      navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
-        replace: true,
-      });
+      const success = await handleSubmitForReview(taskId);
+      if (success) {
+        toast.success("Task submitted for client review!");
+        // Notify client
+        notifyTaskSubmittedForReview({
+          clientUserId: project?.clientId || project?.ClientId || client?.id,
+          expertName: expert?.fullName || "Expert",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+        // Redirect back to project progress
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
+          replace: true,
+        });
+      } else {
+        toast.error("Failed to submit task for review.");
+      }
     } catch (err) {
       toast.error("Failed to submit task for review.");
     } finally {
@@ -198,16 +287,21 @@ export default function TaskDetailPage() {
   const handleApproveClick = useCallback(async () => {
     setApproveLoading(true);
     try {
-      handleApproveTask(taskId);
-      toast.success("Task approved!");
-      // Notify expert
-      notifyTaskApproved({
-        expertUserId: project?.assignedExpertId,
-        clientName: client?.fullName || "Client",
-        taskTitle: task?.title,
-        projectId,
-        taskId,
-      }).catch(() => { });
+      const success = await handleApproveTask(taskId);
+      if (success) {
+        toast.success("Task approved!");
+        // Notify expert
+        notifyTaskApproved({
+          expertUserId: project?.expertId || project?.ExpertId || project?.assignedExpertId,
+          clientName: client?.fullName || "Client",
+          taskTitle: task?.title,
+          projectId,
+          taskId,
+        }).catch(() => { });
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      } else {
+        toast.error("Failed to approve task.");
+      }
     } catch (err) {
       toast.error("Failed to approve task.");
     } finally {
@@ -224,7 +318,7 @@ export default function TaskDetailPage() {
     try {
       if (revisionType === "mini") {
         const miniTaskIdsArr = Array.from(selectedMiniTaskIds);
-        handleRequestMiniTaskRevision(taskId, miniTaskIdsArr, revisionFeedback.trim());
+        await handleRequestMiniTaskRevision(taskId, miniTaskIdsArr, revisionFeedback.trim());
         // Get mini task titles for notification
         const selectedTitles = miniTasks
           .filter((mt) => selectedMiniTaskIds.has(mt.id))
@@ -240,9 +334,9 @@ export default function TaskDetailPage() {
         }).catch(() => { });
         toast.success("Revision requested for selected mini tasks. Expert can now edit them.");
       } else {
-        handleRequestRevision(taskId, revisionFeedback.trim());
+        await handleRequestRevision(taskId, revisionFeedback.trim());
         notifyTaskRevisionRequested({
-          expertUserId: project?.assignedExpertId,
+          expertUserId: project?.expertId || project?.ExpertId || project?.assignedExpertId,
           clientName: client?.fullName || "Client",
           taskTitle: task?.title,
           feedback: revisionFeedback.trim(),
@@ -268,7 +362,7 @@ export default function TaskDetailPage() {
   const handleReopenClick = useCallback(async () => {
     setReopenLoading(true);
     try {
-      handleRequestReopen(taskId);
+      await handleRequestReopen(taskId);
       toast.success("Reopen requested. Expert can now edit mini tasks.");
     } catch (err) {
       toast.error("Failed to request reopen.");
@@ -280,7 +374,7 @@ export default function TaskDetailPage() {
   const handleUrgentClick = useCallback(async () => {
     setUrgentLoading(true);
     try {
-      handleRequestUrgentSubmission(taskId);
+      await handleRequestUrgentSubmission(taskId);
       toast.success("Urgent submission requested. The expert has been notified.");
       // Notify expert
       notifyUrgentSubmissionRequested({
@@ -305,7 +399,7 @@ export default function TaskDetailPage() {
     setRevisionType("entire");
     setSelectedMiniTaskIds(new Set());
     setRevisionFeedback("");
-    toast.info("Vui lòng điền chi tiết lý do từ chối.");
+    toast.info("Please fill in decline reason details.");
   }, []);
 
   // ---- Derived values ----
@@ -317,16 +411,26 @@ export default function TaskDetailPage() {
 
   const displayStatus = task ? deriveTaskDisplayStatus(task) : "Not Started";
   const isDone = displayStatus === "Done";
-  const isWaitingForApproval = task?.status === "waiting_for_approval" || task?.status === "Waiting For Approval" || task?.status === "pending_review" || task?.status === "Pending Review" || task?.status === "pending review";
-  const hasMainProduct = task ? !!(task.productLink || task.productFile) : false;
+  const isWaitingForApproval =
+    task?.status?.toLowerCase() === "pending approval" ||
+    task?.status?.toLowerCase() === "pending_approval" ||
+    task?.status?.toLowerCase() === "waiting_for_approval" ||
+    task?.status?.toLowerCase() === "waiting for approval" ||
+    task?.status?.toLowerCase() === "pending_review" ||
+    task?.status?.toLowerCase() === "pending review" ||
+    displayStatus === "Waiting For Approval";
+  const hasMainProduct = task ? !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile)) : false;
   const isReopenRequested = task?.status === "reopen_requested" || task?.status === "Reopen Requested" || task?.status === "reopen requested";
-  const isNeedsRevision = (displayStatus === "Decline" || displayStatus === "Waiting for Expert Product" || task?.status === "waiting_expert_product") && !!task?.declineReason;
+  const isNeedsRevision = !isDone && !isWaitingForApproval && !!task?.declineReason;
   const isNotStarted = displayStatus === "Not Started";
   const isInProgress = displayStatus === "In Progress";
   const isDisputed = project?.status?.toLowerCase() === "disputed";
 
-  // Deadline info for badge
-  const deadlineInfo = task?.deadline ? getDeadlineInfo(task.deadline) : null;
+  // Deadline info for badge — use computed deadline from taskDeadlineUtils
+  const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, taskId, null) : null;
+  const computedDeadline = taskDeadlineData?.deadline || task?.deadline;
+  const deadlineInfo = computedDeadline ? getDeadlineInfo(computedDeadline) : null;
+  const taskOverdue = projectId ? isTaskOverdue(projectId, taskId, null) : false;
 
   // Expert can toggle mini task checkboxes when task is not Done and not waiting for approval
   const canToggleMiniTasks = isExpert && !isDone && !isWaitingForApproval && !isDisputed;
@@ -398,7 +502,7 @@ export default function TaskDetailPage() {
   }
 
   // ---- Deadline formatting ----
-  const deadlineText = safeDateFormat(task.deadline, {
+  const deadlineText = safeDateFormat(computedDeadline, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -407,7 +511,7 @@ export default function TaskDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
       <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
-        Quay lại dự án
+        Back to Project
       </BackButton>
 
       <PageHeader
@@ -416,11 +520,6 @@ export default function TaskDetailPage() {
         badge={
           <div className="flex items-center gap-2">
             <StatusBadge status={displayStatus} entity="task" />
-            {deadlineInfo && deadlineInfo.urgency !== "normal" && (
-              <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium", getDeadlineStatusClass(deadlineInfo.urgency))}>
-                {deadlineInfo.remainingText}
-              </span>
-            )}
           </div>
         }
         actions={
@@ -446,14 +545,7 @@ export default function TaskDetailPage() {
       />
 
       {/* Task stats row */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
-          <p className="font-semibold text-foreground text-sm flex items-center justify-center gap-1">
-            <Calendar className="w-3.5 h-3.5" />
-            {deadlineText}
-          </p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 mb-6">
         <div className="bg-card rounded-xl border border-border p-3 text-center">
           <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
           <p className="font-semibold text-foreground text-sm">
@@ -483,19 +575,19 @@ export default function TaskDetailPage() {
         task={task}
       />
 
-      {/* Deliverables Panel (Khung hoàn chỉnh nhỏ) */}
+      {/* Deliverables Panel */}
       {hasMainProduct && (
         <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <h3 className="text-xs font-bold text-foreground/85 font-sans uppercase tracking-wider">
-              Sản phẩm đã bàn giao (Submitted Deliverables)
+              Submitted Deliverables
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {task.productLink && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Link sản phẩm</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Product Link</span>
                 <a
                   href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                   target="_blank"
@@ -509,10 +601,34 @@ export default function TaskDetailPage() {
             )}
             {task.productFile && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">File đính kèm</span>
-                <span className="text-xs text-foreground/80 font-mono mt-1 truncate">
-                  {task.productFile}
-                </span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Attached File</span>
+                <div className="flex items-center justify-between gap-2 mt-1">
+                  <span className="text-xs text-foreground/80 font-mono truncate">
+                    {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
+                  </span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <a
+                      href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                      title="View file"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const r = resolveProductFile(task.productFile);
+                        if (r) downloadFileBlob(r.url, r.name);
+                      }}
+                      className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                      title="Download file"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -573,7 +689,7 @@ export default function TaskDetailPage() {
               Urgent Request
             </p>
             <p className="text-xs text-destructive mt-1">
-              Client đang yêu cầu sản phẩm khẩn cấp cho task này. Vui lòng nộp sản phẩm để chuyển sang trạng thái chờ duyệt.
+              Client is requesting product urgently. Please submit deliverables to proceed.
             </p>
             {task?.urgentRequestedAt && (
               <p className="text-xs text-destructive/70 mt-1 font-mono">
@@ -603,207 +719,54 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Revision request modal (3-step flow) */}
+      {/* Revision request modal (Provide Revision Reason directly) */}
       {showRevisionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            {/* Step 1: Revision Type Selection */}
-            {revisionStep === "select-type" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  What would you like to revise?
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Choose whether to reopen the entire task or only specific mini tasks.
-                </p>
-                <div className="space-y-3 mb-6">
-                  <label
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-                      revisionType === "entire"
-                        ? "border-primary bg-primary-light"
-                        : "border-border hover:border-primary/20"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="revisionType"
-                      value="entire"
-                      checked={revisionType === "entire"}
-                      onChange={() => setRevisionType("entire")}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div>
-                      <p className="font-semibold text-foreground">Entire Task</p>
-                      <p className="text-xs text-muted-foreground">Reopen all mini tasks for revision</p>
-                    </div>
-                  </label>
-                  <label
-                    className={cn(
-                      "flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-colors",
-                      revisionType === "mini"
-                        ? "border-primary bg-primary-light"
-                        : "border-border hover:border-primary/20"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="revisionType"
-                      value="mini"
-                      checked={revisionType === "mini"}
-                      onChange={() => setRevisionType("mini")}
-                      className="w-4 h-4 text-primary"
-                    />
-                    <div>
-                      <p className="font-semibold text-foreground">Specific Tasks</p>
-                      <p className="text-xs text-muted-foreground">Select which tasks need revision</p>
-                    </div>
-                  </label>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRevisionModal(false);
-                      setRevisionStep("select-type");
-                      setRevisionType("entire");
-                      setSelectedMiniTaskIds(new Set());
-                      setRevisionFeedback("");
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (revisionType === "mini") {
-                        setRevisionStep("select-tasks");
-                      } else {
-                        setRevisionStep("write-reason");
-                      }
-                    }}
-                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover text-sm font-medium"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Step 2: Select Mini Tasks (only for mini task revision) */}
-            {revisionStep === "select-tasks" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  Select Tasks to Revise
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Check the tasks you want the expert to revise.
-                </p>
-                <div className="space-y-2 mb-6 max-h-64 overflow-y-auto">
-                  {miniTasks.map((mt) => {
-                    const isSelected = selectedMiniTaskIds.has(mt.id);
-                    return (
-                      <label
-                        key={mt.id}
-                        className={cn(
-                          "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                          isSelected
-                            ? "border-primary bg-primary-light"
-                            : "border-border hover:border-border/80"
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {
-                            const next = new Set(selectedMiniTaskIds);
-                            if (isSelected) next.delete(mt.id);
-                            else next.add(mt.id);
-                            setSelectedMiniTaskIds(next);
-                          }}
-                          className="w-4 h-4 text-primary rounded"
-                        />
-                        <span className="text-sm font-medium text-foreground">{mt.title}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <div className="flex justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRevisionStep("select-type");
-                      setSelectedMiniTaskIds(new Set());
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRevisionStep("write-reason")}
-                    disabled={selectedMiniTaskIds.size === 0}
-                    className="h-9 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Step 3: Revision Reason */}
-            {revisionStep === "write-reason" && (
-              <>
-                <h3 className="text-lg font-bold text-foreground mb-2">
-                  Provide Revision Reason
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Describe what needs to be changed. This will be shown to the expert.
-                </p>
-                <textarea
-                  value={revisionFeedback}
-                  onChange={(e) => setRevisionFeedback(e.target.value)}
-                  placeholder="Describe what needs to be changed..."
-                  className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring/50 focus:border-ring mb-6 resize-none bg-input-background"
-                  rows={4}
-                  autoFocus
-                />
-                <div className="flex justify-between gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowRevisionModal(false);
-                      setRevisionStep("select-type");
-                      setRevisionType("entire");
-                      setSelectedMiniTaskIds(new Set());
-                      setRevisionFeedback("");
-                    }}
-                    className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRevisionClick}
-                    disabled={revisionLoading || !revisionFeedback.trim()}
-                    className="h-9 px-4 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center gap-2 transition-colors"
-                  >
-                    {revisionLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-4 h-4" />
-                        Submit Revision Request
-                      </>
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Provide Revision Reason
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Describe what needs to be changed. This will be shown to the expert.
+            </p>
+            <textarea
+              value={revisionFeedback}
+              onChange={(e) => setRevisionFeedback(e.target.value)}
+              placeholder="Describe what needs to be changed..."
+              className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:ring-2 focus:ring-ring/50 focus:border-ring mb-6 resize-none bg-input-background"
+              rows={4}
+              autoFocus
+            />
+            <div className="flex justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRevisionModal(false);
+                  setRevisionFeedback("");
+                }}
+                className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleRevisionClick}
+                disabled={revisionLoading || !revisionFeedback.trim()}
+                className="h-9 px-4 bg-warning text-warning-foreground rounded-lg hover:bg-warning/90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center gap-2 transition-colors"
+              >
+                {revisionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Submit Revision Request
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -855,20 +818,22 @@ export default function TaskDetailPage() {
             {isExpert && !isDone && (
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {task?.urgentRequest === true || task?.productRequested === true || task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product" ? (
+                  {task?.urgentRequest === true || task?.productRequested === true || task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product" || isNeedsRevision || !!(task?.productLink || task?.productFile) ? (
                     <Button
                       variant="default"
                       size="default"
                       fullWidth
+                      disabled={isWaitingForApproval}
                       onClick={() => {
                         setProductLinkInput(task.productLink || "");
                         setProductFileInput(task.productFile || "");
+                        setProductFileObject(null);
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
+                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
-                      Submit Product (Nộp sản phẩm)
+                      {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
                     </Button>
                   ) : (
                     <Button
@@ -896,7 +861,7 @@ export default function TaskDetailPage() {
                 )}
                 {(task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product") && (
                   <p className="text-xs text-amber-600 font-semibold text-center animate-pulse">
-                    Khách hàng yêu cầu điều chỉnh sản phẩm! Hãy nộp lại sản phẩm đã chỉnh sửa phía trên.
+                    Client requested revisions! Please submit updated deliverables above.
                   </p>
                 )}
               </div>
@@ -905,20 +870,24 @@ export default function TaskDetailPage() {
             {/* Client actions: Quick Accept, Request Product, View Product */}
             {isClient && (
               <div className="space-y-3">
-                {/* 1. Checklist Completed: Render Quick Accept & Request Product */}
-                {(task.displayStatus === "Checklist Completed") && !task.productRequested && (
+                {/* 1. Checklist Completed or Pending Approval without product: Render Quick Accept & Request Product */}
+                {(isWaitingForApproval || displayStatus === "Checklist Completed") && !task.productRequested && !hasMainProduct && (
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Button
                       variant="success"
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={() => {
+                      onClick={async () => {
                         setApproveLoading(true);
                         try {
-                          handleQuickAccept(taskId);
-                          toast.success("Task accepted! (Quick Accept)");
-                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          const success = await handleQuickAccept(taskId);
+                          if (success) {
+                            toast.success("Task accepted! (Quick Accept)");
+                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          } else {
+                            toast.error("Failed to accept task.");
+                          }
                         } catch (err) {
                           toast.error("Failed to accept task.");
                         } finally {
@@ -935,12 +904,16 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       loading={urgentLoading}
-                      onClick={() => {
+                      onClick={async () => {
                         setUrgentLoading(true);
                         try {
-                          handleRequestProduct(taskId);
-                          toast.success("Product requested from expert!");
-                          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          const success = await handleRequestProduct(taskId);
+                          if (success) {
+                            toast.success("Product requested from expert!");
+                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+                          } else {
+                            toast.error("Failed to request product.");
+                          }
                         } catch (err) {
                           toast.error("Failed to request product.");
                         } finally {
@@ -966,7 +939,7 @@ export default function TaskDetailPage() {
                 {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
                   <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
                     <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
-                    Đang chờ Expert nộp sản phẩm (Waiting for Expert submission)...
+                    Waiting for Expert submission...
                   </div>
                 )}
 
@@ -981,7 +954,7 @@ export default function TaskDetailPage() {
                       className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
-                      View Product (Xem sản phẩm)
+                      View Product
                     </Button>
                   </div>
                 )}
@@ -1037,7 +1010,7 @@ export default function TaskDetailPage() {
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-red-600" />
             <h3 className="text-lg font-bold text-red-800">
-              Lý do từ chối (Decline Reason)
+              Decline Reason
             </h3>
           </div>
           <p className="text-sm font-semibold text-red-700 leading-relaxed bg-card border border-red-200 rounded-lg p-4 font-sans">
@@ -1051,15 +1024,15 @@ export default function TaskDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Nộp sản phẩm bàn giao (Deliverables)
+              Submit Deliverables
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Cung cấp link sản phẩm hoặc tên file đính kèm để gửi cho Client kiểm tra.
+              Provide product link or attached file to submit to Client.
             </p>
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  Link sản phẩm
+                  Product Link
                 </label>
                 <input
                   type="text"
@@ -1071,35 +1044,54 @@ export default function TaskDetailPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  Tên file
+                  Attach File
                 </label>
-                <input
-                  type="text"
-                  value={productFileInput}
-                  onChange={(e) => setProductFileInput(e.target.value)}
-                  placeholder="project_output_v1.zip"
-                  className="w-full px-3.5 py-2 text-sm border border-input rounded-xl focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary font-sans"
-                />
+                <label className="flex items-center gap-2 px-3.5 py-2.5 text-sm border border-dashed border-input rounded-xl cursor-pointer hover:border-brand-primary/50 hover:bg-secondary/60 transition-colors">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                  <span className={productFileObject ? "text-foreground font-medium" : "text-muted-foreground"}>
+                    {productFileObject ? productFileObject.name : "Choose file..."}
+                  </span>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      setProductFileObject(file || null);
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                {productFileObject && (
+                  <button
+                    type="button"
+                    onClick={() => setProductFileObject(null)}
+                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                  >
+                    Remove file
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 pt-3 border-t border-border">
               <Button
                 variant="outline"
                 size="default"
-                onClick={() => setShowProductModal(false)}
+                onClick={() => {
+                  setShowProductModal(false);
+                  setProductFileObject(null);
+                }}
                 disabled={productSubmitLoading}
               >
-                Hủy
+                Cancel
               </Button>
               <Button
                 variant="default"
                 size="default"
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
-                disabled={!productLinkInput.trim() && !productFileInput.trim()}
+                disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileObject)}
                 className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
               >
-                {productSubmitLoading ? "Đang gửi..." : "Gửi sản phẩm"}
+                {productSubmitLoading ? "Submitting..." : "Submit"}
               </Button>
             </div>
           </div>
@@ -1113,8 +1105,8 @@ export default function TaskDetailPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Sản phẩm nộp cho: {task?.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Chi tiết các file và link do chuyên gia cung cấp</p>
+                <h3 className="text-lg font-bold text-foreground font-sans">Deliverables for: {task?.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5 font-sans">Details of deliverables provided by the expert</p>
               </div>
               <button
                 onClick={() => setShowViewProductModalClient(false)}
@@ -1127,30 +1119,124 @@ export default function TaskDetailPage() {
             {/* Modal Content */}
             <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto font-sans">
               <div className="space-y-4">
-                {!task?.productLink && !task?.productFile ? (
-                  <p className="text-sm text-muted-foreground italic text-center">Chuyên gia chưa upload sản phẩm nào.</p>
+                {!task?.productLink && !task?.productFile && !task?.miniTasks?.some(mt => mt.productLink || mt.productFile) ? (
+                  <p className="text-sm text-muted-foreground italic text-center">No deliverables uploaded yet.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {task?.productLink && (
-                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Link sản phẩm bàn giao</span>
-                        <a
-                          href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-brand-primary font-medium mt-1 truncate hover:underline flex items-center gap-1 font-sans"
-                        >
-                          {task.productLink}
-                          <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                        </a>
+                  <div className="space-y-4">
+                    {(task?.productLink || task?.productFile) && (
+                      <div className="p-4 bg-muted/40 rounded-xl border border-border/80 text-left space-y-3">
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {task?.productLink && (
+                            <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Handover Product Link</span>
+                              <a
+                                href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-brand-primary font-medium mt-1 truncate hover:underline flex items-center gap-1 font-sans"
+                              >
+                                {task.productLink}
+                                <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
+                              </a>
+                            </div>
+                          )}
+                          {task?.productFile && (
+                            <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
+                              <div className="flex items-center justify-between gap-2 mt-1">
+                                <span className="text-sm text-foreground/80 font-medium font-mono truncate">
+                                  {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
+                                </span>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <a
+                                    href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                    title="View file"
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      const r = resolveProductFile(task.productFile);
+                                      if (r) downloadFileBlob(r.url, r.name);
+                                    }}
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                                    title="Download file"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
-                    {task?.productFile && (
-                      <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Tên file sản phẩm</span>
-                        <span className="text-sm text-foreground/80 font-medium mt-1 font-mono truncate">
-                          {task.productFile}
-                        </span>
+
+                    {task?.miniTasks?.some(mt => mt.productLink || mt.productFile) && (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
+                        <div className="space-y-2">
+                          {task.miniTasks
+                            .filter(mt => mt.productLink || mt.productFile)
+                            .map((mt, idx) => (
+                              <div key={mt.id || idx} className="p-3.5 bg-muted/40 rounded-xl border border-border/80 text-left space-y-2">
+                                <p className="text-xs font-bold text-foreground">{mt.title}</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {mt.productLink && (
+                                    <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product Link</span>
+                                      <a
+                                        href={mt.productLink.startsWith("http") ? mt.productLink : `https://${mt.productLink}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-xs text-brand-primary font-medium mt-0.5 truncate hover:underline flex items-center gap-1 font-sans"
+                                      >
+                                        {mt.productLink}
+                                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                                      </a>
+                                    </div>
+                                  )}
+                                  {mt.productFile && (
+                                    <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
+                                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                                        <span className="text-xs text-foreground/80 font-medium font-mono truncate">
+                                          {(() => { const r = resolveProductFile(mt.productFile); return r ? r.name : mt.productFile; })()}
+                                        </span>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                          <a
+                                            href={(() => { const r = resolveProductFile(mt.productFile); return r ? r.url : "#"; })()}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                            title="View file"
+                                          >
+                                            <ExternalLink className="w-3 h-3" />
+                                          </a>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              const r = resolveProductFile(mt.productFile);
+                                              if (r) downloadFileBlob(r.url, r.name);
+                                            }}
+                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors cursor-pointer"
+                                            title="Download file"
+                                          >
+                                            <Download className="w-3 h-3" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1168,7 +1254,7 @@ export default function TaskDetailPage() {
                     className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <X className="w-4 h-4" />
-                    Từ chối (Decline)
+                    Decline
                   </button>
                   <button
                     type="button"
@@ -1176,7 +1262,7 @@ export default function TaskDetailPage() {
                     className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <Check className="w-4 h-4" />
-                    Phê duyệt (Accept)
+                    Accept
                   </button>
                 </>
               ) : (
@@ -1185,7 +1271,7 @@ export default function TaskDetailPage() {
                   onClick={() => setShowViewProductModalClient(false)}
                   className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-bold rounded-xl text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
                 >
-                  Đóng
+                  Close
                 </button>
               )}
             </div>
@@ -1199,7 +1285,7 @@ export default function TaskDetailPage() {
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Xác nhận nộp bằng chứng bàn giao</h3>
+                <h3 className="text-lg font-bold text-foreground">Confirm Submission of Handover Evidence</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Milestone: {task?.title}
                 </p>
@@ -1210,7 +1296,7 @@ export default function TaskDetailPage() {
             </div>
             <div className="p-6 space-y-4 text-center">
               <p className="text-sm text-foreground/80 font-sans">
-                Bạn có chắc chắn muốn xác nhận hoàn thành milestone và gửi thông báo bàn giao cho Khách hàng?
+                Are you sure you want to mark this milestone as completed and notify the Client?
               </p>
               <div className="flex gap-3 pt-2">
                 <button
@@ -1218,7 +1304,7 @@ export default function TaskDetailPage() {
                   onClick={() => setShowEvidenceModal(false)}
                   className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="button"
@@ -1226,7 +1312,7 @@ export default function TaskDetailPage() {
                   disabled={evidenceSubmitting}
                   className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {evidenceSubmitting ? "Đang gửi..." : "Xác nhận & Gửi"}
+                  {evidenceSubmitting ? "Submitting..." : "Confirm & Send"}
                 </button>
               </div>
             </div>

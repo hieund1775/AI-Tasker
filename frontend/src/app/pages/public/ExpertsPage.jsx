@@ -1,30 +1,85 @@
-﻿import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, ArrowRight } from "lucide-react";
+import api from "../../../services/api.js";
 
 /**
  * ExpertsPage — public expert discovery/browsing page.
- * TODO: Connect to backend API to list and search experts.
- * This page is kept as a future API-ready placeholder.
- *
  * Note: ExpertList (pages/client/) is the client-facing expert list.
  * ExpertsPage is a public-facing variant without client-specific actions.
  */
 export function ExpertsPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [experts, setExperts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    const experts = []
-    .filter((u) => u.role === "expert")
-    .map((u) => ({
-      id: u.id,
-      name: u.fullName,
-      avatar: "from-blue-400 to-purple-500",
-      specialization: u.profile?.specialization || u.profile?.title || "",
-      location: u.profile?.location || "",
-      rating: u.profile?.rating || 0,
-      reviews: u.profile?.reviewCount || 0,
-      skills: u.profile?.skills || [],
-    }));
+  useEffect(() => {
+    async function loadExperts() {
+      try {
+        setLoading(true);
+        const [res, cats, skills] = await Promise.all([
+          api.experts.list().catch(() => []),
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+
+        const expertsOnly = (res || [])
+          .filter((u) => u.role?.toLowerCase() === "expert")
+          .map((u) => {
+            const profile = u.expertProfile || {};
+            
+            // Resolve Category
+            let resolvedCatName = profile.category || u.category || "";
+            const matchedCat = (cats || []).find(c => c.id === resolvedCatName);
+            if (matchedCat) resolvedCatName = matchedCat.name;
+
+            // Resolve Specialization
+            let resolvedSpecName = profile.specialization || profile.major || u.specialization || "";
+            let foundSpec = false;
+            for (const cat of (cats || [])) {
+              const matchedSpec = cat.specializations?.find(s => s.id === resolvedSpecName);
+              if (matchedSpec) {
+                resolvedSpecName = matchedSpec.name;
+                foundSpec = true;
+                break;
+              }
+            }
+            if (!foundSpec && resolvedSpecName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedSpecName = "AI Specialist";
+            }
+            if (resolvedCatName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedCatName = "AI & Computing";
+            }
+
+            // Resolve Skills
+            const resolvedExpertSkills = (profile.skills || []).map(sk => {
+              if (typeof sk === "string" && sk.startsWith("skill-")) {
+                const match = (skills || []).find(s => s.id === sk);
+                return match ? match.name : sk;
+              }
+              return typeof sk === "string" ? sk : sk?.name || "";
+            });
+
+            return {
+              id: u.id,
+              name: u.fullName,
+              avatar: "from-blue-400 to-purple-500",
+              specialization: resolvedSpecName || "AI Specialist",
+              location: profile.location || "N/A",
+              rating: 4.8,
+              reviews: profile.completedProjects || 0,
+              skills: resolvedExpertSkills,
+            };
+          });
+        setExperts(expertsOnly);
+      } catch (err) {
+        console.error("Failed to load experts", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadExperts();
+  }, []);
 
   // Available skills for filter chips
   const availableSkills = [...new Set(experts.flatMap((e) => e.skills || []))].sort();

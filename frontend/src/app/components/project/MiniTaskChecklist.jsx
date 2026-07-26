@@ -82,7 +82,7 @@ export function MiniTaskChecklist({
 
   const handleSave = async (miniId) => {
     if (!editTitle.trim()) {
-      toast.error("Tiêu đề không được để trống!");
+      toast.error("Title cannot be empty!");
       return;
     }
     try {
@@ -91,11 +91,11 @@ export function MiniTaskChecklist({
         productLink: editLink.trim() || null,
         productFile: editFile.trim() || null,
       });
-      toast.success("Cập nhật MiniTask thành công!");
+      toast.success("MiniTask updated successfully!");
       setEditingId(null);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể cập nhật MiniTask.");
+      toast.error("Failed to update MiniTask.");
     }
   };
 
@@ -187,7 +187,7 @@ export function MiniTaskChecklist({
             {isEditingThis ? (
               <div className="flex-1 min-w-0 space-y-3 p-3 bg-secondary rounded-lg border border-border text-left">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Tiêu đề MiniTask</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">MiniTask Title</label>
                   <input
                     type="text"
                     value={editTitle}
@@ -198,7 +198,7 @@ export function MiniTaskChecklist({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Link sản phẩm</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Product Link</label>
                     <input
                       type="text"
                       value={editLink}
@@ -208,7 +208,7 @@ export function MiniTaskChecklist({
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Tên file đính kèm</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Attached File Name</label>
                     <input
                       type="text"
                       value={editFile}
@@ -224,14 +224,14 @@ export function MiniTaskChecklist({
                     onClick={() => setEditingId(null)}
                     className="px-2.5 py-1.5 border border-border text-foreground rounded-md hover:bg-secondary font-semibold"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSave(mini.id)}
                     className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary-hover font-semibold"
                   >
-                    Lưu
+                    Save
                   </button>
                 </div>
               </div>
@@ -241,7 +241,7 @@ export function MiniTaskChecklist({
                   className={cn(
                     "text-sm",
                     isDone
-                      ? "text-muted-foreground line-through decoration-muted-foreground/30"
+                      ? "text-muted-foreground"
                       : "text-foreground font-medium"
                   )}
                 >
@@ -264,7 +264,7 @@ export function MiniTaskChecklist({
                         rel="noopener noreferrer"
                         className="text-accent hover:underline font-semibold flex items-center gap-0.5"
                       >
-                        Link sản phẩm
+                        Product Link
                       </a>
                     )}
                     {mini.productFile && (
@@ -327,7 +327,7 @@ export function MiniTaskChecklist({
               </div>
             )}
 
-            {/* Action buttons (Sửa / Done tag) */}
+            {/* Action buttons (Edit / Done tag) */}
             {!isEditingThis && (
               <div className="flex-shrink-0 flex items-center gap-2">
                 {editable && !isDone && (
@@ -336,7 +336,7 @@ export function MiniTaskChecklist({
                     onClick={() => startEditing(mini)}
                     className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer"
                   >
-                    Sửa
+                    Edit
                   </button>
                 )}
                 {compact && isDone && (

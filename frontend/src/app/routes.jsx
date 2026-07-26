@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { HomePage } from "./pages/public/HomePage.jsx";
 import { LoginPage } from "./pages/public/LoginPage.jsx";
 import { SignUpPage } from "./pages/public/SignUpPage.jsx";
+import { ResetPasswordPage } from "./pages/public/ResetPasswordPage.jsx";
 
 // Client Pages
 import { ClientDashboard } from "./pages/client/ClientDashboard.jsx";
@@ -29,6 +30,7 @@ import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
 import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
+import PaymentResult from "./pages/common/PaymentResult";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
@@ -36,7 +38,6 @@ import { AdminUsers } from "./pages/admin/AdminUsers.jsx";
 import { AdminDisputes } from "./pages/admin/AdminDisputes.jsx";
 import { AdminRevenue } from "./pages/admin/AdminRevenue.jsx";
 import { AdminProfile } from "./pages/admin/AdminProfile.jsx";
-import { EditAdminProfile } from "./pages/admin/EditAdminProfile.jsx";
 import { AdminReportDetail } from "./pages/admin/AdminReportDetail.jsx";
 import { AdminProjects } from "./pages/admin/AdminProjects.jsx";
 import { AdminReviews } from "./pages/admin/AdminReviews.jsx";
@@ -46,9 +47,13 @@ import { AdminCategoryTags } from "./pages/admin/AdminCategoryTags.jsx";
 // Owner Pages
 import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
 import { CreateAdmin } from "./pages/owner/CreateAdmin.jsx";
-import { ManageAdmins } from "./pages/owner/ManageAdmins.jsx";
 import { OwnerProfile } from "./pages/owner/OwnerProfile.jsx";
-import { EditOwnerProfile } from "./pages/owner/EditOwnerProfile.jsx";
+import { OwnerRevenue } from "./pages/owner/OwnerRevenue.jsx";
+
+
+// Layouts
+import { AdminLayout } from "./components/layout/AdminLayout.jsx";
+import { OwnerLayout } from "./components/layout/OwnerLayout.jsx";
 import OwnerUsers from "./pages/owner/OwnerUsers.jsx";
 import OwnerProjects from "./pages/owner/OwnerProjects.jsx";
 import OwnerReports from "./pages/owner/OwnerReports.jsx";
@@ -73,6 +78,7 @@ export const router = createBrowserRouter([
       { index: true, Component: HomePage },
       { path: "login", Component: LoginPage },
       { path: "signup", Component: SignUpPage },
+      { path: "reset-password", Component: ResetPasswordPage },
       { path: "unauthorized", Component: UnauthorizedPage },
     ],
   },
@@ -124,19 +130,25 @@ export const router = createBrowserRouter([
 
           // ----- Admin routes (role=admin only) -----
           {
-            element: <ProtectedRoute role="admin" />,
+            element: <ProtectedRoute roles={["admin", "staff"]} />,
             children: [
-              { path: "admin/dashboard", Component: AdminDashboard },
-              { path: "admin/users", Component: AdminUsers },
-              { path: "admin/disputes", Component: AdminDisputes },
-              { path: "admin/disputes/:id", Component: AdminReportDetail },
-              { path: "admin/projects", Component: AdminProjects },
-              { path: "admin/reviews", Component: AdminReviews },
-              { path: "admin/job-posts", Component: AdminJobPosts },
-              { path: "admin/category-tags", Component: AdminCategoryTags },
-              { path: "admin/revenue", Component: AdminRevenue },
-              { path: "admin/profile", Component: AdminProfile },
-              { path: "admin/profile/edit", Component: EditAdminProfile },
+              {
+                element: <AdminLayout />,
+                children: [
+                  { path: "admin/dashboard", Component: AdminDashboard },
+                  { path: "admin/users", Component: AdminUsers },
+                  { path: "admin/disputes", Component: AdminDisputes },
+                  { path: "admin/disputes/:id", Component: AdminReportDetail },
+                  { path: "admin/projects", Component: AdminProjects },
+                  { path: "admin/reviews", Component: AdminReviews },
+                  { path: "admin/job-posts", Component: AdminJobPosts },
+                  { path: "admin/category-tags", Component: AdminCategoryTags },
+                  { path: "admin/revenue", Component: AdminRevenue },
+                  { path: "admin/profile", Component: AdminProfile },
+                  { path: "admin/profile-client/:id", Component: ClientProfile },
+                  { path: "admin/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
+                ],
+              }
             ],
           },
 
@@ -144,27 +156,38 @@ export const router = createBrowserRouter([
           {
             element: <ProtectedRoute role="owner" />,
             children: [
-              { path: "owner/dashboard", Component: OwnerDashboard },
-              { path: "owner/create-admin", Component: CreateAdmin },
-              { path: "owner/manage-admins", Component: ManageAdmins },
-              { path: "owner/profile", Component: OwnerProfile },
-              { path: "owner/profile/edit", Component: EditOwnerProfile },
-              // Owner-specific management pages (reuse Admin components)
-              { path: "owner/users", Component: OwnerUsers },
-              { path: "owner/projects", Component: OwnerProjects },
-              { path: "owner/reports", Component: OwnerReports },
-              { path: "owner/reviews", Component: OwnerReviews },
-              { path: "owner/job-posts", Component: OwnerJobPosts },
-              { path: "owner/category-tags", Component: OwnerCategoryTags },
+              {
+                element: <OwnerLayout />,
+                children: [
+                  { path: "owner/dashboard", Component: OwnerDashboard },
+                  { path: "owner/create-admin", Component: CreateAdmin },
+                  { path: "owner/revenue", Component: OwnerRevenue },
+                  { path: "owner/disputes/:id", Component: AdminReportDetail },
+                  { path: "owner/profile", Component: OwnerProfile },
+                  { path: "owner/profile-client/:id", Component: ClientProfile },
+                  { path: "owner/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
+                  // Owner-specific management pages (reuse Admin components)
+                  { path: "owner/users", Component: OwnerUsers },
+                  { path: "owner/projects", Component: OwnerProjects },
+                  { path: "owner/reports", Component: OwnerReports },
+                  { path: "owner/reviews", Component: OwnerReviews },
+                  { path: "owner/job-posts", Component: OwnerJobPosts },
+                  { path: "owner/category-tags", Component: OwnerCategoryTags },
+                ],
+              }
             ],
           },
 
           // ----- Common routes (any authenticated role) -----
           { path: "notifications", Component: NotificationsPage },
           { path: "expert/profile/:id", element: <PublicExpertProfile viewerRole="public" /> },
+          { path: "client/profile/:id", Component: ClientProfile },
           { path: "messenger", Component: Messenger },
           { path: "messenger/:id", Component: Messenger },
           { path: "tasks/:taskId/update", Component: TaskUpdatePage },
+
+          // Payment result redirect from ZaloPay
+          { path: "wallet", Component: PaymentResult },
 
           // ----- Legacy redirect -----
           {

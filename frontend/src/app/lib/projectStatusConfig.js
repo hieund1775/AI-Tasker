@@ -126,12 +126,12 @@ const CLIENT_BUTTON_MAP = {
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   awaiting_cancellation: {
-    label: "Xem đơn hủy",
+    label: "View cancellation",
     className: "bg-amber-600 text-white hover:bg-amber-700",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   cancel_done: {
-    label: "Chi tiết đơn hủy",
+    label: "Cancellation details",
     className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
@@ -173,12 +173,12 @@ const EXPERT_BUTTON_MAP = {
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   awaiting_cancellation: {
-    label: "Xem đơn hủy",
+    label: "View cancellation",
     className: "bg-amber-600 text-white hover:bg-amber-700",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   cancel_done: {
-    label: "Chi tiết đơn hủy",
+    label: "Cancellation details",
     className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },

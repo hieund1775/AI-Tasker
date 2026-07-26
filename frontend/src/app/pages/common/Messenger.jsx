@@ -7,7 +7,7 @@ import {
   Send,
   Plus,
   Image,
-  File,
+  Paperclip,
   FolderOpen,
   X,
   Download,
@@ -38,7 +38,7 @@ function detectCurrentUser(convId, conversations) {
 
 const ATTACH_OPTIONS = [
   { key: "image", label: "Upload Image", icon: Image, color: "text-primary", ext: ".png", mime: "image/png" },
-  { key: "file", label: "Upload File", icon: File, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
+  { key: "file", label: "Upload File", icon: Paperclip, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
   { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-warning", ext: "/", mime: "folder" },
 ];
 
@@ -51,6 +51,7 @@ export function Messenger() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // ---- Plus menu state ----
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -69,17 +70,69 @@ export function Messenger() {
   const [allUsers, setAllUsers] = useState([]);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeConversation, setActiveConversation] = useState(null);
 
-  // Fetch messages and users
-  const loadMessagesData = async () => {
+  // Fetch conversations
+  const loadConversations = async () => {
     if (!demoUserId) return;
     try {
-      const [msgs, usersList] = await Promise.all([
-        api.get("/messages"),
-        api.get("/Users")
-      ]);
-      setAllMessages(msgs || []);
-      setAllUsers(usersList || []);
+      // 1. L?y list cu?c h?i tho?i t? backend
+      let convs = await api.chat.getUserConversations(demoUserId).catch(() => []);
+      
+      // 2. N?u trn URL cA3 id c?a user mA cha cA3 cu?c h?i tho?i nAo, thA t?o m?i/l?y
+      if (activeConvId) {
+        // Ki?m tra xem activeConvId hi?n t?i cA3 ph?i lA conversationId khA'ng
+        let activeC = convs.find((c) => c.id === activeConvId);
+        
+        // If NOT, it might be UserId. Create or retrieve the conversation with that user.
+        if (!activeC && activeConvId.length > 20) {
+          const isClient = String(user?.role).toLowerCase() === "client";
+          try {
+            activeC = await api.chat.createConversation({
+              clientId: isClient ? demoUserId : activeConvId,
+              expertId: isClient ? activeConvId : demoUserId,
+            });
+            // Thm vAo list vA replace URL ? ch? th?ng ?n conversationId th?t
+            if (activeC) {
+              convs = [activeC, ...convs.filter(c => c.id !== activeC.id)];
+              navigate(`/messenger/${activeC.id}`, { replace: true });
+            }
+          } catch (err) {
+            console.error("Could not get/create conversation with user:", err);
+          }
+        }
+      }
+
+      // Convert backend format to frontend UI format
+      const mappedList = convs.map((c) => {
+        const isClient = String(demoUserId).toLowerCase() === String(c.clientId).toLowerCase();
+        return {
+          id: c.id,
+          name: isClient ? c.expertName : c.clientName,
+          role: isClient ? "Expert" : "Client",
+          lastMessage: c.lastMessageContent || "No messages yet",
+          messages: [], // S? fetch sau
+        };
+      });
+
+      setConversations(mappedList);
+      
+      // Fetch tin nh?n cho conversation ang active
+      if (activeConvId) {
+        const activeC = mappedList.find(c => c.id === activeConvId);
+        if (activeC) {
+          const msgs = await api.chat.getMessages(activeC.id).catch(() => []);
+          activeC.messages = msgs.map(m => ({
+            id: m.id,
+            text: m.content || "",
+            time: safeDateTimeFormat(m.createdAt, { hour: "2-digit", minute: "2-digit" }, ""),
+            isOwn: String(m.senderId).toLowerCase() === String(demoUserId).toLowerCase(),
+          }));
+          setActiveConversation({ ...activeC });
+        }
+      } else {
+        setActiveConversation(null);
+      }
     } catch (err) {
       console.error("Failed to load messenger data:", err);
     } finally {
@@ -88,71 +141,10 @@ export function Messenger() {
   };
 
   useEffect(() => {
-    loadMessagesData();
-    const timer = setInterval(loadMessagesData, 3000);
+    loadConversations();
+    const timer = setInterval(loadConversations, 3000);
     return () => clearInterval(timer);
-  }, [demoUserId]);
-
-  // Construct conversation list from messages
-  useEffect(() => {
-    if (!demoUserId || allUsers.length === 0) return;
-
-    const groups = {};
-    allMessages.forEach((m) => {
-      if (m.senderId === demoUserId || m.receiverId === demoUserId) {
-        const otherId = m.senderId === demoUserId ? m.receiverId : m.senderId;
-        if (!groups[otherId]) {
-          groups[otherId] = [];
-        }
-        groups[otherId].push(m);
-      }
-    });
-
-    const list = Object.entries(groups).map(([otherId, msgs]) => {
-      const otherUser = allUsers.find((u) => u.id === otherId);
-      const sortedMsgs = [...msgs].sort(
-        (a, b) => {
-          const timeA = new Date(a.createdAt).getTime();
-          const timeB = new Date(b.createdAt).getTime();
-          if (Number.isNaN(timeA) || Number.isNaN(timeB)) return 0;
-          return timeA - timeB;
-        }
-      );
-      const lastMsg = sortedMsgs[sortedMsgs.length - 1];
-      const lastText = lastMsg?.content || lastMsg?.text || "No messages yet";
-
-      return {
-        id: otherId,
-        name: otherUser?.fullName || "User",
-        role: otherUser?.expertProfile?.jobTitle || (otherUser?.role === "expert" ? "Expert" : "Client"),
-        lastMessage: lastText,
-        messages: sortedMsgs.map((m) => ({
-          id: m.id,
-          text: m.content || m.text || "",
-          attachment: m.attachment || null,
-          time: safeDateTimeFormat(m.createdAt, { hour: "2-digit", minute: "2-digit" }, ""),
-          isOwn: m.senderId === demoUserId,
-        })),
-      };
-    });
-
-    if (activeConvId && !groups[activeConvId]) {
-      const activeUser = allUsers.find((u) => u.id === activeConvId);
-      if (activeUser) {
-        list.push({
-          id: activeConvId,
-          name: activeUser.fullName || "User",
-          role: activeUser.expertProfile?.jobTitle || (activeUser.role === "expert" ? "Expert" : "Client"),
-          lastMessage: "No messages yet",
-          messages: [],
-        });
-      }
-    }
-
-    setConversations(list);
-  }, [allMessages, allUsers, demoUserId, activeConvId]);
-
-  const activeConversation = conversations.find((c) => c.id === activeConvId) || null;
+  }, [demoUserId, activeConvId]);
 
   // ---- Debug: log state changes ----
   useEffect(() => {
@@ -211,16 +203,40 @@ export function Messenger() {
 
   // ---- Add attachment from plus menu ----
   const handleAddAttachment = (type) => {
-    const mockFiles = {
-      image: { name: `image-${Date.now().toString(36)}.png`, type: "image/png", size: "245 KB" },
-      file: { name: `document-${Date.now().toString(36)}.pdf`, type: "application/pdf", size: "1.8 MB" },
-      folder: { name: `project-files-${Date.now().toString(36)}/`, type: "folder", size: "3 files" },
-    };
-    const file = mockFiles[type];
-    if (file) {
-      setPendingAttachments((prev) => [...prev, { ...file, id: `att-${Date.now()}` }]);
+    if (fileInputRef.current) {
+      if (type === "image") {
+        fileInputRef.current.accept = "image/*";
+        fileInputRef.current.removeAttribute("webkitdirectory");
+      } else if (type === "folder") {
+        fileInputRef.current.accept = "";
+        fileInputRef.current.setAttribute("webkitdirectory", "true");
+      } else {
+        fileInputRef.current.accept = "";
+        fileInputRef.current.removeAttribute("webkitdirectory");
+      }
+      fileInputRef.current.click();
     }
     setShowPlusMenu(false);
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    const newAttachments = files.map((file) => {
+      // Create a temporary object for the UI until backend API handles uploads
+      return {
+        id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file: file,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: (file.size / 1024).toFixed(0) + " KB",
+      };
+    });
+    
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+    // Reset input so the same file can be selected again
+    e.target.value = null;
   };
 
   const removePendingAttachment = (id) => {
@@ -236,16 +252,16 @@ export function Messenger() {
 
     try {
       const payload = {
+        conversationId: activeConvId,
         senderId: demoUserId,
-        receiverId: activeConvId,
         content: message.trim(),
-        attachment: hasAttachments ? { ...pendingAttachments[0] } : null,
+        // Note: Backend currently only accepts text content for Dto, but we can extend later.
       };
 
-      await api.post("/messages", payload);
+      await api.chat.sendMessage(payload);
       setMessage("");
       setPendingAttachments([]);
-      loadMessagesData();
+      loadConversations();
     } catch (err) {
       console.error("Failed to send message:", err);
     }
@@ -392,7 +408,7 @@ export function Messenger() {
                           ) : msg.attachment.type === "folder" ? (
                             <FolderOpen className="w-5 h-5 flex-shrink-0" />
                           ) : (
-                            <File className="w-5 h-5 flex-shrink-0" />
+                            <FileIcon className="w-5 h-5 flex-shrink-0" />
                           )}
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">
@@ -440,7 +456,7 @@ export function Messenger() {
                       ) : att.type === "folder" ? (
                         <FolderOpen className="w-4 h-4 text-amber-500" />
                       ) : (
-                        <File className="w-4 h-4 text-muted-foreground" />
+                        <FileIcon className="w-4 h-4 text-muted-foreground" />
                       )}
                       <span className="text-xs font-medium text-foreground/80">{att.name}</span>
                       <button
@@ -458,6 +474,13 @@ export function Messenger() {
               {/* Input row */}
               <div className="p-3 border-t border-border flex-shrink-0">
                 <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    multiple
+                    className="hidden"
+                  />
                   {/* Plus button with dropdown */}
                   <div className="relative flex-shrink-0">
                     <button
@@ -536,7 +559,7 @@ export function Messenger() {
                                 ) : att.type === "folder" ? (
                                   <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
                                 ) : (
-                                  <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                 )}
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-medium text-foreground/80 truncate">

@@ -82,6 +82,37 @@ export async function deleteCategory(id) {
 }
 
 // ---------------------------------------------------------------------------
+// Specializations
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all specializations.
+ * @returns {Promise<Array>}
+ */
+export async function getSpecializations() {
+  const result = await api.get(`${BASE}/specializations`);
+  return Array.isArray(result) ? result : result?.data ?? [];
+}
+
+/**
+ * Create a new specialization.
+ * @param {object} payload
+ * @returns {Promise<object>}
+ */
+export async function createSpecialization(payload) {
+  return api.post(`${BASE}/specializations`, payload);
+}
+
+/**
+ * Delete a specialization by ID.
+ * @param {string|number} id
+ * @returns {Promise<void>}
+ */
+export async function deleteSpecialization(id) {
+  return api.del(`${BASE}/specializations/${id}`);
+}
+
+// ---------------------------------------------------------------------------
 // Named export group
 // ---------------------------------------------------------------------------
 
@@ -92,6 +123,9 @@ export const categoryTagService = {
   getCategories,
   createCategory,
   deleteCategory,
+  getSpecializations,
+  createSpecialization,
+  deleteSpecialization,
 };
 
 export default categoryTagService;

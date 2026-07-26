@@ -6,11 +6,10 @@
 // =============================================================================
 
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router";
+import { useNavigate } from "react-router";
 import { Save } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { listUsers } from "../../../data/mockDatabase.js";
 
 // ---------------------------------------------------------------------------
 // Resolve owner user from mock DB
@@ -18,19 +17,10 @@ import { listUsers } from "../../../data/mockDatabase.js";
 
 function resolveOwner(userFromAuth) {
   if (userFromAuth?.email) {
-    const found = listUsers().find(
-      (u) => u.email === userFromAuth.email && u.role === "owner"
-    );
-    if (found) return found;
+    const mockUser = null;
+    if (mockUser) return mockUser;
   }
-  if (userFromAuth?.id) {
-    const found = listUsers().find(
-      (u) => u.id === userFromAuth.id && u.role === "owner"
-    );
-    if (found) return found;
-  }
-  // Fallback: return demo owner
-  return listUsers().find((u) => u.id === "user-001") || null;
+  return null || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -98,10 +88,10 @@ export function EditOwnerProfile() {
     return (
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-48" />
-          <div className="bg-card rounded-2xl border border-border p-8 space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-48" />
+          <div className="bg-white rounded-2xl border border-gray-200 p-8 space-y-4">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-muted rounded-lg" />
+              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
             ))}
           </div>
         </div>
@@ -114,11 +104,11 @@ export function EditOwnerProfile() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/owner/profile" className="mb-4">Back to Profile</BackButton>
 
-      <h1 className="text-2xl font-bold text-foreground mb-6">Edit Owner Profile</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Owner Profile</h1>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
+        className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 space-y-6"
       >
         {[
           { key: "fullName", label: "Full Name", type: "text" },
@@ -128,43 +118,44 @@ export function EditOwnerProfile() {
           { key: "location", label: "Location", type: "text" },
         ].map(({ key, label, type }) => (
           <div key={key}>
-            <label className="block text-sm font-medium text-foreground/80 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               {label}
             </label>
             <input
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
-              className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
             />
           </div>
         ))}
 
         <div>
-          <label className="block text-sm font-medium text-foreground/80 mb-2">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Bio / About
           </label>
           <textarea
             value={formData.bio}
             onChange={(e) => handleChange("bio", e.target.value)}
             rows={4}
-            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900"
           />
         </div>
 
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            className="h-11 px-5 text-[15px] rounded-xl bg-yellow-600 text-white hover:bg-yellow-700 font-medium inline-flex items-center gap-2 justify-center"
+            className="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-medium inline-flex items-center gap-2"
           >
             <Save className="w-4 h-4" /> Save Changes
           </button>
-          <Link
-            to="/owner/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+          <button
+            type="button"
+            onClick={() => navigate("/owner/profile")}
+            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
           >
             Cancel
-          </Link>
+          </button>
         </div>
       </form>
     </div>

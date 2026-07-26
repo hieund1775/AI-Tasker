@@ -10,14 +10,14 @@ import {
   Briefcase,
   Paperclip,
   Image,
-  File,
+  File as FileIcon,
   FolderOpen,
   MessageSquare,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -63,26 +63,10 @@ export function ProposalDetail() {
       .then(async (list) => {
         const found = list.find((p) => p.id === id);
         if (found) {
-          let parsedCoverLetter = {};
-          try {
-            parsedCoverLetter = JSON.parse(found.coverLetter);
-          } catch (e) {
-            parsedCoverLetter = {
-              coverLetter: found.coverLetter,
-              professionalIntro: found.coverLetter,
-            };
-          }
-
+          const parsedProposal = parseProposalWbs(found.implementation || found.coverLetter, found);
           const enrichedProposal = {
             ...found,
-            proposalTitle: parsedCoverLetter.proposalTitle || "Proposal",
-            professionalIntro: parsedCoverLetter.professionalIntro || parsedCoverLetter.coverLetter || "",
-            technicalApproach: parsedCoverLetter.technicalApproach || "",
-            timelineMilestones: parsedCoverLetter.timelineMilestones || "",
-            dependencies: parsedCoverLetter.dependencies || "",
-            durationDays: parsedCoverLetter.durationDays || found.estimatedDays || 0,
-            attachments: parsedCoverLetter.attachments || [],
-            tasks: parsedCoverLetter.tasks || [],
+            ...parsedProposal,
           };
           setProposal(enrichedProposal);
           if (found.isSubmitted === false) {
@@ -156,7 +140,29 @@ export function ProposalDetail() {
   const convId = getConversationId();
   const isSessionProposal = proposal.id?.startsWith("session-prop-");
   const hasFullFields = isSessionProposal || !!proposal.proposalTitle;
-  const attachments = proposal.attachments || [];
+  
+  // Aggregate attachments from BE flat database (portfolio and attachmentUrl)
+  const attachments = [...(proposal.attachments || [])];
+  if (proposal.portfolio) {
+    const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
+    attachments.push({
+      id: "portfolio-file",
+      name: proposal.portfolio.split("/").pop() || "Portfolio Document",
+      type: isImg ? "image/png" : "document",
+      fileType: isImg ? "image/png" : "document",
+      url: enrichFileUrl(proposal.portfolio)
+    });
+  }
+  if (proposal.attachmentUrl) {
+    const isImg = proposal.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
+    attachments.push({
+      id: "attachment-file",
+      name: proposal.attachmentUrl.split("/").pop() || "Attached Document",
+      type: isImg ? "image/png" : "document",
+      fileType: isImg ? "image/png" : "document",
+      url: enrichFileUrl(proposal.attachmentUrl)
+    });
+  }
 
   const canEdit = proposal.status?.toLowerCase() !== "accepted" &&
                   proposal.status?.toLowerCase() !== "pending_pay" &&
@@ -265,7 +271,7 @@ export function ProposalDetail() {
         <div className="p-8">
           {proposal.isSubmitted === false ? (
             <div className="py-12 text-center text-muted-foreground italic bg-secondary/60 rounded-xl border border-border p-6">
-              Thông tin proposal hiện đang được để trống. Hãy hoàn thành proposal của bạn để gửi cho client.
+              Proposal information is currently empty. Please complete your proposal to submit to the client.
             </div>
           ) : (
             <>
@@ -288,45 +294,35 @@ export function ProposalDetail() {
                         return (
                           <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
                             {/* ── Use Case Header ── */}
-                            <div className="p-4 bg-accent-light/30 border-b border-border flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                  Client Use Case
+                            <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
+                              <div className="flex items-start justify-between flex-wrap gap-2 w-full">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground text-sm">
+                                    UserStory: {uc.title || uc.nameAndDeadline}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
+                                  {uc.originalDurationDays || 1} days
                                 </span>
-                                <h4 className="font-semibold text-foreground text-sm">
-                                  {uc.title || uc.nameAndDeadline}
-                                </h4>
                               </div>
-                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                                {uc.originalDurationDays || 1} days
-                              </span>
+                              {uc.description && (
+                                <p className="text-xs text-muted-foreground italic pl-3 border-l-2 border-border">
+                                  Description: {uc.description}
+                                </p>
+                              )}
                             </div>
 
                             {/* ── Tasks ── */}
                             <div className="p-4 space-y-4">
                               {ucTasks.length === 0 ? (
-                                <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this use case.</p>
+                                <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this user story.</p>
                               ) : (
                                 ucTasks.map((task, idx) => (
                                   <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
                                     {/* Task Title Row */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {task.completionDays && (
-                                          <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                            {task.completionDays} days
-                                          </span>
-                                        )}
-                                        {task.price != null && (
-                                          <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                            <MoneyDisplay amount={task.price} />
-                                          </span>
-                                        )}
-                                      </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                      <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                     </div>
 
                                     {/* Minitasks */}
@@ -352,23 +348,9 @@ export function ProposalDetail() {
                       {proposal.tasks.map((task, idx) => (
                         <div key={task.id || idx} className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
                           {/* Task Title Row */}
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {task.completionDays && (
-                                <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                  {task.completionDays} days
-                                </span>
-                              )}
-                              {task.price != null && (
-                                <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                  <MoneyDisplay amount={task.price} />
-                                </span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                            <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                           </div>
 
                           {/* Minitasks */}
@@ -419,29 +401,62 @@ export function ProposalDetail() {
                   <p className="text-sm text-muted-foreground">No attachments included.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {attachments.map((att, idx) => (
-                      <div
-                        key={att.id || idx}
-                        className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3"
-                      >
-                        {att.type === "image/png" || att.fileType === "image/png" ? (
-                          <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
-                        ) : att.type === "folder" ? (
-                          <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                        ) : (
-                          <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                        )}
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground/80 truncate">
-                            {att.name || att.fileName || "Attachment"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {att.type || att.fileType || "file"}
-                            {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                    {attachments.map((att, idx) => {
+                      const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
+                      let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                      if (!rawName && typeof rawUrl === "string") {
+                        rawName = rawUrl.split("/").pop() || "Attachment";
+                      }
+                      const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                      const finalName = cleanName || rawName;
+
+                      const handleDownloadFile = async (e) => {
+                        e.preventDefault();
+                        if (!rawUrl || rawUrl === "#") return;
+                        try {
+                          const res = await fetch(rawUrl);
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = blobUrl;
+                          a.download = finalName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(blobUrl);
+                        } catch (err) {
+                          window.open(rawUrl, "_blank");
+                        }
+                      };
+
+                      return (
+                        <a
+                          key={att.id || idx}
+                          href={rawUrl}
+                          onClick={handleDownloadFile}
+                          download={finalName}
+                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3 hover:bg-secondary transition-colors cursor-pointer text-left"
+                          title={`Download ${finalName}`}
+                        >
+                          {att.type === "image/png" || att.fileType === "image/png" ? (
+                            <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
+                          ) : att.type === "folder" ? (
+                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                          ) : (
+                            <FileIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground/80 truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
+                              {finalName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {att.type || att.fileType || "file"}
+                              {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                            </p>
+                          </div>
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </DetailSection>
@@ -463,7 +478,7 @@ export function ProposalDetail() {
             </Link>
           ) : (
             <Link
-              to="/messenger"
+              to={client ? `/messenger/${client.id || client.Id}` : "/messenger"}
               className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />

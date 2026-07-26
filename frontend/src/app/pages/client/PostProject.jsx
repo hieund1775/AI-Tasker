@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar } from "lucide-react";
+import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { saveJobUseCases, saveJobAttachments } from "../../../services/api.js";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePlanner.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 // ── Timeline unit conversion helpers ──
 const unitToDays = (value, unit) => {
@@ -32,250 +34,7 @@ const unitLabel = (value, unit) => {
   return `${value} day${value !== 1 ? "s" : ""}`;
 };
 
-const CATEGORY_DATA = {
-  "Engineering & Science": {
-    specializations: [
-      "Aerospace Engineering",
-      "Chemical Engineering",
-      "Civil Engineering",
-      "Electrical Engineering",
-      "Mechanical Engineering",
-      "Environmental Science",
-      "Biotechnology",
-      "Physics"
-    ],
-    skills: {
-      "Aerospace Engineering": ["Aerodynamics", "Propulsion", "CAD/CAM", "MATLAB"],
-      "Chemical Engineering": ["Process Simulation", "ASPEN Plus", "Thermodynamics", "Chemical Synthesis"],
-      "Civil Engineering": ["AutoCAD", "Structural Analysis", "Revit", "GIS Mapping"],
-      "Electrical Engineering": ["Circuit Design", "FPGA Programming", "Verilog", "Altium Designer"],
-      "Mechanical Engineering": ["SolidWorks", "Finite Element Analysis (FEA)", "Thermodynamics", "Robotics"],
-      "Environmental Science": ["Environmental Impact Assessment", "GIS Mapping", "Water Quality Analysis", "Ecology"],
-      "Biotechnology": ["CRISPR Gene Editing", "Bioinformatics", "Cell Culture", "PCR Analysis"],
-      "Physics": ["Quantum Mechanics", "Computational Physics", "Data Analysis", "LaTeX Documenting"]
-    }
-  },
-  "Sales & Marketing": {
-    specializations: [
-      "Digital Marketing",
-      "Search Engine Optimization (SEO)",
-      "Social Media Management",
-      "Content Marketing",
-      "Email Marketing",
-      "Sales Strategy",
-      "Brand Management",
-      "Market Research"
-    ],
-    skills: {
-      "Digital Marketing": ["Google Ads", "Facebook Ads Manager", "Google Analytics", "PPC Campaigns"],
-      "Search Engine Optimization (SEO)": ["Keyword Research", "On-Page SEO", "Link Building", "SEMrush/Ahrefs"],
-      "Social Media Management": ["Content Scheduling", "Copywriting", "Canva Designing", "Community Management"],
-      "Content Marketing": ["SEO Writing", "Blogging", "Content Strategy", "Copywriting"],
-      "Email Marketing": ["Mailchimp", "HubSpot", "Email Copywriting", "A/B Testing Campaigns"],
-      "Sales Strategy": ["Lead Generation", "Cold Calling", "CRM (Salesforce)", "Sales Pitch Negotiation"],
-      "Brand Management": ["Brand Identity", "Public Relations", "Market Trend Analysis", "Visual Brand Book"],
-      "Market Research": ["Data Collection", "Survey Design", "Competitive Analysis", "SPSS Statistics"]
-    }
-  },
-  "Business, Accounting, Human Resources & Legal": {
-    specializations: [
-      "Financial Accounting",
-      "Auditing",
-      "Corporate Law",
-      "Intellectual Property",
-      "Recruitment & Talent Acquisition",
-      "Employee Relations",
-      "Business Strategy",
-      "Project Management"
-    ],
-    skills: {
-      "Financial Accounting": ["Quickbooks", "GAAP Compliance", "Financial Reporting", "Tax Preparation"],
-      "Auditing": ["Internal Audit", "Risk Assessment", "SOX Compliance", "Financial Analysis"],
-      "Corporate Law": ["Contract Drafting", "Due Diligence", "Mergers & Acquisitions", "Corporate Governance"],
-      "Intellectual Property": ["Patent Filing", "Trademark Law", "Copyrights Law", "IP Strategy"],
-      "Recruitment & Talent Acquisition": ["ATS Systems", "Candidate Sourcing", "Interviewing Techniques", "Executive Search"],
-      "Employee Relations": ["Conflict Resolution", "HR Policy Design", "Onboarding Programs", "Performance Management"],
-      "Business Strategy": ["Market Entry Strategy", "SWOT Analysis", "Financial Modeling", "Management Consulting"],
-      "Project Management": ["Scrum Framework", "Agile Methodologies", "Jira/Asana Management", "PMP Standards"]
-    }
-  },
-  "Product Sourcing & Manufacturing": {
-    specializations: [
-      "Supply Chain Management",
-      "Logistics",
-      "Product Design",
-      "Quality Control",
-      "Manufacturing Engineering",
-      "Vendor Relations",
-      "Inventory Management"
-    ],
-    skills: {
-      "Supply Chain Management": ["ERP Systems", "Sales & Operations Planning (S&OP)", "Procurement", "Strategic Sourcing"],
-      "Logistics": ["Freight Coordination", "Route Planning", "Third-Party Logistics (3PL)", "Warehouse Management"],
-      "Product Design": ["CAD Prototyping", "Ergonomics Study", "Material Selection", "DFM (Design for Manufacturing)"],
-      "Quality Control": ["Six Sigma", "Lean Manufacturing", "ISO 9001 Auditing", "QA Inspections"],
-      "Manufacturing Engineering": ["CNC Programming", "Automation Systems", "PLC Programming", "Assembly Line Layout"],
-      "Vendor Relations": ["Contract Negotiation", "Supplier Audit", "Global Sourcing", "Cost Estimation"],
-      "Inventory Management": ["FIFO/LIFO Operations", "Demand Forecasting", "WMS Software", "Cycle Counting"]
-    }
-  },
-  "Mobile Phones & Computing": {
-    specializations: [
-      "Software Engineering",
-      "Mobile App Development",
-      "UI/UX Design",
-      "Cloud Computing",
-      "Cyber Security",
-      "Database Administration",
-      "Devops",
-      "Computer Networks"
-    ],
-    skills: {
-      "Software Engineering": ["Java", "C++", "Python", "Go", "Rust", "System Design", "Algorithms"],
-      "Mobile App Development": ["Swift (iOS)", "Kotlin (Android)", "React Native", "Flutter", "Mobile SDKs"],
-      "UI/UX Design": ["Figma", "Wireframing", "User Research", "Interactive Prototyping", "Adobe XD"],
-      "Cloud Computing": ["AWS", "Google Cloud Platform (GCP)", "Microsoft Azure", "Cloud Architecture"],
-      "Cyber Security": ["Penetration Testing", "Network Security", "Cryptography", "CISSP Standards", "Firewall Auditing"],
-      "Database Administration": ["PostgreSQL", "MongoDB", "MySQL", "Query Performance Tuning", "Database Schema Design"],
-      "Devops": ["Docker Containers", "CI/CD Pipelines", "Kubernetes Orchestration", "Terraform IaC", "Ansible Automation"],
-      "Computer Networks": ["TCP/IP Protocols", "Cisco CCNA", "Virtual Private Networks (VPN)", "Network Troubleshooting"]
-    }
-  },
-  "Translation & Languages": {
-    specializations: [
-      "English Translation",
-      "Spanish Translation",
-      "French Translation",
-      "Chinese Translation",
-      "Interpretation",
-      "Localization",
-      "Proofreading & Editing"
-    ],
-    skills: {
-      "English Translation": ["English Grammar", "English-to-Vietnamese Translation", "Proofreading", "Localization Strategy"],
-      "Spanish Translation": ["Spanish Grammar", "Spanish-to-English Translation", "Spanish Subtitling", "Localization"],
-      "French Translation": ["French Grammar", "French-to-English Translation", "French Localization"],
-      "Chinese Translation": ["Mandarin/Cantonese Translation", "Chinese-to-English Translation", "Document Translation"],
-      "Interpretation": ["Consecutive Interpretation", "Simultaneous Interpretation", "Active Listening", "Medical/Legal Interpretation"],
-      "Localization": ["CAT Tools (Trados)", "Software UI Localization", "Cultural Adaptation Strategy"],
-      "Proofreading & Editing": ["Copy Editing", "Grammar & Syntax Correction", "Style Guide Compliance (APA/MLA)"]
-    }
-  },
-  "Trades & Services": {
-    specializations: [
-      "Electrical Work",
-      "Plumbing",
-      "Carpentry",
-      "HVAC Services",
-      "Auto Repair",
-      "Cleaning Services",
-      "Landscaping"
-    ],
-    skills: {
-      "Electrical Work": ["Electrical Wiring", "Circuit Troubleshooting", "Reading Blueprints", "Safety Compliance (NEC)"],
-      "Plumbing": ["Pipe Fitting", "Drain Cleaning", "Leak Detection", "Commercial Piping Blueprints"],
-      "Carpentry": ["Fine Woodworking", "Framing", "Cabinetry", "Power Tools Operation"],
-      "HVAC Services": ["Air Conditioning Installation", "Heating Systems Repair", "Refrigerant Management", "HVAC Diagnostics"],
-      "Auto Repair": ["Engine Diagnostics", "Brake Systems Repair", "Suspension Tuning", "Automotive Electrical Systems"],
-      "Cleaning Services": ["Commercial Cleaning", "Deep Cleaning", "Sanitization Standards", "Eco-friendly Cleaning Products"],
-      "Landscaping": ["Lawn Care", "Garden Design", "Irrigation Systems Setup", "Horticulture Expertise"]
-    }
-  },
-  "Freight, Shipping & Transportation": {
-    specializations: [
-      "Freight Forwarding",
-      "Fleet Management",
-      "Customs Brokerage",
-      "Warehouse Management",
-      "Route Optimization",
-      "Courier Services"
-    ],
-    skills: {
-      "Freight Forwarding": ["Customs Regulations", "Bill of Lading Drafting", "International Shipping Compliance", "Carrier Booking"],
-      "Fleet Management": ["GPS Tracking Systems", "Vehicle Maintenance Scheduling", "Driver Scheduling", "Fuel Management"],
-      "Customs Brokerage": ["Import/Export Documentation", "Tariff Classification (HS Code)", "Regulatory Compliance"],
-      "Warehouse Management": ["OSHA Safety Standards", "Material Handling", "Inventory Audits", "Forklift Operations"],
-      "Route Optimization": ["Route Planning Software", "Last-Mile Delivery Logistics", "Cost Management"],
-      "Courier Services": ["Local Delivery Management", "Time Management", "Customer Service Excellence"]
-    }
-  },
-  "Telecommunications": {
-    specializations: [
-      "Network Engineering",
-      "Wireless Communications",
-      "Telephony Systems",
-      "Fiber Optics",
-      "Satellite Communications",
-      "RF Engineering"
-    ],
-    skills: {
-      "Network Engineering": ["VoIP", "SIP Protocols", "Cisco IOS", "Telecom Network Design"],
-      "Wireless Communications": ["5G/4G Network Deployment", "LTE Architecture", "WiFi Protocols", "Antenna Engineering"],
-      "Telephony Systems": ["PBX Systems Configuration", "Unified Communications (UCaaS)", "Call Center Routing"],
-      "Fiber Optics": ["Optical Fiber Splicing", "OTDR Testing", "FTTH Installation"],
-      "Satellite Communications": ["VSAT Systems Installation", "Link Budgets Calculation", "RF Systems Calibration"],
-      "RF Engineering": ["RF Simulation", "Spectrum Analysis", "Microwave Link Systems"]
-    }
-  },
-  "Education": {
-    specializations: [
-      "Curriculum Development",
-      "Online Tutoring",
-      "Special Education",
-      "Language Instruction",
-      "Instructional Design",
-      "Educational Consulting"
-    ],
-    skills: {
-      "Curriculum Development": ["Lesson Planning", "Learning Objectives Definition", "Educational Standards Alignment"],
-      "Online Tutoring": ["Zoom Classroom Management", "Interactive Whiteboards", "Subject Matter Tutoring (Math/Science)"],
-      "Special Education": ["IEP (Individualized Education Program) Development", "Behavioral Intervention", "Differentiated Instruction"],
-      "Language Instruction": ["ESL/EFL Teaching", "Language Pedagogy", "Pronunciation Coaching"],
-      "Instructional Design": ["E-Learning Development", "Articulate Storyline", "LMS Administration (Moodle/Canvas)"],
-      "Educational Consulting": ["Academic Advising", "College Admissions Counseling", "Educational Technology Assessment"]
-    }
-  },
-  "Health & Medicine": {
-    specializations: [
-      "General Medicine",
-      "Nursing",
-      "Physical Therapy",
-      "Medical Writing",
-      "Healthcare Administration",
-      "Clinical Research",
-      "Nutrition & Dietetics"
-    ],
-    skills: {
-      "General Medicine": ["Medical Diagnostics", "Patient Care Protocols", "Medical Terminology"],
-      "Nursing": ["Patient Monitoring", "IV Administration", "Wound Care", "Electronic Medical Records (EMR)"],
-      "Physical Therapy": ["Physical Rehabilitation", "Therapeutic Exercise", "Patient Mobility Assessment"],
-      "Medical Writing": ["Clinical Trial Reports", "Medical Copyediting", "Regulatory Document Prep", "AMA Style Compliance"],
-      "Healthcare Administration": ["HIPAA Compliance", "Medical Billing & Coding", "Clinic Operations Management"],
-      "Clinical Research": ["GCP Guidelines", "Protocol Design", "Data Collection", "Clinical Trials Management"],
-      "Nutrition & Dietetics": ["Meal Planning", "Dietary Assessment", "Clinical Nutrition Programs"]
-    }
-  },
-  "Artificial Intelligence": {
-    specializations: [
-      "Machine Learning",
-      "Natural Language Processing",
-      "Computer Vision",
-      "Deep Learning",
-      "Generative AI",
-      "MLOps",
-      "AI Agent Development"
-    ],
-    skills: {
-      "Machine Learning": ["Python", "Scikit-Learn", "Regression Models", "Classification & Clustering"],
-      "Natural Language Processing": ["Hugging Face Transformers", "BERT", "Text Tokenization", "Semantic Search"],
-      "Computer Vision": ["OpenCV Library", "YOLO Object Detection", "Image Segmentation", "PyTorch Vision"],
-      "Deep Learning": ["Deep Neural Networks", "TensorFlow Framework", "Keras API", "PyTorch Library", "CNN/RNN Architectures"],
-      "Generative AI": ["OpenAI API Integration", "LangChain Framework", "RAG Systems Setup", "Vector Databases (Pinecone/Chroma)", "Prompt Engineering"],
-      "MLOps": ["MLflow Experiment Tracking", "DVC (Data Version Control)", "AWS SageMaker", "Dockerizing ML Models"],
-      "AI Agent Development": ["Semantic Kernel Framework", "AutoGen", "CrewAI Orchestration", "LangGraph", "AI Agent Tooling"]
-    }
-  }
-};
+// API Category Data will be fetched via hooks below
 
 export function PostProject() {
   const navigate = useNavigate();
@@ -302,6 +61,25 @@ export function PostProject() {
     durationUnit: "Days", // "Days" | "Months" | "Years"
   });
 
+  const [apiCategories, setApiCategories] = useState([]);
+  const [apiSkills, setApiSkills] = useState([]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [cats, skills] = await Promise.all([
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+        setApiCategories(cats || []);
+        setApiSkills(skills || []);
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    }
+    loadData();
+  }, []);
+
   const [selectedSkills, setSelectedSkills] = useState([]);
   const [useCases, setUseCases] = useState([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
   const [attachments, setAttachments] = useState([]);
@@ -312,20 +90,17 @@ export function PostProject() {
 
   const handleApplyAIPlan = (result) => {
     if (!result) return;
-    // Update category/specialization/skills
-    if (result.category) updateField("category", result.category);
-    // Need to set specialization after category loads — defer via microtask
-    setTimeout(() => {
-      if (result.specialization) updateField("specialization", result.specialization);
-      if (result.skills) setSelectedSkills(result.skills);
-    }, 100);
+    
+    // Disable Category/Specialization/Skills override from AI because AI generates text format (e.g. "Machine Learning")
+    // while the current system requires UUID. Overriding text will break the dropdown and clear selected data.
+    
     // Map AI use cases to current normalized shape
     if (result.useCases) {
       const mapped = result.useCases.map((uc, i) => ({
         id: `uc-${Date.now()}-${i}`,
         title: uc.title || uc.nameAndDeadline || "",
         description: uc.description || "",
-        originalDurationDays: Number(uc.originalDurationDays || uc.durationDays || uc.durationValue || 1),
+        originalDurationDays: "",
         requirements: uc.requirements || [],
       }));
       setUseCases(mapped);
@@ -353,11 +128,11 @@ export function PostProject() {
   }, [useCases]);
 
   useEffect(() => {
+    const targetDays = Math.max(totalUseCaseDays, 1);
     const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-    if (currentDays < totalUseCaseDays) {
-      updateField("durationValue", daysToUnit(totalUseCaseDays, formData.durationUnit));
+    if (currentDays !== targetDays) {
+      updateField("durationValue", daysToUnit(targetDays, formData.durationUnit));
     }
-    // ponytail: only syncs up, never down. Only runs on useCase/unit changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalUseCaseDays, formData.durationUnit]);
 
@@ -407,53 +182,109 @@ export function PostProject() {
       createdAt: uc.createdAt || new Date().toISOString(),
     }));
 
+    const isGuid = (val) => typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    // Map to backend DTO format for Implementation (JobPostTaskInputDto: Title, MiniTasks)
+    const implementationPayload = normalizedUseCases.map(uc => {
+      const reqs = uc.requirements || [];
+      const miniTasksPayload = reqs.length > 0
+        ? reqs.map(req => ({
+            Title: (typeof req === "string" ? req : req.title || "").trim() || "Requirement Task",
+            Duration: Number(req.durationDays) || 1
+          }))
+        : [{
+            Title: `Component of ${(uc.title || "Use Case").trim()}`,
+            Duration: Number(uc.originalDurationDays) || 1
+          }];
+      
+      return {
+        Title: (uc.title || "Use Case").trim(),
+        MiniTasks: miniTasksPayload
+      };
+    });
+
+    // Upload attachment files before submitting
+    const uploadedAttachments = [];
+    for (const file of attachments) {
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        const result = await api.post("/JobPosts/upload-file", formDataUpload, { isFormData: true });
+        const rawUrl = result?.url || result?.Url || result?.fileUrl || result?.FileUrl;
+        if (rawUrl) {
+          uploadedAttachments.push({
+            name: file.name,
+            url: rawUrl,
+            size: file.size,
+            type: file.type,
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to upload attachment:", file.name, err);
+      }
+    }
+
     const payload = {
       title: formData.title.trim(),
       description: formData.description.trim(),
       budget: Number(formData.budget) || 0,
       deadline: deadlineDays,
-      aiCategoryDomainId: formData.category || null,
-      aiCategoryDomain: formData.category ? { id: formData.category, name: formData.category } : null,
-      specialization: formData.specialization || null,
-      clientId: user?.id,
+      domainId: isGuid(formData.category) ? formData.category : null,
+      specializationId: isGuid(formData.specialization) ? formData.specialization : null,
+      clientId: user?.id || user?.Id,
       skillIds: selectedSkills,
-      jobPostSkills: selectedSkills.map((name) => ({ skill: { name } })),
-      requiredSkills: selectedSkills,
-      useCases: normalizedUseCases,
-      originalTotalDurationDays: totalUseCaseDuration,
-      originalBudget: Number(formData.budget) || 0,
-      attachments: attachments.map((f) => ({ name: f.name, size: f.size, type: f.type })),
-      createdAt: new Date().toISOString(),
+      implementation: implementationPayload,
     };
 
     try {
       console.log("Submitting project to API:", payload);
       const createdJob = await api.jobPosts.create(payload);
+      const createdJobId = createdJob?.id || createdJob?.Id;
 
-      if (invitedExpert && createdJob?.id) {
-        const coverLetterObj = {
-          proposalTitle: "",
-          professionalIntro: "",
-          technicalApproach: "",
-          timelineMilestones: "",
-          dependencies: "",
-          durationDays: deadlineDays,
-          attachments: [],
-        };
-        await api.proposals.create({
-          jobPostId: createdJob.id,
-          expertId: invitedExpert.id,
-          bidAmount: 0,
-          coverLetter: JSON.stringify(coverLetterObj),
+      if (createdJobId) {
+        saveJobUseCases(createdJobId, normalizedUseCases);
+        if (uploadedAttachments.length > 0) {
+          saveJobAttachments(createdJobId, uploadedAttachments);
+        }
+      }
+
+      if (invitedExpert && createdJobId) {
+        const initialTasks = implementationPayload.map(t => ({
+          Title: t.Title,
+          MiniTasks: (t.MiniTasks || []).map(m => ({
+            Title: m.Title,
+            Duration: m.Duration || 1
+          }))
+        }));
+
+        const createdProposal = await api.proposals.create({
+          jobPostId: createdJobId,
+          expertId: invitedExpert.id || invitedExpert.Id,
+          bidAmount: Number(formData.budget) || 0,
+          estimatedDays: deadlineDays,
+          introduction: "I would like to invite you to join this project.",
+          coverLetter: JSON.stringify(initialTasks),
           isSubmitted: false,
+        });
+
+        await notificationService.notifyExpertInvited({
+          expertUserId: invitedExpert.id || invitedExpert.Id,
+          clientName: user?.fullName || "Client",
+          jobTitle: createdJob?.title || formData.title,
+          jobPostId: createdJobId,
+          proposalId: createdProposal?.id || createdProposal?.Id
         });
       }
 
-      alert("Đăng dự án thành công!");
+      if (invitedExpert) {
+        alert("Project invitation successfully sent to the expert!");
+      } else {
+        alert("Project posted successfully!");
+      }
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Đăng dự án thất bại. Vui lòng thử lại!");
+      alert(err.message || "Failed to post project. Please try again!");
     } finally {
       setSubmitting(false);
     }
@@ -466,54 +297,38 @@ export function PostProject() {
     setVisibleCount(3);
     try {
       const res = await api.experts.list();
-      const expertsOnly = (res || [])
-        .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-        .map((u) => ({
-          id: u.id,
-          name: u.fullName,
-          title: u.expertProfile.jobTitle || u.expertProfile.specialization || u.expertProfile.major || "AI Specialist",
-          specialization: u.expertProfile.specialization || u.expertProfile.major || u.specialization || "AI Specialist",
-          category: u.expertProfile.category || u.category || "AI & Computing",
-          location: u.expertProfile.location || "N/A",
-          bio: u.expertProfile.bio || u.bio || "No biography provided.",
-          rating: u.rating || 4.8,
-          completedProjects: u.expertProfile.completedProjects || 8,
-          hourlyRate: u.expertProfile.hourlyRate || 65,
-          skills: u.expertProfile.skills || ["Python", "Semantic Kernel"],
-          email: u.email || "",
-          phone: u.expertProfile.phone || "",
-          portfolio: u.portfolio || [],
-          clientReviews: (u.clientReviews || []).map((r) => ({
-            clientName: r.clientName || r.name || "Client",
-            rating: r.rating || 5,
-            comment: r.comment || r.review || "Great work!",
-            date: r.date,
-          })),
-        }));
+      const rawExperts = (res || []).filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile);
 
-      // Sort experts based on category, specialization, skills match, and completedProjects <= 3
-      const getScore = (exp) => {
-        let score = 0;
-        
-        // category/specialization match
-        const hasSpec = formData.specialization && exp.specialization?.toLowerCase().includes(formData.specialization.toLowerCase());
-        if (hasSpec) {
-          score += 10;
-        }
-        
-        // skills match count
-        const matchSkills = selectedSkills.filter(s => exp.skills?.some(es => es.toLowerCase() === s.toLowerCase())).length;
-        score += matchSkills * 2;
-
-        // "ưu tiên nào có từ 3 trở xuống" completedProjects priority
-        if (exp.completedProjects <= 3) {
-          score += 15; // Give significant priority boost
-        }
-        
-        return score;
+      const projectData = {
+        category: formData.category,
+        specialization: formData.specialization,
+        requiredSkills: selectedSkills
       };
 
-      const sortedExperts = [...expertsOnly].sort((a, b) => getScore(b) - getScore(a));
+      const sortedRawExperts = getRecommendedExperts(projectData, rawExperts, apiSkills, apiCategories);
+
+      const sortedExperts = sortedRawExperts.map((u) => ({
+        id: u.id,
+        name: u.fullName,
+        title: u.expertProfile.jobTitle || u.resolvedSpecName || "AI Specialist",
+        specialization: u.specialization || "AI Specialist",
+        category: u.category || "AI & Computing",
+        location: u.expertProfile.location || "N/A",
+        bio: u.expertProfile.bio || u.bio || "No biography provided.",
+        rating: u.rating || 4.8,
+        completedProjects: u.expertProfile.completedProjects || 8,
+        hourlyRate: u.expertProfile.hourlyRate || 65,
+        skills: u.resolvedSkills || ["Python", "Semantic Kernel"],
+        email: u.email || "",
+        phone: u.expertProfile.phone || "",
+        portfolio: u.portfolio || [],
+        clientReviews: (u.clientReviews || []).map((r) => ({
+          clientName: r.clientName || r.name || "Client",
+          rating: r.rating || 5,
+          comment: r.comment || r.review || "Great work!",
+          date: r.date,
+        })),
+      }));
       setRecommendedExperts(sortedExperts);
       
       // Scroll to recommendations container
@@ -528,21 +343,49 @@ export function PostProject() {
     }
   };
 
-  const categoriesList = Object.keys(CATEGORY_DATA);
-  const specializationsList = formData.category
-    ? CATEGORY_DATA[formData.category].specializations
-    : [];
-  const skillsList = formData.category && formData.specialization
-    ? CATEGORY_DATA[formData.category].skills[formData.specialization] || []
-    : [];
 
   // Computed timeline validation (totalUseCaseDays defined above with useEffect)
   const configuredDeadlineDays = useMemo(() => {
     return unitToDays(formData.durationValue, formData.durationUnit);
   }, [formData.durationValue, formData.durationUnit]);
 
-  const isDeadlineValid = configuredDeadlineDays >= totalUseCaseDays;
 
+  // List of categories and specializations from API
+  const categoriesList = useMemo(() => {
+    const list = [];
+    apiCategories.forEach(cat => {
+      if (cat.name && !list.some(c => c.name === cat.name)) {
+        list.push(cat);
+      }
+    });
+    return list;
+  }, [apiCategories]);
+
+  const selectedCatObj = categoriesList.find(c => c.id === formData.category || c.name === formData.category);
+  
+  const specializationsList = useMemo(() => {
+    const specs = selectedCatObj?.specializations || [];
+    const list = [];
+    specs.forEach(spec => {
+      if (spec.name && !list.some(s => s.name === spec.name)) {
+        list.push(spec);
+      }
+    });
+    return list;
+  }, [selectedCatObj]);
+
+  // Skills List
+  const skillsList = useMemo(() => {
+    const list = [];
+    apiSkills.forEach(skill => {
+      if (skill.name && !list.some(s => s.name === skill.name) && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) {
+        list.push(skill);
+      }
+    });
+    return list;
+  }, [apiSkills]);
+
+  const isDeadlineValid = configuredDeadlineDays >= totalUseCaseDays;
   const isFormValid =
     formData.title.trim() !== "" &&
     formData.description.trim() !== "" &&
@@ -558,7 +401,7 @@ export function PostProject() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
         title="Post a New AI Project"
-        subtitle="Define your business use cases, timeline, and budget before matching with an expert."
+        subtitle="Define your user stories, timeline, and budget before matching with an expert."
         illustration={
           <svg width="240" height="160" viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="120" cy="80" r="70" stroke="currentColor" strokeWidth="0.5" strokeDasharray="4 6" opacity="0.3" />
@@ -601,18 +444,24 @@ export function PostProject() {
                   <textarea
                     name="description" id="description"
                     value={formData.description}
-                    onChange={(e) => updateField("description", e.target.value)}
+                    onChange={(e) => {
+                      e.target.style.height = "inherit";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                      updateField("description", e.target.value);
+                    }}
                     rows={4}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-y"
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden"
                     placeholder="Describe your project requirements, goals, and expected outcomes..."
                     required
                   />
                 </div>
                 <FileUploadDropzone
                   files={attachments}
-                  onFilesChange={setAttachments}
-                  label="Project Attachments"
-                  helperText="Upload requirement documents, references, screenshots, or supporting files for experts to review."
+                  onFilesChange={(newFiles) => setAttachments(newFiles.slice(0, 1))}
+                  multiple={false}
+                  maxFiles={1}
+                  label="Project Attachments (Max 1 file)"
+                  helperText="Upload SRS, BRD, design mockups, or specification document for experts to review."
                 />
               </div>
             </SectionCard>
@@ -632,9 +481,9 @@ export function PostProject() {
                       required
                     >
                       <option value="" disabled>Select a category...</option>
-                      {categoriesList.map((catName) => (
-                        <option key={catName} value={catName}>{catName}</option>
-                      ))}
+                      {categoriesList.map((catObj) => (
+                          <option key={catObj.id || catObj.name} value={catObj.id || catObj.name}>{catObj.name}</option>
+                        ))}
                     </select>
                   </div>
                   <div>
@@ -650,9 +499,9 @@ export function PostProject() {
                       <option value="" disabled>
                         {formData.category ? "Select a specialization..." : "Please select a category first"}
                       </option>
-                      {specializationsList.map((specName) => (
-                        <option key={specName} value={specName}>{specName}</option>
-                      ))}
+                        {specializationsList.map((specObj) => (
+                          <option key={specObj.id || specObj.name} value={specObj.id || specObj.name}>{specObj.name}</option>
+                        ))}
                     </select>
                   </div>
                 </div>
@@ -664,20 +513,20 @@ export function PostProject() {
                     <p className="text-sm text-muted-foreground">No specialized skills listed for this area.</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {skillsList.map((skillName) => (
-                        <button
-                          key={skillName}
-                          type="button"
-                          onClick={() => toggleSkill(skillName)}
-                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            selectedSkills.includes(skillName)
-                              ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
-                              : "bg-secondary text-foreground/70 hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {skillName}
-                        </button>
-                      ))}
+                      {skillsList.map((skillObj) => (
+                          <button
+                            key={skillObj.id || skillObj.name}
+                            type="button"
+                            onClick={() => toggleSkill(skillObj.id)}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                              selectedSkills.includes(skillObj.id)
+                                ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                                : "bg-secondary text-foreground/70 hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {skillObj.name}
+                          </button>
+                        ))}
                     </div>
                   )}
                 </div>
@@ -687,7 +536,7 @@ export function PostProject() {
 
           <AnimatedReveal delay={2}>
             <SectionCard
-              title="Project Use Cases"
+              title="Project User Stories"
               icon={Layers}
               padding="lg"
               actions={
@@ -710,7 +559,7 @@ export function PostProject() {
                     onClick={() => setUseCases([...useCases, { id: `uc-${Date.now()}-${useCases.length + 1}`, title: "", description: "", originalDurationDays: 1 }])}
                     className="h-9 px-3 bg-secondary hover:bg-muted text-brand-primary rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
                   >
-                    + Add Use Case
+                    + Add User Story
                   </button>
                 </div>
               }
@@ -718,8 +567,8 @@ export function PostProject() {
               {useCases.length === 0 ? (
                 <div className="py-8 text-center">
                   <Layers className="w-10 h-10 text-muted-foreground/25 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground font-medium">No use cases yet</p>
-                  <p className="text-xs text-muted-foreground mt-1">Add a use case or use AI to parse them automatically.</p>
+                  <p className="text-sm text-muted-foreground font-medium">No user stories yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Add a user story or use AI to parse them automatically.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -736,7 +585,7 @@ export function PostProject() {
                       )}
                       <div>
                         <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Use Case Title <span className="text-red-500">*</span>
+                          User Story Title <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -753,10 +602,16 @@ export function PostProject() {
                         </label>
                         <textarea
                           value={uc.description}
-                          onChange={(e) => { const updated = [...useCases]; updated[index].description = e.target.value; setUseCases(updated); }}
-                          placeholder="Detailed description of this use case..."
+                          onChange={(e) => { 
+                            e.target.style.height = "inherit";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                            const updated = [...useCases]; 
+                            updated[index].description = e.target.value; 
+                            setUseCases(updated); 
+                          }}
+                          placeholder="Detailed description of this user story..."
                           rows={2}
-                          className="w-full px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card resize-y"
+                          className="w-full px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card resize-none overflow-hidden"
                           required
                         />
                       </div>
@@ -766,8 +621,8 @@ export function PostProject() {
                         </label>
                         <input
                           type="number" min="1"
-                          value={uc.originalDurationDays || 1}
-                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
+                          value={uc.originalDurationDays || ""}
+                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
                           className="w-32 px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card"
                           required
                         />
@@ -780,29 +635,14 @@ export function PostProject() {
           </AnimatedReveal>
 
           {/* Timeline Summary Box */}
-          <div className={`rounded-xl border px-4 py-3 text-sm ${
-            isDeadlineValid
-              ? "bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
-              : "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-300"
-          }`}>
+          <div className="rounded-xl border px-4 py-3 text-sm bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300">
             <div className="flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
               Timeline Summary
             </div>
             <p className="mt-1">
-              Total Use Case Duration: <strong>{totalUseCaseDays} days</strong>
-              {" · "}
-              Project Timeline: <strong>
-                {formData.durationUnit === "Days"
-                  ? `${formData.durationValue} days`
-                  : `${unitLabel(formData.durationValue, formData.durationUnit)} (~${configuredDeadlineDays} days)`}
-              </strong>
+              Total User Story Duration: <strong>{totalUseCaseDays} days</strong>
             </p>
-            <span className="block mt-1 font-medium text-xs opacity-80">
-              {isDeadlineValid
-                ? "✓ Timeline is valid. You can increase the project timeline but not reduce it below the total use case duration."
-                : "✗ Project timeline must be at least the total use case duration. Increase the timeline or reduce use case durations."}
-            </span>
           </div>
 
           <AnimatedReveal delay={3}>
@@ -831,39 +671,27 @@ export function PostProject() {
                     <p className="text-xs text-muted-foreground mt-1">Total budget for this project</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline</label>
+                    <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline (auto from user stories)</label>
                     <div className="flex gap-2">
                       <input
                         type="number" name="durationValue" id="durationValue"
                         min="1" step="1"
-                        value={formData.durationValue || ""}
-                        onChange={(e) => updateField("durationValue", e.target.value === "" ? 1 : Number(e.target.value))}
-                        onBlur={() => {
-                          const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-                          if (currentDays < totalUseCaseDays) {
-                            updateField("durationValue", daysToUnit(totalUseCaseDays, formData.durationUnit));
-                          }
-                        }}
-                        className="w-24 px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
-                        placeholder="1"
+                        value={totalUseCaseDays || 1}
+                        readOnly
+                        className="w-24 px-4 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
                       />
                       <select
                         name="durationUnit" id="durationUnit"
                         value={formData.durationUnit}
-                        onChange={(e) => {
-                          const newUnit = e.target.value;
-                          const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-                          const newValue = daysToUnit(Math.max(currentDays, totalUseCaseDays), newUnit);
-                          setFormData(prev => ({ ...prev, durationUnit: newUnit, durationValue: newValue }));
-                        }}
-                        className="flex-1 px-3 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-card"
+                        disabled
+                        className="flex-1 px-3 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
                       >
                         <option value="Days">Days</option>
                         <option value="Months">Months</option>
                         <option value="Years">Years</option>
                       </select>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Must be ≥ total use case duration</p>
+                    <p className="text-xs text-muted-foreground mt-1">Auto-calculated from total user story duration</p>
                   </div>
                 </div>
 
@@ -881,6 +709,7 @@ export function PostProject() {
               </div>
             </SectionCard>
           </AnimatedReveal>
+
 
           {/* Submit & AI Recommend Buttons */}
           <div className="flex gap-4 pt-2 pb-2">
@@ -906,7 +735,7 @@ export function PostProject() {
               }`}
             >
               <Bot className="w-4 h-4" />
-              AI Recommend
+              Recommend Expert
             </button>
           </div>
         </form>
@@ -918,7 +747,6 @@ export function PostProject() {
           <div
             id="ai-assistant-sidebar"
             className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col min-h-0"
-            style={{ height: formHeight ? `${formHeight}px` : "100%" }}
           >
             <AIClientsUseCasePlanner
               onClose={() => setRightPanelMode(null)}
@@ -1041,7 +869,7 @@ export function PostProject() {
                     onClick={() => setVisibleCount((prev) => prev + 3)}
                     className="w-full h-11 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-xl text-sm font-bold transition-colors text-center border border-border mt-2"
                   >
-                    Thêm chuyên gia
+                    Add Expert
                   </button>
                 )}
               </div>

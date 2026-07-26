@@ -10,7 +10,6 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, EyeOff, Trash2, Filter } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
@@ -40,18 +39,8 @@ export function AdminReviews() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
-
-  // Frontend status filtering — applied on top of API results
-  const filteredReviews = useMemo(() => {
-    if (!statusFilter) return reviews;
-    return reviews.filter(
-      (r) => (r.status || "Visible").toLowerCase() === statusFilter.toLowerCase(),
-    );
-  }, [reviews, statusFilter]);
 
   // Modal states
   const [hideModal, setHideModal] = useState(null); // review id to hide
@@ -61,10 +50,7 @@ export function AdminReviews() {
     setLoading(true);
     setError(null);
     try {
-      // TODO: replace with dedicated review API endpoint when available
-      const params = {};
-      if (searchTerm) params.search = searchTerm;
-      const result = await api.get("/reviews", { params });
+      const result = await api.get("/reviews");
       setReviews(Array.isArray(result) ? result : result?.data || []);
     } catch (err) {
       // API not ready yet — show empty state gracefully
@@ -72,7 +58,7 @@ export function AdminReviews() {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchReviews();
@@ -141,6 +127,13 @@ export function AdminReviews() {
     {
       key: "rating",
       label: "Rating",
+      filterOptions: [
+        { value: "5", label: "5 ⭐" },
+        { value: "4", label: "4 ⭐" },
+        { value: "3", label: "3 ⭐" },
+        { value: "2", label: "2 ⭐" },
+        { value: "1", label: "1 ⭐" },
+      ],
       render: (val) => (
         <span className="text-sm font-medium">
           {val != null ? `${val} ⭐` : "—"}
@@ -150,6 +143,11 @@ export function AdminReviews() {
     {
       key: "status",
       label: "Status",
+      filterOptions: [
+        { value: "Visible", label: "Visible" },
+        { value: "Hidden", label: "Hidden" },
+        { value: "Deleted", label: "Deleted" },
+      ],
       render: (val) => (
         <StatusBadge
           status={val || "Visible"}
@@ -169,10 +167,8 @@ export function AdminReviews() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/dashboard" className="mb-4">
-        Back to Dashboard
-      </BackButton>
+    <div className="space-y-6">
+      
 
       <h1 className="text-2xl font-bold text-foreground mb-2">Review Management</h1>
       <p className="text-muted-foreground mb-6">
@@ -191,43 +187,11 @@ export function AdminReviews() {
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by content or user..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm appearance-none bg-card"
-          >
-            {REVIEW_STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <DataTable
         columns={columns}
-        data={filteredReviews}
+        data={reviews}
         loading={loading}
-        emptyMessage={
-          statusFilter
-            ? `No reviews found with status "${REVIEW_STATUS_OPTIONS.find(o => o.value === statusFilter)?.label || statusFilter}".`
-            : "No reviews found."
-        }
+        emptyMessage="No reviews found."
         actions={(row) => (
           <div className="flex gap-1.5">
             {row.status !== "Hidden" && row.status !== "Deleted" && (

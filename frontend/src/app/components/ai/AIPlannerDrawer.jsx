@@ -9,112 +9,112 @@ import {
   FileText,
   X,
 } from "lucide-react";
-import { AIFileUploadZone } from "./AIFileUploadZone.jsx";
 import { AIProjectIllustration } from "../shared/illustrations/AIProjectIllustration.jsx";
+import api from "../../../services/api.js";
 
-// =============================================================================
-// Mock AI — generates MiniTasks under existing Client Tasks, preserving
-// Client Use Case and Task names. Never creates new Task titles.
-// =============================================================================
-
-function generateId() {
-  return `ai-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
-
-/**
- * Build mock MiniTask plan grouped by use case → task.
- * @param {string} userMessage
- * @param {string[]} fileNames
- * @param {Array} clientUseCases — [{ id, title, tasks: [{id, title}] }]
- * @returns {{ useCases: Array, summary: string }}
- */
-function buildMockPlan(userMessage, fileNames, clientUseCases = []) {
-  const msg = (userMessage || "").toLowerCase();
-  const hasFiles = fileNames.length > 0;
-  const fileContext = hasFiles ? fileNames.join(", ") : "";
-
-  // Base miniTask templates
-  const baseMiniTaskSets = {
-    analysis: [
-      { title: "Review requirements & acceptance criteria" },
-      { title: "Identify edge cases and constraints" },
-      { title: "Document technical approach" },
-    ],
-    implementation: [
-      { title: "Implement core logic" },
-      { title: "Add error handling & validation" },
-      { title: "Write unit tests" },
-    ],
-    integration: [
-      { title: "Integrate with existing modules" },
-      { title: "End-to-end testing" },
-      { title: "Code review & cleanup" },
-    ],
-    delivery: [
-      { title: "Prepare deployment package" },
-      { title: "Write documentation" },
-      { title: "Final QA check" },
-    ],
-  };
-
-  let selectedTemplates = [baseMiniTaskSets.analysis, baseMiniTaskSets.implementation, baseMiniTaskSets.integration, baseMiniTaskSets.delivery];
-
-  // Customize based on message context
-  if (msg.includes("frontend") || msg.includes("ui") || msg.includes("react")) {
-    selectedTemplates = [
-      [{ title: "Review design mockups & component specs" }, { title: "Set up component structure" }],
-      [{ title: "Implement UI components" }, { title: "Add styles & responsive layout" }, { title: "Wire up interactions" }],
-      [{ title: "Connect to API endpoints" }, { title: "Add loading & error states" }],
-      [{ title: "Cross-browser testing" }, { title: "Accessibility audit" }, { title: "Performance optimization" }],
-    ];
-  }
-  if (msg.includes("backend") || msg.includes("api") || msg.includes("database")) {
-    selectedTemplates = [
-      [{ title: "Design data model & schema" }, { title: "Set up database migrations" }],
-      [{ title: "Implement API endpoints" }, { title: "Add validation middleware" }, { title: "Write integration tests" }],
-      [{ title: "Implement business logic" }, { title: "Add authentication/authorization" }],
-      [{ title: "API documentation" }, { title: "Performance testing" }, { title: "Deployment config" }],
-    ];
-  }
-
-  // Build for each use case → each task
-  const useCases = (clientUseCases || []).map((uc) => {
-    const ucTitle = uc.title || uc.nameAndDeadline || "Use Case";
-    const existingTasks = uc.tasks && uc.tasks.length > 0
-      ? uc.tasks
-      : [{ id: `task-fb-${uc.id || generateId()}`, title: ucTitle, description: uc.description || "", source: "client_use_case_fallback", locked: true }];
-
-    const tasks = existingTasks.map((task, tIdx) => {
-      // Pick template set cyclically
-      const templateSet = selectedTemplates[tIdx % selectedTemplates.length];
-      const miniTasks = templateSet.map((mt) => ({
-        id: generateId(),
-        title: mt.title,
-        description: mt.description || "",
-        status: "pending",
-        isCompleted: false,
-      }));
-
-      return {
-        taskId: task.id,
-        taskTitle: task.title,       // read-only, preserved
-        taskSource: task.source || (tIdx < (uc.tasks?.length || 0) ? "client" : "client_use_case_fallback"),
-        taskLocked: task.locked !== false,
-        miniTasks,
-      };
-    });
-
-    return { useCaseId: uc.id, useCaseTitle: ucTitle, tasks };
+function parseMiniTasksFromText(text, clientUseCases = []) {
+  if (!text) return [];
+  const lines = text.split("\n");
+  
+  const planUseCases = (clientUseCases || []).map(uc => {
+    return {
+      useCaseId: uc.id,
+      useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+      tasks: [
+        {
+          taskId: uc.id,
+          taskTitle: uc.title || uc.nameAndDeadline || "Task",
+          miniTasks: []
+        }
+      ]
+    };
   });
 
-  const totalTasks = useCases.reduce((s, uc) => s + uc.tasks.length, 0);
-  const totalMiniTasks = useCases.reduce((s, uc) => s + uc.tasks.reduce((ss, t) => ss + t.miniTasks.length, 0), 0);
+  if (planUseCases.length === 0) return [];
 
-  let summary = `Generated ${totalMiniTasks} MiniTasks across ${totalTasks} Tasks in ${useCases.length} Use Cases.`;
-  if (hasFiles) summary += ` Analyzed ${fileContext}.`;
-  summary += " Client Use Cases and Task names are preserved.";
+  let currentUseCaseIndex = 0;
 
-  return { useCases, summary };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    let foundUseCaseMatch = false;
+    for (let i = 0; i < planUseCases.length; i++) {
+      const ucTitle = planUseCases[i].useCaseTitle.toLowerCase();
+      if (trimmed.toLowerCase().includes(ucTitle) || ucTitle.includes(trimmed.toLowerCase())) {
+        currentUseCaseIndex = i;
+        foundUseCaseMatch = true;
+        break;
+      }
+    }
+
+    if (foundUseCaseMatch) continue;
+
+    if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•") || /^\d+[\.\)]/.test(trimmed)) {
+      const cleanTitle = trimmed.replace(/^[-*•\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+      if (cleanTitle.length > 2) {
+        const currentUC = planUseCases[currentUseCaseIndex];
+        if (currentUC && currentUC.tasks && currentUC.tasks[0]) {
+          currentUC.tasks[0].miniTasks.push({
+            id: `mt-ai-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            title: cleanTitle,
+            description: ""
+          });
+        }
+      }
+    }
+  }
+
+  const totalParsed = planUseCases.reduce((sum, uc) => sum + uc.tasks[0].miniTasks.length, 0);
+  if (totalParsed === 0) {
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•")) {
+        const cleanTitle = trimmed.replace(/^[-*•\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+        if (cleanTitle.length > 2) {
+          planUseCases[0].tasks[0].miniTasks.push({
+            id: `mt-ai-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            title: cleanTitle,
+            description: ""
+          });
+        }
+      }
+    }
+  }
+
+  return planUseCases;
+}
+
+// =============================================================================
+function mapPayloadToProposalFormat(payload, clientUseCases = []) {
+  if (!Array.isArray(payload)) return [];
+  return payload.map((task, idx) => {
+    let matchedUseCase = clientUseCases[0];
+    const taskTitleLower = (task.Title || task.title || "").toLowerCase();
+    for (const uc of clientUseCases) {
+      const ucTitleLower = (uc.title || uc.nameAndDeadline || "").toLowerCase();
+      if (taskTitleLower.includes(ucTitleLower) || ucTitleLower.includes(taskTitleLower)) {
+        matchedUseCase = uc;
+        break;
+      }
+    }
+    const useCaseId = matchedUseCase?.id || `uc-fb-${Date.now()}-${idx}`;
+    const useCaseTitle = matchedUseCase?.title || matchedUseCase?.nameAndDeadline || task.Title || task.title || "Use Case";
+    return {
+      useCaseId,
+      useCaseTitle,
+      tasks: [
+        {
+          taskId: useCaseId,
+          taskTitle: useCaseTitle,
+          miniTasks: (task.MiniTasks || task.miniTasks || []).map(mt => ({
+            title: mt.Title || mt.title || "",
+            description: ""
+          }))
+        }
+      ]
+    };
+  });
 }
 
 // =============================================================================
@@ -129,13 +129,13 @@ function buildMockPlan(userMessage, fileNames, clientUseCases = []) {
  *   existingTasks  — current tasks in the form
  *   clientUseCases — [{ id, title, tasks: [{id, title}] }] from the job post
  */
-export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [] }) {
+export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [], jobPostId, expertId, autoPrompt, clearAutoPrompt }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState([]);
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [contextSummary, setContextSummary] = useState("");
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -145,38 +145,127 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
+  // Load chat history on mount
+  useEffect(() => {
+    if (!jobPostId || !expertId) return;
+    const loadHistory = async () => {
+      try {
+        const history = await api.ai.getExpertAiChatHistory(jobPostId, expertId);
+        if (history && history.length > 0) {
+          const loadedMsgs = [];
+          history.forEach(item => {
+            loadedMsgs.push({ role: "user", text: item.message, timestamp: new Date(item.createdAt).getTime() });
+            loadedMsgs.push({ role: "ai", text: item.aiReply, timestamp: new Date(item.createdAt).getTime() });
+          });
+          setMessages(loadedMsgs);
+        }
+      } catch (err) {
+        console.error("Failed to load chat history:", err);
+      }
+    };
+    loadHistory();
+  }, [jobPostId, expertId]);
+
   // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedPlan]);
 
   // ── Send message ──
-  const handleSend = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed || loading) return;
+  const handleSend = useCallback(async (customText) => {
+    const textToSend = typeof customText === "string" ? customText : input;
+    const trimmed = textToSend.trim();
+    if (!trimmed) return;
+    if (loading) return;
 
-    const userMsg = { role: "user", text: trimmed, timestamp: Date.now() };
+    const userMsgText = trimmed;
+    const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+    if (typeof customText !== "string") {
+      setInput("");
+    }
     setLoading(true);
 
-    setTimeout(() => {
-      const fileNames = files.map((f) => f.name);
-      const plan = buildMockPlan(trimmed, fileNames, clientUseCases);
+    try {
+      // Build messages history matching C# AIMessageDto
+      const historyPayload = messages.map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.text
+      }));
+      const enforcedPrompt = userMsgText + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]";
+      historyPayload.push({ role: "user", content: enforcedPrompt });
+
+      // Call general backend AiChat endpoint matching C# AIChatRequest
+      const response = await api.ai.sendSession({
+        messages_history: historyPayload,
+        context_summary: contextSummary || "",
+        user_role: "expert",
+        file_path: "",
+        current_draft: {
+          jobPostId: jobPostId,
+          expertId: expertId,
+          projectTitle: projectInfo?.title || ""
+        }
+      });
+
+      const chatMessage = response?.chat_message || response?.ChatMessage || "";
+      const payload = response?.payload || response?.Payload;
+      const newContextSummary = response?.context_summary || response?.ContextSummary || "";
+
+      // Save context_summary to maintain chat memory
+      setContextSummary(newContextSummary);
+
+      let parsedUseCases = [];
+      if (payload && Array.isArray(payload)) {
+        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases);
+      }
+
+      const plan = parsedUseCases.length > 0 ? {
+        useCases: parsedUseCases,
+        summary: "Plan breakdown successful."
+      } : null;
+
       setGeneratedPlan(plan);
       setApplied(false);
 
-      const aiMsg = { role: "ai", text: plan.summary, plan, timestamp: Date.now() };
+      const aiMsg = { 
+        role: "ai", 
+        text: chatMessage || (plan ? "Plan generated successfully." : "Received response from AI."), 
+        plan, 
+        timestamp: Date.now() 
+      };
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("AI backend call failed:", err);
+      const errMsg = err?.message || "Cannot connect to AI backend.";
+      const aiMsg = {
+        role: "ai",
+        text: `❌ An error occurred while calling AI: ${errMsg}\nPlease try again later.`,
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setLoading(false);
-    }, 1200 + Math.random() * 800);
-  }, [input, loading, files]);
+    }
+  }, [input, loading, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
+
+  // Auto-trigger prompt if autoPrompt changes
+  useEffect(() => {
+    if (autoPrompt) {
+      const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
+User Story: ${autoPrompt.title}
+Description: ${autoPrompt.description}`;
+      handleSend(promptText);
+      if (clearAutoPrompt) {
+        clearAutoPrompt();
+      }
+    }
+  }, [autoPrompt, handleSend, clearAutoPrompt]);
 
   // ── Apply plan ──
   const handleApply = useCallback(() => {
     if (generatedPlan?.useCases) {
       const result = onApplyTasks({ useCases: generatedPlan.useCases });
-      // ponytail: only show "Applied" if tasks were actually updated
       if (result && result.updatedCount > 0) {
         setApplied(true);
       }
@@ -184,34 +273,76 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
   }, [generatedPlan, onApplyTasks]);
 
   // ── Regenerate ──
-  const handleRegenerate = useCallback(() => {
+  const handleRegenerate = useCallback(async () => {
+    const userMsgs = messages.filter(m => m.role === "user");
+    const lastUserMsg = userMsgs[userMsgs.length - 1];
+    if (!lastUserMsg) return;
+
     setLoading(true);
     setGeneratedPlan(null);
     setApplied(false);
 
-    setTimeout(() => {
-      const fileNames = files.map((f) => f.name);
-      const plan = buildMockPlan(messages.map((m) => m.text).join(" "), fileNames);
-      setGeneratedPlan(plan);
-
-      const aiMsg = { role: "ai", text: "Regenerated plan:\n\n" + plan.summary, plan, timestamp: Date.now() };
-      setMessages((prev) => [...prev, aiMsg]);
-      setLoading(false);
-    }, 1000 + Math.random() * 600);
-  }, [messages, files]);
-
-  // ── File upload handler ──
-  const handleFilesChange = useCallback((newFiles) => {
-    setFiles(newFiles);
-    if (newFiles.length > 0) {
-      const names = newFiles.map((f) => f.name).join(", ");
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "user" && last.text.includes("Uploaded file")) return prev;
-        return [...prev, { role: "user", text: `Uploaded file(s): ${names}`, timestamp: Date.now() }];
+    try {
+      const historyPayload = messages.map((m, idx) => {
+        const isLastUser = m.role === "user" && idx === messages.map(msg => msg.role).lastIndexOf("user");
+        return {
+          role: m.role === "user" ? "user" : "assistant",
+          content: isLastUser
+            ? m.text + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]"
+            : m.text
+        };
       });
+
+      const response = await api.ai.sendSession({
+        messages_history: historyPayload,
+        context_summary: contextSummary || "",
+        user_role: "expert",
+        current_draft: {
+          jobPostId: jobPostId,
+          expertId: expertId,
+          projectTitle: projectInfo?.title || ""
+        }
+      });
+
+      const chatMessage = response?.chat_message || response?.ChatMessage || "";
+      const payload = response?.payload || response?.Payload;
+      const newContextSummary = response?.context_summary || response?.ContextSummary || "";
+
+      setContextSummary(newContextSummary);
+
+      let parsedUseCases = [];
+      if (payload && Array.isArray(payload)) {
+        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases);
+      }
+
+      const plan = parsedUseCases.length > 0 ? {
+        useCases: parsedUseCases,
+        summary: "Plan regenerated successfully."
+      } : null;
+
+      setGeneratedPlan(plan);
+      setApplied(false);
+
+      const aiMsg = { 
+        role: "ai", 
+        text: chatMessage || "Plan has been updated.", 
+        plan, 
+        timestamp: Date.now() 
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("AI regenerate failed:", err);
+      const errMsg = err?.message || "Cannot connect to AI backend.";
+      const aiMsg = {
+        role: "ai",
+        text: `❌ An error occurred while regenerating plan: ${errMsg}\nPlease try again later.`,
+        timestamp: Date.now()
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  }, [messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
 
   return (
     <div className="h-full flex flex-col">
@@ -230,14 +361,6 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
         >
           Close
         </button>
-      </div>
-
-      {/* ── Upload Requirements ── */}
-      <div className="shrink-0 px-4 py-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          📎 Upload Requirements
-        </p>
-        <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
 
       {/* ── Chat / Messages ── */}
@@ -263,11 +386,10 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${
-                  msg.role === "user"
+                className={`max-w-[85%] px-4 py-2.5 rounded-xl text-sm leading-relaxed ${msg.role === "user"
                     ? "bg-gradient-to-br from-primary to-primary-hover text-primary-foreground rounded-br-md"
                     : "bg-secondary text-secondary-foreground rounded-bl-md border border-border/50"
-                }`}
+                  }`}
               >
                 <p className="whitespace-pre-wrap">{msg.text}</p>
               </div>
@@ -323,11 +445,10 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
                 type="button"
                 onClick={handleApply}
                 disabled={applied}
-                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] inline-flex items-center gap-1.5 transition-colors ${
-                  applied
+                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] inline-flex items-center gap-1.5 transition-colors ${applied
                     ? "bg-success/10 text-success cursor-default"
                     : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm"
-                }`}
+                  }`}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 {applied ? "Applied ✓" : "Apply MiniTasks"}

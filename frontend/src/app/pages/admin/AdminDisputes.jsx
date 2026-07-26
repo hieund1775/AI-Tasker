@@ -25,18 +25,25 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 
 const REPORT_STATUS_CONFIG = {
   "Pending Admin": { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
+  Pending: { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
   "Awaiting Expert": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Expert" },
   "Awaiting Client": { color: "bg-secondary text-secondary-foreground border border-border", label: "Awaiting Client" },
+  "Awaiting Partner": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Partner" },
+  Returned: { color: "bg-rose-100 text-rose-700 border border-rose-200", label: "Returned" },
   Resolved: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
+  Accepted: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
   Rejected: { color: "bg-red-100 text-red-700 border border-red-200", label: "Rejected" },
 };
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
-  { value: "Pending Admin", label: "Pending Admin" },
+  { value: "Pending", label: "Pending Admin" },
   { value: "Awaiting Expert", label: "Awaiting Expert" },
   { value: "Awaiting Client", label: "Awaiting Client" },
+  { value: "Awaiting Partner", label: "Awaiting Partner" },
+  { value: "Returned", label: "Returned" },
   { value: "Resolved", label: "Resolved" },
+  { value: "Accepted", label: "Resolved (Accepted)" },
   { value: "Rejected", label: "Rejected" },
 ];
 
@@ -45,6 +52,7 @@ const STATUS_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export function AdminDisputes() {
+  const [allReports, setAllReports] = useState([]);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -56,28 +64,51 @@ export function AdminDisputes() {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (statusFilter) params.status = statusFilter;
-      if (searchTerm) params.search = searchTerm;
-      const result = await getReports(params);
+      const result = await getReports();
       const data = result?.data || [];
       const sorted = [...data].sort((a, b) => {
         const timeA = new Date(a.createdAt || a.submittedAt || 0).getTime();
         const timeB = new Date(b.createdAt || b.submittedAt || 0).getTime();
         return timeB - timeA;
       });
+      setAllReports(sorted);
       setReports(sorted);
     } catch (err) {
       setError(err.message || "Unable to load reports.");
+      setAllReports([]);
       setReports([]);
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  // Apply filters locally whenever search/status/allReports change
+  useEffect(() => {
+    let filtered = [...allReports];
+    if (statusFilter) {
+      filtered = filtered.filter(r => {
+        const status = r.status || "";
+        if (statusFilter === "Pending") {
+          return status === "Pending" || status === "Pending Admin";
+        }
+        return status.toLowerCase() === statusFilter.toLowerCase();
+      });
+    }
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(r => 
+        (r.projectTitle && r.projectTitle.toLowerCase().includes(term)) ||
+        (r.reportName && r.reportName.toLowerCase().includes(term)) ||
+        (r.reason && r.reason.toLowerCase().includes(term)) ||
+        (r.id && r.id.toLowerCase().includes(term))
+      );
+    }
+    setReports(filtered);
+  }, [statusFilter, searchTerm, allReports]);
 
   const columns = [
     {
@@ -88,18 +119,27 @@ export function AdminDisputes() {
       ),
     },
     {
-      key: "status",
-      label: "Loại báo cáo",
+      key: "disputeType",
+      label: "Dispute Type",
+      filterOptions: [
+        { value: "financial", label: "Financial Dispute" },
+        { value: "cancellation", label: "Cancellation Request" },
+        { value: "quality", label: "Quality Dispute" },
+        { value: "deadline", label: "Deadline Delay" },
+        { value: "communication", label: "Communication Issue" },
+        { value: "other", label: "Other" },
+      ],
       render: (val, row) => {
         const reportTypes = {
-          financial: "Báo cáo tài chính",
-          communication: "Báo cáo trao đổi",
-          quality: "Báo cáo chất lượng",
-          deadline: "Báo cáo tiến độ",
-          other: "Báo cáo khác",
-          cancellation: "Báo cáo hủy dự án",
+          financial: "Financial Dispute",
+          communication: "Communication Issue",
+          quality: "Quality Dispute",
+          deadline: "Deadline Delay",
+          other: "Other",
+          cancellation: "Cancellation Request",
         };
-        const label = reportTypes[row.disputeType] || "Báo cáo tiến độ";
+        const disputeKey = row.disputeType || val || "other";
+        const label = reportTypes[disputeKey] || disputeKey;
         const colors = {
           financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
           communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
@@ -108,7 +148,7 @@ export function AdminDisputes() {
           other: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
           cancellation: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
         };
-        const badgeClass = colors[row.disputeType] || colors.other;
+        const badgeClass = colors[disputeKey] || colors.other;
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
             {label}
@@ -141,8 +181,24 @@ export function AdminDisputes() {
       },
     },
     {
+      key: "amount",
+      label: "Escrow Amount",
+      render: (val, row) => (
+        <span className="font-semibold text-brand-primary text-sm">
+          <MoneyDisplay amount={row.escrowAmount || row.amount || 0} />
+        </span>
+      ),
+    },
+    {
+      key: "actualStatus",
+      label: "Status",
+      render: (val, row) => (
+        <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
+      ),
+    },
+    {
       key: "createdAt",
-      label: "Thời gian gửi báo cáo",
+      label: "Report Time",
       render: (val) => (
         <span className="text-xs font-medium text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
@@ -152,7 +208,7 @@ export function AdminDisputes() {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="space-y-6">
       <PageHeader
         title="Report Progress"
         subtitle="Review and track progress reports between Clients and Experts."
@@ -169,24 +225,24 @@ export function AdminDisputes() {
       {!loading && !error && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="bg-card rounded-xl border border-border p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{reports.length}</p>
+            <p className="text-2xl font-bold text-foreground">{allReports.length}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Total Reports</p>
           </div>
           <div className="bg-card rounded-xl border border-yellow-200 dark:border-yellow-800 p-4 text-center">
             <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
-              {reports.filter(r => r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client").length}
+              {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Active</p>
           </div>
           <div className="bg-card rounded-xl border border-green-200 dark:border-green-800 p-4 text-center">
             <p className="text-2xl font-bold text-green-700 dark:text-green-400">
-              {reports.filter(r => r.status === "Resolved").length}
+              {allReports.filter(r => r.status === "Resolved" || r.status === "Accepted" || r.status === "cancel_done").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Resolved</p>
           </div>
           <div className="bg-card rounded-xl border border-red-200 dark:border-red-800 p-4 text-center">
             <p className="text-2xl font-bold text-red-700 dark:text-red-400">
-              {reports.filter(r => r.status === "Rejected").length}
+              {allReports.filter(r => r.status === "Rejected").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Rejected</p>
           </div>
@@ -229,7 +285,7 @@ export function AdminDisputes() {
         emptyMessage="No progress reports found."
         actions={(row) => (
           <Link
-            to={`/admin/disputes/${row.id}`}
+            to={`${window.location.pathname.startsWith("/owner") ? "/owner" : "/admin"}/disputes/${row.id}`}
             className="px-3 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />
