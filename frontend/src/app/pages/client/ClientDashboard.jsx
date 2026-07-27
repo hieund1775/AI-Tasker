@@ -55,14 +55,29 @@ const formatDate = (dateStr) => {
   }, String(dateStr || "N/A"));
 };
 
-export function getNormalizedStatus(project) {
+export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
-  
+
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
-  const status = (localStatus || dbStatus).toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed since when a project is
+  // Awaiting_Cancellation, a Pending Admin report always means the cancel is not yet approved.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+        (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
 
   let label = "In Progress";
   let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -151,10 +166,10 @@ export function ClientDashboard() {
       });
       setShowReportForm(false);
       setReportingProject(null);
-      toast.success("Báo cáo vi phạm đã được gửi tới Admin thành công.");
+      toast.success("Violation report has been sent to Admin successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể gửi báo cáo vi phạm.");
+      toast.error(err.message || "Failed to send violation report.");
     } finally {
       setReportSubmitting(false);
     }
@@ -164,14 +179,14 @@ export function ClientDashboard() {
     setExplanationSubmitting(true);
     try {
       await api.put(`/reports/${explainingReport.id}/partner-reject-cancel`, {
-        partnerRejectionReason: formData.reason || formData.description || "Từ chối yêu cầu hủy hợp đồng",
+        partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
       });
       setShowExplanationForm(false);
       setExplainingReport(null);
-      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      toast.success("Submitted response explanation successfully!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+      toast.error(err.message || "Failed to submit response explanation.");
     } finally {
       setExplanationSubmitting(false);
     }
@@ -191,14 +206,14 @@ export function ClientDashboard() {
           api.projects.getByClient(user.id).catch(() => []),
           api.payments.getTransactions(user.id).catch(() => []),
         ]);
-        setActiveReports(reportsRes?.data || []);
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
 
         try {
           const depositedProjectIds = (transactionsList || [])
             .filter(tx => tx.type === "EscrowDeposit")
             .map(tx => String(tx.projectId || tx.ProjectId).toLowerCase());
           localStorage.setItem("deposited_project_ids", JSON.stringify(depositedProjectIds));
-        } catch (e) {}
+        } catch (e) { }
 
         const enrichedJobs = (await Promise.all(
           (clientJobs || []).map(async (job) => {
@@ -288,7 +303,7 @@ export function ClientDashboard() {
   // ---- Stats ---------------------------------------------------------------
   const getProjectsByStatus = (statusList) => {
     return clientProjects.filter((p) => {
-      const norm = getNormalizedStatus(p);
+      const norm = getNormalizedStatus(p, activeReports);
       return statusList.includes(norm.label);
     }).length;
   };
@@ -326,7 +341,7 @@ export function ClientDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">Dashboard</h1>
+          <h1 className="page-title">Client Dashboard</h1>
           <p className="page-subtitle">Manage your AI projects and find experts</p>
         </div>
         <div className="flex items-center gap-3">
@@ -381,7 +396,7 @@ export function ClientDashboard() {
         <div className="p-6">
           {(() => {
             const activeProjects = clientProjects.filter((p) => {
-              const norm = getNormalizedStatus(p);
+              const norm = getNormalizedStatus(p, activeReports);
               return ["In Progress", "Completed", "Cancel", "Disputed", "Under Review"].includes(norm.label);
             });
 
@@ -420,7 +435,7 @@ export function ClientDashboard() {
                 {activeProjects.map((p) => {
                   const expertName = p.expert || p.assignedExpert?.fullName || p.expertName || p.acceptedExpertName;
                   const progress = p.progress ?? 0;
-                  const norm = getNormalizedStatus(p);
+                  const norm = getNormalizedStatus(p, activeReports);
                   const displayStatus = norm.label;
                   const badgeClass = norm.badgeClass;
 
@@ -537,16 +552,17 @@ export function ClientDashboard() {
                       <div className="flex items-center justify-end pt-1 gap-3">
                         {(() => {
                           const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
-                          if (!isDisputed) {
-                            // Chống spam: kiểm tra xem project đã có report pending chưa
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
+                            // Anti-spam: check if the project already has a pending report
                             const existingActiveReport = activeReports.find(r =>
                               (r.projectId === p.projectId || r.projectId === p.id) &&
-                              !["Rejected", "Resolved"].includes(r.status)
+                              !["Rejected", "Resolved", "Accepted", "Completed", "cancel_done"].includes(r.status)
                             );
                             if (existingActiveReport) {
                               return (
                                 <span className="h-9 px-4 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
-                                  <AlertTriangle className="w-3.5 h-3.5" /> Đã có report đang xử lý
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Dispute is processing
                                 </span>
                               );
                             }
@@ -572,7 +588,7 @@ export function ClientDashboard() {
                                 }}
                                 className="h-9 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-3.5 h-3.5" /> Gửi phản hồi
+                                <AlertTriangle className="w-3.5 h-3.5" /> Submit Response
                               </button>
                             );
                           }
@@ -622,26 +638,21 @@ export function ClientDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold">
-              Gửi phản hồi báo cáo vi phạm
+              Submit Response to Report
             </DialogTitle>
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
-              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
-                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
-              </div>
 
               <ReportForm
-                project={clientProjects.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                project={clientProjects.find(p => String(p.id).toLowerCase() === String(explainingReport.projectId).toLowerCase()) || { id: explainingReport.projectId, title: explainingReport.reportName || explainingReport.projectTitle || explainingReport.projectName || "Project" }}
                 onSubmit={handleSubmitExplanation}
                 onCancel={() => {
                   setShowExplanationForm(false);
                   setExplainingReport(null);
                 }}
                 loading={explanationSubmitting}
-                submitLabel="Gửi phản hồi"
+                submitLabel="Submit Response"
                 role="client"
                 isResponse={true}
                 initialDisputeType={explainingReport?.disputeType}

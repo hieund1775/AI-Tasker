@@ -32,7 +32,7 @@ public class JobPostService : IJobPostService
                 JobPostId = jobPostId,
                 Title = tDto.Title
             };
-            
+
             if (tDto.MiniTasks != null && tDto.MiniTasks.Any())
             {
                 task.JobPostMiniTasks = tDto.MiniTasks.Select(mDto => new JobPostMiniTask
@@ -93,7 +93,7 @@ public class JobPostService : IJobPostService
             Deadline = deadlineDays,
             DurationUnit = jobPostDto.DurationUnit,
             DurationValue = jobPostDto.DurationValue,
-            Status = "Open", 
+            Status = "Open",
             CreatedAt = DateTime.UtcNow,
             DomainId = jobPostDto.DomainId,
             SpecializationId = jobPostDto.SpecializationId,
@@ -120,22 +120,39 @@ public class JobPostService : IJobPostService
         return (await GetJobPostByIdAsync(jobPost.Id))!;
     }
 
-    public async Task<IReadOnlyList<JobPost>> GetJobsAsync()
+    public async Task<PagedResult<JobPost>> GetJobsAsync(int page, int pageSize)
     {
-        var list = await _context.JobPosts
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 20;
+
+        var query = _context.JobPosts
                              .Include(jp => jp.ClientUser)
-                             .Include(jp => jp.Domain) 
+                             .Include(jp => jp.Domain)
                              .Include(jp => jp.Specialization)
                              .Include(jp => jp.JobPostSkills)
                                  .ThenInclude(jps => jps.Skill)
                              .Include(jp => jp.JobPostTasks)
-                                 .ThenInclude(t => t.JobPostMiniTasks)
-                             .ToListAsync();
+                                 .ThenInclude(t => t.JobPostMiniTasks);
+
+        var totalCount = await query.CountAsync();
+
+        var list = await query.OrderByDescending(x => x.CreatedAt)
+                              .Skip((page - 1) * pageSize)
+                              .Take(pageSize)
+                              .ToListAsync();
+
         foreach (var jp in list)
         {
             jp.Implementation = GetJobPostWbsJson(jp);
         }
-        return list;
+
+        return new PagedResult<JobPost>
+        {
+            Data = list,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<JobPost?> GetJobPostByIdAsync(Guid id)
@@ -162,6 +179,11 @@ public class JobPostService : IJobPostService
                                      .Include(jp => jp.JobPostSkills)
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
+
+        if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Không thể chỉnh sửa bài đăng khi đã có Chuyên gia được chọn hoặc dự án đã được khởi tạo (Trạng thái hiện tại: {jobPost.Status}).");
+        }
 
         int deadlineDays = jobPostDto.Deadline;
         if (jobPostDto.DurationValue > 0)
@@ -215,7 +237,7 @@ public class JobPostService : IJobPostService
         return await GetJobPostByIdAsync(id);
     }
 
-    public async Task<IEnumerable<JobPost>> GetFilteredJobsAsync(string? search, decimal? minBudget, decimal? maxBudget, string? status, Guid? categoryDomainId)
+    public async Task<PagedResult<JobPost>> GetFilteredJobsAsync(string? search, decimal? minBudget, decimal? maxBudget, string? status, Guid? categoryDomainId, int page, int pageSize)
     {
         var query = _context.JobPosts
                             .Include(jp => jp.ClientUser)
@@ -247,12 +269,25 @@ public class JobPostService : IJobPostService
             query = query.Where(x => x.DomainId == categoryDomainId.Value);
         }
 
-        var list = await query.OrderByDescending(x => x.CreatedAt).ToListAsync();
+        var totalCount = await query.CountAsync();
+
+        var list = await query.OrderByDescending(x => x.CreatedAt)
+                              .Skip((page - 1) * pageSize)
+                              .Take(pageSize)
+                              .ToListAsync();
+
         foreach (var jp in list)
         {
             jp.Implementation = GetJobPostWbsJson(jp);
         }
-        return list;
+
+        return new PagedResult<JobPost>
+        {
+            Data = list,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IEnumerable<JobPost>> GetJobPostsByClientIdAsync(Guid clientId)
@@ -306,7 +341,7 @@ public class JobPostService : IJobPostService
         var proposal = await _context.Proposals
             .Include(p => p.JobPost)
             .FirstOrDefaultAsync(p => p.Id == proposalId);
-            
+
         if (proposal == null) return null;
 
         var markdownBuilder = new System.Text.StringBuilder();
@@ -321,7 +356,7 @@ public class JobPostService : IJobPostService
         int daysPerTask = Math.Max(1, deadlineDays / taskCount);
         for (int i = 1; i <= taskCount; i++)
         {
-            markdownBuilder.AppendLine($"### 📍 Mốc tiến độ {i}: Thực thi cấu phần nghiệp vụ số {i}");
+            markdownBuilder.AppendLine($"### 📌 Mốc tiến độ {i}: Thực thi cấu phần nghiệp vụ số {i}");
             markdownBuilder.AppendLine($"- **Mô tả cấu phần nghiệp vụ:** Tiến hành phân tích, thiết kế logic, xây dựng mã nguồn và kiểm chuẩn đơn vị (Unit Test) cho phân hệ chức năng {i} dựa trên giải pháp kỹ thuật: {proposal.Implementation}.");
             markdownBuilder.AppendLine($"- **Thời gian xử lý dự kiến:** {daysPerTask} ngày.");
             markdownBuilder.AppendLine();
@@ -338,9 +373,9 @@ public class JobPostService : IJobPostService
         await System.IO.File.WriteAllTextAsync(fullPath, markdownBuilder.ToString(), System.Text.Encoding.UTF8);
 
         var fileUrl = $"/milestones/{fileName}";
-        
+
         // Ghi đè đường dẫn file Markdown sạch vào cột Portfolio của bảng Proposals
-        proposal.Portfolio = fileUrl; 
+        proposal.Portfolio = fileUrl;
         await _context.SaveChangesAsync();
 
         return fileUrl;
@@ -426,7 +461,7 @@ public class JobPostService : IJobPostService
 
         // 2. Fetch active experts
         var activeExperts = await _context.Users
-            .Where(u => u.Role.ToLower() == "expert" && 
+            .Where(u => u.Role.ToLower() == "expert" &&
                         u.Status.ToLower() == "active")
             .ToListAsync();
 
@@ -528,8 +563,8 @@ public class JobPostService : IJobPostService
         foreach (var c in candidates)
         {
             // Calculate a score based on skill match proportion + success rate + reputation credit
-            double skillRatio = requiredSkills.Any() 
-                ? (double)c.MatchingSkillsCount / requiredSkills.Count 
+            double skillRatio = requiredSkills.Any()
+                ? (double)c.MatchingSkillsCount / requiredSkills.Count
                 : 0.5;
 
             // score components: domain match (20%), skill ratio (40%), success rate (30%), reputation credit (10%)
@@ -543,12 +578,12 @@ public class JobPostService : IJobPostService
             matchScore = Math.Clamp(matchScore, 20, 100); // base min match is 20%
 
             // Construct Vietnamese explanation
-            string matchedSkillsList = c.MatchingSkillsCount > 0 
+            string matchedSkillsList = c.MatchingSkillsCount > 0
                 ? string.Join(", ", c.Skills.Intersect(requiredSkills, StringComparer.OrdinalIgnoreCase))
                 : "không trùng khớp kỹ năng trực tiếp";
 
-            string domainInfo = c.HasMatchingDomain 
-                ? "Chuyên gia hoạt động trong lĩnh vực trùng khớp với công việc. " 
+            string domainInfo = c.HasMatchingDomain
+                ? "Chuyên gia hoạt động trong lĩnh vực trùng khớp với công việc. "
                 : string.Empty;
 
             string explanation = $"[Đề xuất tự động] {domainInfo}Chuyên gia có chuyên ngành {c.Profile.Major} và chức danh \"{c.Profile.JobTitle}\". " +

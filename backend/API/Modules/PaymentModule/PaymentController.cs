@@ -66,12 +66,12 @@ namespace AITasker.API.Modules.PaymentModule
         public async Task<IActionResult> CreateOrder([FromBody] CreateZaloPayOrderRequest req)
         {
             if (req.UserId == Guid.Empty || req.Amount < 1000)
-                return BadRequest(new { message = "UserId không hợp lệ hoặc số tiền tối thiểu là 1,000 VND." });
+                return BadRequest(new { message = "Invalid UserId or minimum amount is 1,000 VND." });
 
             // Kiểm tra user tồn tại
             var walletExists = await _context.Wallets.AnyAsync(w => w.UserId == req.UserId);
             if (!walletExists)
-                return NotFound(new { message = $"Không tìm thấy ví của user {req.UserId}." });
+                return NotFound(new { message = $"Wallet not found for user {req.UserId}." });
 
             // Tạo app_trans_id: yyMMdd_timestamp (format chuẩn ZaloPay)
             var now        = DateTimeOffset.UtcNow;
@@ -118,7 +118,7 @@ namespace AITasker.API.Modules.PaymentModule
                 if (returnCode != 1)
                 {
                     var msg = result.TryGetProperty("sub_return_message", out var subMsg)
-                        ? subMsg.GetString() : "Tạo đơn hàng ZaloPay thất bại.";
+                        ? subMsg.GetString() : "ZaloPay order creation failed.";
                     return BadRequest(new { message = msg, returnCode, raw = body });
                 }
 
@@ -136,7 +136,7 @@ namespace AITasker.API.Modules.PaymentModule
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Lỗi kết nối ZaloPay: " + ex.Message });
+                return StatusCode(500, new { message = "ZaloPay connection error: " + ex.Message });
             }
         }
 
@@ -151,7 +151,7 @@ namespace AITasker.API.Modules.PaymentModule
         {
             if (callback == null || string.IsNullOrEmpty(callback.data) || string.IsNullOrEmpty(callback.mac))
             {
-                return BadRequest(new { return_code = 0, return_message = "Thiếu dữ liệu callback" });
+                return BadRequest(new { return_code = 0, return_message = "Missing callback data" });
             }
 
             // ===== BƯỚC 1: XÁC MINH CHỮ KÝ HMAC-SHA256 =====
@@ -195,7 +195,7 @@ namespace AITasker.API.Modules.PaymentModule
                 if (targetUserId == Guid.Empty)
                 {
                     Console.WriteLine($"[ERROR] Không parse được UserId từ app_trans_id: {appTransId}");
-                    return Ok(new { return_code = 0, return_message = "Không xác định được người dùng" });
+                    return Ok(new { return_code = 0, return_message = "User cannot be determined" });
                 }
 
                 // ===== BƯỚC 4: KIỂM TRA VÍ VÀ CỘNG SỐ DƯ =====
@@ -203,23 +203,27 @@ namespace AITasker.API.Modules.PaymentModule
                 if (wallet == null)
                 {
                     Console.WriteLine($"[ERROR] Không tìm thấy ví của User: {targetUserId}");
-                    return Ok(new { return_code = 0, return_message = "Không tìm thấy ví người dùng" });
+                    return Ok(new { return_code = 0, return_message = "User wallet not found" });
                 }
 
                 decimal depositAmount = (decimal)amount;
                 wallet.Balance += depositAmount;
 
                 // ===== BƯỚC 5: GHI TRANSACTION LOG =====
-                var txLog = new TransactionLog
-                {
-                    Id = Guid.NewGuid(),
-                    ProjectId = null,
-                    SourceWalletId = null,
-                    DestinationWalletId = wallet.UserId,
-                    Amount = depositAmount,
-                    Type = "Deposit",
-                    CreatedAt = DateTime.UtcNow
-                };
+                 var txLog = new TransactionLog
+                 {
+                     Id = Guid.NewGuid(),
+                     ProjectId = null,
+                     SourceWalletId = null,
+                     DestinationWalletId = wallet.UserId,
+                     Amount = depositAmount,
+                     Type = "Deposit",
+                     CreatedAt = DateTime.UtcNow,
+                     Status = "Success",
+                     Description = $"Nạp tiền ZaloPay giao dịch {appTransId}",
+                     BankReferenceNo = appTransId,
+                     IsSandbox = true // Hoặc cấu hình tùy biến theo AppSettings.json
+                 };
                 _context.TransactionLogs.Add(txLog);
 
                 await _context.SaveChangesAsync();
@@ -252,29 +256,32 @@ namespace AITasker.API.Modules.PaymentModule
             if (errorResult != null) return errorResult;
 
             if (req == null || req.UserId == Guid.Empty || req.Amount <= 0)
-                return BadRequest("UserId và Amount không hợp lệ.");
+                return BadRequest("Invalid UserId and Amount.");
 
             var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == req.UserId);
-            if (wallet == null) return NotFound($"Không tìm thấy ví của user {req.UserId}");
+            if (wallet == null) return NotFound($"Wallet not found for user {req.UserId}");
 
             wallet.Balance += (decimal)req.Amount;
 
-            _context.TransactionLogs.Add(new TransactionLog
-            {
-                Id = Guid.NewGuid(),
-                ProjectId = null,
-                SourceWalletId = null,
-                DestinationWalletId = wallet.UserId,
-                Amount = (decimal)req.Amount,
-                Type = "ManualDeposit",
-                CreatedAt = DateTime.UtcNow
-            });
+             _context.TransactionLogs.Add(new TransactionLog
+             {
+                 Id = Guid.NewGuid(),
+                 ProjectId = null,
+                 SourceWalletId = null,
+                 DestinationWalletId = wallet.UserId,
+                 Amount = (decimal)req.Amount,
+                 Type = "ManualDeposit",
+                 CreatedAt = DateTime.UtcNow,
+                 Status = "Success",
+                 Description = "Nạp tiền thủ công qua cổng DEV",
+                 IsSandbox = true
+             });
 
             await _context.SaveChangesAsync();
 
             return Ok(new
             {
-                Message = "Nạp tiền thủ công thành công (DEV ONLY).",
+                Message = "Manual deposit successful (DEV ONLY).",
                 UserId = req.UserId,
                 Amount = req.Amount,
                 NewBalance = wallet.Balance
@@ -312,17 +319,28 @@ namespace AITasker.API.Modules.PaymentModule
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
 
-            var result = logs.Select(t => new
-            {
-                t.Id,
-                t.ProjectId,
-                ProjectTitle = t.Project != null && t.Project.JobPost != null ? t.Project.JobPost.Title : null,
-                t.SourceWalletId,
-                t.DestinationWalletId,
-                t.Amount,
-                t.Type,
-                t.CreatedAt
-            });
+             var result = logs.Select(t => new
+             {
+                 t.Id,
+                 t.ProjectId,
+                 ProjectTitle = t.Project != null && t.Project.JobPost != null ? t.Project.JobPost.Title : null,
+                 t.SourceWalletId,
+                 t.DestinationWalletId,
+                 t.Amount,
+                 t.Type,
+                 t.CreatedAt,
+                 t.Status,
+                 t.UpdatedAt,
+                 t.Description,
+                 t.BankReferenceNo,
+                 t.IsSandbox,
+                 t.GatewayFee,
+                 t.PlatformFee,
+                 t.BankCode,
+                 t.BankAccountNumber,
+                 t.BankAccountName,
+                 t.ReportId
+             });
 
             return Ok(result);
         }

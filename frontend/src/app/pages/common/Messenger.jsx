@@ -7,7 +7,7 @@ import {
   Send,
   Plus,
   Image,
-  File,
+  Paperclip,
   FolderOpen,
   X,
   Download,
@@ -38,7 +38,7 @@ function detectCurrentUser(convId, conversations) {
 
 const ATTACH_OPTIONS = [
   { key: "image", label: "Upload Image", icon: Image, color: "text-primary", ext: ".png", mime: "image/png" },
-  { key: "file", label: "Upload File", icon: File, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
+  { key: "file", label: "Upload File", icon: Paperclip, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
   { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-warning", ext: "/", mime: "folder" },
 ];
 
@@ -84,7 +84,7 @@ export function Messenger() {
         // Ki?m tra xem activeConvId hi?n t?i cA3 ph?i lA conversationId khA'ng
         let activeC = convs.find((c) => c.id === activeConvId);
         
-        // Nếu KHÔNG, có thể nó là UserId. Tạo hoặc lấy cuộc hội thoại với user đó.
+        // If NOT, it might be UserId. Create or retrieve the conversation with that user.
         if (!activeC && activeConvId.length > 20) {
           const isClient = String(user?.role).toLowerCase() === "client";
           try {
@@ -103,7 +103,7 @@ export function Messenger() {
         }
       }
 
-      // Convert format backend sang format UI của frontend
+      // Convert backend format to frontend UI format
       const mappedList = convs.map((c) => {
         const isClient = String(demoUserId).toLowerCase() === String(c.clientId).toLowerCase();
         return {
@@ -408,7 +408,7 @@ export function Messenger() {
                           ) : msg.attachment.type === "folder" ? (
                             <FolderOpen className="w-5 h-5 flex-shrink-0" />
                           ) : (
-                            <File className="w-5 h-5 flex-shrink-0" />
+                            <FileIcon className="w-5 h-5 flex-shrink-0" />
                           )}
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">
@@ -456,7 +456,7 @@ export function Messenger() {
                       ) : att.type === "folder" ? (
                         <FolderOpen className="w-4 h-4 text-amber-500" />
                       ) : (
-                        <File className="w-4 h-4 text-muted-foreground" />
+                        <FileIcon className="w-4 h-4 text-muted-foreground" />
                       )}
                       <span className="text-xs font-medium text-foreground/80">{att.name}</span>
                       <button
@@ -559,7 +559,7 @@ export function Messenger() {
                                 ) : att.type === "folder" ? (
                                   <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
                                 ) : (
-                                  <File className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                  <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                 )}
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-medium text-foreground/80 truncate">

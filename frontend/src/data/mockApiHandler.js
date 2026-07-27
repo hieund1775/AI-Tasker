@@ -415,15 +415,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       if (userObj) {
         const updatedProfile = {
           ...userObj.expertProfile,
-          jobTitle: body.jobTitle || "Chưa cập nhật",
-          major: body.major || body.specialization || "Chưa cập nhật",
+          jobTitle: body.jobTitle || "Not updated",
+          major: body.major || body.specialization || "Not updated",
           category: body.category || "",
           specialization: body.specialization || "",
           skills: body.skills || [],
           portfolioUrls: body.portfolioUrls || "",
           bio: body.bio || "",
           hourlyRate: Number(body.hourlyRate) || 0,
-          location: body.location || "Chưa cập nhật",
+          location: body.location || "Not updated",
           website: body.website || "",
           industry: body.industry || "",
           phone: body.phone || userObj.expertProfile?.phone || "",
@@ -658,37 +658,37 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         const status = newStatus || body?.status;
         if (status) {
           if (status.toLowerCase() === "accepted" || status.toLowerCase() === "accepted") {
-            // --- XỬ LÝ HIRE EXPERT & ESCROW (ATOMIC UPDATE ĐỒNG BỘ) ---
+            // --- HIRE EXPERT & ESCROW PROCESS (SYNCHRONOUS ATOMIC UPDATE) ---
             const proposal = getProposalById(statusId);
-            if (!proposal) throw new ApiError("Không tìm thấy đề xuất (Proposal).", 404);
+            if (!proposal) throw new ApiError("Proposal not found.", 404);
 
             const jobPost = getJobPostById(proposal.jobPostId);
-            if (!jobPost) throw new ApiError("Không tìm thấy tin tuyển dụng (Job Post).", 404);
+            if (!jobPost) throw new ApiError("Job post not found.", 404);
 
             const clientUser = getUserById(jobPost.clientId);
-            if (!clientUser) throw new ApiError("Không tìm thấy thông tin Client.", 404);
+            if (!clientUser) throw new ApiError("Client info not found.", 404);
 
             const bidAmount = Number(proposal.bidAmount) || 0;
             const wallet = clientUser.wallet || { balance: 0, pendingBalance: 0, totalEarned: 0 };
 
-            // Kiểm tra số dư ví khả dụng của Client
+            // Check Client available wallet balance
             if (wallet.balance < bidAmount) {
               throw new ApiError(
-                `Số dư ví khả dụng không đủ để thực hiện thuê Expert. Yêu cầu: $${bidAmount.toLocaleString()}, hiện có: $${wallet.balance.toLocaleString()}. Vui lòng nạp thêm tiền.`,
+                `Available wallet balance is insufficient to hire the Expert. Required: ${bidAmount.toLocaleString()}, current balance: ${wallet.balance.toLocaleString()}. Please deposit more funds.`,
                 400
               );
             }
 
-            // 1. Trừ tiền ví Client và chuyển vào số dư ký quỹ (Atomic Update)
+            // 1. Deduct Client wallet and transfer to escrow balance (Atomic Update)
             wallet.balance = Number((wallet.balance - bidAmount).toFixed(2));
             wallet.pendingBalance = Number(((wallet.pendingBalance || 0) + bidAmount).toFixed(2));
             wallet.escrowBalance = Number(((wallet.escrowBalance || 0) + bidAmount).toFixed(2));
             updateUser(clientUser.id, { wallet: { ...wallet } });
 
-            // 2. Chuyển proposal được chọn thành "accepted"
+            // 2. Set selected proposal to "accepted"
             updateProposalStatus(statusId, "accepted");
 
-            // 3. Từ chối ("rejected") toàn bộ các proposal còn lại của Job đó
+            // 3. Reject ("rejected") all other proposals for that Job
             const allProps = listProposals();
             for (const other of allProps) {
               if (other.jobPostId === proposal.jobPostId && other.id !== statusId && other.status !== "declined" && other.status !== "rejected") {
@@ -696,7 +696,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               }
             }
 
-            // 4. Cập nhật trạng thái JobPost thành "Accepted" và đồng bộ ngân sách/timeline từ proposal
+            // 4. Update JobPost status to "Accepted" and sync budget/timeline from proposal
             const estDays = Number(proposal.estimatedDays) || 14;
             updateJobPost(jobPost.id, {
               status: "Accepted",
@@ -704,7 +704,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               deadline: estDays
             });
 
-            // Trích xuất danh sách Task & Milestones cấu trúc từ proposal (nếu có)
+            // Extract structured Task & Milestones from proposal (if any)
             let proposalTasks = [];
             try {
               const coverLetterParsed = JSON.parse(proposal.coverLetter);
@@ -828,7 +828,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               console.log("[mockApiHandler] Generated", proposalTasks.length, "default tasks for proposal:", proposal.id);
             }
 
-            // 5. Khởi tạo/Cập nhật Project mới dạng "active" với escrowPaid và escrowStatus = "paid"
+            // 5. Initialize/Update new Project as "active" with escrowPaid and escrowStatus = "paid"
             const projects = listProjects();
             const existingProj = projects.find((p) => p.jobPostId === jobPost.id);
             let newProject;
@@ -898,7 +898,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
 
             console.log("[mockApiHandler] Generated project:", newProject);
 
-            // 6. Ghi Transaction Log ký quỹ
+            // 6. Record escrow Transaction Log
             createTransaction({
               id: generateId("txn"),
               projectId: newProject.id,
@@ -907,11 +907,11 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
               amount: bidAmount,
               type: "escrow_deposit",
               status: "completed",
-              description: `Ký quỹ tự động khi thuê Expert cho dự án: ${jobPost.title}`,
+              description: `Automatic escrow deposit when hiring Expert for project: ${jobPost.title}`,
               createdAt: new Date().toISOString(),
             });
 
-            // Gửi sự kiện cập nhật DB toàn cục
+            // Emit global DB update event
             if (typeof window !== "undefined") {
               window.dispatchEvent(new CustomEvent("aitasker_db_update"));
             }
@@ -1325,7 +1325,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         return { success: true, reportId: report.id, status: "Resolved" };
       }
 
-      // 7. Stop Project (Luồng 1 final decision)
+      // 7. Stop Project (Flow 1 final decision)
       if (action === "stop" || body.resolution === "stopped") {
         const moneyAction = body.moneyAction || "refund";
         updateReport(report.id, {
@@ -1398,7 +1398,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         return { success: true, reportId: report.id, status: "Resolved" };
       }
 
-      // 8. Force Payout (Luồng 2 final decision)
+      // 8. Force Payout (Flow 2 final decision)
       if (action === "force_payout" || body.resolution === "force_payout") {
         updateReport(report.id, {
           status: "Resolved",
@@ -1447,7 +1447,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
         return { success: true, reportId: report.id, status: "Resolved" };
       }
 
-      // 9. Force Refund (Luồng 2 final decision)
+      // 9. Force Refund (Flow 2 final decision)
       if (action === "force_refund" || body.resolution === "force_refund") {
         updateReport(report.id, {
           status: "Resolved",

@@ -9,7 +9,7 @@ import {
   Briefcase,
   Paperclip,
   Image,
-  File,
+  File as FileIcon,
   FolderOpen,
   MessageSquare,
   PenLine,
@@ -22,70 +22,6 @@ import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 function getStatusConfig(status) {
   return getProposalStatusConfig(status);
-}
-
-function renderStructuredTasks(tasks) {
-  if (!Array.isArray(tasks) || tasks.length === 0) {
-    return <p className="text-sm text-gray-450 italic mt-2">Không có nhiệm vụ chi tiết được điền.</p>;
-  }
-
-  // Group tasks by useCaseIndex
-  const groups = {};
-  tasks.forEach((task) => {
-    const key = task.useCaseIndex ?? 0;
-    if (!groups[key]) {
-      groups[key] = {
-        useCaseIndex: key,
-        useCaseTitle: task.useCaseTitle || `Use Case #${Number(key) + 1}`,
-        tasks: [],
-        totalDuration: 0,
-        totalAmount: 0,
-      };
-    }
-    groups[key].tasks.push(task);
-    groups[key].totalDuration += Number(task.durationDays || 0);
-    groups[key].totalAmount += Number(task.amount || 0);
-  });
-  const sortedGroups = Object.values(groups).sort((a, b) => Number(a.useCaseIndex) - Number(b.useCaseIndex));
-
-  return (
-    <div className="space-y-6 mt-3">
-      {sortedGroups.map((group, gIdx) => (
-        <div key={group.useCaseIndex ?? gIdx} className="bg-gray-50 border border-gray-200 rounded-2xl p-5 space-y-4 text-left">
-          {/* Group Header: Use Case Title & Totals */}
-          <div className="flex justify-between items-start border-b border-gray-200 pb-3 gap-4">
-            <div className="flex-1 min-w-0">
-              <span className="text-[10px] font-bold text-brand-primary bg-brand-primary-light px-2 py-0.5 rounded-full uppercase tracking-wide">
-                Use Case #{Number(group.useCaseIndex) + 1}
-              </span>
-              <h3 className="font-bold text-gray-900 text-base mt-1.5 break-words">{group.useCaseTitle}</h3>
-            </div>
-            <div className="text-right text-xs bg-white px-3 py-1.5 border border-gray-200 rounded-lg shadow-sm shrink-0">
-              <span className="font-bold text-brand-primary block sm:inline">Tổng: {group.totalDuration} ngày</span>
-              <span className="hidden sm:inline mx-1.5 text-gray-300">|</span>
-              <span className="font-bold text-brand-primary block sm:inline">${group.totalAmount}</span>
-            </div>
-          </div>
-
-          {/* Tasks list under this Use Case */}
-          <div className="space-y-4">
-            {group.tasks.map((task, tIdx) => (
-              <div key={task.id || tIdx} className="bg-white border border-gray-100 rounded-xl p-4 space-y-2 shadow-sm">
-                <div className="space-y-1">
-                  <h4 className="font-bold text-gray-800 text-sm">Task #{tIdx + 1}: {task.title || "Không có tiêu đề"}</h4>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] font-medium text-gray-600">{task.durationDays} ngày</span>
-                    <span className="text-gray-300">•</span>
-                    <span className="font-semibold text-gray-900">${task.amount}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function DetailSection({ title, children, className = "" }) {
@@ -153,7 +89,6 @@ export function ClientProposalDetail() {
           dependencies: parsedCoverLetter.dependencies || "",
           durationDays: parsedCoverLetter.durationDays || 0,
           attachments: parsedCoverLetter.attachments || [],
-          tasks: Array.isArray(parsedCoverLetter.tasks) ? parsedCoverLetter.tasks : [],
         };
         setProposal(enrichedProposal);
 
@@ -353,15 +288,13 @@ export function ClientProposalDetail() {
             </DetailSection>
           )}
 
-          <DetailSection title="Implementation Timeline & Milestones">
-            {(proposal.tasks && proposal.tasks.length > 0) ? (
-              renderStructuredTasks(proposal.tasks)
-            ) : (
+          {proposal.timelineMilestones && (
+            <DetailSection title="Implementation Timeline & Milestones">
               <pre className="text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
-                {proposal.timelineMilestones || "No timeline specified."}
+                {proposal.timelineMilestones}
               </pre>
-            )}
-          </DetailSection>
+            </DetailSection>
+          )}
 
           {proposal.dependencies && (
             <DetailSection title="Dependencies & Client Requirements">
@@ -380,31 +313,63 @@ export function ClientProposalDetail() {
               <p className="text-sm text-gray-400">No attachments included.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {attachments.map((att, idx) => (
-                  <div
-                    key={att.id || idx}
-                    className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-                  >
-                    {att.type === "image/png" || att.fileType === "image/png" ? (
-                      <Image className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                    ) : att.type === "folder" ? (
-                      <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                    ) : (
-                      <File className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">
-                        {att.name || att.fileName || "Attachment"}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {att.type || att.fileType || "file"}
-                        {att.size || att.fileSize
-                          ? ` · ${att.size || att.fileSize}`
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {attachments.map((att, idx) => {
+                  const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+                  let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                  if (!rawName && typeof rawUrl === "string") {
+                    rawName = rawUrl.split("/").pop() || "Attachment";
+                  }
+                  const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                  const finalName = cleanName || rawName;
+
+                  const handleDownloadFile = async (e) => {
+                    e.preventDefault();
+                    if (!fileUrl || fileUrl === "#") return;
+                    try {
+                      const res = await fetch(fileUrl);
+                      const blob = await res.blob();
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = finalName;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      window.open(fileUrl, "_blank");
+                    }
+                  };
+
+                  return (
+                    <a
+                      key={att.id || idx}
+                      href={fileUrl}
+                      onClick={handleDownloadFile}
+                      download={finalName}
+                      className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer transition-colors"
+                      title={`Download ${finalName}`}
+                    >
+                      {att.type === "image/png" || att.fileType === "image/png" ? (
+                        <Image className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      ) : att.type === "folder" ? (
+                        <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                      ) : (
+                        <FileIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-700 truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
+                          {finalName}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {att.type || att.fileType || "file"}
+                          {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             )}
           </DetailSection>

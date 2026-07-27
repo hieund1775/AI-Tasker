@@ -9,27 +9,24 @@ namespace AITasker_Modular.Modules.AiModule;
 public class GeminiUtil
 {
     private readonly HttpClient _httpClient;
-    private readonly string _apiKey;
+    private readonly string? _apiKey;
 
     private const string GeminiBaseUrl =
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent";
 
     public GeminiUtil(HttpClient httpClient, IConfiguration configuration)
     {
         _httpClient = httpClient;
-
         var envKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
         var configKey = configuration["Gemini:ApiKey"];
         var rawKey = !string.IsNullOrWhiteSpace(envKey) ? envKey : configKey;
 
-        if (string.IsNullOrWhiteSpace(rawKey))
+        if (!string.IsNullOrWhiteSpace(rawKey))
         {
-            throw new InvalidOperationException(
-                "Chua cau hinh Gemini API Key. Hay them bien moi truong GEMINI_API_KEY tren Railway hoac appsettings.json (Gemini:ApiKey).");
+            _apiKey = rawKey.Trim(' ', '"', '\'', '\r', '\n');
         }
-
-        _apiKey = rawKey.Trim(' ', '"', '\'', '\r', '\n');
     }
+
 
     public async Task<string> CallGeminiApiWithJsonModeAsync(string systemInstructionText, object[] contents)
     {
@@ -51,6 +48,12 @@ public class GeminiUtil
 
     private async Task<string> SendRequestAsync(object payload)
     {
+        if (string.IsNullOrWhiteSpace(_apiKey))
+        {
+            throw new InvalidOperationException(
+                "Gemini API Key is not configured. Please add the GEMINI_API_KEY environment variable on Railway or appsettings.json (Gemini:ApiKey).");
+        }
+
         var requestUrl = $"{GeminiBaseUrl}?key={_apiKey}";
 
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions

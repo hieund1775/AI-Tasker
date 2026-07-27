@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar } from "lucide-react";
+import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { saveJobUseCases, saveJobAttachments } from "../../../services/api.js";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePlanner.jsx";
@@ -91,8 +91,8 @@ export function PostProject() {
   const handleApplyAIPlan = (result) => {
     if (!result) return;
     
-    // Tắt ghi đè Category/Specialization/Skills từ AI vì AI sinh ra dạng Text (VD: "Machine Learning")
-    // trong khi hệ thống hiện tại yêu cầu chọn Mã ID (UUID). Việc ghi đè Text sẽ làm lỗi dropdown và xóa dữ liệu đã chọn.
+    // Disable Category/Specialization/Skills override from AI because AI generates text format (e.g. "Machine Learning")
+    // while the current system requires UUID. Overriding text will break the dropdown and clear selected data.
     
     // Map AI use cases to current normalized shape
     if (result.useCases) {
@@ -100,7 +100,7 @@ export function PostProject() {
         id: `uc-${Date.now()}-${i}`,
         title: uc.title || uc.nameAndDeadline || "",
         description: uc.description || "",
-        originalDurationDays: Number(uc.originalDurationDays || uc.durationDays || uc.durationValue || 1),
+        originalDurationDays: "",
         requirements: uc.requirements || [],
       }));
       setUseCases(mapped);
@@ -128,11 +128,11 @@ export function PostProject() {
   }, [useCases]);
 
   useEffect(() => {
+    const targetDays = Math.max(totalUseCaseDays, 1);
     const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-    if (currentDays < totalUseCaseDays) {
-      updateField("durationValue", daysToUnit(totalUseCaseDays, formData.durationUnit));
+    if (currentDays !== targetDays) {
+      updateField("durationValue", daysToUnit(targetDays, formData.durationUnit));
     }
-    // ponytail: only syncs up, never down. Only runs on useCase/unit changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalUseCaseDays, formData.durationUnit]);
 
@@ -182,85 +182,109 @@ export function PostProject() {
       createdAt: uc.createdAt || new Date().toISOString(),
     }));
 
-    // Map to backend DTO format for Implementation
+    const isGuid = (val) => typeof val === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    // Map to backend DTO format for Implementation (JobPostTaskInputDto: Title, MiniTasks)
     const implementationPayload = normalizedUseCases.map(uc => {
       const reqs = uc.requirements || [];
       const miniTasksPayload = reqs.length > 0
         ? reqs.map(req => ({
-            Title: typeof req === "string" ? req : req.title || "",
-            Duration: Number(req.durationDays) || 0
+            Title: (typeof req === "string" ? req : req.title || "").trim() || "Requirement Task",
+            Duration: Number(req.durationDays) || 1
           }))
         : [{
-            Title: `Cấu phần của ${uc.title}`,
+            Title: `Component of ${(uc.title || "Use Case").trim()}`,
             Duration: Number(uc.originalDurationDays) || 1
           }];
       
       return {
-        Title: uc.title,
-        Duration: Number(uc.originalDurationDays) || 1,
+        Title: (uc.title || "Use Case").trim(),
         MiniTasks: miniTasksPayload
       };
     });
+
+    // Upload attachment files before submitting
+    const uploadedAttachments = [];
+    for (const file of attachments) {
+      try {
+        const formDataUpload = new FormData();
+        formDataUpload.append("file", file);
+        const result = await api.post("/JobPosts/upload-file", formDataUpload, { isFormData: true });
+        const rawUrl = result?.url || result?.Url || result?.fileUrl || result?.FileUrl;
+        if (rawUrl) {
+          uploadedAttachments.push({
+            name: file.name,
+            url: rawUrl,
+            size: file.size,
+            type: file.type,
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to upload attachment:", file.name, err);
+      }
+    }
 
     const payload = {
       title: formData.title.trim(),
       description: formData.description.trim(),
       budget: Number(formData.budget) || 0,
       deadline: deadlineDays,
-      domainId: formData.category || null,
-      specializationId: formData.specialization || null,
-      clientId: user?.id,
+      domainId: isGuid(formData.category) ? formData.category : null,
+      specializationId: isGuid(formData.specialization) ? formData.specialization : null,
+      clientId: user?.id || user?.Id,
       skillIds: selectedSkills,
-      requiredSkills: selectedSkills,
       implementation: implementationPayload,
-      originalTotalDurationDays: totalUseCaseDuration,
-      originalBudget: Number(formData.budget) || 0,
-      attachments: attachments.map((f) => ({ name: f.name, size: f.size, type: f.type })),
-      createdAt: new Date().toISOString(),
     };
 
     try {
       console.log("Submitting project to API:", payload);
       const createdJob = await api.jobPosts.create(payload);
+      const createdJobId = createdJob?.id || createdJob?.Id;
 
-      if (invitedExpert && createdJob?.id) {
-        const coverLetterObj = {
-          proposalTitle: "",
-          professionalIntro: "",
-          technicalApproach: "",
-          timelineMilestones: "",
-          dependencies: "",
-          durationDays: deadlineDays,
-          attachments: [],
-        };
+      if (createdJobId) {
+        saveJobUseCases(createdJobId, normalizedUseCases);
+        if (uploadedAttachments.length > 0) {
+          saveJobAttachments(createdJobId, uploadedAttachments);
+        }
+      }
+
+      if (invitedExpert && createdJobId) {
+        const initialTasks = implementationPayload.map(t => ({
+          Title: t.Title,
+          MiniTasks: (t.MiniTasks || []).map(m => ({
+            Title: m.Title,
+            Duration: m.Duration || 1
+          }))
+        }));
+
         const createdProposal = await api.proposals.create({
-          jobPostId: createdJob.id,
-          expertId: invitedExpert.id,
-          bidAmount: 0,
+          jobPostId: createdJobId,
+          expertId: invitedExpert.id || invitedExpert.Id,
+          bidAmount: Number(formData.budget) || 0,
           estimatedDays: deadlineDays,
-          introduction: "Tôi muốn mời bạn tham gia dự án này.",
-          coverLetter: JSON.stringify(coverLetterObj),
+          introduction: "I would like to invite you to join this project.",
+          coverLetter: JSON.stringify(initialTasks),
           isSubmitted: false,
         });
 
         await notificationService.notifyExpertInvited({
-          expertUserId: invitedExpert.id,
+          expertUserId: invitedExpert.id || invitedExpert.Id,
           clientName: user?.fullName || "Client",
-          jobTitle: createdJob.title || formData.title,
-          jobPostId: createdJob.id,
+          jobTitle: createdJob?.title || formData.title,
+          jobPostId: createdJobId,
           proposalId: createdProposal?.id || createdProposal?.Id
         });
       }
 
       if (invitedExpert) {
-        alert("Đã gửi lời mời dự án tới chuyên gia thành công!");
+        alert("Project invitation successfully sent to the expert!");
       } else {
-        alert("Đăng dự án thành công!");
+        alert("Project posted successfully!");
       }
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Đăng dự án thất bại. Vui lòng thử lại!");
+      alert(err.message || "Failed to post project. Please try again!");
     } finally {
       setSubmitting(false);
     }
@@ -326,7 +350,7 @@ export function PostProject() {
   }, [formData.durationValue, formData.durationUnit]);
 
 
-  // Danh sách categories và specializations từ API
+  // List of categories and specializations from API
   const categoriesList = useMemo(() => {
     const list = [];
     apiCategories.forEach(cat => {
@@ -420,18 +444,24 @@ export function PostProject() {
                   <textarea
                     name="description" id="description"
                     value={formData.description}
-                    onChange={(e) => updateField("description", e.target.value)}
+                    onChange={(e) => {
+                      e.target.style.height = "inherit";
+                      e.target.style.height = `${e.target.scrollHeight}px`;
+                      updateField("description", e.target.value);
+                    }}
                     rows={4}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-y"
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden"
                     placeholder="Describe your project requirements, goals, and expected outcomes..."
                     required
                   />
                 </div>
                 <FileUploadDropzone
                   files={attachments}
-                  onFilesChange={setAttachments}
-                  label="Project Attachments"
-                  helperText="Upload requirement documents, references, screenshots, or supporting files for experts to review."
+                  onFilesChange={(newFiles) => setAttachments(newFiles.slice(0, 1))}
+                  multiple={false}
+                  maxFiles={1}
+                  label="Project Attachments (Max 1 file)"
+                  helperText="Upload SRS, BRD, design mockups, or specification document for experts to review."
                 />
               </div>
             </SectionCard>
@@ -572,10 +602,16 @@ export function PostProject() {
                         </label>
                         <textarea
                           value={uc.description}
-                          onChange={(e) => { const updated = [...useCases]; updated[index].description = e.target.value; setUseCases(updated); }}
+                          onChange={(e) => { 
+                            e.target.style.height = "inherit";
+                            e.target.style.height = `${e.target.scrollHeight}px`;
+                            const updated = [...useCases]; 
+                            updated[index].description = e.target.value; 
+                            setUseCases(updated); 
+                          }}
                           placeholder="Detailed description of this user story..."
                           rows={2}
-                          className="w-full px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card resize-y"
+                          className="w-full px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card resize-none overflow-hidden"
                           required
                         />
                       </div>
@@ -585,8 +621,8 @@ export function PostProject() {
                         </label>
                         <input
                           type="number" min="1"
-                          value={uc.originalDurationDays || 1}
-                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
+                          value={uc.originalDurationDays || ""}
+                          onChange={(e) => { const updated = [...useCases]; updated[index].originalDurationDays = e.target.value === "" ? "" : Math.max(1, parseInt(e.target.value) || 1); setUseCases(updated); }}
                           className="w-32 px-4 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary/50 focus:border-brand-primary bg-card"
                           required
                         />
@@ -599,29 +635,14 @@ export function PostProject() {
           </AnimatedReveal>
 
           {/* Timeline Summary Box */}
-          <div className={`rounded-xl border px-4 py-3 text-sm ${
-            isDeadlineValid
-              ? "bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300"
-              : "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-800 dark:text-red-300"
-          }`}>
+          <div className="rounded-xl border px-4 py-3 text-sm bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300">
             <div className="flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
               Timeline Summary
             </div>
             <p className="mt-1">
               Total User Story Duration: <strong>{totalUseCaseDays} days</strong>
-              {" · "}
-              Project Timeline: <strong>
-                {formData.durationUnit === "Days"
-                  ? `${formData.durationValue} days`
-                  : `${unitLabel(formData.durationValue, formData.durationUnit)} (~${configuredDeadlineDays} days)`}
-              </strong>
             </p>
-            <span className="block mt-1 font-medium text-xs opacity-80">
-              {isDeadlineValid
-                ? "✓ Timeline is valid. You can increase the project timeline but not reduce it below the total user story duration."
-                : "✗ Project timeline must be at least the total user story duration. Increase the timeline or reduce user story durations."}
-            </span>
           </div>
 
           <AnimatedReveal delay={3}>
@@ -650,39 +671,27 @@ export function PostProject() {
                     <p className="text-xs text-muted-foreground mt-1">Total budget for this project</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline</label>
+                    <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline (auto from user stories)</label>
                     <div className="flex gap-2">
                       <input
                         type="number" name="durationValue" id="durationValue"
                         min="1" step="1"
-                        value={formData.durationValue || ""}
-                        onChange={(e) => updateField("durationValue", e.target.value === "" ? 1 : Number(e.target.value))}
-                        onBlur={() => {
-                          const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-                          if (currentDays < totalUseCaseDays) {
-                            updateField("durationValue", daysToUnit(totalUseCaseDays, formData.durationUnit));
-                          }
-                        }}
-                        className="w-24 px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
-                        placeholder="1"
+                        value={totalUseCaseDays || 1}
+                        readOnly
+                        className="w-24 px-4 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
                       />
                       <select
                         name="durationUnit" id="durationUnit"
                         value={formData.durationUnit}
-                        onChange={(e) => {
-                          const newUnit = e.target.value;
-                          const currentDays = unitToDays(formData.durationValue, formData.durationUnit);
-                          const newValue = daysToUnit(Math.max(currentDays, totalUseCaseDays), newUnit);
-                          setFormData(prev => ({ ...prev, durationUnit: newUnit, durationValue: newValue }));
-                        }}
-                        className="flex-1 px-3 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary bg-card"
+                        disabled
+                        className="flex-1 px-3 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
                       >
                         <option value="Days">Days</option>
                         <option value="Months">Months</option>
                         <option value="Years">Years</option>
                       </select>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Must be ≥ total user story duration</p>
+                    <p className="text-xs text-muted-foreground mt-1">Auto-calculated from total user story duration</p>
                   </div>
                 </div>
 
@@ -700,6 +709,7 @@ export function PostProject() {
               </div>
             </SectionCard>
           </AnimatedReveal>
+
 
           {/* Submit & AI Recommend Buttons */}
           <div className="flex gap-4 pt-2 pb-2">
@@ -859,7 +869,7 @@ export function PostProject() {
                     onClick={() => setVisibleCount((prev) => prev + 3)}
                     className="w-full h-11 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-xl text-sm font-bold transition-colors text-center border border-border mt-2"
                   >
-                    Thêm chuyên gia
+                    Add Expert
                   </button>
                 )}
               </div>

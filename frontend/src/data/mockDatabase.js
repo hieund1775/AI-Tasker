@@ -1991,15 +1991,15 @@ export function checkProposalDeadlines() {
       const jobPost = _getById("jobPosts", prop.jobPostId);
       const expert = _getById("users", prop.expertId);
       const expertName = expert?.fullName || "Expert";
-      const jobTitle = jobPost?.title || "Công việc";
+      const jobTitle = jobPost?.title || "Job / Project";
       
       if (diffDays >= 7) {
         _update("proposals", prop.id, { status: "expired" });
         
         _create("notifications", {
           userId: prop.expertId,
-          title: `Đề xuất cho công việc ${jobTitle} đã quá hạn`,
-          message: `Đề xuất của bạn cho dự án "${jobTitle}" đã tự động bị hủy do quá 7 ngày Client không phản hồi.`,
+          title: `Proposal for job ${jobTitle} has expired`,
+          message: `Your proposal for project "${jobTitle}" has been automatically cancelled because the Client did not respond for 7 days.`,
           type: "proposal",
           isRead: false,
           linkTo: `/expert/proposals/${prop.id}`,
@@ -2009,8 +2009,8 @@ export function checkProposalDeadlines() {
         if (jobPost) {
           _create("notifications", {
             userId: jobPost.clientId,
-            title: `Đề xuất từ ${expertName} đã bị tự động hủy`,
-            message: `Đề xuất từ chuyên gia ${expertName} cho công việc "${jobTitle}" đã bị tự động hủy do quá hạn 7 ngày.`,
+            title: `Proposal from ${expertName} has been automatically cancelled`,
+            message: `Proposal from expert ${expertName} for job "${jobTitle}" has been automatically cancelled due to 7-day expiration.`,
             type: "proposal",
             isRead: false,
             linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
@@ -2023,8 +2023,8 @@ export function checkProposalDeadlines() {
         if (jobPost) {
           _create("notifications", {
             userId: jobPost.clientId,
-            title: `Cảnh báo quá hạn đề xuất từ ${expertName}`,
-            message: `Bạn có đề xuất từ ${expertName} sắp quá hạn vào ngày mai. Vui lòng xử lý ngay trước khi hệ thống tự động hủy đơn.`,
+            title: `Warning of expiring proposal from ${expertName}`,
+            message: `You have a proposal from ${expertName} expiring tomorrow. Please process it before the system automatically cancels it.`,
             type: "proposal",
             isRead: false,
             linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
@@ -2056,8 +2056,8 @@ export function deleteProposal(id) {
         const clientName = clientUser?.fullName || "Client";
         _create("notifications", {
           userId: prop.expertId,
-          title: `${clientName} | ${jobPost.title} | Đã Decline Proposal`,
-          message: `${clientName} đã từ chối proposal của bạn cho dự án ${jobPost.title}.`,
+          title: `${clientName} | ${jobPost.title} | Declined Proposal`,
+          message: `${clientName} has declined your proposal for project ${jobPost.title}.`,
           type: "proposal",
           isRead: false,
           linkTo: `/expert/proposals`,
@@ -2081,12 +2081,12 @@ export function createProposal(data) {
         const clientUser = _getById("users", jobPost.clientId);
         const clientName = clientUser?.fullName || "Client";
         const formattedDate = formatViDate(jobPost.createdAt || new Date().toISOString());
-        const descriptionStr = `Lĩnh vực: ${jobPost.category || jobPost.aiCategoryDomain?.name || "AI"} - ${jobPost.description}`;
+        const descriptionStr = `Category: ${jobPost.category || jobPost.aiCategoryDomain?.name || "AI"} - ${jobPost.description}`;
         
         _create("notifications", {
           userId: prop.expertId,
           title: `${clientName} | ${jobPost.title} | Invite Into Job`,
-          message: `mô tả: ${jobPost.description || ""} | ngày đăng: ${formattedDate} | số tiền: $${jobPost.budget}`,
+          message: `description: ${jobPost.description || ""} | post date: ${formattedDate} | budget: ${jobPost.budget}`,
           type: "proposal",
           isRead: false,
           linkTo: `/expert/jobs/${jobPost.id}`,
@@ -2100,8 +2100,8 @@ export function createProposal(data) {
 
         _create("notifications", {
           userId: jobPost.clientId,
-          title: `Đề xuất mới cho công việc: ${jobPost.title}`,
-          message: `Chuyên gia ${expertName} vừa gửi một đề xuất mới cho công việc của bạn.`,
+          title: `New proposal for job: ${jobPost.title}`,
+          message: `Expert ${expertName} has submitted a new proposal for your job.`,
           type: "proposal",
           isRead: false,
           linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
@@ -2127,8 +2127,8 @@ export function updateProposal(id, data) {
 
           _create("notifications", {
             userId: jobPost.clientId,
-            title: `Cập nhật đề xuất cho công việc: ${jobPost.title}`,
-            message: `Chuyên gia ${expertName} đã cập nhật và gửi lại đề xuất theo yêu cầu.`,
+            title: `Updated proposal for job: ${jobPost.title}`,
+            message: `Expert ${expertName} updated and resubmitted the proposal as requested.`,
             type: "proposal",
             isRead: false,
             linkTo: `/client/my-projects?projectId=${jobPost.id}&view=proposals`,
@@ -2166,8 +2166,8 @@ export function updateProposalStatus(id, status) {
 
           _create("notifications", {
             userId: jobPost.clientId,
-            title: `${expertName} | Dự án: ${jobPost.title}`,
-            message: `Đã từ chối Invite, ngày từ chối: ${formatDateTime}`,
+            title: `${expertName} | Project: ${jobPost.title}`,
+            message: `Declined Invite, date of decline: ${formatDateTime}`,
             type: "proposal",
             isRead: false,
             linkTo: `/client/my-projects?projectId=${jobPost.id}&view=details`,
@@ -2176,8 +2176,8 @@ export function updateProposalStatus(id, status) {
         } else if (status?.toLowerCase() === "accepted" || status?.toLowerCase() === "pending_escrow" || status?.toLowerCase() === "pending_pay") {
           _create("notifications", {
             userId: updated.expertId,
-            title: `Đề xuất được chấp nhận | Dự án: ${jobPost.title}`,
-            message: `Chúc mừng! Đề xuất của bạn đã được khách hàng ${clientName} chấp nhận.`,
+            title: `Proposal accepted | Project: ${jobPost.title}`,
+            message: `Congratulations! Your proposal has been accepted by client ${clientName}.`,
             type: "proposal",
             isRead: false,
             linkTo: `/expert/proposals/${updated.id}`,
@@ -2191,8 +2191,8 @@ export function updateProposalStatus(id, status) {
               _update("proposals", other.id, { status: "rejected" });
               _create("notifications", {
                 userId: other.expertId,
-                title: `Đề xuất bị từ chối | Dự án: ${jobPost.title}`,
-                message: `Rất tiếc, khách hàng ${clientName} đã từ chối đề xuất của bạn cho dự án này.`,
+                title: `Proposal rejected | Project: ${jobPost.title}`,
+                message: `Sorry, client ${clientName} has declined your proposal for this project.`,
                 type: "proposal",
                 isRead: false,
                 linkTo: `/expert/proposals/${other.id}`,
@@ -2203,8 +2203,8 @@ export function updateProposalStatus(id, status) {
         } else if (status?.toLowerCase() === "declined" || status?.toLowerCase() === "rejected") {
           _create("notifications", {
             userId: updated.expertId,
-            title: `Đề xuất bị từ chối | Dự án: ${jobPost.title}`,
-            message: `Rất tiếc, khách hàng ${clientName} đã từ chối đề xuất của bạn cho dự án này.`,
+            title: `Proposal rejected | Project: ${jobPost.title}`,
+            message: `Sorry, client ${clientName} has declined your proposal for this project.`,
             type: "proposal",
             isRead: false,
             linkTo: `/expert/proposals/${updated.id}`,
@@ -2241,8 +2241,8 @@ export function submitProjectFinalWork(projectId, expertName, projectLink, proje
     const expName = expertUser?.fullName || expertName || "Expert";
     _create("notifications", {
       userId: project.clientId,
-      title: `Bàn giao sản phẩm tổng | Dự án: ${project.title}`,
-      message: `Chuyên gia ${expName} đã nộp sản phẩm tổng thể cho dự án của bạn. Vui lòng kiểm tra và duyệt.`,
+      title: `Final delivery | Project: ${project.title}`,
+      message: `Expert ${expName} has submitted the overall deliverables for your project. Please review and approve.`,
       type: "system",
       isRead: false,
       linkTo: `/client/projects/${project.id}`,
@@ -2296,8 +2296,8 @@ export function declineProjectFinalDelivery(projectId, clientName, feedback) {
     const cliName = clientUser?.fullName || clientName || "Client";
     _create("notifications", {
       userId: project.assignedExpertId,
-      title: `Từ chối sản phẩm tổng | Dự án: ${project.title}`,
-      message: `Khách hàng ${cliName} đã từ chối sản phẩm tổng thể. Lý do: ${feedback || "Không có chi tiết"}`,
+      title: `Final work declined | Project: ${project.title}`,
+      message: `Client ${cliName} declined the final deliverables. Reason: ${feedback || "No details provided"}`,
       type: "system",
       isRead: false,
       linkTo: `/expert/projects/${project.id}`,
@@ -2336,8 +2336,8 @@ export function createTransaction(data) {
         const proposalId = proposalsList[0]?.id || "";
         _create("notifications", {
           userId: project.assignedExpertId,
-          title: `Ký quỹ thành công | Dự án: ${project.title}`,
-          message: `Khách hàng ${clientName} đã nạp tiền ký quỹ thành công. Dự án chính thức bắt đầu!`,
+          title: `Escrow deposited successfully | Project: ${project.title}`,
+          message: `Client ${clientName} deposited escrow successfully. The project has officially started!`,
           type: "payment",
           isRead: false,
           linkTo: `/expert/proposals/${proposalId}`,
@@ -2371,12 +2371,12 @@ export function createReport(data) {
       const project = _getById("projects", report.projectId);
       if (project) {
         const reporterName = reporter?.fullName || "User";
-        const reason = report.reason || report.description || "Tố cáo/báo cáo dự án";
+        const reason = report.reason || report.description || "Project dispute/report";
         if (reporterRole === "client") {
           _create("notifications", {
             userId: project.assignedExpertId || project.expertId,
-            title: `${reporterName} | Tố cáo dự án | Dự án: ${project.title}`,
-            message: `Chi tiết tố cáo: ${reason}`,
+            title: `${reporterName} | Project dispute | Project: ${project.title}`,
+            message: `Dispute details: ${reason}`,
             type: "dispute",
             isRead: false,
             linkTo: `/expert/projects/${project.id}`,
@@ -2385,8 +2385,8 @@ export function createReport(data) {
         } else if (reporterRole === "expert") {
           _create("notifications", {
             userId: project.clientId,
-            title: `${reporterName} | Báo cáo dự án | Dự án: ${project.title}`,
-            message: `Lý do báo cáo: ${reason}`,
+            title: `${reporterName} | Project report | Project: ${project.title}`,
+            message: `Report reason: ${reason}`,
             type: "dispute",
             isRead: false,
             linkTo: `/client/projects/${project.id}`,
@@ -2441,8 +2441,8 @@ export function createMessage(data) {
       const convId = msg.senderId;
       _create("notifications", {
         userId: msg.receiverId,
-        title: `${senderName} | Đang gửi tin nhắn`,
-        message: msg.content || msg.text || "Đang gửi tin nhắn cho bạn.",
+        title: `${senderName} | Sending message`,
+        message: msg.content || msg.text || "Is sending a message to you.",
         type: "message",
         isRead: false,
         linkTo: `/messenger/${convId}`,

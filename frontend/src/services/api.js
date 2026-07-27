@@ -95,15 +95,13 @@ async function request(endpoint, options = {}) {
   }
   clearTimeout(timer);
 
-  // NOTE: We do NOT auto-clear the token on 401 here.
-  // Many admin/owner dashboard APIs may return 401 if the backend endpoints
-  // are not yet implemented or the user lacks permission for individual
-  // resources. Only the auth-specific flows should trigger a session clear.
-  // Dashboard & resource pages handle 401s gracefully via .catch().
+  // NOTE: We do NOT auto-clear the token on 401 here to prevent random logouts.
+  // Many dashboard APIs may return 401 if the user lacks permission or the endpoint is unimplemented.
+  // The UI will handle the error gracefully via .catch() or ErrorBoundaries.
   if (response.status === 401) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-    }
+    // if (typeof window !== "undefined") {
+    //   window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    // }
     throw new ApiError("Authentication required for this resource.", 401);
   }
 
@@ -125,6 +123,21 @@ async function request(endpoint, options = {}) {
     const message =
       (data && (data.message || data.title || data.error)) ||
       `Request failed with status ${response.status}`;
+
+    const msgLower = String(message || "").toLowerCase();
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      msgLower.includes("inactive") ||
+      msgLower.includes("locked") ||
+      msgLower.includes("suspended") ||
+      msgLower.includes("banned")
+    ) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      }
+    }
+
     throw new ApiError(message, response.status, data);
   }
 
@@ -190,7 +203,7 @@ function del(endpoint, options = {}) {
   return request(endpoint, { ...options, method: "DELETE" });
 }
 
-// ── Helpers lưu/đọc use cases từ localStorage (dự phòng khi BE chưa serialize jobRequirements) ──
+// ── Helpers to save/read use cases from localStorage (backup when BE has not serialized jobRequirements) ──
 export function saveJobUseCases(jobId, useCases) {
   try {
     localStorage.setItem(`aitasker_job_usecases_${jobId}`, JSON.stringify(useCases));
@@ -200,6 +213,20 @@ export function saveJobUseCases(jobId, useCases) {
 function loadJobUseCases(jobId) {
   try {
     const raw = localStorage.getItem(`aitasker_job_usecases_${jobId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+// ── Helpers to save/read job attachments from localStorage (backup when BE has not stored AttachmentUrl) ──
+export function saveJobAttachments(jobId, attachments) {
+  try {
+    localStorage.setItem(`aitasker_job_attachments_${jobId}`, JSON.stringify(attachments));
+  } catch (e) { }
+}
+
+function loadJobAttachments(jobId) {
+  try {
+    const raw = localStorage.getItem(`aitasker_job_attachments_${jobId}`);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
@@ -228,17 +255,33 @@ function mapJobPost(jp) {
     ).filter(Boolean);
   }
 
-  // 1. Ưu tiên jobPostTasks từ API (nếu BE lưu vào đây)
+  // 1. Prioritize jobPostTasks from API (if BE saves them here)
   const tasksList = jp.jobPostTasks || jp.JobPostTasks;
   const implementationStr = jp.implementation || jp.Implementation;
 
+  let parsedImplementation = [];
+  if (implementationStr) {
+    try {
+      const parsed = JSON.parse(implementationStr);
+      if (Array.isArray(parsed)) {
+        parsedImplementation = parsed;
+      }
+    } catch (e) {
+      console.warn("Failed to parse implementation string", e);
+    }
+  }
+  const cachedUseCases = loadJobUseCases(jp.id || jp.Id) || [];
+
   if (tasksList && Array.isArray(tasksList) && tasksList.length > 0) {
-    jp.useCases = tasksList.map(task => {
+    jp.useCases = tasksList.map((task, idx) => {
       const miniTasks = task.jobPostMiniTasks || task.JobPostMiniTasks || [];
+      const parsedUc = parsedImplementation.find(u => (u.Title || u.title) === (task.title || task.Title)) || parsedImplementation[idx];
+      const cachedUc = cachedUseCases.find(c => c.title === (task.title || task.Title)) || cachedUseCases[idx];
+      const descVal = task.description || task.Description || parsedUc?.Description || parsedUc?.description || cachedUc?.description || "";
       return {
         id: task.id || task.Id || `uc-${Math.random()}`,
         title: task.title || task.Title || "",
-        description: task.description || task.Description || "",
+        description: descVal,
         originalDurationDays: task.duration || task.Duration || 1,
         durationDays: task.duration || task.Duration || 1,
         requirements: miniTasks.map(mt => ({
@@ -248,37 +291,38 @@ function mapJobPost(jp) {
         }))
       };
     });
-  } else if (implementationStr) {
-    // 2. Thử parse field implementation (JSON string lưu use cases)
-    try {
-      const parsed = JSON.parse(implementationStr);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        jp.useCases = parsed.map(uc => {
-          const miniTasks = uc.MiniTasks || uc.miniTasks || uc.requirements || [];
-          return {
-            id: uc.id || uc.Id || `uc-${Math.random()}`,
-            title: uc.Title || uc.title || "",
-            description: uc.Description || uc.description || "",
-            originalDurationDays: uc.Duration || uc.durationDays || 1,
-            durationDays: uc.Duration || uc.durationDays || 1,
-            requirements: miniTasks.map(mt => ({
-              id: mt.id || mt.Id || `mt-${Math.random()}`,
-              title: mt.Title || mt.title || "",
-              durationDays: mt.Duration || mt.durationDays || 1
-            }))
-          };
-        });
-      } else {
-        jp.useCases = [];
-      }
-    } catch (e) {
-      jp.useCases = [];
-    }
+  } else if (parsedImplementation.length > 0) {
+    // 2. Try parsing field implementation (JSON string storing use cases)
+    jp.useCases = parsedImplementation.map((uc, idx) => {
+      const miniTasks = uc.MiniTasks || uc.miniTasks || uc.requirements || [];
+      const cachedUc = cachedUseCases.find(c => c.title === (uc.Title || uc.title)) || cachedUseCases[idx];
+      return {
+        id: uc.id || uc.Id || `uc-${Math.random()}`,
+        title: uc.Title || uc.title || "",
+        description: uc.Description || uc.description || cachedUc?.description || "",
+        originalDurationDays: uc.Duration || uc.duration || uc.durationDays || 1,
+        durationDays: uc.Duration || uc.duration || uc.durationDays || 1,
+        requirements: miniTasks.map(mt => ({
+          id: mt.id || mt.Id || `mt-${Math.random()}`,
+          title: mt.Title || mt.title || "",
+          durationDays: mt.Duration || mt.duration || mt.durationDays || 1
+        }))
+      };
+    });
   } else {
-    // 3. Fallback: localStorage (lưu lúc post trên máy này)
-    const cached = loadJobUseCases(jp.id || jp.Id);
-    jp.useCases = cached || [];
+    // 3. Fallback: localStorage (saved during post on this machine)
+    jp.useCases = cachedUseCases;
   }
+
+  // Inject attachments from localStorage fallback
+  if (!jp._attachments) {
+    const id = jp.id || jp.Id;
+    if (id) {
+      const cached = loadJobAttachments(id);
+      if (cached) jp._attachments = cached;
+    }
+  }
+
   return jp;
 }
 
@@ -309,7 +353,7 @@ export const api = {
       };
       return post(endpoint, payload, { authenticated: false });
     },
-    // API Hoàn thiện Profile
+    // Profile Completion API
     completeProfile: (userId, data) =>
       put(`/users/${userId}/expert-profile`, data),
     logout: () => post("/auth/logout"),
@@ -317,6 +361,10 @@ export const api = {
       post("/auth/forgot-password", { email }, { authenticated: false }),
     resetPassword: (token, newPassword) =>
       post("/auth/reset-password", { resetToken: token, newPassword }, { authenticated: false }),
+    verifyEmail: (data) => 
+      post("/users/verify-email", data, { authenticated: false }),
+    resendVerification: (data) =>
+      post("/users/resend-verification", data, { authenticated: false }),
     refreshToken: () => {
       let userId = null;
       try {
@@ -331,7 +379,7 @@ export const api = {
     },
   },
 
-  // ĐÃ SỬA CHUẨN BACKEND CHO NHÓM USERS
+  // FIXED BACKEND STANDARD FOR USERS GROUP
   users: {
     getById: (id) => get(`/Users/${id}`),
     list: (params) => {
@@ -357,10 +405,7 @@ export const api = {
     getClientProjects: (id) => get(`/Projects/client/${id}`).catch(() => []),
     getExpertProjects: (id) => get(`/Projects/expert/${id}`).catch(() => []),
 
-    // Resolved from auth user profile on the frontend
-    getMe: () => {
-      return Promise.resolve(null);
-    },
+    getMe: () => get("/users/me"),
 
     systemDashboard: () => get("/Admin/owner/system-dashboard"),
     createStaff: (data) => post("/Admin/owner/create-staff", data),
@@ -368,36 +413,18 @@ export const api = {
   },
 
   transactions: {
-    getStats: (userId) => {
-      return Promise.all([
-        get(`/Projects/client/${userId}`).catch(() => []),
-        get("/JobPosts").catch(() => []),
-        get(`/Proposals/expert/${userId}`).catch(() => []),
-      ]).then(([clientProjects, allJobPosts, expertProposals]) => {
-        const clientJobs = Array.isArray(allJobPosts)
-          ? allJobPosts.filter((j) => j.clientId === userId)
-          : [];
-        return {
-          posted: clientJobs.length,
-          active: clientProjects.filter(
-            (p) => p.status?.toLowerCase() === "inprogress",
-          ).length,
-          completed: clientProjects.filter(
-            (p) => p.status?.toLowerCase() === "completed",
-          ).length,
-          proposals: expertProposals.length,
-          totalSpent: 0,
-        };
-      });
-    },
+    getStats: (userId) => 
+      get(`/users/${userId}/dashboard-stats`).catch(() => ({
+        posted: 0, active: 0, completed: 0, proposals: 0, totalSpent: 0
+      })),
   },
 
-  // ĐÃ SỬA LẠI ĐỂ GỌI SANG ĐƯỜNG DẪN /Users THAY VÌ /experts
+  // MODIFIED TO CALL /Users ENDPOINT INSTEAD OF /experts
   experts: {
     // API Check Profile
     checkProfile: () => get("/Users/test-expert-profile"),
 
-    // Lấy thông tin profile của chuyên gia
+    // Retrieve expert profile info
     getProfile: (id) => get(`/Users/${id}/expert-profile`),
 
     // TODO: Backend endpoint not yet confirmed — placeholder
@@ -406,11 +433,19 @@ export const api = {
       return get(`/Users/${id}`).catch(() => null);
     },
 
-    // Lấy danh sách chuyên gia gọi xuống /users/experts mới mở của BE
+    // Retrieve expert list from the new /users/experts BE endpoint
     list: (params) => {
       const query = buildQuery(params);
       return get(`/users/experts${query}`);
     },
+  },
+
+  reviews: {
+    createReview: (data) => post("/Reviews", data),
+    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`),
+    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`),
+    updateReview: (reviewId, data) => put(`/Reviews/${reviewId}`, data),
+    replyReview: (reviewId, data) => post(`/Reviews/${reviewId}/reply`, data),
   },
 
   projects: {
@@ -421,7 +456,8 @@ export const api = {
     getById: (id) => get(`/Projects/${id}`),
     getByExpert: (expertId) => get(`/Projects/expert/${expertId}`).catch(() => []),
     getByClient: (clientId) => get(`/Projects/client/${clientId}`).catch(() => []),
-    updateStatus: (id, status) => put(`/Projects/${id}/status?status=${encodeURIComponent(status)}`),
+    updateStatus: (id, status) => put(`/Projects/${id}/status`, { status }),
+    updateMetadata: (id, metadata) => put(`/Projects/${id}/metadata`, { metadata }),
     submitWork: (id, data) => {
       const body = typeof data === "string" ? { projectLink: data, projectFile: "" } : {
         projectLink: data?.projectLink || "",
@@ -540,8 +576,8 @@ export const api = {
 
   timeline: {
     get: (projectId) => get(`/Projects/${projectId}/tasks`),
-    getActivityLogs: (_projectId) => Promise.resolve(null),
-    getProgress: (_projectId) => Promise.resolve(0),
+    getActivityLogs: (projectId) => get(`/Projects/${projectId}/activity-logs`),
+    getProgress: (_projectId) => Promise.resolve(0), // Handled by FE useProjectProgress
   },
 
   tasks: {
@@ -550,20 +586,18 @@ export const api = {
     update: (taskId, status) => put(`/Projects/tasks/${taskId}/status?status=${encodeURIComponent(status)}`),
     updateMiniTask: (miniTaskId, data) => put(`/Projects/minitasks/${miniTaskId}`, data),
     deleteMiniTask: (miniTaskId) => del(`/Projects/minitasks/${miniTaskId}`),
-    addLog: (_taskId, _log) => Promise.resolve(null),
-    addFeedback: (_taskId, _feedback) => Promise.resolve(null),
-    getProgress: (_taskId) => Promise.resolve(0),
+    addLog: (taskId, log) => post(`/Projects/tasks/${taskId}/logs`, log),
+    addFeedback: (taskId, feedback) => post(`/Projects/tasks/${taskId}/feedback`, feedback),
+    getProgress: (_taskId) => Promise.resolve(0), // Handled by FE useProjectProgress
   },
 
   extensions: {
-    // TODO: Connect to real API — post("/extensions", { projectId, ...data })
-    request: (_projectId, _data) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/extensions/{extensionId}", data)
-    resolve: (_projectId, _extensionId, _data) => Promise.resolve(null),
+    request: (projectId, data) => post(`/Projects/${projectId}/extensions`, data),
+    resolve: (_projectId, extensionId, data) => put(`/Projects/extensions/${extensionId}/resolve`, data),
   },
 
   payments: {
-    // Lấy số dư ví từ GET /Users/{id} (trả về field wallet.balance)
+    // Retrieve wallet balance from GET /Users/{id} (returns wallet.balance field)
     getWallet: (userId) =>
       get(`/Users/${userId}`).then((u) => {
         const w = u?.wallet || u?.Wallet;
@@ -589,7 +623,7 @@ export const api = {
       post(`/users/${userId}/withdraw`, {
         amount: Number(amount)
       }),
-    // ZaloPay create-order: trả về { orderUrl } để redirect sang trang ZaloPay
+    // ZaloPay create-order: returns { orderUrl } to redirect to ZaloPay page
     createPaymentOrder: (userId, amount) =>
       post("/payment/create-order", {
         userId,
@@ -614,7 +648,7 @@ export const api = {
 
   proposals: {
     create: (data) => {
-      // API /api/Proposals/submit-proposal nhận multipart/form-data
+      // API /api/Proposals/submit-proposal accepts multipart/form-data
       const formData = new FormData();
       formData.append("JobPostId", data.jobPostId);
       formData.append("ExpertId", data.expertId);
@@ -623,7 +657,7 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
-      // Append files thực tế nếu có, hoặc để trống
+      // Append actual files if present, or leave empty
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
       } else {
@@ -670,6 +704,8 @@ export const api = {
   // Real AI backend endpoints
   ai: {
     sendSession: (data) => post("/AiChat/send-session", data, { timeout: 60000 }),
+    generateExpertIntroduction: (data) => post("/AiChat/generate-expert-introduction", data, { timeout: 60000 }),
+    analyzeMinitasks: (data) => post("/AiChat/analyze-minitasks", data, { timeout: 60000 }),
     uploadChatFile: (file) => {
       const fd = new FormData();
       fd.append("file", file);
@@ -691,11 +727,24 @@ export const api = {
 export function enrichFileUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+
+  let cleanPath = url.trim();
+  if (!cleanPath.startsWith("/")) {
+    cleanPath = "/" + cleanPath;
+  }
+  if (
+    !cleanPath.startsWith("/uploads/") &&
+    !cleanPath.startsWith("/job_files/") &&
+    !cleanPath.startsWith("/api/")
+  ) {
+    cleanPath = "/uploads" + cleanPath;
+  }
+
   try {
     const parsed = new URL(API_BASE_URL);
-    return `${parsed.protocol}//${parsed.host}${url}`;
+    return `${parsed.origin}${cleanPath}`;
   } catch (e) {
-    return `https://aitaskerbe-production.up.railway.app${url}`;
+    return `https://aitaskerbe-production.up.railway.app${cleanPath}`;
   }
 }
 
@@ -753,6 +802,7 @@ export function parseProposalWbs(rawImplementation, proposal) {
     dependencies: parsed?.dependencies || "",
     durationDays: parsed?.durationDays || proposal?.estimatedDuration || 0,
     tasks: tasks,
+    attachments: parsed?.attachments || [],
     proposedTasks: parsed?.proposedTasks || [],
     useCaseBreakdown: parsed?.useCaseBreakdown || [],
     totalBidAmount: parsed?.totalBidAmount || proposal?.bidAmount || 0,

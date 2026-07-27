@@ -11,12 +11,16 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { getReports } from "../../../services/reportService.js";
 import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function AdminDashboard() {
+  const { user } = useAuth();
+  const isOwner = (user?.role || user?.Role || "").toLowerCase() === "owner";
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeProjects: 0,
@@ -33,7 +37,7 @@ export function AdminDashboard() {
     const results = await Promise.allSettled([
       api.users.list({ timeout: DASHBOARD_TIMEOUT }),
       getReports({ status: "Pending" }),
-      api.users.systemDashboard().catch(() => null),
+      isOwner ? api.users.systemDashboard().catch(() => null) : Promise.resolve(null),
       api.payments.getTransactions().catch(() => []),
     ]);
 
@@ -48,26 +52,6 @@ export function AdminDashboard() {
         .map(t => String(t.projectId || t.ProjectId).toLowerCase())
     );
 
-    let totalRevenue = 0;
-    transactions.forEach(t => {
-      const lType = t.type?.toLowerCase() || t.Type?.toLowerCase();
-      let fee = 0;
-      if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-        fee = Number(t.amount || t.Amount || 0) * 5 / 95;
-      } else if (lType === "platformfee") {
-        fee = Math.abs(Number(t.amount || t.Amount || 0));
-      }
-      totalRevenue += fee;
-    });
-
-    localReleases.forEach(r => {
-      const releaseProjIdLower = String(r.projectId).toLowerCase();
-      const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
-      if (!hasDbTx) {
-        totalRevenue += Number(r.amount) * 0.05;
-      }
-    });
-
     const usersData = (usersSettled.status === "fulfilled" && usersSettled.value)
       ? (usersSettled.value.data || usersSettled.value)
       : [];
@@ -75,6 +59,7 @@ export function AdminDashboard() {
 
     // Fetch projects for all users since backend has no GetAllProjects
     let activeProjectsCount = 0;
+    const allFetchedProjects = [];
     try {
       const projectPromises = [];
       usersData.forEach(u => {
@@ -92,6 +77,12 @@ export function AdminDashboard() {
             const pId = String(p.id || p.Id).toLowerCase();
             if (!seenIds.has(pId)) {
               seenIds.add(pId);
+              allFetchedProjects.push(p);
+              const dbStatus = (p.status || p.Status || "").toLowerCase().trim();
+              const isTerminal = ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped"].includes(dbStatus);
+              if (isTerminal) {
+                try { localStorage.removeItem(`project_status_${pId}`); } catch (e) {}
+              }
               const localStatus = localStorage.getItem(`project_status_${pId}`) || p.status || p.Status || "";
               const statusLower = localStatus.toLowerCase().replace(/[\s_]+/g, "");
               if (statusLower === "inprogress" || statusLower === "in_progress") {
@@ -103,6 +94,68 @@ export function AdminDashboard() {
       });
     } catch (err) {
       console.warn("fetchStats projects fetch failed:", err);
+    }
+
+    // Build project map with budgets to calculate exact platform fee
+    const projectMap = new Map();
+    allFetchedProjects.forEach(p => {
+      const projId = String(p.id || p.Id).toLowerCase();
+      const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+      projectMap.set(projId, { budget });
+    });
+
+    // Build set of projects that have an explicit PlatformFee transaction
+    const projectsWithPlatformFee = new Set();
+    transactions.forEach(t => {
+      const lType = (t.type || t.Type || "").toLowerCase();
+      const projId = t.projectId || t.ProjectId;
+      if (projId && (lType === "platformfee" || lType === "platform_fee")) {
+        projectsWithPlatformFee.add(String(projId).toLowerCase());
+      }
+    });
+
+    const getPlatformFee = (t) => {
+      const lType = (t.type || t.Type || "").toLowerCase();
+      const projId = t.projectId || t.ProjectId;
+      const projIdLower = projId ? String(projId).toLowerCase() : null;
+      const tAmount = Number(t.amount || t.Amount || 0);
+
+      if (lType === "platformfee" || lType === "platform_fee") {
+        return Math.abs(tAmount);
+      }
+
+      if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
+        if (projIdLower && projectsWithPlatformFee.has(projIdLower)) {
+          return 0;
+        }
+        const projDetails = projIdLower ? projectMap.get(projIdLower) : null;
+        if (projDetails && projDetails.budget > 0) {
+          return projDetails.budget * 0.05;
+        }
+        return tAmount * 5 / 95;
+      }
+
+      return 0;
+    };
+
+    const systemDash = systemDashboardSettled.status === "fulfilled" ? systemDashboardSettled.value : null;
+    let totalRevenue = Math.abs(Number(systemDash?.totalPlatformRevenue ?? systemDash?.TotalPlatformRevenue ?? 0));
+
+    if (totalRevenue === 0) {
+      const systemHistories = systemDash?.transactionHistories || systemDash?.TransactionHistories || [];
+      systemHistories.forEach(item => {
+        totalRevenue += Math.abs(Number(item.fee ?? item.Fee ?? item.amount ?? item.Amount ?? 0));
+      });
+    }
+
+    if (totalRevenue === 0) {
+      transactions.forEach(t => {
+        const lType = (t.type || t.Type || "").toLowerCase();
+        const tPlatformFee = Math.abs(Number(t.platformFee || t.PlatformFee || 0));
+        if (lType === "platformfee" || lType === "platform_fee" || (tPlatformFee > 0 && lType !== "releasepayment" && lType !== "escrow_release")) {
+          totalRevenue += tPlatformFee > 0 ? tPlatformFee : Math.abs(Number(t.amount || t.Amount || 0));
+        }
+      });
     }
 
     setStats({

@@ -73,19 +73,19 @@ export default function PaymentResult() {
         {isSuccess ? (
           <>
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-600 mb-2">Giao dịch thành công!</h2>
-            <p className="text-muted-foreground mb-6">Bạn đã nạp thành công {Number(amount).toLocaleString('vi-VN')} VNĐ vào hệ thống.</p>
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Transaction Successful!</h2>
+            <p className="text-muted-foreground mb-6">You have successfully deposited {Number(amount).toLocaleString()} VND into the system.</p>
           </>
         ) : (
           <>
             <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-red-600 mb-2">Giao dịch không thành công</h2>
-            <p className="text-muted-foreground mb-6">Thanh toán ZaloPay đã bị hủy hoặc có lỗi xảy ra.</p>
+            <h2 className="text-2xl font-bold text-red-600 mb-2">Transaction Unsuccessful</h2>
+            <p className="text-muted-foreground mb-6">ZaloPay payment was cancelled or an error occurred.</p>
           </>
         )}
         <div className="flex justify-center items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
-            <span>Đang chuyển hướng tự động...</span>
+            <span>Redirecting automatically...</span>
         </div>
       </div>
     </div>

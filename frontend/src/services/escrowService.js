@@ -50,7 +50,7 @@ const ESCROW_ENDPOINTS = {
  *
  * After success:
  *   - UI deducts Client balance (if API returns new balance)
- *   - "Thanh toán project" button becomes disabled
+ *   - "Release Payment" button becomes disabled
  *   - Toast: "Your project money has been transferred to the platform's
  *            secure intermediary system."
  *

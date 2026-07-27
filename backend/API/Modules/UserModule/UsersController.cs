@@ -29,16 +29,173 @@ public class UsersController : ControllerBase
 
         try
         {
-            var result = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role!, dto.PhoneNumber);
-            return result.Contains("already exists", StringComparison.OrdinalIgnoreCase)
-                ? BadRequest(new { message = result })
-                : Ok(new { message = result });
+            var requestScheme = Request.Scheme;
+            var requestHost = Request.Host.Value;
+            var baseUrl = $"{requestScheme}://{requestHost}";
+
+            var (success, result, verificationToken) = await _userService.RegisterAsync(dto.Email, dto.Password, dto.FullName, dto.Role!, dto.PhoneNumber, baseUrl);
+            
+            if (!success)
+            {
+                return BadRequest(new { message = result });
+            }
+
+            return Ok(new 
+            { 
+                message = result, 
+                verificationToken, // DEV ONLY
+                note = "Xác thực tài khoản bằng token này hoặc qua link email."
+            });
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// POST /api/users/verify-email
+    /// Xác thực email qua API POST.
+    /// </summary>
+    [HttpPost("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Email) || string.IsNullOrWhiteSpace(dto?.Token))
+            return BadRequest(new { message = "Email và mã xác thực không được để trống." });
+
+        var (success, error) = await _userService.VerifyEmailAsync(dto.Email, dto.Token);
+        if (!success)
+            return BadRequest(new { message = error });
+
+        return Ok(new { message = "Xác thực email thành công. Tài khoản của bạn đã được kích hoạt." });
+    }
+
+    /// <summary>
+    /// GET /api/users/verify-email
+    /// Xác thực email qua liên kết kích hoạt. Trả về trang HTML trực quan.
+    /// </summary>
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyEmailGet([FromQuery] string email, [FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+        {
+            return Content(GetVerificationResultHtml(false, "Email và mã xác thực không hợp lệ."), "text/html");
+        }
+
+        var (success, error) = await _userService.VerifyEmailAsync(email, token);
+        return Content(GetVerificationResultHtml(success, error ?? "Tài khoản của bạn đã được kích hoạt thành công."), "text/html");
+    }
+
+    /// <summary>
+    /// POST /api/users/resend-verification
+    /// Gửi lại mã/liên kết xác thực email.
+    /// </summary>
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto?.Email))
+            return BadRequest(new { message = "Email không được để trống." });
+
+        try
+        {
+            var requestScheme = Request.Scheme;
+            var requestHost = Request.Host.Value;
+            var baseUrl = $"{requestScheme}://{requestHost}";
+
+            var (success, resendToken, error) = await _userService.ResendVerificationEmailAsync(dto.Email, baseUrl);
+            if (!success)
+                return BadRequest(new { message = error });
+
+            return Ok(new
+            {
+                message = "Mã xác thực mới đã được gửi. Vui lòng kiểm tra email của bạn.",
+                verificationToken = resendToken, // DEV ONLY
+                note = "Xác thực tài khoản bằng token mới này hoặc click vào liên kết được gửi đến email."
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private static string GetVerificationResultHtml(bool isSuccess, string message)
+    {
+        var title = isSuccess ? "Xác thực thành công" : "Xác thực thất bại";
+        var icon = isSuccess ? "✓" : "✗";
+        var iconColor = isSuccess ? "#2ecc71" : "#e74c3c";
+        var btnText = isSuccess ? "Đăng nhập ngay" : "Thử lại";
+        var explanation = isSuccess 
+            ? "Tài khoản của bạn đã được kích hoạt thành công. Bạn đã có thể đăng nhập vào ứng dụng và sử dụng tất cả tính năng." 
+            : $"Đã xảy ra lỗi trong quá trình xác thực tài khoản: {message}";
+
+        return $@"
+        <!DOCTYPE html>
+        <html lang=""vi"">
+        <head>
+            <meta charset=""UTF-8"">
+            <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+            <title>{title} - AI-Tasker</title>
+            <style>
+                body {{
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    background: #f4f7f6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 100vh;
+                    margin: 0;
+                }}
+                .card {{
+                    background: white;
+                    padding: 40px;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                    text-align: center;
+                    max-width: 400px;
+                    width: 100%;
+                }}
+                .icon {{
+                    font-size: 60px;
+                    color: {iconColor};
+                    margin-bottom: 20px;
+                }}
+                h1 {{
+                    color: #2c3e50;
+                    margin-bottom: 10px;
+                    font-size: 24px;
+                }}
+                p {{
+                    color: #7f8c8d;
+                    margin-bottom: 30px;
+                    line-height: 1.5;
+                }}
+                .btn {{
+                    background: #3498db;
+                    color: white;
+                    padding: 12px 24px;
+                    text-decoration: none;
+                    border-radius: 6px;
+                    font-weight: 500;
+                    transition: background 0.2s;
+                    display: inline-block;
+                }}
+                .btn:hover {{
+                    background: #2980b9;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class=""card"">
+                <div class=""icon"">{icon}</div>
+                <h1>{title}!</h1>
+                <p>{explanation}</p>
+                <a href=""#"" class=""btn"" onclick=""window.close(); return false;"">Đóng cửa sổ</a>
+            </div>
+        </body>
+        </html>";
+    }
+
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
@@ -181,75 +338,80 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// [NEW] POST /api/users/logout
-    /// Đăng xuất - client xóa token phía FE. Server chỉ xác nhận thành công.
-    /// (Token là mock stateless nên không cần invalidate phía server)
+    /// DELETE /api/users/{id}
+    /// Xóa hoàn toàn người dùng và dữ liệu liên quan. Chỉ dành cho tài khoản Owner.
     /// </summary>
-    [HttpPost("logout")]
-    public IActionResult Logout()
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteUser(string id)
     {
-        // Trong kiến trúc stateless mock token hiện tại, logout được xử lý bởi client.
-        // Endpoint này xác nhận logout thành công để Frontend biết có thể xóa token local.
-        return Ok(new { message = "Đăng xuất thành công. Vui lòng xóa token phía client." });
+        if (string.IsNullOrWhiteSpace(id))
+            return BadRequest(new { message = "User ID không được để trống." });
+
+        // Xác thực quyền Owner
+        var (_, errorResult) = await this.ValidateOwnerAsync(_userService);
+        if (errorResult != null)
+            return errorResult;
+
+        try
+        {
+            var success = await _userService.DeleteUserFullyAsync(id);
+            if (!success)
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+
+            return Ok(new { message = "Xóa tài khoản người dùng và tất cả dữ liệu liên quan thành công." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Đã xảy ra lỗi khi xóa người dùng: {ex.Message}" });
+        }
     }
 
     /// <summary>
-    /// [NEW] POST /api/auth/refresh - Làm mới token dựa trên userId
-    /// Body: { "userId": "guid" }
+    /// GET /api/users/me
+    /// Lấy thông tin user hiện tại từ token.
     /// </summary>
-    [HttpPost("refresh-token")]
-    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentUser()
     {
-        if (string.IsNullOrWhiteSpace(dto?.UserId))
-            return BadRequest(new { message = "UserId không được để trống." });
+        var (requesterId, errorResult) = this.GetRequesterId();
+        if (errorResult != null) return errorResult;
 
-        var (user, token, error) = await _userService.RefreshTokenAsync(dto.UserId);
-        if (error != null)
-            return BadRequest(new { message = error });
+        var user = await _userService.GetUserByIdAsync(requesterId!);
+        if (user == null)
+            return NotFound(new { message = "User not found." });
 
-        return Ok(new LoginResponseDto { Token = token ?? string.Empty, User = user! });
-    }
+        var isActive = !string.Equals(user.Status, "Disabled", StringComparison.OrdinalIgnoreCase) 
+                       && !string.Equals(user.Status, "Inactive", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>
-    /// [NEW] POST /api/users/forgot-password
-    /// Body: { "email": "user@example.com" }
-    /// Tạo reset token và trả về (trong prod sẽ gửi qua email).
-    /// </summary>
-    [HttpPost("forgot-password")]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
-    {
-        if (string.IsNullOrWhiteSpace(dto?.Email))
-            return BadRequest(new { message = "Email không được để trống." });
-
-        var (success, resetToken, error) = await _userService.ForgotPasswordAsync(dto.Email);
-        if (!success)
-            return BadRequest(new { message = error });
-
-        // Trong prod: gửi email với link chứa resetToken
-        // Trong dev: trả về token để test
         return Ok(new
         {
-            message = "Yêu cầu đặt lại mật khẩu đã được xử lý. Vui lòng kiểm tra email.",
-            resetToken, // DEV ONLY - xóa khỏi response trong production
-            note = "Token có hiệu lực trong 15 phút."
+            id = user.Id,
+            email = user.Email,
+            fullName = user.FullName,
+            role = user.Role,
+            isActive = isActive
         });
     }
 
     /// <summary>
-    /// [NEW] POST /api/users/reset-password
-    /// Body: { "resetToken": "hex-token", "newPassword": "newpass123" }
+    /// GET /api/users/{userId}/dashboard-stats
+    /// Lấy thống kê tổng quan Dashboard.
     /// </summary>
-    [HttpPost("reset-password")]
-    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+    [HttpGet("{userId:guid}/dashboard-stats")]
+    public async Task<IActionResult> GetDashboardStats(Guid userId)
     {
-        if (string.IsNullOrWhiteSpace(dto?.ResetToken) || string.IsNullOrWhiteSpace(dto?.NewPassword))
-            return BadRequest(new { message = "Token và mật khẩu mới không được để trống." });
+        var stats = await _userService.GetDashboardStatsAsync(userId);
+        if (stats == null)
+            return NotFound(new { message = "User stats not found." });
 
-        var (success, error) = await _userService.ResetPasswordAsync(dto.ResetToken, dto.NewPassword);
-        if (!success)
-            return BadRequest(new { message = error });
-
-        return Ok(new { message = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại." });
+        return Ok(new
+        {
+            posted = stats.Posted,
+            active = stats.Active,
+            completed = stats.Completed,
+            proposals = stats.Proposals,
+            totalSpent = stats.TotalSpent
+        });
     }
 }
 
@@ -277,4 +439,15 @@ public class ResetPasswordDto
 {
     public string ResetToken { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
+}
+
+public class VerifyEmailDto
+{
+    public string Email { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+}
+
+public class ResendVerificationDto
+{
+    public string Email { get; set; } = string.Empty;
 }

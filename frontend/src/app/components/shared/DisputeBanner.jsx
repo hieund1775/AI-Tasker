@@ -13,12 +13,12 @@ export function DisputeBanner({ report, className = "" }) {
       const diff = deadline - now;
 
       if (diff <= 0) {
-        setTimeLeft("HẾT HẠN (Quá hạn phản hồi)");
+        setTimeLeft("EXPIRED (Response overdue)");
       } else {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft(`${hours} giờ ${minutes} phút ${seconds} giây còn lại`);
+        setTimeLeft(`${hours} hours ${minutes} minutes ${seconds} seconds remaining`);
       }
     }
 
@@ -37,21 +37,21 @@ export function DisputeBanner({ report, className = "" }) {
       <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5 animate-pulse" />
       <div className="flex-1 font-sans">
         <h4 className="text-[15px] font-bold text-destructive uppercase tracking-wide">
-          Dự án đang tranh chấp (Project Under Dispute)
+          Project Under Dispute
         </h4>
         <p className="text-sm text-destructive/80 mt-1">
-          {report?.reason || report?.reportName || "Dự án đang trong quá trình kiểm tra và giải quyết tranh chấp bởi Quản trị viên."}
+          {report?.reason || report?.reportName || "The project is currently under dispute review by the Administrator."}
         </p>
 
         {showDeadline && (
           <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-destructive bg-destructive-light/60 px-3 py-2 rounded-lg border border-destructive/20 max-w-fit">
             <Clock className="w-4 h-4 text-destructive" />
-            <span>Hạn phản hồi ({awaitingWho === "Awaiting Expert" ? "Chuyên gia" : "Khách hàng"}): <strong className="text-destructive font-bold ml-1">{timeLeft || "48 giờ"}</strong></span>
+            <span>Response deadline ({awaitingWho === "Awaiting Expert" ? "Expert" : "Client"}): <strong className="text-destructive font-bold ml-1">{timeLeft || "48 hours"}</strong></span>
           </div>
         )}
 
         <p className="text-xs text-destructive/70 mt-2 font-medium">
-          Tất cả các hành động thông thường (bàn giao, cập nhật tiến độ, giải ngân) đã bị khóa tạm thời.
+          All normal actions (handover, progress update, payment release) have been temporarily locked.
         </p>
       </div>
     </div>

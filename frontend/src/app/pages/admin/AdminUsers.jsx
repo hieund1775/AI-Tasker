@@ -8,12 +8,14 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, ShieldOff, Shield, Filter } from "lucide-react";
+import { Search, ShieldOff, Shield, Filter, Eye, X } from "lucide-react";
+import { useNavigate } from "react-router";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
 // Status & Role configs
@@ -28,9 +30,10 @@ const ROLE_COLORS = {
 
 const STATUS_CONFIG = {
   active: { color: "bg-green-100 text-green-700", label: "Active" },
-  suspended: { color: "bg-red-100 text-red-700", label: "Locked" },
-  locked: { color: "bg-red-100 text-red-700", label: "Locked" },
-  banned: { color: "bg-red-100 text-red-700", label: "Locked" },
+  inactive: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  suspended: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  locked: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  banned: { color: "bg-red-100 text-red-700", label: "Inactive" },
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -44,6 +47,11 @@ const ROLE_FILTER_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export function AdminUsers({ excludeRoles = [] }) {
+  const navigate = useNavigate();
+  const { role: userRole } = useAuth();
+  const rawRole = (userRole || "").toLowerCase();
+  const currentUserRole = rawRole === "staff" ? "admin" : rawRole;
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -59,10 +67,16 @@ export function AdminUsers({ excludeRoles = [] }) {
         (u) => !excludeRoles.includes((u.role || "").toLowerCase()),
       );
     }
+    // Admin cannot see owner accounts
+    if (currentUserRole === "admin") {
+      result = result.filter(
+        (u) => (u.role || "").toLowerCase() !== "owner"
+      );
+    }
     return result;
-  }, [users, excludeRoles]);
+  }, [users, excludeRoles, currentUserRole]);
 
-  // Modal state
+  // Modal states
   const [lockModal, setLockModal] = useState(null); // { userId, userName, currentStatus }
 
   // -----------------------------------------------------------------------
@@ -73,7 +87,15 @@ export function AdminUsers({ excludeRoles = [] }) {
     setError(null);
     try {
       const result = await api.users.list();
-      setUsers(Array.isArray(result) ? result : result?.data || []);
+      const rawData = Array.isArray(result) ? result : result?.data || [];
+      const normalizedData = rawData.map(u => {
+        const roleLower = (u.role || u.Role || "").trim().toLowerCase();
+        return {
+          ...u,
+          role: roleLower === "staff" ? "admin" : roleLower
+        };
+      });
+      setUsers(normalizedData);
     } catch (err) {
       setError(err.message || "Unable to load user list.");
       setUsers([]);
@@ -97,8 +119,8 @@ export function AdminUsers({ excludeRoles = [] }) {
   const handleToggleLock = useCallback(
     async (userId, currentStatus) => {
       setActionLoading(true);
-      const isActive = currentStatus === "active";
-      const newStatus = isActive ? "suspended" : "active";
+      const isActive = (currentStatus || "").toLowerCase() === "active";
+      const newStatus = isActive ? "Inactive" : "Active";
       try {
         await api.put(`/users/${userId}/set-active`, {
           isActive: !isActive,
@@ -108,6 +130,12 @@ export function AdminUsers({ excludeRoles = [] }) {
             u.id === userId ? { ...u, status: newStatus } : u,
           ),
         );
+        if (isActive) {
+          localStorage.setItem("aitasker_user_banned", JSON.stringify({ userId, timestamp: Date.now() }));
+        } else {
+          localStorage.removeItem("aitasker_user_banned");
+        }
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         showToast(
           isActive
             ? "User has been locked."
@@ -147,22 +175,27 @@ export function AdminUsers({ excludeRoles = [] }) {
         { label: "Expert", value: "expert" },
         { label: "Admin", value: "admin" },
       ],
-      render: (val) => (
-        <span
-          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            ROLE_COLORS[val?.toLowerCase()] || "bg-secondary text-foreground/80"
-          }`}
-        >
-          {val || "—"}
-        </span>
-      ),
+      render: (val) => {
+        if (!val) return "—";
+        const normalized = val.trim().toLowerCase();
+        const displayLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        return (
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              ROLE_COLORS[normalized] || "bg-secondary text-foreground/80"
+            }`}
+          >
+            {displayLabel}
+          </span>
+        );
+      },
     },
     {
       key: "status",
       label: "Status",
       filterOptions: [
         { label: "Active", value: "active" },
-        { label: "Locked", value: "suspended" }, // maps to suspended/locked
+        { label: "Inactive", value: "inactive" },
       ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
@@ -184,7 +217,7 @@ export function AdminUsers({ excludeRoles = [] }) {
   // -----------------------------------------------------------------------
   return (
     <div className="space-y-6">
-      
+
 
       <h1 className="text-2xl font-bold text-foreground mb-2">
         User Management
@@ -211,14 +244,34 @@ export function AdminUsers({ excludeRoles = [] }) {
         loading={loading}
         emptyMessage="No users found."
         actions={(row) => {
+          const rowRole = (row.role || "").toLowerCase();
           // Don't allow locking owner accounts
-          if (row.role?.toLowerCase() === "owner") return null;
+          if (rowRole === "owner") return null;
+          // Admin cannot lock other admin accounts (but Owner can)
+          if (currentUserRole === "admin" && rowRole === "admin") {
+            return null;
+          }
+          const statusLower = (row.status || "").toLowerCase();
           const isLocked =
-            row.status === "suspended" ||
-            row.status === "locked" ||
-            row.status === "banned";
+            statusLower === "inactive" ||
+            statusLower === "suspended" ||
+            statusLower === "locked" ||
+            statusLower === "banned";
           return (
             <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const basePath = currentUserRole === "owner" ? "/owner" : "/admin";
+                  const profileType = rowRole === "expert" ? "profile-expert" : "profile-client";
+                  const url = `${basePath}/${profileType}/${row.id}`;
+                  navigate(url);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                View
+              </button>
               <button
                 type="button"
                 onClick={() =>
@@ -229,11 +282,10 @@ export function AdminUsers({ excludeRoles = [] }) {
                   })
                 }
                 disabled={actionLoading}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${
-                  isLocked
-                    ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                    : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                }`}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${isLocked
+                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  }`}
               >
                 {isLocked ? (
                   <>

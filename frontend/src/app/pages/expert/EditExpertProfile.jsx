@@ -99,12 +99,12 @@ export function EditExpertProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (skills.length === 0) {
-      setError("Vui lòng chọn ít nhất một kỹ năng.");
+      setError("Please select at least one skill.");
       return;
     }
     const phoneRegex = /^0\d{9}$/;
     if (!phoneRegex.test(formData.phone.trim())) {
-      setError("Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và gồm 10 chữ số).");
+      setError("Invalid phone number (must start with 0 and contain 10 digits).");
       return;
     }
     setError("");
@@ -112,14 +112,14 @@ export function EditExpertProfile() {
 
     try {
       const apiPayload = {
-        jobTitle: formData.jobTitle || "Chưa cập nhật",
-        major: formData.specialization || "Chưa cập nhật",
+        jobTitle: formData.jobTitle || "Not updated",
+        major: formData.specialization || "Not updated",
         category: formData.category,
         specialization: formData.specialization,
         skills: skills,
-        bio: formData.bio || "Chưa có giới thiệu",
+        bio: formData.bio || "No introduction yet",
         portfolioUrls: formData.portfolioUrls || "",
-        location: formData.location || "Chưa cập nhật",
+        location: formData.location || "Not updated",
         phone: formData.phone,
         hourlyRate: Number(formData.hourlyRate) || 0,
         website: formData.website || "",
@@ -160,10 +160,10 @@ export function EditExpertProfile() {
       // Dispatch custom event to sync with ExpertProfile.jsx
       window.dispatchEvent(new CustomEvent("expert_profile_updated"));
 
-      alert("Hồ sơ đã được lưu thành công!");
+      alert("Profile saved successfully!");
       navigate("/expert/profile", { replace: true });
     } catch (err) {
-      setError(err.message || "Có lỗi xảy ra khi lưu. Vui lòng thử lại!");
+      setError(err.message || "An error occurred while saving. Please try again!");
     } finally {
       setLoading(false);
     }
@@ -187,7 +187,7 @@ export function EditExpertProfile() {
 
         <h1 className="text-2xl font-bold text-foreground">
           {user?.hasProfile === false
-            ? "Hoàn thiện hồ sơ để bắt đầu"
+            ? "Complete profile to start"
             : "Edit Expert Profile"}
         </h1>
       </div>

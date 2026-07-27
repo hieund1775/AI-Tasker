@@ -36,7 +36,7 @@ namespace AITasker_Modular.Modules.InteractionModule
         public async Task<IActionResult> GetById(Guid id)
         {
             var contract = await _context.Contracts.FindAsync(id);
-            if (contract == null) return NotFound("Không tìm thấy hợp đồng số trên hệ thống.");
+            if (contract == null) return NotFound("Digital contract not found on system.");
             return Ok(contract);
         }
 
@@ -65,7 +65,7 @@ namespace AITasker_Modular.Modules.InteractionModule
         public async Task<IActionResult> UpdateStatus(Guid id, [FromQuery] string status)
         {
             var contract = await _context.Contracts.FindAsync(id);
-            if (contract == null) return NotFound("Hợp đồng số không tồn tại hoặc đã bị hủy.");
+            if (contract == null) return NotFound("Digital contract does not exist or has been cancelled.");
 
             contract.Status = status;
             

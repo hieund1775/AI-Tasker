@@ -17,6 +17,10 @@ public class Review
     public string? Comment { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    // NEW FIELDS FOR RESPONSES:
+    public string? ExpertReply { get; set; }
+    public DateTime? ReplyCreatedAt { get; set; }
+
     public Project? Project { get; set; }
     public ApplicationUser? CreatedBy { get; set; }
     public ApplicationUser? TargetUser { get; set; }

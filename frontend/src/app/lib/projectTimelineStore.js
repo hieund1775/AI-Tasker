@@ -7,12 +7,9 @@ import api from "../../services/api.js";
 // Mock DB fallbacks have been entirely removed.
 // =============================================================================
 
-// Runtime activity logs (session-only caching)
+// Runtime activity logs (session-only caching) - keeping this just for instant UI feedback before reload
 const _runtimeActivityLogs = new Map();
 
-/**
- * Add a runtime activity log (session-only).
- */
 export function addProjectActivity(projectId, { actor, message }) {
   const entry = {
     id: `runtime-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -25,11 +22,6 @@ export function addProjectActivity(projectId, { actor, message }) {
   }
   _runtimeActivityLogs.get(projectId).push(entry);
 
-  try {
-    const prev = parseInt(sessionStorage.getItem("timelineActivityVersion") || "0", 10);
-    sessionStorage.setItem("timelineActivityVersion", String(prev + 1));
-  } catch { /* noop */ }
-
   return entry;
 }
 
@@ -41,6 +33,7 @@ export async function getProjectTimeline(projectId) {
   try {
     const project = await api.projects.getById(projectId);
     const tasks = await api.projects.getTasks(projectId);
+    // Let the project object hold the real tasks (backend provides extension data inside the project obj)
     return { ...project, tasks };
   } catch (err) {
     console.error("Failed to get project timeline", err);
@@ -101,19 +94,76 @@ export async function updateMiniTask(taskId, miniTaskId, updates) {
 
 // Stubs for currently unavailable APIs
 export async function addLog(taskId, log) {
-  return null;
+  return await api.tasks.addLog(taskId, log);
 }
 
 export async function addFeedback(taskId, feedback) {
+  return await api.tasks.addFeedback(taskId, feedback);
+}
+
+// Removed localStorage extension merger because BE handles it.
+
+export async function requestExtension(projectId, data) {
+  try {
+    await api.extensions.request(projectId, data);
+    return await getProjectTimeline(projectId);
+  } catch (err) {
+    console.error("Failed to request extension:", err);
+    throw err;
+  }
+}
+
+export async function resolveExtension(projectId, extensionId, data) {
+  try {
+    await api.extensions.resolve(projectId, extensionId, data);
+    return await getProjectTimeline(projectId);
+  } catch (err) {
+    console.error("Failed to resolve extension:", err);
+    throw err;
+  }
+}
+
+/**
+ * Get the effective project deadline considering extensions.
+ * Returns a Date object or null.
+ */
+export function getEffectiveDeadlineDate(project) {
+  if (!project) return null;
+  const projectId = project.id || project.Id;
+  if (!projectId) return null;
+
+  // 2. Use extendedDeadline or projectDeadlineDate from backend
+  if (project.projectDeadlineDate) {
+    const d = new Date(project.projectDeadlineDate);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // 3. Fall back to endDate
+  if (project.endDate) {
+    const d = new Date(project.endDate);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+
+  // 4. Fall back to deadline number + start date
+  const deadlineVal = project.deadline || project.Deadline;
+  if (deadlineVal) {
+    const num = Number(deadlineVal);
+    if (!Number.isNaN(num) && num < 1000) {
+      const startDate = new Date(project.startDate || project.StartDate || project.createdAt || project.CreatedAt || Date.now());
+      if (!Number.isNaN(startDate.getTime())) {
+        return new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+      }
+    } else {
+      const d = new Date(deadlineVal);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+
   return null;
 }
 
-export async function requestTimelineExtension(projectId, data) {
-  return null;
-}
-
-export async function resolveTimelineExtension(projectId, extensionId, data) {
-  return null;
+export function resetProjectTimeline(projectId) {
+  // No longer needed, handled by BE
 }
 
 // ---------------------------------------------------------------------------
@@ -186,11 +236,11 @@ export function getExpertButtonConfig(statusKey) {
 
 export function getOverallProgress(tasks = []) {
   if (!tasks || !tasks.length) return 0;
-  
+
   let totalMiniTasks = 0;
   let completedMiniTasks = 0;
   let totalTasksPercent = 0;
-  
+
   for (const task of tasks) {
     const { completed, total, percent } = deriveTaskProgress(task);
     if (total > 0 && ((task.miniTasks && task.miniTasks.length > 0) || (task.MiniTasks && task.MiniTasks.length > 0))) {
@@ -199,27 +249,27 @@ export function getOverallProgress(tasks = []) {
     }
     totalTasksPercent += percent;
   }
-  
+
   if (totalMiniTasks > 0) {
     return Math.round((completedMiniTasks / totalMiniTasks) * 100);
   }
-  
+
   return Math.round(totalTasksPercent / tasks.length);
 }
 
 export function deriveTaskProgress(task) {
   if (!task) return { completed: 0, total: 0, percent: 0 };
-  
+
   const status = (task.status || task.Status || "").toLowerCase();
   const isDone = status === "completed" || status === "approved" || status === "done" || task.approvalStatus?.toLowerCase() === "approved" || task.approval?.toLowerCase() === "approved" || task.approval?.toLowerCase() === "quick accepted";
 
   const miniTasks = task.miniTasks || task.MiniTasks || [];
   const total = miniTasks.length;
-  
+
   if (isDone) {
     return { completed: total > 0 ? total : 1, total: total > 0 ? total : 1, percent: 100 };
   }
-  
+
   if (total > 0) {
     const completed = miniTasks.filter(
       mt => mt.isCompleted === true || mt.IsCompleted === true || mt.status === "done" || mt.status === "completed" || mt.Status === "done" || mt.Status === "completed"
@@ -227,7 +277,7 @@ export function deriveTaskProgress(task) {
     const percent = Math.round((completed / total) * 100);
     return { completed, total, percent };
   }
-  
+
   return {
     completed: 0,
     total: 1,
@@ -239,8 +289,25 @@ export function getDeadlineInfo(deadline) {
   if (!deadline) return { isOverdue: false, daysRemaining: 0, text: "No deadline" };
   const d = new Date(deadline);
   const diff = d - new Date();
+  const diffSecs = Math.floor(diff / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHrs = Math.floor(diffMins / 60);
   const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  if (days < 0) return { isOverdue: true, daysRemaining: days, text: `Overdue by ${Math.abs(days)} days` };
-  if (days === 0) return { isOverdue: false, daysRemaining: days, text: "Due today" };
+
+  if (days < 0) {
+    return { isOverdue: true, daysRemaining: days, text: `Overdue by ${Math.abs(days)} days` };
+  }
+  if (days === 0) {
+    if (diffHrs > 0) {
+      return { isOverdue: false, daysRemaining: 0, text: `${diffHrs} hours remaining` };
+    }
+    if (diffMins > 0) {
+      return { isOverdue: false, daysRemaining: 0, text: `${diffMins} minutes remaining` };
+    }
+    if (diffSecs > 0) {
+      return { isOverdue: false, daysRemaining: 0, text: `${diffSecs} seconds remaining` };
+    }
+    return { isOverdue: false, daysRemaining: 0, text: "Due today" };
+  }
   return { isOverdue: false, daysRemaining: days, text: `${days} days remaining` };
 }

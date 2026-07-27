@@ -41,7 +41,7 @@ namespace AITasker_Modular.Modules.InteractionModule
         public IActionResult CreateNotification([FromBody] CreateNotificationDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
-                return BadRequest("Dữ liệu thông báo không hợp lệ.");
+                return BadRequest("Invalid notification data.");
 
             var newNotification = new NotificationDto
             {

@@ -84,6 +84,9 @@ export function AdminDisputes() {
 
   useEffect(() => {
     fetchReports();
+    const handleUpdate = () => fetchReports();
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [fetchReports]);
 
   // Apply filters locally whenever search/status/allReports change
@@ -119,18 +122,27 @@ export function AdminDisputes() {
       ),
     },
     {
-      key: "status",
-      label: "Loại báo cáo",
+      key: "disputeType",
+      label: "Dispute Type",
+      filterOptions: [
+        { value: "financial", label: "Financial Dispute" },
+        { value: "cancellation", label: "Cancellation Request" },
+        { value: "quality", label: "Quality Dispute" },
+        { value: "deadline", label: "Deadline Delay" },
+        { value: "communication", label: "Communication Issue" },
+        { value: "other", label: "Other" },
+      ],
       render: (val, row) => {
         const reportTypes = {
-          financial: "Báo cáo tài chính",
-          communication: "Báo cáo trao đổi",
-          quality: "Báo cáo chất lượng",
-          deadline: "Báo cáo tiến độ",
-          other: "Báo cáo khác",
-          cancellation: "Báo cáo hủy dự án",
+          financial: "Financial Dispute",
+          communication: "Communication Issue",
+          quality: "Quality Dispute",
+          deadline: "Deadline Delay",
+          other: "Other",
+          cancellation: "Cancellation Request",
         };
-        const label = reportTypes[row.disputeType] || "Báo cáo tiến độ";
+        const disputeKey = row.disputeType || val || "other";
+        const label = reportTypes[disputeKey] || disputeKey;
         const colors = {
           financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
           communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
@@ -139,7 +151,7 @@ export function AdminDisputes() {
           other: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
           cancellation: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
         };
-        const badgeClass = colors[row.disputeType] || colors.other;
+        const badgeClass = colors[disputeKey] || colors.other;
         return (
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${badgeClass}`}>
             {label}
@@ -173,7 +185,7 @@ export function AdminDisputes() {
     },
     {
       key: "amount",
-      label: "Số tiền ký quỹ",
+      label: "Escrow Amount",
       render: (val, row) => (
         <span className="font-semibold text-brand-primary text-sm">
           <MoneyDisplay amount={row.escrowAmount || row.amount || 0} />
@@ -182,14 +194,14 @@ export function AdminDisputes() {
     },
     {
       key: "actualStatus",
-      label: "Trạng thái",
+      label: "Status",
       render: (val, row) => (
         <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
       ),
     },
     {
       key: "createdAt",
-      label: "Thời gian gửi báo cáo",
+      label: "Report Time",
       render: (val) => (
         <span className="text-xs font-medium text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
@@ -276,7 +288,7 @@ export function AdminDisputes() {
         emptyMessage="No progress reports found."
         actions={(row) => (
           <Link
-            to={`/admin/disputes/${row.id}`}
+            to={`${window.location.pathname.startsWith("/owner") ? "/owner" : "/admin"}/disputes/${row.id}`}
             className="px-3 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />

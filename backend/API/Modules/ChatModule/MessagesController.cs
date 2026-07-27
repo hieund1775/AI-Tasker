@@ -22,7 +22,7 @@ namespace AITasker_Modular.Modules.ChatModule
         [HttpGet]
         public async Task<IActionResult> GetMessages()
         {
-            // Truy vấn trực tiếp vào bảng Messages vật lý của nhóm, sắp xếp tin nhắn mới nhất lên đầu
+            // Truy vấn trực tiếp vào bảng Messages vật lý của hệ thống, sắp xếp tin nhắn mới nhất lên đầu
             var realMessages = await _context.Messages
                 .OrderByDescending(m => m.CreatedAt)
                 .Select(m => new DirectMessageDto

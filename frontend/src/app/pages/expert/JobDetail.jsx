@@ -10,13 +10,14 @@ import {
   Layers,
   CheckCircle2,
   FileText,
+  Paperclip,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
-import api from "../../../services/api.js";
+import api, { enrichFileUrl } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 
 export function JobDetail() {
@@ -66,6 +67,7 @@ export function JobDetail() {
 
         let invitationProposal = null;
         let hasSubmittedProp = false;
+        let extendedDeadlineStr = null;
         if (user && user.role === "expert") {
           try {
             const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
@@ -75,17 +77,29 @@ export function JobDetail() {
             hasSubmittedProp = myProposals.some(
               (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
             );
+            // Check for accepted proposal with extended deadline
+            const acceptedProposal = myProposals.find(p =>
+              p.jobPostId === project.id &&
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+            );
+            if (acceptedProposal?.projectId) {
+              try {
+                const storedDeadline = localStorage.getItem(`project_deadline_${acceptedProposal.projectId}`);
+                if (storedDeadline) extendedDeadlineStr = storedDeadline;
+              } catch (e) { /* ignore */ }
+            }
           } catch (e) {
             console.error("Failed to load proposals for job:", e);
           }
         }
 
         if (!cancelled) {
-          // api.jobPosts.getById đã chạy mapJobPost() rồi nên useCases, requiredSkills, category
-          // đều đã được map đúng. Chỉ cần gán thêm client info.
+          // api.jobPosts.getById already executed mapJobPost(), so useCases, requiredSkills, category
+          // are already mapped correctly. Just assign client info.
           setJob({
             ...project,
             client: clientInfo,
+            _extendedDeadline: extendedDeadlineStr, // store extended deadline for display
           });
           setInvitation(invitationProposal);
           setHasSubmitted(hasSubmittedProp);
@@ -117,17 +131,17 @@ export function JobDetail() {
       if (job?.clientId) {
         await notificationService.notifyInviteDeclined({
           clientUserId: job.clientId,
-          expertName: user?.fullName || user?.name || "Một chuyên gia",
+          expertName: user?.fullName || user?.name || "An expert",
           jobTitle: job.title,
           jobPostId: job.id
         });
       }
 
-      alert("Bạn đã từ chối lời mời thành công!");
+      alert("You have successfully declined the invitation!");
       setInvitation(null);
     } catch (e) {
       console.error("Failed to decline invite:", e);
-      alert("Lỗi khi từ chối lời mời. Vui lòng thử lại!");
+      alert("Failed to decline invitation. Please try again!");
     }
   };
 
@@ -154,15 +168,36 @@ export function JobDetail() {
     );
   }
 
-  // Dùng requiredSkills đã được map sẵn bởi mapJobPost() trong api.js
+  // Use requiredSkills already mapped by mapJobPost() in api.js
   const skills = (job.requiredSkills && job.requiredSkills.length > 0)
     ? job.requiredSkills
     : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
 
   const deadlineText = (() => {
     if (!job.deadline) return null;
+
+    // Use extended deadline from localStorage if available (project extension approved)
+    if (job._extendedDeadline) {
+      return safeDateFormat(job._extendedDeadline, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, String(job._extendedDeadline));
+    }
+
+    // Convert numeric deadline (days) to actual date based on job creation date
     const num = Number(job.deadline);
-    if (!Number.isNaN(num) && num < 1000) return `${num} days`;
+    if (!Number.isNaN(num) && num < 1000) {
+      const startDate = new Date(job.createdAt || job.CreatedAt || Date.now());
+      if (!Number.isNaN(startDate.getTime())) {
+        const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+        return safeDateFormat(deadlineDate.toISOString(), {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }, `${num} days`);
+      }
+    }
     return safeDateFormat(job.deadline, {
       year: "numeric",
       month: "short",
@@ -236,25 +271,15 @@ export function JobDetail() {
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
                 <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-2 text-left">
                     <p className="font-bold text-foreground text-sm">
-                      User Story #{i + 1}: <span className="font-semibold">{uc.title || uc.nameAndDeadline}</span>
+                      User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
                     </p>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">{uc.originalDurationDays || uc.durationDays || 1} ngày</span>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
                   </div>
                   {uc.description ? (
-                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">{uc.description}</p>
+                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">Description: {uc.description}</p>
                   ) : null}
-                  {safeArray(uc.requirements).length > 0 && (
-                    <ul className="pl-3 border-l-2 border-brand-primary/20 space-y-1 mt-1">
-                      {safeArray(uc.requirements).map((req, j) => (
-                        <li key={j} className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>• {req.title}</span>
-                          <span className="text-xs bg-secondary px-1.5 py-0.5 rounded ml-2 shrink-0">{req.durationDays || 1} ngày</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </div>
               ))}
             </div>
@@ -287,6 +312,90 @@ export function JobDetail() {
               <p className="text-xs text-muted-foreground italic">No required skills listed.</p>
             )}
           </div>
+        </SectionCard>
+
+        {/* Project Attachments */}
+        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg">
+          {(() => {
+            const cached = job._attachments;
+            const rawBE = job.attachmentUrl || job.AttachmentUrl;
+            let files = [];
+            if (Array.isArray(cached) && cached.length > 0) {
+              files = cached;
+            } else if (typeof rawBE === "string" && rawBE.trim().length > 0) {
+              try {
+                const parsed = JSON.parse(rawBE);
+                files = Array.isArray(parsed) ? parsed : [{ name: rawBE.split("/").pop(), url: rawBE }];
+              } catch {
+                files = [{ name: rawBE.split("/").pop(), url: rawBE }];
+              }
+            }
+
+            // Deduplicate files by url
+            const uniqueFiles = [];
+            const seenUrls = new Set();
+            for (const f of files) {
+              const rawU = typeof f === "string" ? f : (f.url || f.Url || f.name);
+              if (rawU && !seenUrls.has(rawU)) {
+                seenUrls.add(rawU);
+                uniqueFiles.push(f);
+              }
+            }
+
+            if (uniqueFiles.length === 0) {
+              return <p className="text-sm text-muted-foreground italic">None</p>;
+            }
+
+            return (
+              <div className="flex flex-wrap gap-2">
+                {uniqueFiles.map((file, idx) => {
+                  const rawUrl = typeof file === "string" ? file : (file.url || file.Url || file.path || file.Path || "#");
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+
+                  let fileName = typeof file === "object" ? (file.name || file.Name || file.originalName || file.fileName) : null;
+                  if (!fileName && typeof rawUrl === "string") {
+                    const baseName = rawUrl.split("/").pop() || "Attachment";
+                    fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                    if (!fileName) fileName = baseName;
+                  }
+
+                  const handleDownloadFile = async (e) => {
+                    e.preventDefault();
+                    if (!fileUrl || fileUrl === "#") return;
+                    try {
+                      const res = await fetch(fileUrl);
+                      const blob = await res.blob();
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = fileName || "Project_Attachment";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      console.warn("Direct blob download failed, falling back to window.open:", err);
+                      window.open(fileUrl, "_blank");
+                    }
+                  };
+
+                  return (
+                    <a
+                      key={idx}
+                      href={fileUrl}
+                      onClick={handleDownloadFile}
+                      download={fileName || true}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                      title={`Download ${fileName}`}
+                    >
+                      <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{fileName || "Attachment"}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </SectionCard>
 
         {/* Stats */}

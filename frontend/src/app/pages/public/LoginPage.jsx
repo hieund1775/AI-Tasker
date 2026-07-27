@@ -36,6 +36,20 @@ export function LoginPage() {
     try {
       const user = await login(email.trim(), password);
 
+      // Track login event for Owner traffic stats
+      try {
+        const logins = JSON.parse(localStorage.getItem("aitasker_user_logins") || "[]");
+        logins.push({
+          userId: user.id || user.Id,
+          role: user.role || user.Role,
+          date: new Date().toISOString().split("T")[0],
+          timestamp: new Date().getTime()
+        });
+        localStorage.setItem("aitasker_user_logins", JSON.stringify(logins));
+      } catch (e) {
+        console.warn("Failed to record login event:", e);
+      }
+
       if (user.role === "expert" && user.hasProfile === false) {
         navigate("/expert/profile/edit", { replace: true });
       } else {

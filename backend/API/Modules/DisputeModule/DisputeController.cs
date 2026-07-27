@@ -20,7 +20,7 @@ namespace AITasker_Modular.Modules.DisputeModule
         {
             try {
                 var reportId = await _disputeService.SubmitProjectReportAsync(dto.ProjectId, dto.ReporterId, dto.Reason, dto.EvidenceUrl, dto.ReporterRole, dto.ReportType, dto.Description, dto.DisputeType, dto.DesiredResolution);
-                return Ok(new { ReportId = reportId, Message = "Đơn khiếu nại của bạn đã được gửi tới Ban quản trị sàn." });
+                return Ok(new { ReportId = reportId, Message = "Your dispute report has been submitted to the platform administration." });
             } catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
@@ -48,7 +48,7 @@ namespace AITasker_Modular.Modules.DisputeModule
         {
             try {
                 var result = await _disputeService.ExecuteDisputeVerdictAsync(disputeId, winnerRole, verdictReason, staffId);
-                return Ok(new { Message = "Thực thi phán quyết tài chính thành công.", Data = result });
+                return Ok(new { Message = "Financial verdict executed successfully.", Data = result });
             } catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
               catch (Exception ex) { return BadRequest(ex.Message); }
         }

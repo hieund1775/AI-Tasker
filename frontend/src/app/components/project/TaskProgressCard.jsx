@@ -12,6 +12,8 @@ import {
   Send,
   RotateCcw,
   Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { Button } from "../ui/button.jsx";
@@ -21,9 +23,58 @@ import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { useState } from "react";
 import { toast } from "sonner";
-import { api } from "../../../services/api.js";
+import { api, enrichFileUrl } from "../../../services/api.js";
+
+// Helper to parse productFile stored as JSON string { url, name } or plain text
+function resolveProductFile(productFile) {
+  if (!productFile) return null;
+  if (typeof productFile === "object" && (productFile.url || productFile.path)) {
+    const rawUrl = productFile.url || productFile.path;
+    return {
+      url: rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl),
+      name: productFile.name || rawUrl.split("/").pop(),
+    };
+  }
+  try {
+    const parsed = JSON.parse(productFile);
+    if (parsed && (parsed.url || parsed.fileUrl || parsed.path)) {
+      const fileUrl = parsed.url || parsed.fileUrl || parsed.path;
+      return {
+        url: fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl),
+        name: parsed.name || parsed.originalName || fileUrl.split("/").pop(),
+      };
+    }
+  } catch {
+    // Legacy plain text
+  }
+  const cleanStr = String(productFile).trim();
+  if (!cleanStr) return null;
+  return {
+    url: cleanStr.startsWith("http") ? cleanStr : enrichFileUrl(cleanStr),
+    name: cleanStr.split("/").pop().split("\\").pop(),
+  };
+}
+
+async function downloadFileBlob(rawUrl, fileName) {
+  if (!rawUrl || rawUrl === "#") return;
+  try {
+    const response = await fetch(rawUrl);
+    const blob = await response.blob();
+    const dlUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = dlUrl;
+    a.download = fileName || rawUrl.split("/").pop() || "file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(dlUrl);
+  } catch {
+    window.open(rawUrl, "_blank");
+  }
+}
 import { useAuth } from "../../hooks/useAuth.js";
 import { notifyTaskRevisionRequested, notifyTaskApproved, notifyUrgentSubmissionRequested } from "../../../services/notificationHelper.js";
+import { getTaskDeadlineInfo, isTaskOverdue, requestExtension, getExtensionRequest, clearExtensionRequest, extendAllDeadlines, storeExtensionApproval } from "../../lib/taskDeadlineUtils.js";
 
 // =============================================================================
 // TaskProgressCard — individual task/milestone card within the project progress view.
@@ -42,17 +93,21 @@ export function TaskProgressCard({
   task,
   role = "client",
   projectId,
+  projectStatus,
   loading = false,
   onToggleMiniTask,
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isProjectClosed = ["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((projectStatus || "").toLowerCase());
 
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [isDeclineDisabled, setIsDeclineDisabled] = useState(false);
   const [showViewProductModal, setShowViewProductModal] = useState(false);
   const [isDeclineUnlocked, setIsDeclineUnlocked] = useState(false);
+  const [extendDays, setExtendDays] = useState("");
+  const [extending, setExtending] = useState(false);
 
   const handleApproveTask = async () => {
     try {
@@ -67,11 +122,11 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Milestone đã được phê duyệt thành công!");
+      toast.success("Milestone approved successfully!");
       setShowViewProductModal(false);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể phê duyệt milestone.");
+      toast.error("Failed to approve milestone.");
     }
   };
 
@@ -88,10 +143,10 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Đã yêu cầu sản phẩm. Chuyên gia đã được thông báo khẩn cấp!");
+      toast.success("Deliverable requested. The expert has been notified urgently!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể yêu cầu sản phẩm.");
+      toast.error("Failed to request deliverable.");
     }
   };
 
@@ -99,7 +154,7 @@ export function TaskProgressCard({
     setIsDeclineUnlocked(true);
     setShowDeclineForm(true);
     setShowViewProductModal(false);
-    toast.info("Đã mở khóa nút từ chối. Vui lòng điền lý do ở phía dưới.");
+    toast.info("Decline button unlocked. Please enter the reason below.");
   };
 
   const handleSendDecline = async () => {
@@ -117,14 +172,14 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Đã từ chối và gửi phản hồi chỉnh sửa thành công!");
+      toast.success("Declined and revision feedback sent successfully!");
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error("Không thể gửi phản hồi từ chối.");
+      toast.error("Failed to send decline feedback.");
     }
   };
 
@@ -160,6 +215,16 @@ export function TaskProgressCard({
 
   const deadlineInfo = task.deadline ? getDeadlineInfo(task.deadline) : null;
 
+  // Computed deadline from taskDeadlineUtils (after escrow)
+  const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, task.id, null) : null;
+  const computedDeadline = taskDeadlineData?.deadline || task.deadline;
+  const computedDeadlineInfo = computedDeadline ? getDeadlineInfo(computedDeadline) : null;
+  const isOverdue = projectId ? isTaskOverdue(projectId, task.id, null) : false;
+
+  // Extension request state
+  const extendRequest = projectId ? getExtensionRequest(projectId, task.id) : null;
+  const isWaitingExtension = extendRequest === "waiting";
+
   const isUrgent = task?.urgentRequest === true;
   const isDone = task.displayStatus === "Done";
 
@@ -174,7 +239,7 @@ export function TaskProgressCard({
   const isChecklistCompleted = task.displayStatus === "Checklist Completed" || task.status === "checklist_completed";
   const isRework = task.displayStatus === "Rework" || task.status === "rework";
   const isWaitingForExpertProduct = task.displayStatus === "Waiting for Expert Product" || task.status === "waiting_expert_product";
-  const hasMainProduct = !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile));
+  const hasMainProduct = !!(task.productLink || task.productFile);
   const hasEvidence = !!task.handoverEvidence;
   const allMinisDone = task.completedMiniTasks === task.totalMiniTasks && task.totalMiniTasks > 0;
   const productRequested = task?.urgentRequest === true || task?.productRequested === true;
@@ -192,7 +257,7 @@ export function TaskProgressCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-left">
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60 line-through decoration-success/30" : "text-foreground"
+            <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60" : "text-foreground"
               }`}>
               {task.title}
             </h3>
@@ -221,29 +286,6 @@ export function TaskProgressCard({
         </p>
       )}
 
-      {/* Deadline */}
-      {deadlineText && (
-        <div className="flex items-center gap-1.5 text-sm mb-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Calendar className="w-3.5 h-3.5" />
-            Deadline: <span className="text-foreground">{deadlineText}</span>
-          </div>
-          {deadlineInfo && deadlineInfo.urgency !== "normal" && (
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-full text-[13px] font-medium flex items-center gap-1",
-                getDeadlineStatusClass(deadlineInfo.urgency)
-              )}
-            >
-              {deadlineInfo.urgency === "overdue" && (
-                <AlertTriangle className="w-3 h-3" />
-              )}
-              {deadlineInfo.remainingText}
-            </span>
-          )}
-        </div>
-      )}
-
       {/* Progress bar */}
       <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mb-3">
         <div
@@ -258,19 +300,52 @@ export function TaskProgressCard({
       </div>
 
       {/* Mini task stats */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-        <div className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-4 h-4 text-success" />
-          <span>
-            {task.completedMiniTasks}/{task.totalMiniTasks} Minitasks
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Clock3 className="w-4 h-4 text-primary" />
-          <span>{task.progress}% completed</span>
+      <div className="flex items-center justify-between text-sm text-muted-foreground mb-3 flex-wrap gap-2">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4 text-success" />
+            <span>
+              {task.completedMiniTasks}/{task.totalMiniTasks} Minitasks
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock3 className="w-4 h-4 text-primary" />
+            <span>{task.progress}% completed</span>
+          </div>
         </div>
       </div>
 
+      {task.miniTasks && task.miniTasks.length > 0 && (
+        <div className="mt-3 p-3 bg-secondary/40 border border-border/80 rounded-lg space-y-2 text-left animate-fade-in mb-3">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide block mb-1">Minitask Checklist:</span>
+          <div className="space-y-2">
+            {task.miniTasks.map((mt, mtIdx) => {
+              const isMtCompleted = mt.isCompleted || mt.status === "completed" || mt.status === "done";
+              return (
+                <div key={mt.id || mtIdx} className="flex items-center justify-between text-xs gap-3 py-0.5">
+                  <span className={cn(
+                    "font-medium leading-tight",
+                    isMtCompleted ? "text-foreground/55" : "text-foreground"
+                  )}>
+                    {mt.title || `Minitask #${mtIdx + 1}`}
+                  </span>
+                  <div className="flex-shrink-0">
+                    {isMtCompleted ? (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-success/10 text-success rounded font-semibold text-[10px]">
+                        <Check className="w-3 h-3" /> Done
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-destructive/10 text-destructive rounded font-semibold text-[10px]">
+                        <X className="w-3 h-3" /> Pending
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
 
       {/* Client vs Expert Actions */}
@@ -289,6 +364,7 @@ export function TaskProgressCard({
               <ArrowRight className="w-4 h-4" />
               View Details
             </Button>
+
 
             <div className="flex items-center gap-2">
               {/* Expert: Evidence submitted → Checklist Completed static */}
@@ -420,12 +496,12 @@ export function TaskProgressCard({
             {showDeclineForm && (
               <div className="bg-destructive-light border border-destructive/20 rounded-lg p-3 space-y-2 mt-2 text-left">
                 <label className="block text-xs font-semibold text-destructive">
-                  Lý do từ chối (Feedback):
+                  Decline Reason (Feedback):
                 </label>
                 <textarea
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
-                  placeholder="Nhập chi tiết lý do từ chối (ví dụ: Sản phẩm bị lỗi layout ở mobile...)"
+                  placeholder="Enter details for decline (e.g. deliverable has layout bugs on mobile...)"
                   rows={3}
                   className="w-full text-sm border border-destructive/20 rounded-lg p-2.5 bg-card focus:outline-none focus:ring-1 focus:ring-destructive/40 focus:border-destructive/40 resize-none"
                 />
@@ -439,7 +515,7 @@ export function TaskProgressCard({
                     }}
                     className="px-3 py-1.5 border border-border text-foreground rounded-lg hover:bg-secondary font-medium cursor-pointer"
                   >
-                    Hủy
+                    Cancel
                   </button>
                   <button
                     type="button"
@@ -447,7 +523,7 @@ export function TaskProgressCard({
                     onClick={handleSendDecline}
                     className="px-3 py-1.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg font-semibold disabled:opacity-50 cursor-pointer"
                   >
-                    Gửi phản hồi
+                    Submit Feedback
                   </button>
                 </div>
               </div>
@@ -463,8 +539,8 @@ export function TaskProgressCard({
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary border-b border-border">
               <div className="text-left">
-                <h3 className="text-lg font-bold text-foreground">Sản phẩm nộp cho: {task.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Chi tiết các file và link do chuyên gia cung cấp</p>
+                <h3 className="text-lg font-bold text-foreground">Deliverables for: {task.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Details of files and links provided by the expert</p>
               </div>
               <button
                 onClick={() => setShowViewProductModal(false)}
@@ -480,15 +556,15 @@ export function TaskProgressCard({
               <div className="space-y-3">
                 <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-left">
                   <FileText className="w-4 h-4 text-primary" />
-                  Sản phẩm chính của Milestone
+                  Main Deliverable of Milestone
                 </h4>
                 {(!task.productLink && !task.productFile) ? (
-                  <p className="text-sm text-muted-foreground italic bg-secondary p-4 rounded-lg border border-border text-left">Chưa nộp file hay link chính cho milestone này.</p>
+                  <p className="text-sm text-muted-foreground italic bg-secondary p-4 rounded-lg border border-border text-left">No file or link submitted yet for this milestone.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {task.productLink && (
                       <div className="flex flex-col p-3 bg-primary-light rounded-lg border border-primary/10 hover:bg-primary-light/80 transition-colors text-left">
-                        <span className="text-xs font-semibold text-primary uppercase">Link sản phẩm</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Product Link</span>
                         <a
                           href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                           target="_blank"
@@ -500,24 +576,39 @@ export function TaskProgressCard({
                         </a>
                       </div>
                     )}
-                    {task.productFile && (
-                      <div className="flex flex-col p-3 bg-secondary rounded-lg border border-border text-left">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Tên file sản phẩm</span>
-                        <div className="flex items-center justify-between gap-2 mt-1">
-                          <span className="text-sm text-foreground font-medium font-mono truncate">
-                            {task.productFile}
-                          </span>
-                          <a
-                            href={task.productFile.startsWith("http") ? task.productFile : `https://${task.productFile}`}
-                            download
-                            className="p-1.5 flex-shrink-0 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                            title="Download file"
-                          >
-                            <Download className="w-4 h-4" />
-                          </a>
+                    {task.productFile && (() => {
+                      const resolved = resolveProductFile(task.productFile);
+                      if (!resolved) return null;
+                      return (
+                        <div className="flex flex-col p-3 bg-secondary rounded-lg border border-border text-left">
+                          <span className="text-xs font-semibold text-muted-foreground uppercase">Attached File</span>
+                          <div className="flex items-center justify-between gap-2 mt-1">
+                            <span className="text-sm text-foreground font-medium font-mono truncate" title={resolved.name}>
+                              {resolved.name}
+                            </span>
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              <a
+                                href={resolved.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                                title="View file"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => downloadFileBlob(resolved.url, resolved.name)}
+                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors cursor-pointer"
+                                title="Download file"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 )}
               </div>
@@ -533,7 +624,7 @@ export function TaskProgressCard({
                     className="px-5 py-2.5 bg-destructive-light hover:bg-destructive/10 text-destructive font-bold rounded-lg text-sm transition-colors border border-destructive/20 flex items-center gap-1.5 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
-                    Từ chối (Decline)
+                    Decline
                   </button>
                   <button
                     type="button"
@@ -541,7 +632,7 @@ export function TaskProgressCard({
                     className="px-5 py-2.5 bg-success hover:bg-success/90 text-success-foreground font-bold rounded-lg text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
-                    Phê duyệt (Accept)
+                    Accept
                   </button>
                 </>
               ) : (
@@ -550,7 +641,7 @@ export function TaskProgressCard({
                   onClick={() => setShowViewProductModal(false)}
                   className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground font-bold rounded-lg text-sm transition-colors border border-border cursor-pointer"
                 >
-                  Đóng
+                  Close
                 </button>
               )}
             </div>

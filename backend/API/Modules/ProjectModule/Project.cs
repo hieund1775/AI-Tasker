@@ -25,6 +25,7 @@ public class Project
     public string? ProjectFile { get; set; }      // Lưu tên file sản phẩm tổng do expert nộp
     public string? DeclineReason { get; set; }     // Lưu lý do từ chối cuối cùng của Client
     public Guid? ConversationId { get; set; }
+    public string? Metadata { get; set; } // NEW METADATA FIELD
 
     public JobPost? JobPost { get; set; }
 

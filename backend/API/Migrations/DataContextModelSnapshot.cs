@@ -102,7 +102,7 @@ namespace AITasker_Modular.Migrations
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
                             TotalBalance = 0m,
-                            UpdatedAt = new DateTime(2026, 7, 7, 11, 2, 25, 148, DateTimeKind.Utc).AddTicks(5467)
+                            UpdatedAt = new DateTime(2026, 7, 20, 1, 41, 18, 199, DateTimeKind.Utc).AddTicks(4840)
                         });
                 });
 
@@ -362,12 +362,6 @@ namespace AITasker_Modular.Migrations
                     b.Property<string>("HistoryLogsJson")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("PartnerEvidenceUrl")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("PartnerExplanation")
-                        .HasColumnType("longtext");
-
                     b.Property<string>("PartnerRejectionReason")
                         .HasColumnType("longtext");
 
@@ -422,28 +416,25 @@ namespace AITasker_Modular.Migrations
                     b.Property<Guid>("ClientId")
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("ContractTerms")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<Guid>("ExpertId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("SignedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<decimal>("TotalValue")
-                        .HasColumnType("decimal(18,2)");
+                    b.Property<string>("Terms")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -467,11 +458,17 @@ namespace AITasker_Modular.Migrations
                     b.Property<Guid>("CreatedById")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("ExpertReply")
+                        .HasColumnType("longtext");
+
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("char(36)");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
+
+                    b.Property<DateTime?>("ReplyCreatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<Guid>("TargetUserId")
                         .HasColumnType("char(36)");
@@ -496,21 +493,62 @@ namespace AITasker_Modular.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("BankAccountName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("BankAccountNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("BankCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("BankReferenceNo")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
 
                     b.Property<Guid?>("DestinationWalletId")
                         .HasColumnType("char(36)");
 
+                    b.Property<decimal>("GatewayFee")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsSandbox")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<decimal>("PlatformFee")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<Guid?>("ProjectId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid?>("ReportId")
                         .HasColumnType("char(36)");
 
                     b.Property<Guid?>("SourceWalletId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<string>("Type")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -737,8 +775,8 @@ namespace AITasker_Modular.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<DateTime?>("Deadline")
-                        .HasColumnType("datetime(6)");
+                    b.Property<int>("Duration")
+                        .HasColumnType("int");
 
                     b.Property<string>("FeedbackContent")
                         .HasColumnType("longtext");
@@ -798,6 +836,9 @@ namespace AITasker_Modular.Migrations
                     b.Property<Guid?>("JobPostId")
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Metadata")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("ProjectFile")
                         .HasColumnType("longtext");
 
@@ -822,6 +863,82 @@ namespace AITasker_Modular.Migrations
                     b.HasIndex("JobPostId");
 
                     b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectActivityLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("ActorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("ProjectActivityLogs");
+                });
+
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectExtension", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<int>("RequestedDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ResponseNote")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<Guid?>("TaskId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("ProjectExtensions");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectSkill", b =>
@@ -877,6 +994,33 @@ namespace AITasker_Modular.Migrations
                     b.ToTable("Tasks");
                 });
 
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.TaskProgressLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<double>("HoursWorked")
+                        .HasColumnType("double");
+
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskProgressLogs");
+                });
+
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.ApplicationUser", b =>
                 {
                     b.Property<Guid>("Id")
@@ -894,6 +1038,12 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("EmailVerificationExpiry")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("EmailVerificationToken")
                         .HasColumnType("longtext");
 
                     b.Property<string>("FullName")
@@ -938,7 +1088,16 @@ namespace AITasker_Modular.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("Category")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Certifications")
+                        .HasColumnType("longtext");
+
+                    b.Property<decimal>("HourlyRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Industry")
                         .HasColumnType("longtext");
 
                     b.Property<string>("JobTitle")
@@ -952,6 +1111,9 @@ namespace AITasker_Modular.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("Phone")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("PortfolioUrls")
                         .HasColumnType("longtext");
 
@@ -960,6 +1122,9 @@ namespace AITasker_Modular.Migrations
 
                     b.Property<double>("SuccessRate")
                         .HasColumnType("double");
+
+                    b.Property<string>("Website")
+                        .HasColumnType("longtext");
 
                     b.HasKey("UserId");
 
@@ -1362,6 +1527,35 @@ namespace AITasker_Modular.Migrations
                     b.Navigation("JobPost");
                 });
 
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectActivityLog", b =>
+                {
+                    b.HasOne("AITasker_Modular.Modules.ProjectModule.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectExtension", b =>
+                {
+                    b.HasOne("AITasker_Modular.Modules.ProjectModule.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("AITasker_Modular.Modules.ProjectModule.Task", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Task");
+                });
+
             modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.ProjectSkill", b =>
                 {
                     b.HasOne("AITasker_Modular.Modules.ProjectModule.Project", "Project")
@@ -1397,6 +1591,17 @@ namespace AITasker_Modular.Migrations
                     b.Navigation("FeedbackSender");
 
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("AITasker_Modular.Modules.ProjectModule.TaskProgressLog", b =>
+                {
+                    b.HasOne("AITasker_Modular.Modules.ProjectModule.Task", "Task")
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Task");
                 });
 
             modelBuilder.Entity("AITasker_Modular.Modules.UserModule.ExpertProfile", b =>

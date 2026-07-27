@@ -4,13 +4,14 @@ import {
   Send,
   FileText,
   Image,
-  File,
+  File as FileIcon,
   X,
   BarChart3,
   Calendar,
   GitBranch,
   Lightbulb,
   AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -41,8 +42,142 @@ export function SendProposal() {
     acknowledged: false,
   });
 
+  const [autoPrompt, setAutoPrompt] = useState(null);
+  const [generatingUseCases, setGeneratingUseCases] = useState({});
+  const [minitaskCounts, setMinitaskCounts] = useState({});
+
+  const handleGenerateMiniTaskForUseCase = async (uc) => {
+    const ucId = uc.id;
+    const requestedCount = minitaskCounts[ucId];
+    const countInstruction = requestedCount ? `CRITICAL RULE: You MUST return EXACTLY ${requestedCount} minitask(s). Do NOT generate more or less than ${requestedCount}. Your JSON payload array MUST contain exactly ${requestedCount} item(s).` : "Generate a detailed list of minitasks.";
+
+    setGeneratingUseCases(prev => ({ ...prev, [ucId]: "loading" }));
+    setAutoPrompt({
+      title: uc.title || uc.nameAndDeadline || "User Story",
+      description: uc.description || ""
+    });
+    const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
+User Story: ${uc.title || uc.nameAndDeadline || ""}
+Description: ${uc.description || ""}
+
+[System Instruction: Do not ask for deadline, duration, or budget. ${countInstruction} Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]`;
+
+    try {
+      const response = await api.ai.analyzeMinitasks({
+        messages_history: [{ role: "user", content: promptText }],
+        context_summary: "",
+        file_path: "",
+        current_draft: {
+          jobPostId: projectId,
+          expertId: user?.id,
+          projectTitle: project?.title || ""
+        }
+      });
+
+      const payload = response?.payload || response?.Payload;
+      if (payload && Array.isArray(payload) && payload.length > 0) {
+        const mappedTasks = payload.map((task) => ({
+          useCaseId: uc.id,
+          useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
+          tasks: [{
+            taskId: uc.id,
+            taskTitle: uc.title || uc.nameAndDeadline || "Task",
+            miniTasks: (task.MiniTasks || task.miniTasks || []).map(mt => ({
+              title: mt.Title || mt.title || "",
+              description: ""
+            }))
+          }]
+        }));
+
+        if (mappedTasks.length > 0) {
+          handleApplyAITasks({ useCases: mappedTasks });
+        }
+      }
+    } catch (err) {
+      console.error("AI generate failed:", err);
+      setGeneratingUseCases(prev => ({ ...prev, [ucId]: "error" }));
+      setTimeout(() => setGeneratingUseCases(prev => ({ ...prev, [ucId]: undefined })), 3000);
+      return;
+    }
+    setGeneratingUseCases(prev => ({ ...prev, [ucId]: "done" }));
+    setTimeout(() => setGeneratingUseCases(prev => ({ ...prev, [ucId]: undefined })), 3000);
+  };
+
   // ---- Use case aware task initialization ----
   // ponytail: flatMap ensures each use case only emits its own tasks — no cross-contamination
+  const [generatingIntro, setGeneratingIntro] = useState(false);
+  const handleGenerateIntro = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setGeneratingIntro(true);
+      
+      let expertProfileStr = "";
+      if (user?.id) {
+        try {
+          const userDetail = await api.users.getById(user.id);
+          let parsedStatus = {};
+          try {
+            parsedStatus = userDetail.status ? JSON.parse(userDetail.status) : {};
+            if (!parsedStatus || typeof parsedStatus !== 'object') {
+              parsedStatus = { bio: userDetail.status || "" };
+            }
+          } catch (e) {
+             parsedStatus = { bio: userDetail.status || "" };
+          }
+          const bio = parsedStatus.bio || "";
+          const skills = Array.isArray(parsedStatus.skills) ? parsedStatus.skills.join(", ") : "";
+          const portfolio = parsedStatus.portfolioUrl || "";
+          
+          expertProfileStr = `My Expert Profile Context:
+- Name: ${userDetail.fullName || userDetail.name || user.name || ""}
+- Bio: ${bio}
+- Skills: ${skills}
+- Portfolio: ${portfolio}
+Please use this background information to write a personalized and highly relevant introduction (cover letter).`;
+        } catch (e) {
+          console.error("Failed to fetch expert profile for intro", e);
+        }
+      }
+
+      const payload = {
+        expert_id: user?.id || "",
+        target_job_post_id: projectId || "",
+        target_project_title: project?.title || "",
+        target_project_description: project?.description || "",
+        tone: "Professional and persuasive",
+        purpose: "Proposal Introduction",
+        custom_highlights: expertProfileStr || "Focus on my skills and experience",
+        language: "vi"
+      };
+      
+      const response = await api.ai.generateExpertIntroduction(payload);
+
+      let introText = "";
+      if (response?.generated_introduction) {
+        let rawIntro = response.generated_introduction;
+        try {
+          // Backend trả về chuỗi JSON stringified bên trong trường generated_introduction
+          let parsed = JSON.parse(rawIntro);
+          introText = parsed.generated_introduction || rawIntro;
+        } catch (e) {
+          introText = rawIntro;
+        }
+      } else {
+        introText = response?.chat_message || response?.AiResponse || response?.aiResponse || response?.content || response?.intro || response?.text || (typeof response === "string" ? response : "");
+      }
+
+      if (introText) {
+        updateField("professionalIntro", introText);
+      } else {
+        alert("AI generation returned this raw data: " + JSON.stringify(response));
+      }
+    } catch (err) {
+      console.error("Generate Intro failed:", err);
+      alert("Failed to generate intro. Please check your connection or try again later. (Error: " + err.message + ")");
+    } finally {
+      setGeneratingIntro(false);
+    }
+  };
   const buildTasksFromUseCases = (job) => {
     const ucs = job?.useCases || [];
     if (ucs.length === 0) {
@@ -124,6 +259,24 @@ export function SendProposal() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
+  const updateTask = (taskId, field, value) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((t) => (t.id === taskId ? { ...t, [field]: value } : t))
+    );
+  };
+
+  const updateMiniTask = (taskId, miniId, field, value) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((t) => {
+        if (t.id !== taskId) return t;
+        const updatedMiniTasks = (t.miniTasks || []).map((m) =>
+          m.id === miniId ? { ...m, [field]: value } : m
+        );
+        return { ...t, miniTasks: updatedMiniTasks };
+      })
+    );
+  };
+
   // ---- Fetch project + client info ----
   const [project, setProject] = useState(null);
   const [client, setClient] = useState(null);
@@ -163,8 +316,8 @@ export function SendProposal() {
         // Initialize tasks from client use cases
         setTasks(buildTasksFromUseCases(job));
 
-        // Find existing proposal for this jobPostId
-        const foundProp = proposalsList.find(p => String(p.jobPostId) === String(projectId));
+        // Find existing proposal for this jobPostId (with robust PascalCase fallbacks)
+        const foundProp = proposalsList.find(p => String(p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id) === String(projectId));
         if (foundProp) {
           setExistingProposal(foundProp);
           let parsedCoverLetter = {};
@@ -513,12 +666,13 @@ export function SendProposal() {
 
       let finalPropId = null;
 
-      // Lấy file đính kèm thực tế nếu Expert có upload lên form
+      // Retrieve actual attachment file if Expert uploaded to form
       const portfolioFile = attachments[0] || null;
       const attachmentFile = attachments[1] || null;
 
-      if (existingProposal) {
-        await api.proposals.update(existingProposal.id, {
+      const propIdToUpdate = existingProposal?.id || existingProposal?.Id;
+      if (propIdToUpdate) {
+        await api.proposals.update(propIdToUpdate, {
           bidAmount: finalBid,
           estimatedDays: totalDays,
           introduction: form.professionalIntro || "Proposal from expert",
@@ -526,33 +680,57 @@ export function SendProposal() {
           portfolio: portfolioFile,
           attachment: attachmentFile
         });
-        finalPropId = existingProposal.id;
+        finalPropId = propIdToUpdate;
         // Notify client that expert updated their proposal
         notifyUpdatedProposal({
           clientUserId: project?.clientId,
-          expertName: user?.fullName || user?.name || "Chuyên gia",
-          jobTitle: project?.title || "Dự án",
+          expertName: user?.fullName || user?.name || "Expert",
+          jobTitle: project?.title || "Project",
           jobPostId: projectId,
         }).catch(() => {});
       } else {
-        const created = await api.proposals.create({
-          jobPostId: projectId,
-          expertId: user.id,
-          bidAmount: finalBid,
-          estimatedDays: totalDays,
-          introduction: form.professionalIntro || "Proposal from expert",
-          coverLetter: implementationJson,
-          portfolio: portfolioFile,
-          attachment: attachmentFile
-        });
-        finalPropId = created?.id;
-        // Notify client that a new proposal arrived
-        notifyNewProposal({
-          clientUserId: project?.clientId,
-          expertName: user?.fullName || user?.name || "Chuyên gia",
-          jobTitle: project?.title || "Dự án",
-          jobPostId: projectId,
-        }).catch(() => {});
+        try {
+          const created = await api.proposals.create({
+            jobPostId: projectId,
+            expertId: user.id,
+            bidAmount: finalBid,
+            estimatedDays: totalDays,
+            introduction: form.professionalIntro || "Proposal from expert",
+            coverLetter: implementationJson,
+            portfolio: portfolioFile,
+            attachment: attachmentFile
+          });
+          finalPropId = created?.id || created?.Id;
+          // Notify client that a new proposal arrived
+          notifyNewProposal({
+            clientUserId: project?.clientId,
+            expertName: user?.fullName || user?.name || "Expert",
+            jobTitle: project?.title || "Project",
+            jobPostId: projectId,
+          }).catch(() => {});
+        } catch (createErr) {
+          // If backend rejects create because an active proposal already exists in DB, fetch and update it!
+          if (createErr.message?.toLowerCase().includes("active proposal") || createErr.status === 400) {
+            const list = await api.proposals.getByExpert(user.id).catch(() => []);
+            const activeProp = list.find(p => String(p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id) === String(projectId));
+            const activeId = activeProp?.id || activeProp?.Id;
+            if (activeId) {
+              await api.proposals.update(activeId, {
+                bidAmount: finalBid,
+                estimatedDays: totalDays,
+                introduction: form.professionalIntro || "Proposal from expert",
+                coverLetter: implementationJson,
+                portfolio: portfolioFile,
+                attachment: attachmentFile
+              });
+              finalPropId = activeId;
+            } else {
+              throw createErr;
+            }
+          } else {
+            throw createErr;
+          }
+        }
       }
 
       setSubmitting(false);
@@ -567,6 +745,18 @@ export function SendProposal() {
       setSubmitting(false);
     }
   };
+
+  // ---- Auto-resize textareas when AI fills them ----
+  useEffect(() => {
+    const textareas = document.querySelectorAll("textarea");
+    textareas.forEach(ta => {
+      // Only resize if it has a value and isn't manually collapsed
+      if (ta.value) {
+        ta.style.height = "inherit";
+        ta.style.height = `${ta.scrollHeight}px`;
+      }
+    });
+  }, [form.professionalIntro, tasks]);
 
   // ---- Loading state ----
   if (loading) {
@@ -637,13 +827,46 @@ export function SendProposal() {
         <div className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}>
           <form onSubmit={handleSubmit} className="space-y-6">
             <AnimatedReveal>
-              <SectionCard title="Professional Introduction" icon={Lightbulb} padding="lg">
+              <SectionCard 
+                title="Professional Introduction" 
+                icon={Lightbulb} 
+                padding="lg"
+                actions={
+                  <button
+                    type="button"
+                    onClick={handleGenerateIntro}
+                    disabled={generatingIntro}
+                    className="h-8 px-3 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    {generatingIntro ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        Generate Intro
+                      </>
+                    )}
+                  </button>
+                }
+              >
                 <textarea
                   value={form.professionalIntro}
-                  onChange={(e) => updateField("professionalIntro", e.target.value)}
+                  onChange={(e) => {
+                    e.target.style.height = "inherit";
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                    updateField("professionalIntro", e.target.value);
+                  }}
                   rows={5}
                   placeholder="Introduce yourself — your experience, background, relevant skills, and why you are the best fit for this project."
-                  className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-y"
+                  className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-none overflow-hidden"
                   required
                 />
               </SectionCard>
@@ -671,23 +894,96 @@ export function SendProposal() {
                       return (
                         <div key={uc.id} className="border border-border rounded-xl overflow-hidden">
                           {/* ── Use Case Header (read-only) ── */}
-                          <div className="p-4 bg-accent-light/30 border-b border-border">
+                          <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
-                                  Client User Story
+                                <span className="font-bold text-foreground text-sm">
+                                  UserStory: {uc.title || uc.nameAndDeadline}
                                 </span>
-                                <h4 className="font-semibold text-foreground text-sm">
-                                  {uc.title || uc.nameAndDeadline}
-                                </h4>
                               </div>
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                                 {uc.originalDurationDays || 1} days
                               </span>
                             </div>
                             {uc.description && (
-                              <p className="text-xs text-muted-foreground mt-2">{uc.description}</p>
+                              <p className="text-xs text-muted-foreground pl-3 border-l-2 border-border">
+                                Description: {uc.description}
+                              </p>
                             )}
+                            <div className="flex justify-end mt-2">
+                              {(() => {
+                                const status = generatingUseCases[uc.id];
+                                if (status === "loading") {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="h-8 px-3 bg-muted text-muted-foreground rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-not-allowed"
+                                    >
+                                      <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                      </svg>
+                                      Generating...
+                                    </button>
+                                  );
+                                }
+                                if (status === "done") {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="h-8 px-3 bg-success/10 text-success border border-success/20 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                    >
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <polyline points="20 6 9 17 4 12" />
+                                      </svg>
+                                      Generated
+                                    </button>
+                                  );
+                                }
+                                if (status === "error") {
+                                  return (
+                                    <button
+                                      type="button"
+                                      disabled
+                                      className="h-8 px-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                    >
+                                      Failed
+                                    </button>
+                                  );
+                                }
+                                return (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5" title="Optional: Number of minitasks you want the AI to generate">
+                                      <span className="text-xs font-medium text-muted-foreground">
+                                        Minitask Qty:
+                                      </span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max="20"
+                                        placeholder="Auto"
+                                        title="Leave empty for AI to decide automatically"
+                                        value={minitaskCounts[uc.id] || ""}
+                                        onChange={(e) => setMinitaskCounts(prev => ({ ...prev, [uc.id]: e.target.value }))}
+                                        className="w-14 h-8 text-xs px-2 border border-border rounded-md bg-background focus:ring-1 focus:ring-brand-primary"
+                                      />
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleGenerateMiniTaskForUseCase(uc)}
+                                      className="h-8 px-3 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                                    >
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                      </svg>
+                                      Generate Minitask
+                                    </button>
+                                  </div>
+                                );
+                              })()}
+                            </div>
                           </div>
 
                           {/* ── Tasks ── */}
@@ -708,12 +1004,16 @@ export function SendProposal() {
                                   {/* Task Title Row with Remove Button */}
                                   <div className="flex items-center gap-3">
                                     <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
-                                    <input
-                                      type="text"
+                                    <textarea
                                       value={task.title}
-                                      onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
-                                      placeholder="Task name (e.g., Database Design)"
-                                      className="flex-1 min-w-[140px] px-3 py-2 border border-input rounded-lg text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
+                                      onChange={(e) => {
+                                        e.target.style.height = "inherit";
+                                        e.target.style.height = `${e.target.scrollHeight}px`;
+                                        updateTask(task.id, "title", e.target.value);
+                                      }}
+                                      disabled={!isProposed}
+                                      rows={1}
+                                      className="flex-1 min-w-[200px] px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary disabled:opacity-70 resize-none overflow-hidden"
                                       required
                                     />
                                     {ucTasks.length > 1 && (
@@ -750,12 +1050,15 @@ export function SendProposal() {
                                     {task.miniTasks.map((mini, mIdx) => (
                                       <div key={mini.id || mIdx} className="flex items-center gap-2">
                                         <span className="text-muted-foreground font-mono text-xs">•</span>
-                                        <input
-                                          type="text"
+                                        <textarea
                                           value={mini.title}
-                                          onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
-                                          placeholder={`Minitask #${mIdx + 1}`}
-                                          className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
+                                          onChange={(e) => {
+                                            e.target.style.height = "inherit";
+                                            e.target.style.height = `${e.target.scrollHeight}px`;
+                                            updateMiniTask(task.id, mini.id, "title", e.target.value);
+                                          }}
+                                          rows={1}
+                                          className="flex-1 px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-hidden"
                                           required
                                         />
                                         {task.miniTasks.length > 1 && (
@@ -822,13 +1125,15 @@ export function SendProposal() {
                           {/* Task Title Row with Remove Button */}
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
-                            <input
-                              type="text"
+                            <textarea
                               value={task.title}
-                              onChange={(e) => { const nt = [...tasks]; nt[tIdx].title = e.target.value; setTasks(nt); }}
-                              placeholder="Task name (e.g., Database Design)"
-                              className="flex-1 min-w-[140px] px-3 py-2.5 border border-input rounded-xl text-sm focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card font-semibold text-foreground"
-                              required
+                              onChange={(e) => {
+                                e.target.style.height = "inherit";
+                                e.target.style.height = `${e.target.scrollHeight}px`;
+                                updateTask(task.id, "title", e.target.value);
+                              }}
+                              rows={1}
+                              className="flex-1 min-w-[200px] px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-hidden"
                             />
                             {tasks.length > 1 && (
                               <button 
@@ -864,13 +1169,15 @@ export function SendProposal() {
                             {task.miniTasks.map((mini, mIdx) => (
                               <div key={mini.id || mIdx} className="flex items-center gap-2">
                                 <span className="text-muted-foreground font-mono text-xs">•</span>
-                                <input
-                                  type="text"
+                                <textarea
                                   value={mini.title}
-                                  onChange={(e) => { const nt = [...tasks]; nt[tIdx].miniTasks[mIdx].title = e.target.value; setTasks(nt); }}
-                                  placeholder={`Minitask #${mIdx + 1}`}
-                                  className="flex-1 px-3 py-1.5 border border-input rounded-lg text-xs focus:ring-1 focus:ring-brand-primary/50 focus:outline-none bg-card text-foreground/80"
-                                  required
+                                  onChange={(e) => {
+                                    e.target.style.height = "inherit";
+                                    e.target.style.height = `${e.target.scrollHeight}px`;
+                                    updateMiniTask(task.id, mini.id, "title", e.target.value);
+                                  }}
+                                  rows={1}
+                                  className="flex-1 px-3 py-1.5 border border-input rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-primary resize-none overflow-hidden"
                                 />
                                 {task.miniTasks.length > 1 && (
                                   <button
@@ -927,9 +1234,11 @@ export function SendProposal() {
             <AnimatedReveal delay={4}>
               <FileUploadDropzone
                 files={attachments}
-                onFilesChange={setAttachments}
-                label="Portfolio & Attachments"
-                helperText="Attach your CV, portfolio, demo files, PDFs, or supporting documents."
+                onFilesChange={(newFiles) => setAttachments(newFiles.slice(0, 1))}
+                multiple={false}
+                maxFiles={1}
+                label="Portfolio & Attachment (Max 1 file)"
+                helperText="Attach your CV, portfolio, demo file, PDF, or supporting document (Max 1 file)."
               />
             </AnimatedReveal>
 
@@ -938,7 +1247,7 @@ export function SendProposal() {
                 <div className="space-y-2">
                   {existingAttachments.map((att) => (
                     <div key={att.id} className="flex items-center gap-3 bg-secondary/60 border border-border rounded-lg px-4 py-2.5">
-                      {att.type === "image/png" ? <Image className="w-5 h-5 text-brand-primary" /> : <File className="w-5 h-5 text-muted-foreground" />}
+                      {att.type === "image/png" ? <Image className="w-5 h-5 text-brand-primary" /> : <FileIcon className="w-5 h-5 text-muted-foreground" />}
                       <div>
                         <p className="text-sm font-medium text-foreground/80">{att.name}</p>
                         <p className="text-xs text-muted-foreground">{att.size}</p>
@@ -1010,9 +1319,9 @@ export function SendProposal() {
                       <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
                         <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Thời gian đề xuất vượt quá yêu cầu</p>
+                          <p className="text-sm font-bold">Proposed duration exceeds requirement</p>
                           <p className="text-xs text-amber-700 mt-0.5">
-                            Thời gian của bạn ({totalDays} ngày) vượt quá mốc gốc của khách hàng ({clientDuration} ngày) là {Math.abs(timeDeviation)} ngày.
+                            Your duration ({totalDays} days) exceeds the client's baseline ({clientDuration} days) by {Math.abs(timeDeviation)} days.
                           </p>
                         </div>
                       </div>
@@ -1021,9 +1330,9 @@ export function SendProposal() {
                       <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
                         <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Ngân sách đề xuất vượt quá ngân sách gốc</p>
+                          <p className="text-sm font-bold">Proposed budget exceeds baseline</p>
                           <p className="text-xs text-rose-700 mt-0.5">
-                            Giá bid của bạn ({finalBid.toLocaleString()} USD) vượt quá ngân sách của khách hàng ({clientBudget.toLocaleString()} USD) là {Math.abs(budgetDeviation).toLocaleString()} USD.
+                            Your bid amount ({finalBid.toLocaleString()} USD) exceeds the client's budget ({clientBudget.toLocaleString()} USD) by {Math.abs(budgetDeviation).toLocaleString()} USD.
                           </p>
                         </div>
                       </div>
@@ -1093,6 +1402,8 @@ export function SendProposal() {
                 onApplyTasks={handleApplyAITasks}
                 existingTasks={tasks}
                 clientUseCases={project?.useCases || []}
+                autoPrompt={autoPrompt}
+                clearAutoPrompt={() => setAutoPrompt(null)}
               />
             </div>
           </aside>

@@ -89,9 +89,10 @@ export function useProjectProgress(projectId, role) {
       }
 
       // Derive final delivery fields
-      let parsedLink = { projectLink: proj.projectLink || proj.ProjectLink || "", projectFile: "", declineReason: "" };
+      let parsedLink = { projectLink: "", projectFile: "", declineReason: "" };
       const rawProjectLink = proj.projectLink || proj.ProjectLink || "";
-      if (rawProjectLink && rawProjectLink.trim().startsWith("{")) {
+      const isJsonString = typeof rawProjectLink === "string" && rawProjectLink.trim().startsWith("{");
+      if (isJsonString) {
         try {
           parsedLink = JSON.parse(rawProjectLink);
         } catch (e) {
@@ -99,7 +100,7 @@ export function useProjectProgress(projectId, role) {
         }
       }
       
-      proj.finalProjectLink = parsedLink.projectLink || rawProjectLink || "";
+      proj.finalProjectLink = isJsonString ? (parsedLink.projectLink || "") : rawProjectLink;
       proj.finalProjectFile = parsedLink.projectFile || proj.projectFile || proj.ProjectFile || "";
       proj.finalWorkDeclineReason = parsedLink.declineReason || proj.declineReason || proj.DeclineReason || "";
 
@@ -117,35 +118,48 @@ export function useProjectProgress(projectId, role) {
         return rawStatus === "completed" || rawStatus === "done";
       });
 
-      // If project has reached a terminal status in DB, clear any local overrides
-      const dbStatusLower = String(proj.Status || proj.status || "").toLowerCase();
-      const terminalStatuses = new Set([
-        "completed",
-        "cancelled",
-        "canceled",
-        "contract_cancelled",
-        "cancel_done",
-        "stopped",
-        "closed",
-        "payment_released"
-      ]);
-      if (terminalStatuses.has(dbStatusLower)) {
-        localStorage.removeItem(`project_status_${projectId}`);
-        proj.status = dbStatusLower;
+      // Check localStorage override FIRST — this takes highest priority
+      const localStatusRaw = localStorage.getItem(`project_status_${projectId}`);
+      const localStatusLower = localStatusRaw ? localStatusRaw.toLowerCase() : null;
+
+      // Terminal cancelled states that should NEVER be overridden by backend "Completed"
+      const cancelledTerminals = new Set(["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"]);
+
+      // If localStorage says cancelled — trust it unconditionally regardless of backend status
+      if (localStatusLower && cancelledTerminals.has(localStatusLower)) {
+        proj.status = localStatusLower;
       } else {
-        const localStatus = localStorage.getItem(`project_status_${projectId}`);
-        if (localStatus) {
-          proj.status = localStatus;
-        } else if (allTasksApproved) {
-          if (proj.finalWorkDeclineReason) {
-            proj.status = "inprogress";
-            localStorage.setItem(`project_status_${projectId}`, "inprogress");
-          } else {
-            // Initialize default status when all tasks are approved
-            const hasLink = !!(parsedLink.projectLink || proj.projectLink || proj.ProjectLink);
-            const defaultStatus = hasLink ? "under_review" : "inprogress";
-            localStorage.setItem(`project_status_${projectId}`, defaultStatus);
-            proj.status = defaultStatus;
+        const dbStatusLower = String(proj.Status || proj.status || "").toLowerCase();
+        const terminalStatuses = new Set([
+          "completed",
+          "cancelled",
+          "canceled",
+          "contract_cancelled",
+          "cancel_done",
+          "stopped",
+          "closed",
+          "payment_released"
+        ]);
+        if (terminalStatuses.has(dbStatusLower)) {
+          // Only clear local override if DB status is terminal AND it's NOT a cancellation override
+          if (!cancelledTerminals.has(dbStatusLower)) {
+            localStorage.removeItem(`project_status_${projectId}`);
+          }
+          proj.status = dbStatusLower;
+        } else {
+          if (localStatusRaw) {
+            proj.status = localStatusRaw;
+          } else if (allTasksApproved) {
+            if (proj.finalWorkDeclineReason) {
+              proj.status = "inprogress";
+              localStorage.setItem(`project_status_${projectId}`, "inprogress");
+            } else {
+              // Initialize default status when all tasks are approved
+              const hasLink = !!(parsedLink.projectLink || parsedLink.projectFile || proj.projectLink || proj.ProjectLink);
+              const defaultStatus = hasLink ? "under_review" : "inprogress";
+              localStorage.setItem(`project_status_${projectId}`, defaultStatus);
+              proj.status = defaultStatus;
+            }
           }
         }
       }
@@ -162,6 +176,7 @@ export function useProjectProgress(projectId, role) {
         proj.finalDeliveryStatus = "";
       }
 
+      // Backend now provides extension data, no need to merge from localStorage
       setProject(proj);
 
       let projTasks = [];
@@ -303,16 +318,19 @@ export function useProjectProgress(projectId, role) {
     setTasks(updatedTasks);
 
     try {
-      // 2. Background API Call
+      // 2. Background API Call — preserve existing title, productLink, and productFile
       await api.projects.updateMiniTask(miniTaskId, {
+        title: miniTask.title || "",
+        productLink: miniTask.productLink || null,
+        productFile: miniTask.productFile || null,
         isCompleted: nextCompleted,
         feedbackSenderId: user?.id || null
       });
-      toast.success(nextCompleted ? "Đã đánh dấu hoàn thành" : "Đã hủy đánh dấu hoàn thành");
+      toast.success(nextCompleted ? "Marked as completed" : "Unmarked as completed");
       triggerUpdate();
     } catch (e) {
       console.error(e);
-      toast.error("Lỗi khi cập nhật minitask");
+      toast.error("Failed to update minitask");
 
       // Rollback
       const rollbackTasks = [...tasks];
@@ -357,7 +375,7 @@ export function useProjectProgress(projectId, role) {
         miniTaskId,
         action: newCompleted ? "mini_task_completed" : "mini_task_created",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: miniTask?.title || updates.title || ""
       });
       triggerUpdate();
@@ -375,7 +393,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted handover evidence."
       });
       triggerUpdate();
@@ -396,7 +414,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Quick Accepted task."
       });
       triggerUpdate();
@@ -413,7 +431,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "urgent_submission_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Requested Expert to submit product."
       });
       triggerUpdate();
@@ -443,7 +461,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Accepted deliverables."
       });
       triggerUpdate();
@@ -464,7 +482,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Product declined, revision requested."
       });
       triggerUpdate();
@@ -481,7 +499,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted checklist for review."
       });
       triggerUpdate();
@@ -503,7 +521,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${productFile || "N/A"}`
       });
       triggerUpdate();
@@ -523,7 +541,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Approved milestone."
       });
       triggerUpdate();
@@ -544,7 +562,7 @@ export function useProjectProgress(projectId, role) {
         taskId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Requested revision."
       });
       triggerUpdate();
@@ -585,7 +603,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_submitted_for_review",
         actor: "Expert",
-        actorName: user?.fullName || "Chuyên gia",
+        actorName: user?.fullName || "Expert",
         details: "Submitted project final work for review."
       });
 
@@ -611,7 +629,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_approved",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: "Accepted project final delivery."
       });
 
@@ -643,7 +661,7 @@ export function useProjectProgress(projectId, role) {
         projectId,
         action: "task_revision_requested",
         actor: "Client",
-        actorName: user?.fullName || "Khách hàng",
+        actorName: user?.fullName || "Client",
         details: feedback || "Declined project final delivery."
       });
 

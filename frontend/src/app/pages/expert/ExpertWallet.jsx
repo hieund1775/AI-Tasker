@@ -35,20 +35,23 @@ const statusColors = {
 };
 
 const typeLabels = {
-  deposit: "nạp tiền",
-  manualdeposit: "nạp tiền",
-  withdrawal: "rút tiền",
-  escrow_deposit: "ký quỹ",
-  escrowdeposit: "ký quỹ",
-  escrow_release: "giải ngân",
-  escrowrelease: "giải ngân",
-  releasepayment: "giải ngân",
-  escrow_refund: "tố cáo",
-  escrowrefund: "tố cáo",
-  refund: "tố cáo",
-  dispute: "tố cáo",
-  platformfee: "phí hệ thống",
-  platform_fee: "phí hệ thống",
+  deposit: "deposit",
+  manualdeposit: "deposit",
+  withdrawal: "withdrawal",
+  escrow_deposit: "escrow deposit",
+  escrowdeposit: "escrow deposit",
+  escrow_release: "escrow release",
+  escrowrelease: "escrow release",
+  releasepayment: "escrow release",
+  escrow_refund: "dispute refund",
+  escrowrefund: "dispute refund",
+  refund: "dispute refund",
+  dispute: "dispute refund",
+  platformfee: "platform fee",
+  platform_fee: "platform fee",
+  cancel: "cancellation request",
+  report_request: "reported request",
+  verdict: "reported request",
 };
 
 // ---------------------------------------------------------------------------
@@ -88,10 +91,11 @@ export function ExpertWallet() {
           return;
         }
 
-        const [wallet, transactions, projects] = await Promise.all([
+        const [wallet, transactions, projects, reportsRes] = await Promise.all([
           api.users.getWallet(currentUserId).catch(() => null),
           api.payments.getTransactions(currentUserId).catch(() => []),
           api.projects.getByExpert(currentUserId).catch(() => []),
+          api.reports.getAll().catch(() => []),
         ]);
 
         if (!cancelled) {
@@ -102,15 +106,187 @@ export function ExpertWallet() {
           const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
           const expertReleases = localReleases.filter(r => String(r.expertId).toLowerCase() === String(currentUserId).toLowerCase());
 
+          // Build report mapping
+          const reports = Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []);
+          const projectReportMap = new Map();
+          reports.forEach(r => {
+            const pId = String(r.projectId || r.ProjectId || "").toLowerCase();
+            if (pId) {
+              projectReportMap.set(pId, r);
+            }
+          });
+
+          // Helper to get cancellation split details dynamically
+          const getCancellationPayouts = (p) => {
+            const projIdLower = String(p.id || p.Id).toLowerCase();
+
+            // 1. Try to get from Backend Metadata
+            const metadataStr = p.metadata || p.Metadata;
+            if (metadataStr) {
+              try {
+                const md = JSON.parse(metadataStr);
+                if (typeof md.expertPayout !== "undefined" && typeof md.clientRefund !== "undefined") {
+                  return {
+                    expertPayout: Number(md.expertPayout),
+                    clientRefund: Number(md.clientRefund),
+                  };
+                }
+              } catch(e) {}
+            }
+
+            // 2. Fallback to localStorage (legacy)
+            const localExpertPayout = localStorage.getItem(`cancellation_expert_payout_${projIdLower}`);
+            const localClientRefund = localStorage.getItem(`cancellation_client_refund_${projIdLower}`);
+            if (localExpertPayout !== null && localClientRefund !== null) {
+              return {
+                expertPayout: Number(localExpertPayout),
+                clientRefund: Number(localClientRefund),
+              };
+            }
+
+            const report = projectReportMap.get(projIdLower);
+            const escrowTotal = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+
+            if (report) {
+              const isClientReporter = (report.reporterRole || report.ReporterRole || "").toLowerCase() === "client";
+              const tasks = p.tasks || p.Tasks || [];
+              let progressPercent = 60;
+              if (tasks.length > 0) {
+                const doneCount = tasks.filter(t => t.isDone || t.IsDone || t.status === "Approved").length;
+                progressPercent = Math.round((doneCount / tasks.length) * 100);
+              } else if (report.payoutBreakdown?.progressPercent) {
+                progressPercent = report.payoutBreakdown.progressPercent;
+              }
+
+              const progressRate = progressPercent / 100;
+              const platformFee = Math.round(escrowTotal * 0.05);
+              const penaltyFee = Math.round(escrowTotal * 0.10);
+              const progressAmount = Math.round(escrowTotal * progressRate);
+
+              let expertPayout = 0;
+              let clientRefund = 0;
+
+              if (isClientReporter) {
+                expertPayout = progressAmount + penaltyFee;
+                clientRefund = escrowTotal - platformFee - expertPayout;
+              } else {
+                expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
+                clientRefund = escrowTotal - expertPayout - platformFee;
+              }
+
+              return { expertPayout, clientRefund };
+            }
+
+            const platformFee = Math.round(escrowTotal * 0.05);
+            const penaltyFee = Math.round(escrowTotal * 0.10);
+            const progressAmount = Math.round(escrowTotal * 0.60);
+            return {
+              expertPayout: progressAmount + penaltyFee,
+              clientRefund: escrowTotal - platformFee - (progressAmount + penaltyFee),
+            };
+          };
+
+          const cancelledProjectSplits = new Map();
+          expertProjects.forEach(p => {
+            const projId = p.id || p.Id;
+            const projIdLower = String(projId).toLowerCase();
+            const localStatus = localStorage.getItem(`project_status_${projIdLower}`) || p.status || p.Status || "";
+            const report = projectReportMap.get(projIdLower);
+            const isCancelledOrReported = ["cancelled", "cancel_done", "stopped", "completed", "disputed"].includes(localStatus.toLowerCase()) && (report || ["cancelled", "cancel_done", "stopped"].includes(localStatus.toLowerCase()));
+            if (isCancelledOrReported || report) {
+              const splits = getCancellationPayouts(p);
+              cancelledProjectSplits.set(projIdLower, {
+                ...splits,
+                escrowTotal: p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 10000,
+                title: p.title || p.jobPostTitle || "Project",
+              });
+            }
+          });
+
+          // Check compensating transactions to skip them
+          const isCompensatingTx = (t) => {
+            const lType = (t.type ?? t.Type ?? "").toLowerCase();
+            if (lType !== "deposit" && lType !== "manualdeposit" && lType !== "withdrawal" && lType !== "withdraw") {
+              return false;
+            }
+            const amt = t.amount ?? t.Amount ?? 0;
+            for (const [projIdLower, split] of cancelledProjectSplits.entries()) {
+              const report = projectReportMap.get(projIdLower);
+              const escrowTotal = split.escrowTotal || 10000;
+              const platformFee = Math.round(escrowTotal * 0.05);
+
+              if (
+                Math.abs(amt - split.expertPayout) < 2.0 ||
+                Math.abs(amt - (escrowTotal - platformFee)) < 2.0 ||
+                Math.abs(amt - escrowTotal) < 2.0
+              ) {
+                return true;
+              }
+
+              if (report) {
+                const stubExpert = report.escrowPayExpert || report.EscrowPayExpert || 285;
+                const stubClient = report.escrowRefundClient || report.EscrowRefundClient || 600;
+
+                const diffExpert = split.expertPayout - stubExpert;
+                const diffClient = split.clientRefund - stubClient;
+                const diffExpertEscrow = split.expertPayout - escrowTotal;
+                const diffExpertEscrowWithFee = split.expertPayout - escrowTotal + platformFee;
+
+                if (
+                  Math.abs(amt - diffExpert) < 2.0 ||
+                  Math.abs(amt - diffClient) < 2.0 ||
+                  Math.abs(amt - diffExpertEscrow) < 2.0 ||
+                  Math.abs(amt - diffExpertEscrowWithFee) < 2.0
+                ) {
+                  return true;
+                }
+              }
+            }
+            return false;
+          };
+
           const myTransactions = [];
+          const cancelledProjIdsInDb = new Set();
+
           if (Array.isArray(transactions)) {
             transactions.forEach(t => {
               const lType = (t.type ?? t.Type ?? "").toLowerCase();
               const projId = t.projectId || t.ProjectId;
+              const projIdLower = projId ? String(projId).toLowerCase() : null;
               const tAmount = t.amount ?? t.Amount ?? 0;
               const tId = t.id || t.Id;
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
+
+              // Skip ALL transactions for cancelled/reported projects — we'll insert clean rows instead
+              if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
+                cancelledProjIdsInDb.add(projIdLower);
+                return; // Skip all raw DB rows for cancelled projects
+              }
+
+              // Skip deposit transactions matching dispute verdict payout amounts
+              if (lType === "deposit" || lType === "manualdeposit") {
+                let isVerdictDeposit = false;
+                cancelledProjectSplits.forEach((split, pid) => {
+                  const escrowTotal = split.escrowTotal || 10000;
+                  const netPay = escrowTotal * 0.95;
+                  if (Math.abs(tAmount - netPay) < 2.0 || Math.abs(tAmount - split.expertPayout) < 2.0) {
+                    isVerdictDeposit = true;
+                  }
+                  const dvRaw = localStorage.getItem(`dispute_verdict_${pid}`);
+                  if (!dvRaw) return;
+                  try {
+                    const dv = JSON.parse(dvRaw);
+                    const netAmount = dv.expertReceives - dv.expertFee;
+                    if (Math.abs(tAmount - netAmount) < 2.0) isVerdictDeposit = true;
+                  } catch (e) {}
+                });
+                if (isVerdictDeposit) return;
+              }
+
+              if (isCompensatingTx(t)) {
+                return; // Skip compensating transactions
+              }
 
               if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
                 const originalAmount = tAmount * 100 / 95;
@@ -143,6 +319,66 @@ export function ExpertWallet() {
             });
           }
 
+          // Insert clean report/cancelled project rows: 
+          // If report exists (Admin resolution): show 2 rows (Gross 10,000 + Fee -500)
+          // If normal cancellation: show 1 consolidated payout row (expertPayout)
+          cancelledProjectSplits.forEach((split, projIdLower) => {
+            const report = projectReportMap.get(projIdLower);
+            const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+
+            const isReportResolvedByAdmin = report && (
+              report.reportType !== "cancellation" ||
+              report.adminNote ||
+              localStorage.getItem(`report_status_${projIdLower}`) ||
+              ["Resolved", "Accepted"].includes(report.status)
+            );
+
+            if (isReportResolvedByAdmin) {
+              // Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
+              if (split.expertPayout > 0) {
+                const grossBudget = split.escrowTotal || 10000;
+                const pFee = Math.round(grossBudget * 0.05);
+
+                myTransactions.push({
+                  id: `cancel-payout-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: grossBudget,
+                  type: "report_request",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+
+                if (pFee > 0) {
+                  myTransactions.push({
+                    id: `cancel-fee-${projIdLower}`,
+                    projectId: projIdLower,
+                    amount: -pFee,
+                    type: "platform_fee",
+                    status: "done",
+                    createdAt: tDate,
+                    projectTitle: split.title,
+                    description: "systemfee",
+                  });
+                }
+              }
+              // If expertPayout <= 0 (Refunded to Client), Expert Wallet stays 100% EMPTY ("im ru")!
+            } else {
+              // Normal Cancellation Flow (Negotiation): 1 consolidated row (expertPayout)
+              if (split.expertPayout > 0) {
+                myTransactions.push({
+                  id: `cancel-payout-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.expertPayout,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+              }
+            }
+          });
+
           const transactionProjectIds = new Set(
             myTransactions
               .filter(t => {
@@ -163,22 +399,31 @@ export function ExpertWallet() {
 
           let adjustedBalance = wallet?.balance ?? 0;
           let adjustedTotalEarned = wallet?.totalEarned ?? 0;
-          
-          // Fallback: calculate total earned from transactions (in case backend misses dispute payouts)
-          let calcEarned = 0;
-          if (Array.isArray(transactions)) {
-            transactions.forEach(t => {
-              const lType = (t.type ?? t.Type ?? "").toLowerCase();
-              const amt = Number(t.amount ?? t.Amount ?? 0);
-              const projId = t.projectId || t.ProjectId;
-              if (amt > 0 && projId && !lType.includes("deposit") && !lType.includes("refund") && !lType.includes("withdraw")) {
-                calcEarned += amt;
-              }
-            });
-          }
-          if (calcEarned > adjustedTotalEarned) {
-              adjustedTotalEarned = calcEarned;
-          }
+
+          // Adjust total earned for cancelled projects based on actual verdict data
+          cancelledProjectSplits.forEach((split, projIdLower) => {
+            const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+            if (dvRaw) {
+              try {
+                const dv = JSON.parse(dvRaw);
+                if (dv.expertReceives > 0) {
+                  adjustedTotalEarned += (dv.expertReceives - dv.expertFee);
+                }
+                // expertReceives = 0 → expert lost → no adjustment
+              } catch (e) {}
+              return;
+            }
+            // Check if report flow or cancel flow
+            const hasReport = projectReportMap.has(projIdLower);
+            if (hasReport) {
+              // Report flow: subtract 5% platform fee
+              const platformFee = Math.round((split.escrowTotal || 1000) * 0.05);
+              adjustedTotalEarned += Math.max(0, split.expertPayout - platformFee);
+            } else {
+              // Cancel flow: payout is already net from backend
+              adjustedTotalEarned += split.expertPayout;
+            }
+          });
 
           // Helper: parse DB date string correctly as UTC
           const parseDbDate = (str) => {
@@ -207,7 +452,7 @@ export function ExpertWallet() {
 
             if (match) {
               // DB confirmed this deposit - mark as acked so we won't double-count next time
-              try { localStorage.setItem(ackKey, "1"); } catch(e) {}
+              try { localStorage.setItem(ackKey, "1"); } catch (e) { }
               // wallet.balance already has this amount - don't add
             } else {
               // Webhook not yet processed by DB - add manually for immediate feedback
@@ -226,25 +471,24 @@ export function ExpertWallet() {
           const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
           const activeProj = expertProjects.filter((p) => {
             const projId = p.id || p.Id;
-            const localStatus = localStorage.getItem(`project_status_${projId}`) || p.status;
-            const isCompleted = 
-              localStatus?.toLowerCase() === "completed" || 
-              localStatus?.toLowerCase() === "closed" || 
-              localStatus?.toLowerCase() === "resolved" ||
-              localStatus?.toLowerCase() === "cancelled";
-            const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
+            const projIdLower = String(projId || "").toLowerCase();
+            const localStatus = (localStorage.getItem(`project_status_${projIdLower}`) || p.status || p.Status || "").toLowerCase().trim();
+            const isCompleted =
+              ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped", "terminated", "disputed"].includes(localStatus);
+            const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === projIdLower);
+            const isCancelledOrReported = cancelledProjectSplits.has(projIdLower) || projectReportMap.has(projIdLower);
 
-            const hasDbReleaseTx = transactionProjectIds.has(String(projId).toLowerCase());
-            if (isReleasedLocally && !hasDbReleaseTx && !isCompleted) {
+            const hasDbReleaseTx = transactionProjectIds.has(projIdLower);
+            if (isReleasedLocally && !hasDbReleaseTx && !isCompleted && !isCancelledOrReported) {
               const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
               const netAmount = budget * 0.95;
               adjustedBalance += netAmount;
               adjustedTotalEarned += netAmount;
             }
 
-            const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+            const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === projIdLower) : false;
 
-            return !isCompleted && !isReleasedLocally && isDeposited;
+            return !isCompleted && !isReleasedLocally && !isCancelledOrReported && isDeposited;
           });
 
           // Check for any expert releases where project is not in DB list
@@ -278,7 +522,7 @@ export function ExpertWallet() {
                 amount: r.amount,
                 type: "escrow_release",
                 createdAt: r.createdAt || new Date().toISOString(),
-                projectTitle: r.projectTitle || "Dự án",
+                projectTitle: r.projectTitle || "Project",
               });
               myTransactions.unshift({
                 id: `fee-${r.id || crypto.randomUUID()}`,
@@ -286,9 +530,15 @@ export function ExpertWallet() {
                 amount: -r.amount * 0.05,
                 type: "platform_fee",
                 createdAt: r.createdAt || new Date().toISOString(),
-                projectTitle: r.projectTitle || "Dự án",
+                projectTitle: r.projectTitle || "Project",
               });
             }
+          });
+
+          myTransactions.sort((a, b) => {
+            const timeA = parseDbDate(a.createdAt);
+            const timeB = parseDbDate(b.createdAt);
+            return timeB - timeA;
           });
 
           setData({
@@ -335,19 +585,19 @@ export function ExpertWallet() {
       const resolvedUserId = user?.id || user?.Id;
       const res = await api.payments.createPaymentOrder(resolvedUserId, amount, window.location.href);
       if (res && res.orderUrl) {
-        setFeedback({ type: "success", message: "Đang chuyển hướng sang cổng thanh toán ZaloPay..." });
+        setFeedback({ type: "success", message: "Redirecting to ZaloPay payment gateway..." });
         sessionStorage.setItem("payment_return_url", window.location.pathname + window.location.search);
         setTimeout(() => {
           window.location.href = res.orderUrl;
         }, 1000);
       } else {
-        throw new Error("Không lấy được link thanh toán từ ZaloPay.");
+        throw new Error("Failed to retrieve ZaloPay payment link.");
       }
     } catch (err) {
       console.error("Wallet deposit via ZaloPay failed:", err);
       setFeedback({
         type: "error",
-        message: err?.message || "Tạo đơn hàng nạp tiền thất bại. Vui lòng thử lại sau."
+        message: err?.message || "Failed to create deposit order. Please try again later."
       });
       setShowDepositModal(false);
       setWalletDepositAmount("");
@@ -366,46 +616,22 @@ export function ExpertWallet() {
     try {
       const resolvedUserId = user?.id || user?.Id;
       const res = await api.payments.withdraw(resolvedUserId, amount);
-      
-      setFeedback({ type: "success", message: res?.message || "Rút tiền thành công!" });
+
+      setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
-      
+
       try {
         localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
-      } catch (e) {}
-      
-      const [wallet, transactions] = await Promise.all([
-        api.users.getWallet(resolvedUserId).catch(() => null),
-        api.payments.getTransactions(resolvedUserId).catch(() => []),
-      ]);
+      } catch (e) { }
 
-      const myTransactions = Array.isArray(transactions)
-        ? transactions.map(t => ({
-            id: t.id || t.Id,
-            projectId: t.projectId || t.ProjectId,
-            amount: t.amount ?? t.Amount,
-            type: t.type ?? t.Type,
-            createdAt: t.createdAt ?? t.CreatedAt,
-            projectTitle: t.projectTitle || t.ProjectTitle || null,
-          }))
-        : [];
-
-      setData(prev => ({
-        ...prev,
-        wallet: {
-          balance: wallet?.balance ?? (prev.wallet.balance - amount),
-          pendingBalance: prev.wallet.pendingBalance,
-          totalEarned: wallet?.totalEarned ?? prev.wallet.totalEarned,
-        },
-        transactions: myTransactions,
-      }));
+      window.dispatchEvent(new Event("aitasker_db_update"));
 
     } catch (err) {
       console.error("Withdraw failed:", err);
       setFeedback({
         type: "error",
-        message: err?.message || "Rút tiền thất bại. Vui lòng thử lại sau."
+        message: err?.message || "Withdrawal failed. Please try again later."
       });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
@@ -447,11 +673,10 @@ export function ExpertWallet() {
       {/* Feedback banner */}
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${
-            feedback.type === "success"
+          className={`mb-6 p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
               ? "bg-success-light text-success border border-success/20"
               : "bg-destructive-light text-destructive border border-destructive/20"
-          }`}
+            }`}
         >
           {feedback.message}
         </div>
@@ -479,14 +704,14 @@ export function ExpertWallet() {
                 onClick={() => setShowDepositModal(true)}
                 className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
               >
-                <PlusCircle className="w-3 h-3" /> Nạp tiền
+                <PlusCircle className="w-3 h-3" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
                 className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
               >
-                <Send className="w-3 h-3" /> Rút tiền
+                <Send className="w-3 h-3" /> Withdraw
               </button>
             </div>
           </div>
@@ -579,7 +804,8 @@ export function ExpertWallet() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {data.transactions.map((tx) => {
-                  const dateObj = new Date(tx.createdAt);
+                  const rawStr = tx.createdAt || "";
+                  const dateObj = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : ""));
                   const dateStr = dateObj.toLocaleDateString("vi-VN", {
                     day: "2-digit",
                     month: "2-digit",
@@ -594,24 +820,37 @@ export function ExpertWallet() {
 
                   const lowerType = tx.type?.toLowerCase();
 
-                  // Mặc định hiển thị status là done trừ ký quỹ (escrow_deposit) là in progress
-                  const displayStatus = (lowerType === "escrow_deposit" || lowerType === "escrowdeposit")
-                    ? (tx.status === "completed" ? "done" : "in progress")
-                    : "done";
-                  const badgeClass = (displayStatus === "in progress")
-                    ? "bg-warning/10 text-warning border border-warning/20"
-                    : "bg-success/10 text-success border border-success/20";
-
-                  // Xử lý description hiển thị theo yêu cầu đại ca
-                  let displayDesc = tx.description;
-                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "nạp tiền";
-                  else if (lowerType === "withdrawal") displayDesc = "rút tiền";
-                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute"].includes(lowerType)) {
-                    displayDesc = tx.projectTitle ? `Dự án: ${tx.projectTitle}` : (tx.description || "Dự án: AI-Tasker");
+                  // displayStatus: "in progress" for active escrow, "cancel" for cancelled escrow rows, "done" for everything else
+                  let displayStatus = "done";
+                  if (lowerType === "escrow_deposit" || lowerType === "escrowdeposit") {
+                    displayStatus = (tx.status === "completed") ? "done" : "in progress";
+                  } else if (lowerType === "cancel" && tx.status === "cancel") {
+                    displayStatus = "cancel";
                   }
 
-                  // Tố cáo/bồi thường: nếu ko bồi thường được (amount <= 0) thì hiển thị "-"
-                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute"].includes(lowerType) && Number(tx.amount || 0) <= 0;
+                  const badgeClass = displayStatus === "in progress"
+                    ? "bg-warning/10 text-warning border border-warning/20"
+                    : displayStatus === "cancel"
+                      ? "bg-secondary text-muted-foreground border border-border"
+                      : "bg-success/10 text-success border border-success/20";
+
+                  // Process description display as requested
+                  let displayDesc = tx.description;
+                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
+                  else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
+                  else if (lowerType === "verdict") displayDesc = "report successful";
+                  else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
+                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel", "report_request"].includes(lowerType)) {
+                    displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : (tx.description || "Project: AI-Tasker");
+                  }
+
+                  let displayAmount = tx.amount ?? tx.Amount ?? 0;
+                  if (lowerType === "withdrawal" || lowerType === "withdraw") {
+                    displayAmount = -Math.abs(displayAmount);
+                  }
+
+                  // Report/Compensation: if cannot compensate (amount <= 0), show "-"
+                  const isNoCompensation = ["escrow_refund", "escrowrefund", "refund", "dispute", "cancel", "verdict"].includes(lowerType) && Number(displayAmount || 0) <= 0;
 
                   return (
                     <tr key={tx.id} className="hover:bg-secondary/50">
@@ -624,7 +863,7 @@ export function ExpertWallet() {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                        {isNoCompensation ? "-" : <MoneyDisplay amount={tx.amount ?? tx.Amount ?? 0} />}
+                        {isNoCompensation ? "-" : <MoneyDisplay amount={displayAmount} />}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span
@@ -653,21 +892,21 @@ export function ExpertWallet() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <PlusCircle className="w-5 h-5 text-success" /> Nạp tiền vào ví
+              <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
-              Nhập số tiền bạn muốn nạp vào ví thông qua cổng thanh toán ZaloPay (tối thiểu 1,000 VND).
+              Enter the amount you wish to deposit into your wallet via ZaloPay (minimum 1,000 VND).
             </p>
             <form onSubmit={handleWalletDeposit} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền (VND)</label>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount (VND)</label>
                 <input
                   type="number"
                   min="1000"
                   step="1000"
                   value={walletDepositAmount}
                   onChange={(e) => setWalletDepositAmount(e.target.value)}
-                  placeholder="Ví dụ: 50000"
+                  placeholder="e.g. 50000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
                 />
@@ -678,7 +917,7 @@ export function ExpertWallet() {
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
                   className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
                 >
-                  {depositLoading ? "Đang xử lý..." : "Nạp tiền qua ZaloPay"}
+                  {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
                 <button
                   type="button"
@@ -688,7 +927,7 @@ export function ExpertWallet() {
                   }}
                   className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
-                  Hủy
+                  Cancel
                 </button>
               </div>
             </form>
@@ -701,14 +940,14 @@ export function ExpertWallet() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <Send className="w-5 h-5 text-primary" /> Rút tiền khỏi ví
+              <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
-              Nhập số tiền muốn rút từ ví khả dụng (Số dư khả dụng hiện tại: <span className="font-semibold text-foreground"><MoneyDisplay amount={data?.wallet?.balance ?? 0} /></span>).
+              Enter the amount you wish to withdraw from your available balance (Current available balance: <span className="font-semibold text-foreground"><MoneyDisplay amount={data?.wallet?.balance ?? 0} /></span>).
             </p>
             <form onSubmit={handleWalletWithdraw} className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-muted-foreground mb-2">Số tiền rút (VND)</label>
+                <label className="block text-sm font-semibold text-muted-foreground mb-2">Withdrawal Amount (VND)</label>
                 <input
                   type="number"
                   min="1"
@@ -716,7 +955,7 @@ export function ExpertWallet() {
                   max={data?.wallet?.balance || 0}
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Ví dụ: 20000"
+                  placeholder="e.g. 20000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
                 />
@@ -727,7 +966,7 @@ export function ExpertWallet() {
                   disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
                   className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
                 >
-                  {withdrawLoading ? "Đang xử lý..." : "Rút tiền"}
+                  {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
                 <button
                   type="button"
@@ -737,7 +976,7 @@ export function ExpertWallet() {
                   }}
                   className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
-                  Hủy
+                  Cancel
                 </button>
               </div>
             </form>

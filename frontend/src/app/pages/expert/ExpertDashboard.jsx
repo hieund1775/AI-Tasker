@@ -59,14 +59,28 @@ function getMatchPct(index) {
   return [96, 89, 84, 78, 92, 88, 81][index % 7];
 }
 
-export function getNormalizedStatus(project) {
+export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
   const isReleasedLocally = projId ? localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase()) : false;
   
   const localStatus = projId ? localStorage.getItem(`project_status_${projId}`) : null;
   const dbStatus = (project.status || project.Status || "").toLowerCase();
-  const status = (localStatus || dbStatus).toLowerCase();
+  let status = (localStatus || dbStatus).toLowerCase();
+
+  // If status is awaiting_cancellation, check if it's still pending Admin approval
+  // Only match by projectId — no type filtering needed.
+  if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
+    const report = activeReports.find(r => {
+      const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
+      const rStatus = (r.status || r.Status || "").toLowerCase();
+      return rProjId === String(projId).toLowerCase() &&
+             (rStatus === "pending admin" || rStatus === "pending");
+    });
+    if (report) {
+      status = "inprogress";
+    }
+  }
 
   let label = "In Progress";
   let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
@@ -188,10 +202,10 @@ export function ExpertDashboard() {
       });
       setShowReportForm(false);
       setReportingProject(null);
-      toast.success("Báo cáo vi phạm thanh toán đã được gửi tới Admin thành công.");
+      toast.success("Payment violation report sent to Admin successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể gửi báo cáo tranh chấp.");
+      toast.error(err.message || "Failed to send dispute report.");
     } finally {
       setReportSubmitting(false);
     }
@@ -203,7 +217,7 @@ export function ExpertDashboard() {
       const isCancellation = explainingReport.reportType === "cancellation" || explainingReport.disputeType === "cancellation";
       if (isCancellation) {
         await api.put(`/reports/${explainingReport.id}/partner-reject-cancel`, {
-          partnerRejectionReason: formData.reason || formData.description || "Từ chối yêu cầu hủy hợp đồng",
+          partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
         });
       } else {
         const evidenceUrl = Array.isArray(formData.evidence) && formData.evidence.length > 0
@@ -218,10 +232,10 @@ export function ExpertDashboard() {
       }
       setShowExplanationForm(false);
       setExplainingReport(null);
-      toast.success("Nộp báo cáo phản hồi giải trình thành công!");
+      toast.success("Response explanation submitted successfully!");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
-      toast.error(err.message || "Không thể nộp báo cáo giải trình.");
+      toast.error(err.message || "Failed to submit explanation report.");
     } finally {
       setExplanationSubmitting(false);
     }
@@ -246,7 +260,7 @@ export function ExpertDashboard() {
         setExpertDetails(userRes);
         expertDataToPass = userRes;
         expertProfile = userRes?.expertProfile;
-        setActiveReports(reportsRes?.data || []);
+        setActiveReports(Array.isArray(reportsRes) ? reportsRes : (reportsRes?.data || []));
         
         const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
         const expertReleases = localReleases.filter(r => String(r.expertId).toLowerCase() === String(currentUserId).toLowerCase());
@@ -367,7 +381,7 @@ export function ExpertDashboard() {
 
         // Enrich active contracts with client name and job post details (category, specialization)
         const activeProjList = allUserProjects.filter((p) => {
-          const norm = getNormalizedStatus(p);
+          const norm = getNormalizedStatus(p, activeReports);
           return ["In Progress", "Completed", "Cancel", "Disputed"].includes(norm.label);
         });
 
@@ -497,12 +511,24 @@ export function ExpertDashboard() {
 
   // ---- Computed stat values ------------------------------------------------
   const earningsDisplay = dashboardBalance;
-  const totalEarnedDisplay = dashboardTotalEarned;
-  const totalAssigned = completedProjects.length + activeContracts.length;
-  const successRate =
-    totalAssigned > 0
-      ? Math.round((completedProjects.length / totalAssigned) * 100)
-      : 0;
+
+  const completedCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Completed";
+  }).length;
+
+  const cancelCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Cancel";
+  }).length;
+
+  const reportCount = activeContracts.filter(p => {
+    const norm = getNormalizedStatus(p, activeReports);
+    return norm.label === "Disputed";
+  }).length;
+
+  const totalForSuccess = completedCount + cancelCount + reportCount;
+  const successRate = totalForSuccess > 0 ? Math.round((completedCount / totalForSuccess) * 100) : 0;
 
   // ---- Stats ---------------------------------------------------------------
   const dashboardStats = [
@@ -513,9 +539,9 @@ export function ExpertDashboard() {
       color: "text-brand-primary bg-brand-primary-light",
     },
     {
-      label: "Total Earned",
-      value: <MoneyDisplay amount={totalEarnedDisplay} />,
-      icon: TrendingUp,
+      label: "Completed",
+      value: completedCount,
+      icon: CheckCircle,
       color: "text-green-600 bg-green-100",
     },
     {
@@ -607,7 +633,7 @@ export function ExpertDashboard() {
               activeContracts.map((p) => {
                 const clientName = p.clientName || p.client || "Client";
                 const progress = p.progress || 0;
-                const norm = getNormalizedStatus(p);
+                const norm = getNormalizedStatus(p, activeReports);
                 const displayStatus = norm.label;
                 const badgeClass = norm.badgeClass;
 
@@ -704,7 +730,8 @@ export function ExpertDashboard() {
                       <div className="flex items-center">
                         {(() => {
                           const isDisputed = displayStatus === "Disputed";
-                          if (!isDisputed) {
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
                             return (
                               <button
                                 onClick={() => {
@@ -713,7 +740,7 @@ export function ExpertDashboard() {
                                 }}
                                 className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-4 h-4" /> Báo cáo vi phạm
+                                <AlertTriangle className="w-4 h-4" /> Report Violation
                               </button>
                             );
                           }
@@ -727,7 +754,7 @@ export function ExpertDashboard() {
                                 }}
                                 className="mr-3 h-11 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
-                                <AlertTriangle className="w-4 h-4" /> Gửi phản hồi
+                                <AlertTriangle className="w-4 h-4" /> Submit Response
                               </button>
                             );
                           }
@@ -875,7 +902,7 @@ export function ExpertDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-gray-900">
-              Báo cáo vi phạm Khách hàng (Expert Report Client)
+              Report Client Violation
             </DialogTitle>
           </DialogHeader>
           {reportingProject && (
@@ -897,26 +924,21 @@ export function ExpertDashboard() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold text-foreground">
-              Gửi phản hồi báo cáo vi phạm
+              Submit Response to Report
             </DialogTitle>
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
-              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Nội dung tố cáo:</p>
-                <p className="text-foreground/80"><strong>Lý do:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Chi tiết:</strong> {explainingReport.description}</p>
-              </div>
 
               <ReportForm
-                project={activeContracts.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                project={activeContracts.find(p => String(p.id).toLowerCase() === String(explainingReport.projectId).toLowerCase()) || { id: explainingReport.projectId, title: explainingReport.reportName || explainingReport.projectTitle || explainingReport.projectName || "Project" }}
                 onSubmit={handleExpertSubmitExplanation}
                 onCancel={() => {
                   setShowExplanationForm(false);
                   setExplainingReport(null);
                 }}
                 loading={explanationSubmitting}
-                submitLabel="Gửi phản hồi"
+                submitLabel="Submit Response"
                 role="expert"
                 isResponse={true}
                 initialDisputeType={explainingReport?.disputeType}

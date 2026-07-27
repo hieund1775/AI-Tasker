@@ -9,7 +9,6 @@ import {
   FileText,
   X,
 } from "lucide-react";
-import { AIFileUploadZone } from "./AIFileUploadZone.jsx";
 import { AIProjectIllustration } from "../shared/illustrations/AIProjectIllustration.jsx";
 import api from "../../../services/api.js";
 
@@ -110,7 +109,7 @@ function mapPayloadToProposalFormat(payload, clientUseCases = []) {
           taskTitle: useCaseTitle,
           miniTasks: (task.MiniTasks || task.miniTasks || []).map(mt => ({
             title: mt.Title || mt.title || "",
-            description: `Estimated Duration: ${mt.Duration || mt.duration || 1} days`
+            description: ""
           }))
         }
       ]
@@ -130,10 +129,9 @@ function mapPayloadToProposalFormat(payload, clientUseCases = []) {
  *   existingTasks  — current tasks in the form
  *   clientUseCases — [{ id, title, tasks: [{id, title}] }] from the job post
  */
-export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [], jobPostId, expertId }) {
+export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [], jobPostId, expertId, autoPrompt, clearAutoPrompt }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [files, setFiles] = useState([]);
   const [generatedPlan, setGeneratedPlan] = useState(null);
   const [loading, setLoading] = useState(false);
   const [applied, setApplied] = useState(false);
@@ -174,47 +172,41 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
   }, [messages, generatedPlan]);
 
   // ── Send message ──
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed && files.length === 0) return;
+  const handleSend = useCallback(async (customText) => {
+    const textToSend = typeof customText === "string" ? customText : input;
+    const trimmed = textToSend.trim();
+    if (!trimmed) return;
     if (loading) return;
 
-    const userMsgText = trimmed || (files.length > 0 ? `Tải lên tài liệu: ${files[0].name}` : "");
+    const userMsgText = trimmed;
     const userMsg = { role: "user", text: userMsgText, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
-    setInput("");
+    if (typeof customText !== "string") {
+      setInput("");
+    }
     setLoading(true);
 
     try {
-      let uploadedFilePath = null;
-      if (files.length > 0) {
-        try {
-          const uploadRes = await api.ai.uploadChatFile(files[0]);
-          uploadedFilePath = uploadRes?.file_path || uploadRes?.filePath || null;
-        } catch (uploadErr) {
-          console.warn("File upload failed, sending without file...", uploadErr);
-        }
-      }
-
       // Build messages history matching C# AIMessageDto
       const historyPayload = messages.map(m => ({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text
       }));
-      historyPayload.push({ role: "user", content: userMsgText });
+      const enforcedPrompt = userMsgText + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]";
+      historyPayload.push({ role: "user", content: enforcedPrompt });
 
       // Call general backend AiChat endpoint matching C# AIChatRequest
       const response = await api.ai.sendSession({
         messages_history: historyPayload,
         context_summary: contextSummary || "",
-        file_path: uploadedFilePath || "",
+        user_role: "expert",
+        file_path: "",
         current_draft: {
           jobPostId: jobPostId,
           expertId: expertId,
           projectTitle: projectInfo?.title || ""
         }
       });
-      setFiles([]);
 
       const chatMessage = response?.chat_message || response?.ChatMessage || "";
       const payload = response?.payload || response?.Payload;
@@ -230,7 +222,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const plan = parsedUseCases.length > 0 ? {
         useCases: parsedUseCases,
-        summary: "Phân rã kế hoạch thành công."
+        summary: "Plan breakdown successful."
       } : null;
 
       setGeneratedPlan(plan);
@@ -238,24 +230,37 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const aiMsg = { 
         role: "ai", 
-        text: chatMessage || (plan ? "Kế hoạch đã được sinh thành công." : "Đã nhận phản hồi từ AI."), 
+        text: chatMessage || (plan ? "Plan generated successfully." : "Received response from AI."), 
         plan, 
         timestamp: Date.now() 
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI backend call failed:", err);
-      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ Có lỗi xảy ra khi gọi AI: ${errMsg}\nVui lòng thử lại sau.`,
+        text: `❌ An error occurred while calling AI: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
     } finally {
       setLoading(false);
     }
-  }, [input, loading, files, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
+  }, [input, loading, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
+
+  // Auto-trigger prompt if autoPrompt changes
+  useEffect(() => {
+    if (autoPrompt) {
+      const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
+User Story: ${autoPrompt.title}
+Description: ${autoPrompt.description}`;
+      handleSend(promptText);
+      if (clearAutoPrompt) {
+        clearAutoPrompt();
+      }
+    }
+  }, [autoPrompt, handleSend, clearAutoPrompt]);
 
   // ── Apply plan ──
   const handleApply = useCallback(() => {
@@ -278,14 +283,20 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     setApplied(false);
 
     try {
-      const historyPayload = messages.map(m => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.text
-      }));
+      const historyPayload = messages.map((m, idx) => {
+        const isLastUser = m.role === "user" && idx === messages.map(msg => msg.role).lastIndexOf("user");
+        return {
+          role: m.role === "user" ? "user" : "assistant",
+          content: isLastUser
+            ? m.text + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Decompose it immediately into tasks and mini-tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of tasks/minitasks immediately. Do not respond with intent 'collecting_info'.]"
+            : m.text
+        };
+      });
 
       const response = await api.ai.sendSession({
         messages_history: historyPayload,
         context_summary: contextSummary || "",
+        user_role: "expert",
         current_draft: {
           jobPostId: jobPostId,
           expertId: expertId,
@@ -306,7 +317,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const plan = parsedUseCases.length > 0 ? {
         useCases: parsedUseCases,
-        summary: "Kế hoạch đã được sinh lại thành công."
+        summary: "Plan regenerated successfully."
       } : null;
 
       setGeneratedPlan(plan);
@@ -314,17 +325,17 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
 
       const aiMsg = { 
         role: "ai", 
-        text: chatMessage || "Kế hoạch đã được cập nhật.", 
+        text: chatMessage || "Plan has been updated.", 
         plan, 
         timestamp: Date.now() 
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI regenerate failed:", err);
-      const errMsg = err?.message || "Không thể kết nối đến AI backend.";
+      const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ Có lỗi khi sinh lại kế hoạch: ${errMsg}\nVui lòng thử lại sau.`,
+        text: `❌ An error occurred while regenerating plan: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -332,19 +343,6 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       setLoading(false);
     }
   }, [messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
-
-  // ── File upload handler ──
-  const handleFilesChange = useCallback((newFiles) => {
-    setFiles(newFiles);
-    if (newFiles.length > 0) {
-      const names = newFiles.map((f) => f.name).join(", ");
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (last?.role === "user" && last.text.includes("Uploaded file")) return prev;
-        return [...prev, { role: "user", text: `Uploaded file(s): ${names}`, timestamp: Date.now() }];
-      });
-    }
-  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -363,14 +361,6 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
         >
           Close
         </button>
-      </div>
-
-      {/* ── Upload Requirements ── */}
-      <div className="shrink-0 px-4 py-3">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          📎 Upload Requirements
-        </p>
-        <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
 
       {/* ── Chat / Messages ── */}

@@ -8,10 +8,10 @@ namespace AITasker.API.Modules.PaymentModule
         public async Task<bool> ProcessDeposit(string orderId, decimal amount)
         {
             Console.WriteLine("==================================================");
-            Console.WriteLine("[SERVER LOG] NH?N T�N HI?U T? APP BANKING!");
-            Console.WriteLine($"[INFO] Ma don hang: {orderId}");
-            Console.WriteLine($"[INFO] So tien: {amount} VND");
-            Console.WriteLine($"[SUCCESS] Chay lenh SQL gia lap: UPDATE Users SET Balance = Balance + {amount}");
+            Console.WriteLine("[SERVER LOG] NHẬN TÍN HIỆU TỪ APP BANKING!");
+            Console.WriteLine($"[INFO] Mã đơn hàng: {orderId}");
+            Console.WriteLine($"[INFO] Số tiền: {amount} VND");
+            Console.WriteLine($"[SUCCESS] Chạy lệnh SQL giả lập: UPDATE Users SET Balance = Balance + {amount}");
             Console.WriteLine("==================================================");
             return true;
         }

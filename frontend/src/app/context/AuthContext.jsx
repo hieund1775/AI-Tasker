@@ -272,13 +272,13 @@ export function AuthProvider({ children }) {
         return true;
       } catch (apiError) {
         if (apiError.status && apiError.status !== 0) {
-          const message = apiError.data?.message || "Đăng ký thất bại.";
+          const message = apiError.data?.message || "Registration failed.";
           dispatch({ type: AUTH_ACTIONS.LOGIN_FAILURE, payload: message });
           throw apiError;
         }
         dispatch({
           type: AUTH_ACTIONS.LOGIN_FAILURE,
-          payload: "Lỗi kết nối tới máy chủ.",
+          payload: "Connection to server failed.",
         });
         throw apiError;
       }
@@ -286,7 +286,7 @@ export function AuthProvider({ children }) {
     [],
   );
 
-  // HÀM GỌI API COMPLETE PROFILE MỚI
+  // NEW COMPLETE PROFILE API CALL
   const completeExpertProfile = useCallback(
     async (profileData) => {
       try {
@@ -327,7 +327,7 @@ export function AuthProvider({ children }) {
       logout,
       clearError,
       completeExpertProfile,
-    }), // <--- Đã export hàm
+    }), // <--- Exported function
     [state, login, register, logout, clearError, completeExpertProfile],
   );
 

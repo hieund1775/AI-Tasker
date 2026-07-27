@@ -21,7 +21,7 @@
 
 
   <ItemGroup>
-    <None Update="Modules\AiModule\Prompts\ai-system-prompt.md">
+    <None Update="Modules\AiModule\Prompts\*">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
     </None>

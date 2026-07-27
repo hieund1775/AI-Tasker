@@ -32,6 +32,13 @@ public class UserExpertProfileDto
     public decimal ReputationCredit { get; set; }
     public string? Location { get; set; }
     public double SuccessRate { get; set; }
+    // NEW FIELDS:
+    public string? Category { get; set; }
+    public List<string> Skills { get; set; } = new();
+    public string? Phone { get; set; }
+    public string? Website { get; set; }
+    public string? Industry { get; set; }
+    public decimal HourlyRate { get; set; }
 }
 
 public class UserJobPostDto
@@ -72,6 +79,10 @@ public class UserProjectDto
     public string Title { get; set; } = string.Empty;
     public decimal Budget { get; set; }
     public string? Category { get; set; }
+    // NEW PROPERTIES:
+    public string ClientName { get; set; } = string.Empty;
+    public string SpecializationName { get; set; } = string.Empty;
+    public List<string> ProjectSkills { get; set; } = new();
 }
 
 public class UserDetailDto
