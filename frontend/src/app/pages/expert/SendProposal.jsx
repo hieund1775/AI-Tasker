@@ -792,7 +792,7 @@ Please use this background information to write a personalized and highly releva
   const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Build Your Proposal"
         subtitle="Break down the client's user stories into tasks, mini tasks, timeline, and pricing."
@@ -825,9 +825,9 @@ Please use this background information to write a personalized and highly releva
         }
       />
 
-      <div className={`grid grid-cols-1 ${showAIPlanner ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-4xl mx-auto"}`}>
+      <div className={`mt-6 grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
             <AnimatedReveal>
               <SectionCard 
                 title="Professional Introduction" 
@@ -894,9 +894,9 @@ Please use this background information to write a personalized and highly releva
                     {project.useCases.map((uc) => {
                       const ucTasks = tasks.filter(t => t.useCaseId && t.useCaseId === uc.id);
                       return (
-                        <div key={uc.id} className="border border-border rounded-xl overflow-hidden">
+                        <div key={uc.id} className="overflow-hidden rounded-2xl border border-border/60 bg-background/60">
                           {/* ── Use Case Header (read-only) ── */}
-                          <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left">
+                          <div className="flex flex-col gap-1.5 border-b border-border/60 bg-accent-light/25 p-4 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-foreground text-sm">
@@ -1001,7 +1001,7 @@ Please use this background information to write a personalized and highly releva
                               const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
 
                               return (
-                                <div key={task.id} className="p-4 border rounded-xl space-y-3 bg-secondary/40 border-border">
+                                <div key={task.id} className="space-y-3 rounded-2xl border border-border/55 bg-secondary/30 p-4">
                                   
                                   {/* Task Title Row with Remove Button */}
                                   <div className="flex items-center gap-3">
@@ -1122,7 +1122,7 @@ Please use this background information to write a personalized and highly releva
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
                       return (
-                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-warning-light border-warning/20 dark:bg-warning-light dark:border-warning/30" : "bg-secondary/40 border-border"}`}>
+                        <div key={task.id || tIdx} className={`space-y-4 rounded-2xl border p-5 ${isProposed ? "border-warning/20 bg-warning-light/65 dark:border-warning/30 dark:bg-warning-light" : "border-border/55 bg-secondary/30"}`}>
                           
                           {/* Task Title Row with Remove Button */}
                           <div className="flex items-center gap-3">
@@ -1346,7 +1346,7 @@ Please use this background information to write a personalized and highly releva
             })()}
 
             {/* Submit */}
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-sm shadow-foreground/[0.025] sm:p-5">
               {(() => {
                 const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
                 const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);

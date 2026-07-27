@@ -399,7 +399,7 @@ export function PostProject() {
     isDeadlineValid;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Post a New AI Project"
         subtitle="Define your user stories, timeline, and budget before matching with an expert."
@@ -419,9 +419,9 @@ export function PostProject() {
         }
       />
 
-      <div className={`grid grid-cols-1 ${rightPanelMode || showRecommendations ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-3xl mx-auto"}`}>
+      <div className={`mt-6 grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={(rightPanelMode || showRecommendations) ? "lg:col-span-7 flex flex-col" : "w-full"}>
-          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col h-full space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex h-full flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
           <AnimatedReveal>
             <SectionCard title="Basic Information" icon={Layers} padding="lg">
               <div className="space-y-5">
@@ -574,7 +574,7 @@ export function PostProject() {
               ) : (
                 <div className="space-y-4">
                   {useCases.map((uc, index) => (
-                    <div key={index} className="p-5 bg-secondary/40 border border-border rounded-xl space-y-3 relative">
+                    <div key={index} className="relative space-y-3 rounded-2xl border border-border/60 bg-background/65 p-4 shadow-sm shadow-foreground/[0.015] sm:p-5">
                       {useCases.length > 1 && (
                         <button
                           type="button"
@@ -636,7 +636,7 @@ export function PostProject() {
           </AnimatedReveal>
 
           {/* Timeline Summary Box */}
-          <div className="rounded-xl border px-4 py-2.5 text-sm bg-accent-light border-accent/20 text-accent dark:bg-accent-light dark:border-accent/30 dark:text-accent">
+          <div className="rounded-2xl border border-accent/20 bg-accent-light/70 px-4 py-3 text-sm text-accent dark:border-accent/30 dark:bg-accent-light dark:text-accent">
             <div className="flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
               Timeline Summary
@@ -713,11 +713,11 @@ export function PostProject() {
 
 
           {/* Submit & AI Recommend Buttons */}
-          <div className="flex gap-4 pt-2 pb-2">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/85 p-3 shadow-sm shadow-foreground/[0.025] sm:flex-row sm:p-4">
             <button
               type="submit"
               disabled={submitting || !isFormValid}
-              className={`flex-[7] py-2.5 rounded-lg font-medium inline-flex items-center justify-center gap-2 transition-all text-base ${
+              className={`inline-flex h-11 flex-[7] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover shadow-md"
@@ -729,7 +729,7 @@ export function PostProject() {
               type="button"
               onClick={handleRecommendExperts}
               disabled={submitting || !isFormValid}
-              className={`flex-[3] py-2.5 rounded-lg font-medium inline-flex items-center justify-center gap-2 transition-all ${
+              className={`inline-flex h-11 flex-[3] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-accent-light text-accent hover:bg-accent/10 font-semibold shadow-sm"

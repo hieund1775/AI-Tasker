@@ -25,11 +25,11 @@ const PADDING = {
 };
 
 const VARIANTS = {
-  default: "bg-card border border-border shadow-sm",
-  glass: "bg-card border border-border shadow-sm",
-  subtle: "bg-secondary/55 border border-border/60 shadow-none",
-  warning: "bg-card border border-warning/25 shadow-sm",
-  branded: "bg-card border border-accent/20 shadow-sm",
+  default: "bg-card/82 border border-border/70 shadow-sm shadow-foreground/[0.02]",
+  glass: "bg-card/70 border border-border/60 shadow-sm shadow-foreground/[0.02] backdrop-blur",
+  subtle: "bg-secondary/40 border border-border/50 shadow-none",
+  warning: "bg-warning-light/45 border border-warning/25 shadow-sm shadow-warning/[0.03]",
+  branded: "bg-card/82 border border-accent/20 shadow-sm shadow-accent/[0.03]",
 };
 
 export function SectionCard({
@@ -52,7 +52,7 @@ export function SectionCard({
   return (
     <div
       className={cn(
-        "rounded-2xl",
+        "rounded-2xl transition-colors",
         noBorder ? "shadow-none" : v,
         p,
         hover && "card-hover hover:border-input",
@@ -61,21 +61,21 @@ export function SectionCard({
     >
       {/* Section header */}
       {(title || actions || badge || Icon) && (
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3 min-w-0">
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
             {Icon && (
               <div
                 className={cn(
-                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                  "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg ring-1 ring-inset ring-current/10",
                   iconColor,
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="h-4 w-4" />
               </div>
             )}
             <div className="min-w-0">
               {title && (
-                <h3 className="text-sm font-semibold tracking-[-0.005em] text-foreground">
+                <h3 className="text-sm font-semibold text-foreground">
                   {title}
                   {badge && (
                     <span className="ml-2 inline-flex">{badge}</span>

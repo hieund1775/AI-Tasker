@@ -77,12 +77,12 @@ function ProjectCard({ job }) {
   return (
     <Link
       to={`/expert/jobs/${job.id}`}
-      className="group block bg-card rounded-2xl border border-border shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden"
+      className="group relative block overflow-hidden rounded-2xl border border-border/70 bg-card/82 shadow-sm shadow-foreground/[0.02] transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/25 hover:bg-card hover:shadow-md"
     >
       {/* Subtle gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.02] via-transparent to-primary/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-      <div className="relative p-6 flex flex-col gap-4">
+      <div className="relative flex flex-col gap-4 p-5 sm:p-6">
         {/* Row 1: Title + Match Score + Category Badges */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
           <div className="flex-1">
@@ -124,9 +124,9 @@ function ProjectCard({ job }) {
         </p>
 
         {/* Row 3: Info grid with tinted background */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2.5 px-4 bg-secondary/60 rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/50 bg-secondary/35 p-3 md:grid-cols-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-success/10">
               <ReceiptText className="w-4 h-4 text-success" />
             </div>
             <div>
@@ -136,7 +136,7 @@ function ProjectCard({ job }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-warning/10">
               <Calendar className="w-4 h-4 text-warning" />
             </div>
             <div>
@@ -146,7 +146,7 @@ function ProjectCard({ job }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
               <Clock className="w-4 h-4 text-accent" />
             </div>
             <div>
@@ -156,7 +156,7 @@ function ProjectCard({ job }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/6 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/6">
               <User className="w-4 h-4 text-primary" />
             </div>
             <div>
@@ -360,7 +360,7 @@ export function JobList() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="page-title">Find Jobs</h1>
@@ -387,8 +387,8 @@ export function JobList() {
       )}
 
       {/* Sticky Search & Filters Bar */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-2.5 mb-6 border-b border-border">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="sticky top-20 z-20 mb-6 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm shadow-foreground/[0.025] backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
             <input
@@ -441,7 +441,7 @@ export function JobList() {
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-card rounded-xl border border-border p-6 mb-6 shadow-sm animate-fade-in">
+        <div className="mb-6 animate-fade-in rounded-2xl border border-border/70 bg-card/82 p-5 shadow-sm shadow-foreground/[0.02] sm:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
@@ -597,7 +597,7 @@ export function JobList() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="space-y-5">
+          <div className="space-y-4">
             {filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((job) => (
               <ProjectCard key={job.id} job={job} />
             ))}

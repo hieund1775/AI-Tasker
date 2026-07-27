@@ -48,33 +48,50 @@ export function Header() {
 
   // Load notifications from API
   useEffect(() => {
-    if (isAuthenticated) {
-      const loadNotifications = () => {
-        api.notifications.getList({ userId: user?.id })
-          .then((data) => {
-            if (Array.isArray(data)) {
-              const mapped = data
-                .filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014")
-                .map((n) => ({
-                  id: n.id,
-                  title: n.title,
-                  description: n.message || n.description || n.content || "",
-                  time: timeAgo(n.createdAt),
-                  isUnread: !n.isRead,
-                  linkTo: n.linkTo || n.linkUrl || n.link || "",
-                  type: n.type,
-                }));
+    if (isAuthenticated && user?.id) {
+      let stopped = false;
+      let retryAfter = 0;
+      let loggedFailure = false;
 
-              const pathParts = location.pathname.split("/");
-              if (pathParts[1] === "messenger" && pathParts[2]) {
-                const activeConvId = pathParts[2];
-                setNotifications(mapped.filter((n) => n.linkTo !== `/messenger/${activeConvId}`));
-              } else {
-                setNotifications(mapped);
-              }
-            }
-          })
-          .catch((err) => console.error("Error loading notifications:", err));
+      const loadNotifications = async () => {
+        if (stopped || Date.now() < retryAfter) return;
+
+        try {
+          const data = await api.notifications.getList({ userId: user.id });
+          if (!Array.isArray(data) || stopped) return;
+
+          loggedFailure = false;
+          retryAfter = 0;
+
+          const mapped = data
+            .filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014")
+            .map((n) => ({
+              id: n.id,
+              title: n.title,
+              description: n.message || n.description || n.content || "",
+              time: timeAgo(n.createdAt),
+              isUnread: !n.isRead,
+              linkTo: n.linkTo || n.linkUrl || n.link || "",
+              type: n.type,
+            }));
+
+          const pathParts = location.pathname.split("/");
+          if (pathParts[1] === "messenger" && pathParts[2]) {
+            const activeConvId = pathParts[2];
+            setNotifications(mapped.filter((n) => n.linkTo !== `/messenger/${activeConvId}`));
+          } else {
+            setNotifications(mapped);
+          }
+        } catch (err) {
+          if (stopped) return;
+          setNotifications([]);
+          retryAfter = Date.now() + 60000;
+
+          if (!loggedFailure) {
+            loggedFailure = true;
+            console.warn("Notifications are temporarily unavailable. Retrying in 60 seconds.", err);
+          }
+        }
       };
 
       loadNotifications();
@@ -86,6 +103,7 @@ export function Header() {
       window.addEventListener("aitasker_db_update", handleUpdate);
 
       return () => {
+        stopped = true;
         clearInterval(interval);
         window.removeEventListener("aitasker_db_update", handleUpdate);
       };
@@ -363,6 +381,18 @@ export function Header() {
                   )}
                 </div>
 
+                {/* Wallet shortcut */}
+                {walletPath && (
+                  <Link
+                    to={walletPath}
+                    className="relative flex items-center justify-center rounded-xl p-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+                    title={role === "client" ? "Billing & Wallet" : "Wallet"}
+                    aria-label={role === "client" ? "Billing & Wallet" : "Wallet"}
+                  >
+                    <Wallet className="h-4.5 w-4.5 stroke-[1.8]" />
+                  </Link>
+                )}
+
                 {/* Account Menu */}
                 <div className="relative flex items-center justify-center" ref={accountMenuRef}>
                   <button
@@ -392,16 +422,6 @@ export function Header() {
                         </p>
                       </div>
                       <div className="p-1.5">
-                        {walletPath && (
-                          <Link
-                            to={walletPath}
-                            onClick={() => setShowAccountMenu(false)}
-                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-                          >
-                            <Wallet className="h-4 w-4 text-muted-foreground" />
-                            <span>{role === "client" ? "Billing & Wallet" : "Wallet"}</span>
-                          </Link>
-                        )}
                         <Link
                           to={`/${role}/profile`}
                           onClick={() => setShowAccountMenu(false)}

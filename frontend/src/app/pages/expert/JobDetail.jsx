@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Clock,
-  MapPin,
   Send,
   Calendar,
   User,
@@ -258,9 +257,9 @@ export function JobDetail() {
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/82 p-2 shadow-sm shadow-foreground/[0.02] sm:p-3 [&>*+*]:border-t [&>*+*]:border-border/60">
         {/* Description */}
-        <SectionCard title="Description" icon={FileText} padding="lg">
+        <SectionCard title="Description" icon={FileText} padding="lg" noBorder className="rounded-none bg-transparent">
           <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
             {job.description || "No description provided."}
           </p>
@@ -268,10 +267,10 @@ export function JobDetail() {
 
         {/* User Stories */}
         {safeArray(job.useCases).length > 0 && (
-          <SectionCard title="Project User Stories" icon={Layers} padding="lg">
+          <SectionCard title="Project User Stories" icon={Layers} padding="lg" noBorder className="rounded-none bg-transparent">
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
-                <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
+                <div key={i} className="space-y-2 rounded-2xl border border-border/50 bg-secondary/30 p-4">
                   <div className="flex items-center justify-between flex-wrap gap-2 text-left">
                     <p className="font-semibold text-foreground text-sm">
                       User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
@@ -279,7 +278,7 @@ export function JobDetail() {
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
                   </div>
                   {uc.description ? (
-                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">Description: {uc.description}</p>
+                    <p className="border-l border-brand-primary/25 pl-3 text-sm text-muted-foreground">Description: {uc.description}</p>
                   ) : null}
                 </div>
               ))}
@@ -288,7 +287,7 @@ export function JobDetail() {
         )}
 
         {/* Category + Specialization */}
-        <SectionCard title="Category & Skills" icon={Tag} padding="lg">
+        <SectionCard title="Category & Skills" icon={Tag} padding="lg" noBorder className="rounded-none bg-transparent">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
@@ -316,7 +315,7 @@ export function JobDetail() {
         </SectionCard>
 
         {/* Project Attachments */}
-        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg">
+        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg" noBorder className="rounded-none bg-transparent">
           {(() => {
             const cached = job._attachments;
             const rawBE = job.attachmentUrl || job.AttachmentUrl;
@@ -400,17 +399,17 @@ export function JobDetail() {
         </SectionCard>
 
         {/* Stats */}
-        <SectionCard padding="lg">
+        <SectionCard padding="lg" noBorder className="rounded-none bg-transparent">
           <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Budget</p>
               <p className="font-semibold text-foreground text-sm"><MoneyDisplay amount={job.budget} /></p>
             </div>
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
               <p className="font-semibold text-foreground text-sm">{deadlineText || "—"}</p>
             </div>
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Posted</p>
               <p className="font-semibold text-foreground text-sm">{safeDateFormat(job.createdAt, { month: "short", day: "numeric", year: "numeric" })}</p>
             </div>
