@@ -8,10 +8,9 @@
 //   - Delete job posts (placeholder if DELETE API unavailable)
 // =============================================================================
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Edit3, Trash2, Filter } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Edit3, Trash2 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
-import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
@@ -22,19 +21,60 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const JOB_POST_STATUS_CONFIG = {
+  Open: { color: "bg-brand-primary-light text-brand-primary", label: "Open" },
   Active: { color: "bg-success-light text-success", label: "Active" },
   Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
   Closed: { color: "bg-destructive-light text-destructive", label: "Closed" },
   Draft: { color: "bg-warning-light text-warning", label: "Draft" },
+  Accepted: { color: "bg-success-light text-success", label: "Accepted" },
+  "Pending Payment": { color: "bg-warning-light text-warning", label: "Pending Payment" },
+  "In Progress": { color: "bg-brand-primary-light text-brand-primary", label: "In Progress" },
+  Completed: { color: "bg-success-light text-success", label: "Completed" },
+  Cancelled: { color: "bg-destructive-light text-destructive", label: "Cancelled" },
 };
 
 const JOB_POST_STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Closed", label: "Closed" },
+  { value: "Open", label: "Open", values: ["Open", "Active"] },
   { value: "Draft", label: "Draft" },
+  { value: "Inactive", label: "Inactive" },
+  { value: "Accepted", label: "Accepted" },
+  { value: "Pending Payment", label: "Pending Payment" },
+  { value: "In Progress", label: "In Progress" },
+  { value: "Completed", label: "Completed" },
+  { value: "Cancelled", label: "Cancelled", values: ["Cancelled", "Closed"] },
 ];
+
+const normalizeJobPostStatus = (rawStatus) => {
+  const key = String(rawStatus || "open").trim().toLowerCase().replace(/[\s_]+/g, "");
+
+  if (key === "open") return "Open";
+  if (key === "active") return "Active";
+  if (key === "inactive") return "Inactive";
+  if (key === "draft") return "Draft";
+  if (key === "closed") return "Closed";
+  if (key === "accepted") return "Accepted";
+  if (key === "pendingescrow" || key === "pendingpay" || key === "pendingpayment") return "Pending Payment";
+  if (key === "inprogress") return "In Progress";
+  if (key === "completed" || key === "complete") return "Completed";
+  if (key === "cancelled" || key === "canceled" || key === "stopped") return "Cancelled";
+
+  return rawStatus || "Open";
+};
+
+const renderJobPostStatus = (status) => {
+  const normalized = normalizeJobPostStatus(status);
+  const cfg = JOB_POST_STATUS_CONFIG[normalized] || {
+    color: "bg-secondary text-foreground/80",
+    label: normalized,
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
+      {cfg.label}
+    </span>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -56,7 +96,11 @@ export function AdminJobPosts() {
     setError(null);
     try {
       const result = await api.get("/jobposts");
-      setJobPosts(Array.isArray(result) ? result : result?.data || []);
+      const rows = Array.isArray(result) ? result : result?.data || [];
+      setJobPosts(rows.map((job) => ({
+        ...job,
+        status: normalizeJobPostStatus(job.status || job.Status),
+      })));
     } catch (err) {
       setError(err.message || "Unable to load job posts.");
       setJobPosts([]);
@@ -148,18 +192,8 @@ export function AdminJobPosts() {
     {
       key: "status",
       label: "Status",
-      filterOptions: [
-        { value: "Active", label: "Active" },
-        { value: "Inactive", label: "Inactive" },
-        { value: "Closed", label: "Closed" },
-        { value: "Draft", label: "Draft" },
-      ],
-      render: (val) => (
-        <StatusBadge
-          status={val || "Active"}
-          config={JOB_POST_STATUS_CONFIG}
-        />
-      ),
+      filterOptions: JOB_POST_STATUS_OPTIONS,
+      render: (val) => renderJobPostStatus(val),
     },
     {
       key: "createdAt",
@@ -202,14 +236,14 @@ export function AdminJobPosts() {
         emptyMessage="No job posts found."
         actions={(row) => (
           <div className="flex gap-1.5">
-            {row.status !== "Closed" && (
+            {normalizeJobPostStatus(row.status) !== "Closed" && (
               <button
                 type="button"
                 onClick={() =>
                   setStatusModal({
                     id: row.id,
                     newStatus:
-                      row.status === "Active" ? "Inactive" : "Active",
+                      ["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Inactive" : "Active",
                   })
                 }
                 disabled={actionLoading}
@@ -217,7 +251,7 @@ export function AdminJobPosts() {
                 title="Change status"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                {row.status === "Active" ? "Deactivate" : "Activate"}
+                {["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Deactivate" : "Activate"}
               </button>
             )}
             <button

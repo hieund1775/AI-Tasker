@@ -19,6 +19,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import api, { enrichFileUrl } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 export function JobDetail() {
   const { id } = useParams();
@@ -137,11 +138,11 @@ export function JobDetail() {
         });
       }
 
-      alert("You have successfully declined the invitation!");
+      toast.success("Invitation declined successfully.");
       setInvitation(null);
     } catch (e) {
       console.error("Failed to decline invite:", e);
-      alert("Failed to decline invitation. Please try again!");
+      toast.error("Failed to decline invitation. Please try again.");
     }
   };
 

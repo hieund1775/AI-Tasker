@@ -24,6 +24,7 @@ import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
 import { notifyNewProposal, notifyUpdatedProposal } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 /**
  * SendProposal — Expert submits a comprehensive proposal to a client project.
@@ -169,11 +170,12 @@ Please use this background information to write a personalized and highly releva
       if (introText) {
         updateField("professionalIntro", introText);
       } else {
-        alert("AI generation returned this raw data: " + JSON.stringify(response));
+        console.info("AI generation raw data:", response);
+        toast.info("AI generation returned raw data. Check console for details.");
       }
     } catch (err) {
       console.error("Generate Intro failed:", err);
-      alert("Failed to generate intro. Please check your connection or try again later. (Error: " + err.message + ")");
+      toast.error("Failed to generate intro. Please check your connection or try again later.");
     } finally {
       setGeneratingIntro(false);
     }
@@ -563,7 +565,7 @@ Please use this background information to write a personalized and highly releva
 
       // Check acknowledgement if exceeding targets
       if (exceedsTargets && !form.acknowledged) {
-        alert("Please check the acknowledgement checkbox to confirm you understand your proposal exceeds the Client's targets.");
+        toast.error("Please check the acknowledgement checkbox before submitting.");
         setSubmitting(false);
         return;
       }
@@ -741,7 +743,7 @@ Please use this background information to write a personalized and highly releva
       }
     } catch (err) {
       console.error("Failed to submit proposal:", err);
-      alert(err.message || "Failed to submit proposal. Please try again.");
+      toast.error(err.message || "Failed to submit proposal. Please try again.");
       setSubmitting(false);
     }
   };

@@ -14,7 +14,28 @@ import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
+import { STATUS_LABELS } from "../../lib/projectStatusConfig.js";
 import api, { enrichFileUrl, parseProposalWbs } from "../../../services/api.js";
+
+const PROJECT_STATUS_FILTER_OPTIONS = [
+  { value: "reviewing_proposals", label: STATUS_LABELS.reviewing_proposals },
+  { value: "pending_escrow", label: STATUS_LABELS.pending_escrow },
+  { value: "in_progress", label: STATUS_LABELS.in_progress },
+  { value: "waiting_review", label: STATUS_LABELS.waiting_review },
+  { value: "needs_revision", label: STATUS_LABELS.needs_revision },
+  { value: "awaiting_cancellation", label: STATUS_LABELS.awaiting_cancellation },
+  { value: "disputed", label: STATUS_LABELS.disputed },
+  {
+    value: "completed",
+    label: STATUS_LABELS.completed,
+    values: ["completed", "settled_dispute"],
+  },
+  {
+    value: "cancelled",
+    label: STATUS_LABELS.cancelled,
+    values: ["cancelled", "contract_cancelled", "cancel_done"],
+  },
+];
 
 export function AdminProjects() {
   const [projects, setProjects] = useState([]);
@@ -84,20 +105,32 @@ export function AdminProjects() {
         const localStatus = localStorage.getItem(`project_status_${projId}`) || p.status || p.Status || "";
         let statusKey = localStatus.toLowerCase().replace(/[\s_]+/g, "");
 
-        if (statusKey === "inprogress") {
+        if (statusKey === "inprogress" || statusKey === "active") {
           statusKey = "in_progress";
-        } else if (statusKey === "pendingescrow" || statusKey === "open") {
+        } else if (statusKey === "pendingescrow" || statusKey === "pendingpayment") {
           statusKey = "pending_escrow";
-        } else if (statusKey === "completed") {
+        } else if (statusKey === "open" || statusKey === "reviewingproposals") {
+          statusKey = "reviewing_proposals";
+        } else if (statusKey === "waitingreview" || statusKey === "pendingreview") {
+          statusKey = "waiting_review";
+        } else if (statusKey === "needsrevision") {
+          statusKey = "needs_revision";
+        } else if (statusKey === "awaitingcancellation") {
+          statusKey = "awaiting_cancellation";
+        } else if (statusKey === "completed" || statusKey === "complete") {
           statusKey = "completed";
         } else if (statusKey === "cancelled" || statusKey === "stopped") {
           statusKey = "cancelled";
+        } else if (statusKey === "contractcancelled") {
+          statusKey = "contract_cancelled";
+        } else if (statusKey === "canceldone") {
+          statusKey = "cancel_done";
         } else if (statusKey === "disputed") {
           statusKey = "disputed";
-        } else if (statusKey === "resolved") {
-          statusKey = "completed";
+        } else if (statusKey === "settleddispute" || statusKey === "resolved") {
+          statusKey = "settled_dispute";
         } else if (!statusKey) {
-          statusKey = "in_progress";
+          statusKey = "reviewing_proposals";
         }
 
         return {
@@ -224,13 +257,7 @@ export function AdminProjects() {
       key: "status",
       label: "STATUS",
       className: "w-[13%]",
-      filterOptions: [
-        { value: "in_progress", label: "In Progress" },
-        { value: "pending_escrow", label: "Pending Payment" },
-        { value: "completed", label: "Completed" },
-        { value: "disputed", label: "Disputed" },
-        { value: "cancelled", label: "Cancelled" },
-      ],
+      filterOptions: PROJECT_STATUS_FILTER_OPTIONS,
       render: (val) => (
         <StatusBadge
           status={val}

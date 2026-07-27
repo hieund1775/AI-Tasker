@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 export const getExpertProfileKey = (userId) => `aitasker_expert_profile_${userId}`;
 
@@ -160,7 +161,7 @@ export function EditExpertProfile() {
       // Dispatch custom event to sync with ExpertProfile.jsx
       window.dispatchEvent(new CustomEvent("expert_profile_updated"));
 
-      alert("Profile saved successfully!");
+      toast.success("Profile saved successfully.");
       navigate("/expert/profile", { replace: true });
     } catch (err) {
       setError(err.message || "An error occurred while saving. Please try again!");

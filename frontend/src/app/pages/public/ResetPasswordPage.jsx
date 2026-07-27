@@ -56,8 +56,8 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-card rounded-xl border border-border p-8 relative">
+    <div className="auth-shell min-h-screen flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      <div className="auth-card max-w-md w-full rounded-xl border border-border p-8 relative">
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -130,7 +130,7 @@ export function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="Enter new password"
                   required
                 />
               </div>
@@ -145,7 +145,7 @@ export function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder="Confirm new password"
                   required
                 />
               </div>

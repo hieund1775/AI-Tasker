@@ -40,17 +40,17 @@ export function HomePage() {
   return (
     <div className="page-shell min-h-screen bg-background flex flex-col">
       {/* Navbar */}
-      <nav className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-40 shadow-sm shadow-foreground/[0.025]">
+      <nav className="bg-background/88 backdrop-blur-xl border-b border-border/70 sticky top-0 z-40 shadow-sm shadow-foreground/[0.025]">
         <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center relative overflow-hidden">
+          <Link to="/" className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center relative overflow-hidden shadow-inner shadow-white/10">
               <div
                 className="absolute inset-0 opacity-30 rounded-lg"
                 style={{ background: 'radial-gradient(circle at 40% 30%, white 0%, transparent 60%)' }}
               />
               <span className="text-primary-foreground font-semibold text-sm relative z-[1]">AI</span>
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+            <span className="text-lg font-bold text-foreground tracking-tight">Tasker</span>
           </Link>
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
@@ -126,19 +126,19 @@ export function HomePage() {
       <ProductShowcase />
 
       {/* Footer */}
-      <footer className="border-t border-border/70 bg-card/55">
+      <footer className="border-t border-border/70 bg-card/65">
         <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <div className="flex items-center gap-3">
               <Link to="/" className="flex items-center gap-2">
-                <div className="w-7 h-7 bg-primary rounded-xl flex items-center justify-center">
+                <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
                   <span className="text-primary-foreground font-semibold text-xs">AI</span>
                 </div>
-                <span className="text-sm font-semibold text-foreground tracking-tight">Tasker</span>
+                <span className="text-sm font-bold text-foreground tracking-tight">Tasker</span>
               </Link>
               <span className="hidden sm:inline text-xs text-muted-foreground/40">|</span>
               <p className="text-xs text-muted-foreground">
-                Connecting businesses with AI experts worldwide.
+                Structured AI projects, expert proposals and tracked delivery.
               </p>
             </div>
             <p className="text-xs text-muted-foreground/60">

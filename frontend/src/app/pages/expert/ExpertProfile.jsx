@@ -21,6 +21,7 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 import { getLocalExpertProfile } from "./EditExpertProfile.jsx";
 
@@ -66,11 +67,11 @@ export function ExpertProfile() {
     };
     
     if (interactionType === "reply" && !payload.replyText) {
-      alert("Please enter a thank you or response message.");
+      toast.error("Please enter a thank you or response message.");
       return;
     }
     if (interactionType === "revision" && !payload.requestRevisionText) {
-      alert("Please enter the reason for revision request.");
+      toast.error("Please enter the reason for revision request.");
       return;
     }
 
@@ -94,7 +95,7 @@ export function ExpertProfile() {
       setActiveReplyProjectId(null);
     } catch (error) {
       console.error("Failed to save interaction:", error);
-      alert("Failed to save your reply. Please try again.");
+      toast.error("Failed to save your reply. Please try again.");
     }
   };
 

@@ -97,13 +97,13 @@ export function ProjectProgressPanel({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Overall</span>
-          <span className={`text-4xl font-semibold font-mono tracking-tight ${overallProgress >= 100 ? "text-success" :
+        <div className="flex items-baseline gap-2 rounded-xl border border-border bg-secondary/35 px-3 py-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Overall</span>
+          <span className={`text-lg font-semibold font-mono leading-none tracking-tight ${overallProgress >= 100 ? "text-success" :
               overallProgress >= 50 ? "text-accent" :
                 "text-foreground"
             }`}>
-            {overallProgress}<span className="text-lg">%</span>
+            {overallProgress}<span className="text-xs">%</span>
           </span>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
+import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { timeAgo } from "../../lib/dateUtils.js";
@@ -22,9 +22,11 @@ export function Header() {
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const themeDropdownRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   const { role, isAuthenticated, logout, user } = useAuth();
@@ -106,6 +108,9 @@ export function Header() {
       if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target)) {
         setShowThemeMenu(false);
       }
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
+        setShowAccountMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -115,6 +120,42 @@ export function Header() {
     logout();
     navigate("/");
   };
+
+  const roleMeta = {
+    client: {
+      label: "Client",
+      context: "Client workspace",
+      tone: "bg-accent-light text-accent border-accent/20",
+      dot: "bg-accent",
+    },
+    expert: {
+      label: "Expert",
+      context: "Expert workspace",
+      tone: "bg-success-light text-success border-success/20",
+      dot: "bg-success",
+    },
+    admin: {
+      label: "Admin",
+      context: "Admin console",
+      tone: "bg-warning-light text-warning border-warning/20",
+      dot: "bg-warning",
+    },
+    staff: {
+      label: "Staff",
+      context: "Staff console",
+      tone: "bg-warning-light text-warning border-warning/20",
+      dot: "bg-warning",
+    },
+    owner: {
+      label: "Owner",
+      context: "Owner console",
+      tone: "bg-primary-light text-primary border-primary/20",
+      dot: "bg-primary",
+    },
+  };
+
+  const currentRoleMeta = roleMeta[role] || null;
+  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : null;
 
   // Common nav link style
   const navLinkClass = "inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
@@ -129,7 +170,15 @@ export function Header() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-semibold text-sm">AI</span>
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+            <span className="flex flex-col justify-center leading-none">
+              <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+              {isAuthenticated && currentRoleMeta && (
+                <span className="mt-1 hidden items-center gap-1.5 text-[10px] font-medium text-muted-foreground sm:inline-flex">
+                  <span className={`h-1.5 w-1.5 rounded-full ${currentRoleMeta.dot}`} />
+                  {currentRoleMeta.context}
+                </span>
+              )}
+            </span>
           </Link>
 
           {/* Navigation Link Items — desktop only */}
@@ -174,28 +223,6 @@ export function Header() {
           <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                {/* Wallet (Client only) */}
-                {role === "client" && (
-                  <Link
-                    to="/client/billing"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                    title="Billing & Wallet"
-                  >
-                    <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
-                  </Link>
-                )}
-
-                {/* Wallet (Expert only) */}
-                {role === "expert" && (
-                  <Link
-                    to="/expert/wallet"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                    title="Wallet"
-                  >
-                    <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
-                  </Link>
-                )}
-
                 {/* Theme Toggle Dropdown */}
                 <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
                   <button
@@ -336,22 +363,70 @@ export function Header() {
                   )}
                 </div>
 
-                {/* Profile Link */}
-                <Link
-                  to={`/${role}/profile`}
-                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                  title="Profile"
-                >
-                  <User className="w-4.5 h-4.5 stroke-[1.8]" />
-                </Link>
+                {/* Account Menu */}
+                <div className="relative flex items-center justify-center" ref={accountMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAccountMenu(!showAccountMenu)}
+                    className={`flex h-10 items-center gap-2 rounded-xl px-2.5 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground ${
+                      showAccountMenu ? "bg-secondary text-foreground" : ""
+                    }`}
+                    title={currentRoleMeta ? currentRoleMeta.context : "Account"}
+                    aria-label={currentRoleMeta ? currentRoleMeta.context : "Account"}
+                    aria-expanded={showAccountMenu}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-card ring-1 ring-border">
+                      <User className="h-4 w-4 stroke-[1.8]" />
+                    </span>
+                    <ChevronDown className={`hidden h-3.5 w-3.5 transition-transform sm:block ${showAccountMenu ? "rotate-180" : ""}`} />
+                  </button>
 
-                <button
-                  onClick={handleLogout}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors ml-1"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
+                  {showAccountMenu && (
+                    <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-lg animate-fade-in">
+                      <div className="border-b border-border px-4 py-3">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {user?.name || "Account"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {currentRoleMeta?.context || "Profile"}
+                        </p>
+                      </div>
+                      <div className="p-1.5">
+                        {walletPath && (
+                          <Link
+                            to={walletPath}
+                            onClick={() => setShowAccountMenu(false)}
+                            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                          >
+                            <Wallet className="h-4 w-4 text-muted-foreground" />
+                            <span>{role === "client" ? "Billing & Wallet" : "Wallet"}</span>
+                          </Link>
+                        )}
+                        <Link
+                          to={`/${role}/profile`}
+                          onClick={() => setShowAccountMenu(false)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span>Profile</span>
+                        </Link>
+                      </div>
+                      <div className="border-t border-border p-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAccountMenu(false);
+                            handleLogout();
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive-light"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <>

@@ -11,6 +11,7 @@ import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 // ── Timeline unit conversion helpers ──
 const unitToDays = (value, unit) => {
@@ -166,7 +167,7 @@ export function PostProject() {
 
     // Validate: total deadline >= total use case duration
     if (deadlineDays < totalUseCaseDuration) {
-      alert(`Total deadline (${deadlineDays} days) must be at least the sum of use case durations (${totalUseCaseDuration} days). Please increase the deadline or reduce use case durations.`);
+      toast.error(`Total deadline (${deadlineDays} days) must be at least the sum of use case durations (${totalUseCaseDuration} days). Please increase the deadline or reduce use case durations.`);
       setSubmitting(false);
       return;
     }
@@ -277,14 +278,14 @@ export function PostProject() {
       }
 
       if (invitedExpert) {
-        alert("Project invitation successfully sent to the expert!");
+        toast.success("Project invitation successfully sent to the expert.");
       } else {
-        alert("Project posted successfully!");
+        toast.success("Project posted successfully.");
       }
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Failed to post project. Please try again!");
+      toast.error(err.message || "Failed to post project. Please try again.");
     } finally {
       setSubmitting(false);
     }

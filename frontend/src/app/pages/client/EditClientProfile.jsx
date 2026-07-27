@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Helper: localStorage key for client profile (avoids clashing with BE Status column)
@@ -110,7 +111,7 @@ export function EditClientProfile() {
       navigate("/client/profile");
     } catch (err) {
       console.error("Failed to update profile:", err);
-      alert(err.message || "Failed to update profile. Please try again.");
+      toast.error(err.message || "Failed to update profile. Please try again.");
     } finally {
       setSaving(false);
     }

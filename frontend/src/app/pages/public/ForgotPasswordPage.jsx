@@ -39,8 +39,8 @@ export function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-card rounded-xl border border-border p-8 relative">
+    <div className="auth-shell min-h-screen flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      <div className="auth-card max-w-md w-full rounded-xl border border-border p-8 relative">
         <button
           type="button"
           onClick={() => navigate("/")}

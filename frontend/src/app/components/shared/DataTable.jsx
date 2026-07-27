@@ -1,5 +1,5 @@
 // =============================================================================
-// DataTable - reusable admin table with search, filter, pagination, and actions.
+// DataTable - reusable admin table with search, external filters, pagination, and actions.
 //
 // Props:
 //   columns       - [{ key, label, sortable?, render?, filterOptions?: [{label, value}] }]
@@ -17,7 +17,7 @@
 
 import { Search, X, Database, ChevronLeft, ChevronRight, Filter, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "../ui/skeleton.jsx";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 export function DataTable({
   columns = [],
@@ -39,10 +39,8 @@ export function DataTable({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Column Filters state: { [colKey]: string }
+  // Column filter values are rendered above the table, not inside column headers.
   const [colFilters, setColFilters] = useState({});
-  const [openFilterMenu, setOpenFilterMenu] = useState(null); // column key that has filter menu open
-  const menuRef = useRef(null);
 
   // Sort state: { key: string, dir: 'asc' | 'desc' | null }
   const [sortState, setSortState] = useState({ key: null, dir: null });
@@ -55,17 +53,6 @@ export function DataTable({
     setCurrentPage(1);
   };
 
-  // Close filter menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenFilterMenu(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
   const handleColumnFilterChange = (key, value) => {
     setColFilters((prev) => {
       const next = { ...prev };
@@ -76,9 +63,11 @@ export function DataTable({
       }
       return next;
     });
-    setCurrentPage(1); // Reset to first page on filter
-    setOpenFilterMenu(null); // Close menu
+    setCurrentPage(1);
   };
+
+  const filterableColumns = columns.filter((col) => col.filterOptions?.length);
+  const activeFilterCount = Object.keys(colFilters).length;
 
   // Reset page when global search changes
   useEffect(() => {
@@ -99,13 +88,20 @@ export function DataTable({
       );
     }
 
-    // Apply column filters
+    // Apply column filters. A filter option may represent one raw value or a
+    // group of equivalent raw values via `values`.
     Object.entries(colFilters).forEach(([key, filterVal]) => {
+      const column = columns.find((col) => col.key === key);
+      const selectedOption = column?.filterOptions?.find((opt) => String(opt.value) === String(filterVal));
+      const acceptedValues = selectedOption?.values?.length
+        ? selectedOption.values
+        : [filterVal];
+
       result = result.filter((row) => {
         const cellValue = row[key];
         if (cellValue === undefined || cellValue === null) return false;
-        // Simple string match for column filters
-        return String(cellValue).toLowerCase() === String(filterVal).toLowerCase();
+        const normalizedCell = String(cellValue).toLowerCase();
+        return acceptedValues.some((value) => normalizedCell === String(value).toLowerCase());
       });
     });
 
@@ -146,9 +142,10 @@ export function DataTable({
 
   return (
     <div className="bg-card rounded-2xl border border-border flex flex-col shadow-sm overflow-hidden">
-      {/* Header: search + global filters */}
+      {/* Header: search + filters */}
       {(onSearchChange || filters || !onSearchChange) && (
-        <div className="px-5 py-4 border-b border-border/70 bg-card/70 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="px-5 py-4 border-b border-border/70 bg-card/70 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
             <input
@@ -167,7 +164,50 @@ export function DataTable({
               </button>
             )}
           </div>
-          {filters && <div className="flex gap-2 flex-wrap items-center">{filters}</div>}
+            {filters && <div className="flex gap-2 flex-wrap items-center">{filters}</div>}
+          </div>
+
+          {filterableColumns.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+              <span className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary/60 px-3 text-xs font-semibold text-muted-foreground">
+                <Filter className="h-3.5 w-3.5" />
+                Filters
+              </span>
+              {filterableColumns.map((col) => (
+                <label key={col.key} className="relative">
+                  <span className="sr-only">Filter by {col.label}</span>
+                  <select
+                    value={colFilters[col.key] || ""}
+                    onChange={(e) => handleColumnFilterChange(col.key, e.target.value)}
+                    className={`h-9 min-w-[9rem] rounded-lg border px-3 pr-8 text-xs font-medium outline-none transition-colors ${
+                      colFilters[col.key]
+                        ? "border-brand-primary/30 bg-brand-primary-light text-brand-primary"
+                        : "border-input bg-input-background text-muted-foreground hover:text-foreground"
+                    } focus:border-ring focus:ring-2 focus:ring-ring/15`}
+                  >
+                    <option value="">All {col.label}</option>
+                    {col.filterOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setColFilters({});
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 rounded-lg px-3 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -202,55 +242,6 @@ export function DataTable({
                       </button>
                     ) : col.label}
                     
-                    {/* Column Filter Dropdown */}
-                    {col.filterOptions && (
-                      <div className="relative inline-block" ref={openFilterMenu === col.key ? menuRef : null}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenFilterMenu(openFilterMenu === col.key ? null : col.key);
-                          }}
-                          className={`p-1 rounded transition-colors flex-shrink-0 ${
-                            colFilters[col.key] 
-                              ? "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover" 
-                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                          }`}
-                          title={`Filter by ${col.label}`}
-                        >
-                          <Filter className="w-3.5 h-3.5" />
-                        </button>
-                        
-                        {openFilterMenu === col.key && (
-                          <div className="absolute top-full left-0 mt-2 w-48 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 font-normal normal-case tracking-normal animate-fade-in text-sm">
-                            <div className="px-3 py-2 border-b border-border mb-1">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                Filter by {col.label}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => handleColumnFilterChange(col.key, "")}
-                              className={`w-full text-left px-4 py-2 hover:bg-secondary transition-colors ${
-                                !colFilters[col.key] ? "bg-secondary/50 font-medium text-brand-primary" : "text-foreground"
-                              }`}
-                            >
-                              All
-                            </button>
-                            {col.filterOptions.map((opt) => (
-                              <button
-                                key={opt.value}
-                                onClick={() => handleColumnFilterChange(col.key, opt.value)}
-                                className={`w-full text-left px-4 py-2 hover:bg-secondary transition-colors ${
-                                  colFilters[col.key] === String(opt.value) ? "bg-secondary/50 font-medium text-brand-primary" : "text-foreground"
-                                }`}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 </th>
               ))}

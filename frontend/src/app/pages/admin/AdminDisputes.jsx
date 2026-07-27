@@ -29,9 +29,12 @@ const REPORT_STATUS_CONFIG = {
   "Awaiting Expert": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Expert" },
   "Awaiting Client": { color: "bg-secondary text-secondary-foreground border border-border", label: "Awaiting Client" },
   "Awaiting Partner": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Partner" },
+  "Awaiting Evidence": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Evidence" },
+  "Awaiting Both": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Both" },
   Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
   Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
+  cancel_done: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
@@ -41,9 +44,14 @@ const STATUS_OPTIONS = [
   { value: "Awaiting Expert", label: "Awaiting Expert" },
   { value: "Awaiting Client", label: "Awaiting Client" },
   { value: "Awaiting Partner", label: "Awaiting Partner" },
+  { value: "Awaiting Evidence", label: "Awaiting Evidence" },
+  { value: "Awaiting Both", label: "Awaiting Both" },
   { value: "Returned", label: "Returned" },
-  { value: "Resolved", label: "Resolved" },
-  { value: "Accepted", label: "Resolved (Accepted)" },
+  {
+    value: "Resolved",
+    label: "Resolved",
+    values: ["Resolved", "Accepted", "cancel_done"],
+  },
   { value: "Rejected", label: "Rejected" },
 ];
 
@@ -98,7 +106,9 @@ export function AdminDisputes() {
         if (statusFilter === "Pending") {
           return status === "Pending" || status === "Pending Admin";
         }
-        return status.toLowerCase() === statusFilter.toLowerCase();
+        const option = STATUS_OPTIONS.find((opt) => opt.value === statusFilter);
+        const acceptedValues = option?.values?.length ? option.values : [statusFilter];
+        return acceptedValues.some((value) => status.toLowerCase() === String(value).toLowerCase());
       });
     }
     if (searchTerm) {

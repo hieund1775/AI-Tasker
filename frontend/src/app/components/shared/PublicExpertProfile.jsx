@@ -19,6 +19,7 @@ import { api } from "../../../services/api.js";
 import { safeArray, safeNumberFormat } from "../../lib/safety.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 /**
  * PublicExpertProfile — unified expert profile component.
@@ -362,7 +363,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       navigate(`/client/my-projects?projectId=${project.id}&view=details&inviteSuccess=true&expertName=${encodeURIComponent(expert.name || "Expert")}`);
     } catch (err) {
       console.error("Failed to send invitation:", err);
-      alert(err.message || "Failed to send invitation. Please try again.");
+      toast.error(err.message || "Failed to send invitation. Please try again.");
     } finally {
       setInviteLoading(false);
     }

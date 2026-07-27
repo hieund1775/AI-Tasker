@@ -3,6 +3,7 @@ import { ThemeProvider } from "next-themes";
 import { router } from "./routes.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary.jsx";
+import { Toaster } from "./components/ui/sonner.jsx";
 
 export default function App() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
         <AuthProvider>
           <RouterProvider router={router} />
         </AuthProvider>
+        <Toaster richColors closeButton position="top-right" />
       </ThemeProvider>
     </ErrorBoundary>
   );

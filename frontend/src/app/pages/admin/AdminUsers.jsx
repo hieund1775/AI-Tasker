@@ -195,7 +195,11 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "Status",
       filterOptions: [
         { label: "Active", value: "active" },
-        { label: "Inactive", value: "inactive" },
+        {
+          label: "Inactive",
+          value: "inactive",
+          values: ["inactive", "suspended", "locked", "banned"],
+        },
       ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />

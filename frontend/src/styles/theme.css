@@ -8,7 +8,7 @@
 :root {
   /* ── Typography ── */
   --font-size: 16px;
-  --font-sans: "Noto Sans", ui-sans-serif, system-ui, -apple-system,
+  --font-sans: "Outfit", "Noto Sans", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, "Cascadia Code",
     "Consolas", monospace;
@@ -26,11 +26,11 @@
   --control-gap: 0.75rem;
 
   /* ── Background & Surfaces ── */
-  --background: #f4f1ea;
+  --background: #f7f3ec;
   --foreground: #171512;
-  --card: #fffaf2;
+  --card: #fffdf8;
   --card-foreground: #171512;
-  --popover: #fffaf2;
+  --popover: #fffdf8;
   --popover-foreground: #171512;
 
   /* ── Brand / Primary (Slate Charcoal — sophisticated, professional) ── */
@@ -40,10 +40,10 @@
   --primary-light: color-mix(in srgb, #2e2b27 10%, transparent);
 
   /* ── Accent (Vibrant Blue — interactive elements, links) ── */
-  --accent: #a96745;
+  --accent: #9b5d3d;
   --accent-foreground: #ffffff;
-  --accent-hover: #91563a;
-  --accent-light: color-mix(in srgb, #a96745 12%, transparent);
+  --accent-hover: #814a2f;
+  --accent-light: color-mix(in srgb, #9b5d3d 12%, transparent);
 
   /* ── Semantic Colors ── */
   --success: #4f7a68;
@@ -57,18 +57,18 @@
   --destructive-light: color-mix(in srgb, #a24c43 10%, transparent);
 
   /* ── Secondary & Muted ── */
-  --secondary: #e8e1d6;
+  --secondary: #ebe3d6;
   --secondary-foreground: #332f2a;
-  --muted: #ede7de;
+  --muted: #eee7dc;
   --muted-foreground: #6f675e;
 
   /* ── Borders & Inputs ── */
-  --border: #d8cec0;
-  --border-light: #e8e1d6;
+  --border: #d9ccbb;
+  --border-light: #ebe3d6;
   --input: #cbc0b2;
-  --input-background: #fffaf2;
+  --input-background: #fffdf8;
   --switch-background: #cbc0b2;
-  --ring: #a96745;
+  --ring: #9b5d3d;
 
   /* ── Charts ── */
   --chart-1: #2e2b27;
@@ -253,6 +253,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     position: relative;
+    font-variant-numeric: tabular-nums;
   }
 
   /* ── Premium Ambient Background (subtle mesh + noise) ── */
@@ -284,30 +285,30 @@ body::before {
 
   /* ── Typography Scale (refined hierarchy) ── */
   h1 {
-    font-size: var(--text-2xl);
+    font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-bold);
-    line-height: 1.2;
+    line-height: 1.12;
     letter-spacing: -0.015em;
     text-wrap: balance;
   }
 
   h2 {
-    font-size: var(--text-xl);
+    font-size: clamp(1.125rem, 1rem + 0.35vw, 1.25rem);
     font-weight: var(--font-weight-semibold);
-    line-height: 1.25;
+    line-height: 1.18;
     letter-spacing: -0.01em;
     text-wrap: balance;
   }
 
   h3 {
-    font-size: var(--text-lg);
+    font-size: 1rem;
     font-weight: var(--font-weight-semibold);
     line-height: 1.32;
     letter-spacing: -0.005em;
   }
 
   h4 {
-    font-size: var(--text-lg);
+    font-size: 0.9375rem;
     font-weight: var(--font-weight-semibold);
     line-height: 1.45;
   }
@@ -334,15 +335,15 @@ body::before {
 
   /* ── Page Title Standard ── */
   .page-title {
-    font-size: var(--text-xl);
+    font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-semibold);
     letter-spacing: -0.01em;
-    line-height: 1.25;
+    line-height: 1.14;
     text-wrap: balance;
   }
 
   .page-subtitle {
-    font-size: var(--text-sm);
+    font-size: 0.875rem;
     font-weight: var(--font-weight-normal);
     color: var(--muted-foreground);
     line-height: 1.55;
@@ -352,7 +353,7 @@ body::before {
 
   /* ── Section Header Standard ── */
   .section-header {
-    font-size: var(--text-sm);
+    font-size: 0.75rem;
     font-weight: var(--font-weight-semibold);
     color: var(--muted-foreground);
     text-transform: uppercase;
@@ -787,6 +788,40 @@ html.transition-colors * {
   backdrop-filter: blur(12px);
 }
 
+.auth-shell {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 38%),
+    linear-gradient(315deg, color-mix(in srgb, var(--success) 6%, transparent), transparent 42%),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--foreground) 2.5%, transparent) 0,
+      color-mix(in srgb, var(--foreground) 2.5%, transparent) 1px,
+      transparent 1px,
+      transparent 24px
+    ),
+    var(--background);
+}
+
+.auth-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 62%, transparent), transparent),
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--card) 76%, transparent), transparent 56%);
+  opacity: 0.78;
+}
+
+.auth-card {
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
+    0 18px 44px color-mix(in srgb, var(--foreground) 10%, transparent);
+  background-image:
+    linear-gradient(180deg, color-mix(in srgb, var(--foreground) 2.5%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, var(--background)), var(--card));
+}
+
 /* ── Section Action Bar ── */
 .action-bar {
   display: flex;
@@ -968,6 +1003,44 @@ body::before {
 .page-shell :where(.text-center h1, .text-center .page-title)::after {
   margin-left: auto;
   margin-right: auto;
+}
+
+/* App typography normalization
+   Many screens were authored with local text utilities. These scoped rules keep
+   dashboard/detail pages readable without changing routes or component logic. */
+.page-shell :where(h1.text-2xl, .text-2xl.font-semibold) {
+  font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+}
+
+.page-shell :where(h2.text-lg, h3.text-lg, .text-lg.font-semibold) {
+  font-size: 1rem;
+  line-height: 1.32;
+}
+
+.page-shell :where(.text-base.font-semibold, .text-base.font-medium, [class~="text-[15px]"]) {
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.page-shell :where([class~="text-[13px]"]) {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.page-shell :where([class~="text-[11px]"]) {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.page-shell :where([class~="text-[9px]"]) {
+  font-size: 0.625rem;
+  line-height: 1.35;
+}
+
+.page-shell :where(button, [role="button"], a[class*="inline-flex"]) {
+  text-wrap: nowrap;
 }
 
 .dark body::before {
