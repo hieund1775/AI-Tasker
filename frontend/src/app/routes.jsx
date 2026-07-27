@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+﻿import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layout/RootLayout.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 
@@ -233,9 +233,9 @@ function UnauthorizedPage() {
     <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full bg-card rounded-xl shadow-sm border border-border p-8 text-center">
         <div className="w-16 h-16 bg-destructive-light rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl font-bold text-destructive">!</span>
+          <span className="text-2xl font-semibold text-destructive">!</span>
         </div>
-        <h1 className="text-2xl font-bold text-foreground mb-2">Access Denied</h1>
+        <h1 className="text-2xl font-semibold text-foreground mb-2">Access Denied</h1>
         <p className="text-muted-foreground mb-6">
           You don&apos;t have permission to view this page. Please switch to an
           account with the appropriate role, or contact support.

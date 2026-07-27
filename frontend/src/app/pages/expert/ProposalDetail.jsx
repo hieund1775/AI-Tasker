@@ -185,7 +185,7 @@ export function ProposalDetail() {
                 Proposal Details
               </div>
 
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {proposal.proposalTitle || project?.title || "Proposal"}
               </h1>
 
@@ -242,17 +242,17 @@ export function ProposalDetail() {
 
           {/* Quick stats */}
           <div className="flex flex-wrap gap-4 mt-5">
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
               <p className="text-xs text-muted-foreground mb-0.5">Bid Amount</p>
               <p className="font-semibold text-foreground">
                 <MoneyDisplay amount={proposal.bidAmount} />
               </p>
             </div>
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
               <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
               <p className="font-semibold text-foreground">{proposal.durationDays} days</p>
             </div>
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
               <p className="text-xs text-muted-foreground mb-0.5">Submitted</p>
               <p className="font-semibold text-foreground">
                 {safeDateFormat(proposal.createdAt, {
@@ -297,7 +297,7 @@ export function ProposalDetail() {
                             <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                               <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-foreground text-sm">
+                                  <span className="font-semibold text-foreground text-sm">
                                     UserStory: {uc.title || uc.nameAndDeadline}
                                   </span>
                                 </div>
@@ -321,14 +321,14 @@ export function ProposalDetail() {
                                   <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
                                     {/* Task Title Row */}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                      <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                      <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                     </div>
 
                                     {/* Minitasks */}
                                     {task.miniTasks && task.miniTasks.length > 0 && (
                                       <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                         {task.miniTasks.map((mt, mtIdx) => (
                                           <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                                         ))}
@@ -349,14 +349,14 @@ export function ProposalDetail() {
                         <div key={task.id || idx} className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
                           {/* Task Title Row */}
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                            <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                            <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                           </div>
 
                           {/* Minitasks */}
                           {task.miniTasks && task.miniTasks.length > 0 && (
                             <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                               {task.miniTasks.map((mt, mtIdx) => (
                                 <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                               ))}
@@ -383,11 +383,11 @@ export function ProposalDetail() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-xl border border-border/80">
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Bid Amount</span>
-                    <span className="text-xl font-bold text-foreground"><MoneyDisplay amount={proposal.bidAmount} /></span>
+                    <span className="text-xl font-semibold text-foreground"><MoneyDisplay amount={proposal.bidAmount} /></span>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Estimated Duration</span>
-                    <span className="text-xl font-bold text-foreground">{proposal.durationDays} days</span>
+                    <span className="text-xl font-semibold text-foreground">{proposal.durationDays} days</span>
                   </div>
                 </div>
               </DetailSection>
@@ -435,13 +435,13 @@ export function ProposalDetail() {
                           href={rawUrl}
                           onClick={handleDownloadFile}
                           download={finalName}
-                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3 hover:bg-secondary transition-colors cursor-pointer text-left"
+                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-2.5 hover:bg-secondary transition-colors cursor-pointer text-left"
                           title={`Download ${finalName}`}
                         >
                           {att.type === "image/png" || att.fileType === "image/png" ? (
                             <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
                           ) : att.type === "folder" ? (
-                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                            <FolderOpen className="w-5 h-5 text-warning flex-shrink-0" />
                           ) : (
                             <FileIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           )}
@@ -471,7 +471,7 @@ export function ProposalDetail() {
           {convId ? (
             <Link
               to={`/messenger/${convId}`}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
@@ -479,7 +479,7 @@ export function ProposalDetail() {
           ) : (
             <Link
               to={client ? `/messenger/${client.id || client.Id}` : "/messenger"}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
@@ -489,14 +489,14 @@ export function ProposalDetail() {
           {canEdit ? (
             <Link
               to={`/expert/jobs/${proposal.jobPostId}/proposal`}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               Edit
             </Link>
           ) : (
             <button
               disabled
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-medium inline-flex items-center gap-2 transition-colors opacity-40 cursor-not-allowed"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-medium inline-flex items-center gap-2 transition-colors opacity-40 cursor-not-allowed"
             >
               Edit
             </button>

@@ -105,7 +105,7 @@ export function MiniTaskCreateForm({
               key={mt.id}
               className={cn(
                 "flex items-start gap-2 p-3 bg-secondary/60 rounded-xl border border-border group",
-                editingId === mt.id && "bg-brand-primary-light border-blue-200"
+                editingId === mt.id && "bg-brand-primary-light border-accent/25"
               )}
             >
               <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
@@ -159,7 +159,7 @@ export function MiniTaskCreateForm({
                     <button
                       type="button"
                       onClick={saveEditing}
-                      className="h-10 px-4 text-sm font-semibold bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover inline-flex items-center gap-1.5 transition"
+                      className="h-10 px-4 text-sm font-semibold bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover inline-flex items-center gap-1.5 transition"
                     >
                       <Check className="w-3.5 h-3.5" />
                       Save
@@ -167,7 +167,7 @@ export function MiniTaskCreateForm({
                     <button
                       type="button"
                       onClick={cancelEditing}
-                      className="h-10 px-4 text-sm font-semibold border border-input text-muted-foreground rounded-[14px] hover:bg-secondary transition"
+                      className="h-10 px-4 text-sm font-semibold border border-input text-muted-foreground rounded-lg hover:bg-secondary transition"
                     >
                       <X className="w-3.5 h-3.5" />
                       Cancel
@@ -204,7 +204,7 @@ export function MiniTaskCreateForm({
                   <button
                     type="button"
                     onClick={() => onRemove?.(mt.id)}
-                    className="p-1 text-muted-foreground hover:text-red-600"
+                    className="p-1 text-muted-foreground hover:text-destructive"
                     title="Remove"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -258,7 +258,7 @@ export function MiniTaskCreateForm({
             <button
               type="button"
               onClick={onConfirm}
-              className="px-5 py-2 bg-brand-green text-white rounded-xl hover:bg-brand-green/90 text-[15px] font-medium transition"
+              className="px-5 py-2 bg-brand-green text-primary-foreground rounded-xl hover:bg-brand-green/90 text-[15px] font-medium transition"
             >
               Confirm & Save
             </button>

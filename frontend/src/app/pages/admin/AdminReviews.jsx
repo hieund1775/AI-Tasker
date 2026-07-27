@@ -19,9 +19,9 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const REVIEW_STATUS_CONFIG = {
-  Visible: { color: "bg-green-100 text-green-700", label: "Visible" },
-  Hidden: { color: "bg-yellow-100 text-yellow-700", label: "Hidden" },
-  Deleted: { color: "bg-red-100 text-red-700", label: "Deleted" },
+  Visible: { color: "bg-success-light text-success", label: "Visible" },
+  Hidden: { color: "bg-warning-light text-warning", label: "Hidden" },
+  Deleted: { color: "bg-destructive-light text-destructive", label: "Deleted" },
 };
 
 const REVIEW_STATUS_OPTIONS = [
@@ -170,19 +170,19 @@ export function AdminReviews() {
     <div className="space-y-6">
       
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">Review Management</h1>
+      <h1 className="text-2xl font-semibold text-foreground mb-2">Review Management</h1>
       <p className="text-muted-foreground mb-6">
         View and manage violating reviews on the platform.
       </p>
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -199,7 +199,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setHideModal(row.id)}
                 disabled={actionLoading}
-                className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 bg-warning-light text-warning hover:bg-warning-light border border-warning/20 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Hide review"
               >
                 <EyeOff className="w-3.5 h-3.5" />
@@ -211,7 +211,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setDeleteModal(row.id)}
                 disabled={actionLoading}
-                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Delete review"
               >
                 <Trash2 className="w-3.5 h-3.5" />

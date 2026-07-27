@@ -26,10 +26,10 @@ const PADDING = {
 
 const VARIANTS = {
   default: "bg-card border border-border shadow-sm",
-  glass: "bg-card/70 backdrop-blur-sm border border-border/60 shadow-sm",
-  subtle: "bg-secondary/60 border border-border/40 shadow-none",
-  warning: "bg-card border border-warning/20 shadow-sm",
-  branded: "bg-card border border-accent/15 shadow-sm",
+  glass: "bg-card border border-border shadow-sm",
+  subtle: "bg-secondary/55 border border-border/60 shadow-none",
+  warning: "bg-card border border-warning/25 shadow-sm",
+  branded: "bg-card border border-accent/20 shadow-sm",
 };
 
 export function SectionCard({
@@ -55,7 +55,7 @@ export function SectionCard({
         "rounded-2xl",
         noBorder ? "shadow-none" : v,
         p,
-        hover && "card-hover",
+        hover && "card-hover hover:border-input",
         className,
       )}
     >
@@ -66,7 +66,7 @@ export function SectionCard({
             {Icon && (
               <div
                 className={cn(
-                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
                   iconColor,
                 )}
               >
@@ -75,7 +75,7 @@ export function SectionCard({
             )}
             <div className="min-w-0">
               {title && (
-                <h3 className="text-sm font-semibold text-foreground">
+                <h3 className="text-sm font-semibold tracking-[-0.005em] text-foreground">
                   {title}
                   {badge && (
                     <span className="ml-2 inline-flex">{badge}</span>
@@ -83,7 +83,7 @@ export function SectionCard({
                 </h3>
               )}
               {subtitle && (
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p className="text-xs leading-relaxed text-muted-foreground mt-0.5">
                   {subtitle}
                 </p>
               )}

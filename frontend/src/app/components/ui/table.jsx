@@ -1,10 +1,10 @@
-import { cn } from "../../lib/utils.js";
+﻿import { cn } from "../../lib/utils.js";
 
 function Table({ className, ...props }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-lg border border-border"
+      className="relative w-full overflow-x-auto rounded-xl border border-border bg-card shadow-sm"
     >
       <table
         data-slot="table"
@@ -40,7 +40,7 @@ function TableFooter({ className, ...props }) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "bg-muted/30 border-t font-medium [&>tr]:last:border-b-0",
+        "bg-muted/40 border-t font-medium [&>tr]:last:border-b-0",
         className,
       )}
       {...props}
@@ -53,7 +53,7 @@ function TableRow({ className, ...props }) {
     <tr
       data-slot="table-row"
       className={cn(
-        "hover:bg-muted/30 data-[state=selected]:bg-accent/5 border-b border-border/60 transition-colors",
+        "hover:bg-accent/[0.035] data-[state=selected]:bg-accent/5 border-b border-border/60 transition-colors",
         className,
       )}
       {...props}
@@ -66,7 +66,7 @@ function TableHead({ className, ...props }) {
     <th
       data-slot="table-head"
       className={cn(
-        "text-muted-foreground h-10 px-4 text-left align-middle text-xs font-semibold whitespace-nowrap tracking-[0.03em] uppercase [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "text-muted-foreground h-10 bg-secondary/35 px-4 text-left align-middle text-xs font-semibold whitespace-nowrap tracking-[0.03em] uppercase [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}
@@ -79,7 +79,7 @@ function TableCell({ className, ...props }) {
     <td
       data-slot="table-cell"
       className={cn(
-        "px-4 py-3 align-middle whitespace-nowrap text-sm [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "px-4 py-2.5 align-middle whitespace-nowrap text-sm [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}

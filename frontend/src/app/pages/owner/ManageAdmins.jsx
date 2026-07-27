@@ -21,9 +21,9 @@ import { getAdminUsers, banAdminAccount } from "../../../services/ownerService.j
 // ---------------------------------------------------------------------------
 
 const ADMIN_STATUS_CONFIG = {
-  active: { color: "bg-green-100 text-green-700", label: "Active" },
-  banned: { color: "bg-red-100 text-red-700", label: "Locked" },
-  locked: { color: "bg-red-100 text-red-700", label: "Locked" },
+  active: { color: "bg-success-light text-success", label: "Active" },
+  banned: { color: "bg-destructive-light text-destructive", label: "Locked" },
+  locked: { color: "bg-destructive-light text-destructive", label: "Locked" },
 };
 
 // ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ export function ManageAdmins() {
       key: "role",
       label: "Role",
       render: () => (
-        <span className="px-2.5 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+        <span className="px-2.5 py-0.5 bg-destructive-light text-destructive rounded-full text-xs font-medium">
           Admin
         </span>
       ),
@@ -158,7 +158,7 @@ export function ManageAdmins() {
         Back to Dashboard
       </button>
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
+      <h1 className="text-2xl font-semibold text-foreground mb-2">
         Manage Admin Accounts
       </h1>
       <p className="text-muted-foreground mb-6">
@@ -166,13 +166,13 @@ export function ManageAdmins() {
       </p>
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success flex items-center gap-2">
           <CheckCircle className="w-4 h-4" /> {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -208,8 +208,8 @@ export function ManageAdmins() {
               disabled={actionLoading}
               className={`px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 transition ${
                 isBanned
-                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  ? "bg-success-light text-success hover:bg-success-light border border-success/20"
+                  : "bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20"
               }`}
             >
               {isBanned ? (

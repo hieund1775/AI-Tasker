@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import {
   Search,
@@ -20,7 +20,7 @@ import { categoryTagService } from "../../../services/categoryTagService.js";
 import { safeNumberFormat } from "../../lib/safety.js";
 
 /**
- * Job Card — renders a scannable job listing card for the expert job board.
+ * Job Card â€” renders a scannable job listing card for the expert job board.
  */
 function ProjectCard({ job }) {
   const clientName = job.client || "Anonymous Client";
@@ -70,7 +70,7 @@ function ProjectCard({ job }) {
     }
   };
 
-  // Match score — simulated from skills count vs total skills
+  // Match score â€” simulated from skills count vs total skills
   const skillCount = skills.length;
   const matchScore = skillCount > 0 ? Math.min(95, 55 + skillCount * 8) : 60;
 
@@ -88,7 +88,7 @@ function ProjectCard({ job }) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1.5">
               {/* Match score pill */}
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                 matchScore >= 80 ? "bg-success/10 text-success border border-success/20" :
                 matchScore >= 65 ? "bg-accent/10 text-accent border border-accent/20" :
                 "bg-muted text-muted-foreground border border-border"
@@ -124,14 +124,14 @@ function ProjectCard({ job }) {
         </p>
 
         {/* Row 3: Info grid with tinted background */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 px-4 bg-secondary/60 rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-2.5 px-4 bg-secondary/60 rounded-xl border border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
               <ReceiptText className="w-4 h-4 text-success" />
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider">Budget</span>
-              <span className="font-bold text-foreground text-sm">{getBudgetFormatted()}</span>
+              <span className="font-semibold text-foreground text-sm">{getBudgetFormatted()}</span>
             </div>
           </div>
 
@@ -379,7 +379,7 @@ export function JobList() {
           </div>
           <Link
             to="/expert/edit-profile"
-            className="whitespace-nowrap h-10 px-5 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
+            className="whitespace-nowrap h-10 px-4 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
           >
             Create Profile
           </Link>
@@ -387,7 +387,7 @@ export function JobList() {
       )}
 
       {/* Sticky Search & Filters Bar */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3 mb-6 border-b border-border">
+      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-2.5 mb-6 border-b border-border">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
@@ -410,7 +410,7 @@ export function JobList() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`h-11 px-4 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-all ${
+            className={`h-10 px-4 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-all ${
               showFilters || hasActiveFilters
                 ? "border-accent bg-accent/6 text-accent shadow-sm"
                 : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -424,7 +424,7 @@ export function JobList() {
           <select
             value={filters.sortBy}
             onChange={(e) => updateFilter("sortBy", e.target.value)}
-            className="h-11 px-4 border border-border rounded-xl bg-card text-sm font-medium focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 cursor-pointer"
+            className="h-10 px-4 border border-border rounded-xl bg-card text-sm font-medium focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 cursor-pointer"
           >
             <option value="newest">Newest first</option>
             <option value="budget_high">Budget: High to Low</option>

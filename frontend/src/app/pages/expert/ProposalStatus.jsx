@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   FileText,
@@ -16,7 +16,7 @@ import api from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeDateFormat } from "../../lib/safety.js";
 
-// Status helpers — delegated to shared proposalStatusConfig.js
+// Status helpers â€” delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
 /**
@@ -60,7 +60,7 @@ function getProposalDeadlineText(proposal) {
       }, `${deadlineDays} days`);
     }
   }
-  return `${deadlineDays || "—"} days`;
+  return `${deadlineDays || "â€”"} days`;
 }
 
 // ---------------------------------------------------------------------------
@@ -178,7 +178,7 @@ export function ProposalStatus() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+              className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -263,10 +263,10 @@ export function ProposalStatus() {
 
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
                         <span className="text-muted-foreground">
-                          Client: <span className="font-medium text-foreground">{proposal.clientName}{proposal.clientCompany ? ` · ${proposal.clientCompany}` : ""}</span>
+                          Client: <span className="font-medium text-foreground">{proposal.clientName}{proposal.clientCompany ? ` Â· ${proposal.clientCompany}` : ""}</span>
                         </span>
                         <span className="text-muted-foreground">
-                          Bid: <span className="font-bold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
+                          Bid: <span className="font-semibold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
                         </span>
                         <span className="text-muted-foreground">
                           Deadline: <span className="font-medium text-foreground">{getProposalDeadlineText(proposal)}</span>
@@ -274,7 +274,7 @@ export function ProposalStatus() {
                       </div>
 
                       <p className="text-xs text-muted-foreground mt-2">
-                        Submitted {safeDateFormat(proposal.createdAt, { year: "numeric", month: "long", day: "numeric" }, "—")}
+                        Submitted {safeDateFormat(proposal.createdAt, { year: "numeric", month: "long", day: "numeric" }, "â€”")}
                       </p>
                     </div>
 

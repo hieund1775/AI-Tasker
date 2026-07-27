@@ -38,19 +38,19 @@ export const STATUS_LABELS = {
 // ---------------------------------------------------------------------------
 
 export const STATUS_BADGE_CLASSES = {
-  reviewing_proposals: "bg-purple-100 text-purple-700",
+  reviewing_proposals: "bg-warning-light text-warning",
   in_progress: "bg-brand-primary-light text-brand-primary",
-  waiting_review: "bg-yellow-100 text-yellow-700",
-  needs_revision: "bg-orange-100 text-orange-700",
+  waiting_review: "bg-warning-light text-warning",
+  needs_revision: "bg-warning-light text-warning",
   completed: "bg-brand-green/10 text-brand-green",
-  cancelled: "bg-red-100 text-red-700",
-  contract_cancelled: "bg-rose-100 text-rose-700 border border-rose-200",
-  pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
-  disputed: "bg-red-500/10 text-red-500 border border-red-500/20 font-semibold",
+  cancelled: "bg-destructive-light text-destructive",
+  contract_cancelled: "bg-destructive-light text-destructive border border-destructive/20",
+  pending_escrow: "bg-warning-light text-warning border border-warning/20",
+  disputed: "bg-destructive-light0/10 text-destructive border border-destructive/20 font-semibold",
   "disputed-card": "bg-card border border-border hover:border-border/80",
-  awaiting_cancellation: "bg-amber-100 text-amber-800 border border-amber-200 font-semibold",
-  cancel_done: "bg-rose-100 text-rose-800 border border-rose-200",
-  settled_dispute: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
+  awaiting_cancellation: "bg-warning-light text-warning border border-warning/20 font-semibold",
+  cancel_done: "bg-destructive-light text-destructive border border-destructive/20",
+  settled_dispute: "bg-success-light text-success border border-success/20 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
@@ -107,7 +107,7 @@ const CLIENT_BUTTON_MAP = {
   },
   needs_revision: {
     label: "Review Changes",
-    className: "bg-orange-600 text-white hover:bg-orange-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   completed: {
@@ -122,17 +122,17 @@ const CLIENT_BUTTON_MAP = {
   },
   contract_cancelled: {
     label: "View Details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   awaiting_cancellation: {
     label: "View cancellation",
-    className: "bg-amber-600 text-white hover:bg-amber-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   cancel_done: {
     label: "Cancellation details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   settled_dispute: {
@@ -159,12 +159,12 @@ const EXPERT_BUTTON_MAP = {
   },
   waiting_review: {
     label: "Waiting for Client Review",
-    className: "bg-yellow-100 text-yellow-700 border border-yellow-300 cursor-default",
+    className: "bg-warning-light text-warning border border-warning/35 cursor-default",
     disabled: true,
   },
   needs_revision: {
     label: "Update Submission",
-    className: "bg-orange-600 text-white hover:bg-orange-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   completed: {
@@ -174,12 +174,12 @@ const EXPERT_BUTTON_MAP = {
   },
   awaiting_cancellation: {
     label: "View cancellation",
-    className: "bg-amber-600 text-white hover:bg-amber-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   cancel_done: {
     label: "Cancellation details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   settled_dispute: {
@@ -273,17 +273,17 @@ export function deriveProjectDisplayStatus(project, options) {
 export const TASK_STATUS_CONFIG = {
   "Not Started":         { className: "bg-secondary text-muted-foreground",   label: "Not Started" },
   "In Progress":         { className: "bg-brand-primary-light text-brand-primary",   label: "In Progress" },
-  "Pending Review":      { className: "bg-purple-100 text-purple-700", label: "Waiting for Client Review" },
-  "Waiting For Approval":{ className: "bg-purple-100 text-purple-700", label: "Waiting For Approval" },
-  "Checklist Completed": { className: "bg-amber-50 text-amber-700 border border-amber-200", label: "Checklist Completed" },
-  "Waiting for Expert Product": { className: "bg-yellow-50 text-yellow-700 border border-yellow-200", label: "Waiting for Expert Product" },
+  "Pending Review":      { className: "bg-warning-light text-warning", label: "Waiting for Client Review" },
+  "Waiting For Approval":{ className: "bg-warning-light text-warning", label: "Waiting For Approval" },
+  "Checklist Completed": { className: "bg-warning-light text-warning border border-warning/20", label: "Checklist Completed" },
+  "Waiting for Expert Product": { className: "bg-warning-light text-warning border border-warning/20", label: "Waiting for Expert Product" },
   "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
   "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
-  "Needs Revision":      { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
-  "Decline":             { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
-  "Rework":              { className: "bg-orange-100 text-orange-700 border border-orange-300", label: "Rework" },
-  "Reopen Requested":    { className: "bg-red-100 text-red-700",     label: "Reopen Requested" },
-  "Cancelled":           { className: "bg-red-100 text-red-700",     label: "Cancelled" },
+  "Needs Revision":      { className: "bg-destructive-light text-destructive border border-destructive/20", label: "Decline" },
+  "Decline":             { className: "bg-destructive-light text-destructive border border-destructive/20", label: "Decline" },
+  "Rework":              { className: "bg-warning-light text-warning border border-warning/35", label: "Rework" },
+  "Reopen Requested":    { className: "bg-destructive-light text-destructive",     label: "Reopen Requested" },
+  "Cancelled":           { className: "bg-destructive-light text-destructive",     label: "Cancelled" },
 };
 
 /** Get the badge class for a task-level display status. */
@@ -306,11 +306,11 @@ export const DEADLINE_STATUS_CONFIG = {
     label: "Due in X days",
   },
   warning: {
-    className: "bg-orange-50 text-orange-700",
+    className: "bg-warning-light text-warning",
     label: "Due soon",
   },
   overdue: {
-    className: "bg-red-50 text-red-700",
+    className: "bg-destructive-light text-destructive",
     label: "Overdue",
   },
 };

@@ -1,20 +1,20 @@
-// =============================================================================
-// TaskCard — single task card with progress bar, status, and action buttons.
+﻿// =============================================================================
+// TaskCard â€” single task card with progress bar, status, and action buttons.
 //
 // Props:
-//   task              — task object
-//   derivedStatus     — display status string
-//   role              — "client" | "expert"
-//   completedMiniTasks — number
-//   totalMiniTasks    — number
-//   progress          — 0-100 number
-//   latestLog         — { message } | null
-//   canOpenSubmit     — boolean
-//   isSubmitDisabled  — boolean
-//   submitButtonLabel — string
-//   goToTaskAction    — (task, action) => void
-//   getTaskStatusClass — (status) => string
-//   getTaskStatusLabel — (status) => string
+//   task              â€” task object
+//   derivedStatus     â€” display status string
+//   role              â€” "client" | "expert"
+//   completedMiniTasks â€” number
+//   totalMiniTasks    â€” number
+//   progress          â€” 0-100 number
+//   latestLog         â€” { message } | null
+//   canOpenSubmit     â€” boolean
+//   isSubmitDisabled  â€” boolean
+//   submitButtonLabel â€” string
+//   goToTaskAction    â€” (task, action) => void
+//   getTaskStatusClass â€” (status) => string
+//   getTaskStatusLabel â€” (status) => string
 // =============================================================================
 
 import { CheckCircle2, Clock3 } from "lucide-react";
@@ -43,7 +43,7 @@ export function TaskCard({
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
         <div className="flex-1 pr-4">
           <div className="flex items-start gap-4">
-            <div className="w-11 h-11 bg-gradient-to-br from-primary/15 to-primary/5 text-primary rounded-xl flex items-center justify-center font-semibold flex-shrink-0 border border-primary/10">
+            <div className="w-11 h-10 bg-gradient-to-br from-primary/15 to-primary/5 text-primary rounded-xl flex items-center justify-center font-semibold flex-shrink-0 border border-primary/10">
               {task.id || "?"}
             </div>
             <div className="flex-1">

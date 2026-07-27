@@ -22,10 +22,10 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const JOB_POST_STATUS_CONFIG = {
-  Active: { color: "bg-green-100 text-green-700", label: "Active" },
+  Active: { color: "bg-success-light text-success", label: "Active" },
   Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
-  Closed: { color: "bg-red-100 text-red-700", label: "Closed" },
-  Draft: { color: "bg-yellow-100 text-yellow-700", label: "Draft" },
+  Closed: { color: "bg-destructive-light text-destructive", label: "Closed" },
+  Draft: { color: "bg-warning-light text-warning", label: "Draft" },
 };
 
 const JOB_POST_STATUS_OPTIONS = [
@@ -176,7 +176,7 @@ export function AdminJobPosts() {
     <div className="space-y-6">
       
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
+      <h1 className="text-2xl font-semibold text-foreground mb-2">
         Job Post / Service Management
       </h1>
       <p className="text-muted-foreground mb-6">
@@ -184,13 +184,13 @@ export function AdminJobPosts() {
       </p>
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -213,7 +213,7 @@ export function AdminJobPosts() {
                   })
                 }
                 disabled={actionLoading}
-                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-warning-light text-warning hover:bg-warning-light border-warning/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Change status"
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -224,7 +224,7 @@ export function AdminJobPosts() {
               type="button"
               onClick={() => setDeleteModal(row.id)}
               disabled={actionLoading}
-              className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-red-50 text-red-700 hover:bg-red-100 border-red-200 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-destructive-light text-destructive hover:bg-destructive-light border-destructive/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Delete job post"
             >
               <Trash2 className="w-3.5 h-3.5" />

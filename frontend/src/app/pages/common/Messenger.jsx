@@ -315,12 +315,12 @@ export function Messenger() {
                   onClick={() => navigate(`/messenger/${conv.id}`)}
                   key={conv.id}
                   className={`w-full text-left block p-4 hover:bg-secondary/70 border-b border-border transition-all duration-150 ${
-                    conv.id === activeConvId ? "bg-accent/5 border-l-[3px] border-l-accent shadow-[inset_0_0_0_1px_rgba(59,130,246,0.08)]" : "border-l-[3px] border-l-transparent"
+                    conv.id === activeConvId ? "bg-accent/5 border-l-[3px] border-l-accent shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--accent)_12%,transparent)]" : "border-l-[3px] border-l-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-brand-primary-light rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-brand-primary">
+                      <span className="text-sm font-semibold text-brand-primary">
                         {conv.name?.[0] || "?"}
                       </span>
                     </div>
@@ -363,7 +363,7 @@ export function Messenger() {
                 <div className="flex items-center gap-3">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent/15 to-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-foreground">
+                      <span className="text-sm font-semibold text-foreground">
                         {activeConversation.name?.[0] || "?"}
                       </span>
                     </div>
@@ -392,7 +392,7 @@ export function Messenger() {
                     <div
                       className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
                         msg.isOwn
-                          ? "bg-gradient-to-br from-accent to-accent-hover text-white rounded-br-md shadow-md"
+                          ? "bg-gradient-to-br from-accent to-accent-hover text-primary-foreground rounded-br-md shadow-md"
                           : "bg-secondary text-foreground rounded-bl-md border border-border/60 shadow-sm"
                       }`}
                     >
@@ -449,12 +449,12 @@ export function Messenger() {
                   {pendingAttachments.map((att) => (
                     <div
                       key={att.id}
-                      className="inline-flex items-center gap-2 bg-brand-primary-light border border-blue-200 rounded-lg px-3 py-1.5"
+                      className="inline-flex items-center gap-2 bg-brand-primary-light border border-accent/25 rounded-lg px-3 py-1.5"
                     >
                       {att.type === "image/png" ? (
                         <Image className="w-4 h-4 text-brand-primary" />
                       ) : att.type === "folder" ? (
-                        <FolderOpen className="w-4 h-4 text-amber-500" />
+                        <FolderOpen className="w-4 h-4 text-warning" />
                       ) : (
                         <FileIcon className="w-4 h-4 text-muted-foreground" />
                       )}
@@ -462,7 +462,7 @@ export function Messenger() {
                       <button
                         type="button"
                         onClick={() => removePendingAttachment(att.id)}
-                        className="p-0.5 text-muted-foreground hover:text-red-500"
+                        className="p-0.5 text-muted-foreground hover:text-destructive"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -530,7 +530,7 @@ export function Messenger() {
                     {/* Sent attachments modal */}
                     {showSentFiles && (
                       <div
-                        className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-lg py-3 px-4 z-20 w-[280px]"
+                        className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-lg py-2.5 px-4 z-20 w-[280px]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-between mb-2">
@@ -557,7 +557,7 @@ export function Messenger() {
                                 {att.type === "image/png" ? (
                                   <Image className="w-4 h-4 text-brand-primary flex-shrink-0" />
                                 ) : att.type === "folder" ? (
-                                  <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                                  <FolderOpen className="w-4 h-4 text-warning flex-shrink-0" />
                                 ) : (
                                   <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                 )}

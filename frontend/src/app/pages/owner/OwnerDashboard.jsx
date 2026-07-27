@@ -462,13 +462,13 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={trafficData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="Client" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expert" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Client" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Expert" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -481,14 +481,14 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={postData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
                 <Bar
                   dataKey="Posts"
-                  fill="#10B981"
+                  fill="var(--chart-3)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -503,7 +503,7 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={paymentData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
@@ -518,7 +518,7 @@ export function OwnerDashboard() {
                 <Legend />
                 <Bar
                   dataKey="Revenue"
-                  fill="#F59E0B"
+                  fill="var(--chart-4)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

@@ -25,7 +25,7 @@ export function PageHeader({
   divider = true,
 }) {
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6", className)}>
       {/* Optional background illustration layer */}
       {illustration && (
         <div className="absolute -top-6 right-0 pointer-events-none select-none opacity-[0.07] dark:opacity-[0.04]">
@@ -42,13 +42,13 @@ export function PageHeader({
         <div className="flex-1 min-w-0">
           {/* Title row with optional badge */}
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="page-title">{title}</h1>
+            <h1 className="page-title text-foreground">{title}</h1>
             {badge && <span className="flex-shrink-0">{badge}</span>}
           </div>
 
           {/* Subtitle */}
           {subtitle && (
-            <p className="page-subtitle mt-1 max-w-2xl">{subtitle}</p>
+            <p className="page-subtitle mt-2 max-w-2xl">{subtitle}</p>
           )}
         </div>
 
@@ -61,7 +61,7 @@ export function PageHeader({
       </div>
 
       {/* Gradient divider */}
-      {divider && <div className="gradient-divider mb-6" />}
+      {divider && <div className="gradient-divider mt-1" />}
     </div>
   );
 }

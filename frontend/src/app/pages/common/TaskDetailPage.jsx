@@ -581,14 +581,14 @@ export default function TaskDetailPage() {
         <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <h3 className="text-xs font-bold text-foreground/85 font-sans uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-foreground/85 font-sans uppercase tracking-wider">
               Submitted Deliverables
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {task.productLink && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Product Link</span>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product Link</span>
                 <a
                   href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                   target="_blank"
@@ -602,7 +602,7 @@ export default function TaskDetailPage() {
             )}
             {task.productFile && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Attached File</span>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <span className="text-xs text-foreground/80 font-mono truncate">
                     {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
@@ -722,9 +722,9 @@ export default function TaskDetailPage() {
 
       {/* Revision request modal (Provide Revision Reason directly) */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-foreground mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               Provide Revision Reason
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -832,7 +832,7 @@ export default function TaskDetailPage() {
                         setProductFileObject(null);
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 bg-warning-light text-primary-foreground hover:bg-warning font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
                       {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
@@ -844,7 +844,7 @@ export default function TaskDetailPage() {
                       fullWidth
                       disabled={!allComplete || isWaitingForApproval || displayStatus === "Checklist Completed"}
                       onClick={() => setShowEvidenceModal(true)}
-                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />
                       {allComplete && !task?.handoverEvidence ? "Submit Handover Evidence" : displayStatus === "Checklist Completed" ? "Evidence Submitted ✓" : "Complete Mini Tasks First"}
@@ -857,12 +857,12 @@ export default function TaskDetailPage() {
                   </p>
                 )}
                 {(task?.urgentRequest === true || task?.productRequested === true) && (
-                  <p className="text-xs text-red-500 font-semibold text-center animate-pulse">
+                  <p className="text-xs text-destructive font-semibold text-center animate-pulse">
                     Client has requested product delivery! Submit Product is now unlocked.
                   </p>
                 )}
                 {(task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product") && (
-                  <p className="text-xs text-amber-600 font-semibold text-center animate-pulse">
+                  <p className="text-xs text-warning font-semibold text-center animate-pulse">
                     Client requested revisions! Please submit updated deliverables above.
                   </p>
                 )}
@@ -897,7 +897,7 @@ export default function TaskDetailPage() {
                         }
                       }}
                       icon={!approveLoading ? ThumbsUp : undefined}
-                      className="flex-1 cursor-pointer font-bold bg-brand-green hover:bg-brand-green/90 text-white border-brand-green"
+                      className="flex-1 cursor-pointer font-semibold bg-brand-green hover:bg-brand-green/90 text-primary-foreground border-brand-green"
                     >
                       {approveLoading ? "Processing..." : "Quick Accept"}
                     </Button>
@@ -923,7 +923,7 @@ export default function TaskDetailPage() {
                         }
                       }}
                       icon={!urgentLoading ? AlertTriangle : undefined}
-                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer font-bold"
+                      className="flex-1 bg-warning-light hover:bg-warning text-primary-foreground border-warning cursor-pointer font-semibold"
                     >
                       {urgentLoading ? "Sending..." : "Request Product"}
                     </Button>
@@ -932,15 +932,15 @@ export default function TaskDetailPage() {
 
                 {/* 1b. Waiting for Expert Product: Show static wait message */}
                 {task.displayStatus === "Waiting for Expert Product" && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                    <p className="text-yellow-700 font-medium text-sm">
+                  <div className="bg-warning-light border border-warning/20 rounded-lg p-4 text-center">
+                    <p className="text-warning font-medium text-sm">
                       ⏳ Waiting for Expert to submit product...
                     </p>
                   </div>
                 )}
                 {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
-                  <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
-                    <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
+                  <div className="flex items-center justify-center p-4 bg-warning-light border border-warning/20 rounded-2xl text-warning text-base font-semibold gap-2 shadow-sm font-sans">
+                    <Clock3 className="w-5 h-5 text-warning animate-pulse" />
                     Waiting for Expert submission...
                   </div>
                 )}
@@ -953,7 +953,7 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       onClick={() => setShowViewProductModalClient(true)}
-                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       View Product
@@ -968,14 +968,14 @@ export default function TaskDetailPage() {
 
       {/* Urgent request confirmation modal */}
       {showUrgentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive-light flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground mb-1">
+                <h3 className="text-lg font-semibold text-foreground mb-1">
                   Send Urgent Request?
                 </h3>
                 <p className="text-sm text-muted-foreground">
@@ -1008,14 +1008,14 @@ export default function TaskDetailPage() {
 
       {/* Decline Feedbacks Panel */}
       {isNeedsRevision && task.declineReason && (
-        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 mb-8 text-left shadow-sm">
+        <div className="bg-destructive-light border-2 border-destructive/35 rounded-xl p-5 mb-8 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h3 className="text-lg font-bold text-red-800">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <h3 className="text-lg font-semibold text-destructive">
               Decline Reason
             </h3>
           </div>
-          <p className="text-sm font-semibold text-red-700 leading-relaxed bg-card border border-red-200 rounded-lg p-4 font-sans">
+          <p className="text-sm font-semibold text-destructive leading-relaxed bg-card border border-destructive/20 rounded-lg p-4 font-sans">
             {task.declineReason}
           </p>
         </div>
@@ -1023,9 +1023,9 @@ export default function TaskDetailPage() {
 
       {/* Submit Product Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
-            <h3 className="text-lg font-bold text-foreground mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               Submit Deliverables
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -1066,7 +1066,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={() => setProductFileObject(null)}
-                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                    className="mt-1 text-xs text-destructive hover:text-destructive font-medium"
                   >
                     Remove file
                   </button>
@@ -1091,7 +1091,7 @@ export default function TaskDetailPage() {
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
                 disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileObject)}
-                className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
+                className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-10 rounded-lg"
               >
                 {productSubmitLoading ? "Submitting..." : "Submit"}
               </Button>
@@ -1107,7 +1107,7 @@ export default function TaskDetailPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Deliverables for: {task?.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground font-sans">Deliverables for: {task?.title}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-sans">Details of deliverables provided by the expert</p>
               </div>
               <button
@@ -1127,7 +1127,7 @@ export default function TaskDetailPage() {
                   <div className="space-y-4">
                     {(task?.productLink || task?.productFile) && (
                       <div className="p-4 bg-muted/40 rounded-xl border border-border/80 text-left space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
+                        <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {task?.productLink && (
                             <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
@@ -1181,13 +1181,13 @@ export default function TaskDetailPage() {
 
                     {task?.miniTasks?.some(mt => mt.productLink || mt.productFile) && (
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
+                        <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
                         <div className="space-y-2">
                           {task.miniTasks
                             .filter(mt => mt.productLink || mt.productFile)
                             .map((mt, idx) => (
                               <div key={mt.id || idx} className="p-3.5 bg-muted/40 rounded-xl border border-border/80 text-left space-y-2">
-                                <p className="text-xs font-bold text-foreground">{mt.title}</p>
+                                <p className="text-xs font-semibold text-foreground">{mt.title}</p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {mt.productLink && (
                                     <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
@@ -1253,7 +1253,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={handleDeclineFromModalClient}
-                    className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                    className="px-5 py-2.5 bg-destructive-light hover:bg-destructive-light text-destructive font-medium rounded-lg text-sm transition-all border border-destructive/20/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <X className="w-4 h-4" />
                     Decline
@@ -1261,7 +1261,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={handleApproveClick}
-                    className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                    className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-primary-foreground font-medium rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <Check className="w-4 h-4" />
                     Accept
@@ -1271,7 +1271,7 @@ export default function TaskDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowViewProductModalClient(false)}
-                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-bold rounded-xl text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
+                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-medium rounded-lg text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
                 >
                   Close
                 </button>
@@ -1287,7 +1287,7 @@ export default function TaskDetailPage() {
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Confirm Submission of Handover Evidence</h3>
+                <h3 className="text-lg font-semibold text-foreground">Confirm Submission of Handover Evidence</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Milestone: {task?.title}
                 </p>
@@ -1304,7 +1304,7 @@ export default function TaskDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowEvidenceModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-lg font-medium text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1312,7 +1312,7 @@ export default function TaskDetailPage() {
                   type="button"
                   onClick={handleEvidenceSubmit}
                   disabled={evidenceSubmitting}
-                  className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {evidenceSubmitting ? "Submitting..." : "Confirm & Send"}
                 </button>
@@ -1362,7 +1362,7 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-success text-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
                 {step.done ? "✓" : i + 1}

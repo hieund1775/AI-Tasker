@@ -897,7 +897,7 @@ Please use this background information to write a personalized and highly releva
                           <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-foreground text-sm">
+                                <span className="font-semibold text-foreground text-sm">
                                   UserStory: {uc.title || uc.nameAndDeadline}
                                 </span>
                               </div>
@@ -947,7 +947,7 @@ Please use this background information to write a personalized and highly releva
                                     <button
                                       type="button"
                                       disabled
-                                      className="h-8 px-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                      className="h-8 px-3 bg-destructive-light text-destructive border border-destructive/20 rounded-lg text-xs font-semibold flex items-center gap-1.5"
                                     >
                                       Failed
                                     </button>
@@ -989,7 +989,7 @@ Please use this background information to write a personalized and highly releva
                           {/* ── Tasks ── */}
                           <div className="p-4 space-y-4">
                             {ucTasks.length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center py-3">
+                              <p className="text-xs text-muted-foreground text-center py-2.5">
                                 No tasks yet. Add a proposed task below.
                               </p>
                             )}
@@ -1003,7 +1003,7 @@ Please use this background information to write a personalized and highly releva
                                   
                                   {/* Task Title Row with Remove Button */}
                                   <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
                                     <textarea
                                       value={task.title}
                                       onChange={(e) => {
@@ -1020,7 +1020,7 @@ Please use this background information to write a personalized and highly releva
                                       <button 
                                         type="button" 
                                         onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
-                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-750 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center flex-shrink-0"
+                                        className="h-8 px-3 text-sm font-semibold text-destructive hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center flex-shrink-0"
                                       >
                                         Remove
                                       </button>
@@ -1029,7 +1029,7 @@ Please use this background information to write a personalized and highly releva
 
                                   {/* Days Input */}
                                   <div className="w-24">
-                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                                       Days
                                     </label>
                                     <input 
@@ -1044,7 +1044,7 @@ Please use this background information to write a personalized and highly releva
 
                                   {/* Mini Tasks (Child Tasks) Checklist */}
                                   <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
-                                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                                       Minitask
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
@@ -1065,7 +1065,7 @@ Please use this background information to write a personalized and highly releva
                                           <button
                                             type="button"
                                             onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
-                                            className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                           >
                                             <X className="w-3.5 h-3.5" />
                                           </button>
@@ -1105,7 +1105,7 @@ Please use this background information to write a personalized and highly releva
                                   },
                                 ])
                               }
-                              className="h-10 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                              className="h-10 px-4 bg-warning-light hover:bg-warning-light text-warning border border-warning/20 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-warning-light dark:hover:bg-warning-light dark:border-warning/30 dark:text-warning"
                             >
                               + Add Proposed Task
                             </button>
@@ -1120,11 +1120,11 @@ Please use this background information to write a personalized and highly releva
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
                       return (
-                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-secondary/40 border-border"}`}>
+                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-warning-light border-warning/20 dark:bg-warning-light dark:border-warning/30" : "bg-secondary/40 border-border"}`}>
                           
                           {/* Task Title Row with Remove Button */}
                           <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
                             <textarea
                               value={task.title}
                               onChange={(e) => {
@@ -1139,7 +1139,7 @@ Please use this background information to write a personalized and highly releva
                               <button 
                                 type="button" 
                                 onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
-                                className="h-10 px-4 text-sm font-semibold text-red-655 hover:text-red-755 hover:bg-red-55 rounded-xl transition-colors inline-flex items-center flex-shrink-0"
+                                className="h-10 px-4 text-sm font-semibold text-destructive hover:text-destructive hover:bg-destructive-light rounded-xl transition-colors inline-flex items-center flex-shrink-0"
                               >
                                 Remove
                               </button>
@@ -1148,7 +1148,7 @@ Please use this background information to write a personalized and highly releva
 
                           {/* Days Input */}
                           <div className="w-24">
-                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                               Days
                             </label>
                             <input 
@@ -1163,7 +1163,7 @@ Please use this background information to write a personalized and highly releva
 
                           {/* Mini Tasks (Child Tasks) Checklist */}
                           <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
-                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                               Minitask
                             </span>
                             {task.miniTasks.map((mini, mIdx) => (
@@ -1183,7 +1183,7 @@ Please use this background information to write a personalized and highly releva
                                   <button
                                     type="button"
                                     onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
-                                    className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
@@ -1222,7 +1222,7 @@ Please use this background information to write a personalized and highly releva
                           },
                         ])
                       }
-                      className="h-12 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                      className="h-12 px-5 bg-warning-light hover:bg-warning-light text-warning border border-warning/20 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-warning-light dark:hover:bg-warning-light dark:border-warning/30 dark:text-warning"
                     >
                       + Add Proposed Task
                     </button>
@@ -1262,7 +1262,7 @@ Please use this background information to write a personalized and highly releva
               <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount ($) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount ($) <span className="text-destructive">*</span></label>
                     <div className="text-xs text-muted-foreground mb-1">
                       Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0).toLocaleString()}
                     </div>
@@ -1277,7 +1277,7 @@ Please use this background information to write a personalized and highly releva
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration (Days) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration (Days) <span className="text-destructive">*</span></label>
                     <div className="text-xs text-muted-foreground mb-1">
                       Auto-computed from tasks: {totalDays} days
                     </div>
@@ -1316,22 +1316,22 @@ Please use this background information to write a personalized and highly releva
                 return (
                   <div className="space-y-3">
                     {exceedsTime && (
-                      <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="p-4 bg-warning-light border border-warning/20 text-warning rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-warning mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Proposed duration exceeds requirement</p>
-                          <p className="text-xs text-amber-700 mt-0.5">
+                          <p className="text-sm font-semibold">Proposed duration exceeds requirement</p>
+                          <p className="text-xs text-warning mt-0.5">
                             Your duration ({totalDays} days) exceeds the client's baseline ({clientDuration} days) by {Math.abs(timeDeviation)} days.
                           </p>
                         </div>
                       </div>
                     )}
                     {exceedsBudget && (
-                      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                      <div className="p-4 bg-destructive-light border border-destructive/20 text-destructive rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Proposed budget exceeds baseline</p>
-                          <p className="text-xs text-rose-700 mt-0.5">
+                          <p className="text-sm font-semibold">Proposed budget exceeds baseline</p>
+                          <p className="text-xs text-destructive mt-0.5">
                             Your bid amount ({finalBid.toLocaleString()} USD) exceeds the client's budget ({clientBudget.toLocaleString()} USD) by {Math.abs(budgetDeviation).toLocaleString()} USD.
                           </p>
                         </div>

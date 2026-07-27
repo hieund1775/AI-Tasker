@@ -6,6 +6,9 @@ import {
   ReceiptText,
   PlusCircle,
   Send,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -29,9 +32,9 @@ function getExpertWalletData() {
 }
 
 const statusColors = {
-  completed: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  failed: "bg-red-100 text-red-700",
+  completed: "bg-success-light text-success",
+  pending: "bg-warning-light text-warning",
+  failed: "bg-destructive-light text-destructive",
 };
 
 const typeLabels = {
@@ -54,6 +57,50 @@ const typeLabels = {
   verdict: "reported request",
 };
 
+const transactionSortColumns = [
+  { key: "type", label: "Type", align: "left" },
+  { key: "description", label: "Description", align: "left" },
+  { key: "amount", label: "Amount", align: "right" },
+  { key: "status", label: "Status", align: "right" },
+  { key: "date", label: "Date", align: "right" },
+];
+
+function getTransactionSortValue(tx, key) {
+  const lowerType = tx.type?.toLowerCase();
+  if (key === "type") return typeLabels[lowerType] || tx.type || "";
+  if (key === "description") return tx.projectTitle || tx.description || "";
+  if (key === "amount") return Number(tx.amount ?? tx.Amount ?? 0) || 0;
+  if (key === "status") return tx.status || "";
+  if (key === "date") {
+    const rawStr = tx.createdAt || "";
+    const dateValue = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : "")).getTime();
+    return Number.isFinite(dateValue) ? dateValue : 0;
+  }
+  return "";
+}
+
+function sortTransactions(rows, sortState) {
+  if (!sortState.key || !sortState.dir) return rows;
+
+  return [...rows].sort((a, b) => {
+    const aVal = getTransactionSortValue(a, sortState.key);
+    const bVal = getTransactionSortValue(b, sortState.key);
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && aVal !== "" && bVal !== "";
+
+    if (bothNumeric) {
+      return sortState.dir === "asc" ? aNum - bNum : bNum - aNum;
+    }
+
+    const result = String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return sortState.dir === "asc" ? result : -result;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -65,6 +112,7 @@ export function ExpertWallet() {
   const [loading, setLoading] = useState(true);
   const [activeProjects, setActiveProjects] = useState([]);
   const [feedback, setFeedback] = useState(null);
+  const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -75,6 +123,15 @@ export function ExpertWallet() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const handleTransactionSort = (key) => {
+    setTransactionSort((prev) => {
+      if (prev.key !== key) return { key, dir: "asc" };
+      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    });
+  };
+
+  const sortedTransactions = sortTransactions(data?.transactions || [], transactionSort);
 
   useEffect(() => {
     let cancelled = false;
@@ -663,7 +720,7 @@ export function ExpertWallet() {
       </BackButton>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">My Wallet</h1>
+          <h1 className="text-2xl font-semibold text-foreground mb-2">My Wallet</h1>
           <p className="text-muted-foreground mb-8">
             Manage your earnings and withdrawals.
           </p>
@@ -688,12 +745,12 @@ export function ExpertWallet() {
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-green-700" />
+              <div className="w-10 h-10 bg-success-light rounded-xl flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-success" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Available Balance</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-semibold text-foreground">
                   <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
                 </p>
               </div>
@@ -702,14 +759,14 @@ export function ExpertWallet() {
               <button
                 type="button"
                 onClick={() => setShowDepositModal(true)}
-                className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
+                className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-semibold transition-all flex items-center gap-1 shadow-sm"
               >
                 <PlusCircle className="w-3 h-3" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
-                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
+                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-semibold transition-all flex items-center gap-1 shadow-sm"
               >
                 <Send className="w-3 h-3" /> Withdraw
               </button>
@@ -719,12 +776,12 @@ export function ExpertWallet() {
 
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-700" />
+            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5 text-warning" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pending / In Escrow</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.pendingBalance ?? 0} />
               </p>
             </div>
@@ -733,12 +790,12 @@ export function ExpertWallet() {
 
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-700" />
+            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-warning" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Earned</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.totalEarned ?? 0} />
               </p>
             </div>
@@ -785,25 +842,34 @@ export function ExpertWallet() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/60 bg-secondary/50">
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Type
-                  </th>
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Description
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Amount
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Date
-                  </th>
+                  {transactionSortColumns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-sm font-semibold text-muted-foreground uppercase`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTransactionSort(col.key)}
+                        className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                        title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                      >
+                        {col.label}
+                        {transactionSort.key === col.key ? (
+                          transactionSort.dir === "asc" ? (
+                            <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                          )
+                        ) : (
+                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.transactions.map((tx) => {
+              <tbody className="divide-y divide-border/50">
+                {sortedTransactions.map((tx) => {
                   const rawStr = tx.createdAt || "";
                   const dateObj = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : ""));
                   const dateStr = dateObj.toLocaleDateString("vi-VN", {
@@ -891,7 +957,7 @@ export function ExpertWallet() {
       {showDepositModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -915,7 +981,7 @@ export function ExpertWallet() {
                 <button
                   type="submit"
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
-                  className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
@@ -925,7 +991,7 @@ export function ExpertWallet() {
                     setShowDepositModal(false);
                     setWalletDepositAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>
@@ -939,7 +1005,7 @@ export function ExpertWallet() {
       {showWithdrawModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -964,7 +1030,7 @@ export function ExpertWallet() {
                 <button
                   type="submit"
                   disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
-                  className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
@@ -974,7 +1040,7 @@ export function ExpertWallet() {
                     setShowWithdrawModal(false);
                     setWithdrawAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>

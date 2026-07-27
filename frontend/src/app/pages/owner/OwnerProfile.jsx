@@ -85,13 +85,13 @@ export function OwnerProfile() {
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-yellow-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-yellow-800">{initials}</span>
+            <div className="w-16 h-16 bg-warning-light rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-semibold text-warning">{initials}</span>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
-                <span className="px-2.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+                <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
+                <span className="px-2.5 py-0.5 bg-warning-light text-warning rounded-full text-xs font-medium">
                   Owner
                 </span>
               </div>

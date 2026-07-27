@@ -113,11 +113,11 @@ export function CreateAdmin() {
       <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8">
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-red-600" />
+          <div className="w-10 h-10 bg-destructive-light rounded-lg flex items-center justify-center">
+            <Shield className="w-5 h-5 text-destructive" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">
+            <h1 className="text-xl font-semibold text-foreground">
               Create Admin Account
             </h1>
             <p className="text-sm text-muted-foreground">
@@ -135,8 +135,8 @@ export function CreateAdmin() {
           <div
             className={`mb-6 p-4 rounded-xl text-sm font-medium ${
               createdAdmin
-                ? "bg-green-50 border border-green-200 text-green-700"
-                : "bg-red-50 border border-red-200 text-red-700"
+                ? "bg-success-light border border-success/20 text-success"
+                : "bg-destructive-light border border-destructive/20 text-destructive"
             }`}
           >
             {feedback}
@@ -148,7 +148,7 @@ export function CreateAdmin() {
           {/* Full name */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1">
-              Full Name <span className="text-red-500">*</span>
+              Full Name <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
@@ -156,19 +156,19 @@ export function CreateAdmin() {
               onChange={(e) => updateField("fullName", e.target.value)}
               placeholder="Enter Admin full name"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.fullName ? "border-red-300" : "border-input"
+                errors.fullName ? "border-destructive/35" : "border-input"
               }`}
               disabled={loading}
             />
             {errors.fullName && (
-              <p className="mt-1 text-xs text-red-500">{errors.fullName}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.fullName}</p>
             )}
           </div>
 
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1">
-              Email <span className="text-red-500">*</span>
+              Email <span className="text-destructive">*</span>
             </label>
             <input
               type="email"
@@ -176,19 +176,19 @@ export function CreateAdmin() {
               onChange={(e) => updateField("email", e.target.value)}
               placeholder="admin@example.com"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.email ? "border-red-300" : "border-input"
+                errors.email ? "border-destructive/35" : "border-input"
               }`}
               disabled={loading}
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">{errors.email}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.email}</p>
             )}
           </div>
 
           {/* Phone Number */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1">
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
@@ -196,19 +196,19 @@ export function CreateAdmin() {
               onChange={(e) => updateField("phoneNumber", e.target.value)}
               placeholder="0912345678"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.phoneNumber ? "border-red-300" : "border-input"
+                errors.phoneNumber ? "border-destructive/35" : "border-input"
               }`}
               disabled={loading}
             />
             {errors.phoneNumber && (
-              <p className="mt-1 text-xs text-red-500">{errors.phoneNumber}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.phoneNumber}</p>
             )}
           </div>
 
           {/* Password */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1">
-              Password <span className="text-red-500">*</span>
+              Password <span className="text-destructive">*</span>
             </label>
             <div className="relative">
               <input
@@ -217,7 +217,7 @@ export function CreateAdmin() {
                 onChange={(e) => updateField("password", e.target.value)}
                 placeholder="At least 6 characters"
                 className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary pr-10 ${
-                  errors.password ? "border-red-300" : "border-input"
+                  errors.password ? "border-destructive/35" : "border-input"
                 }`}
                 disabled={loading}
               />
@@ -235,14 +235,14 @@ export function CreateAdmin() {
               </button>
             </div>
             {errors.password && (
-              <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+              <p className="mt-1 text-xs text-destructive">{errors.password}</p>
             )}
           </div>
 
           {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-1">
-              Confirm Password <span className="text-red-500">*</span>
+              Confirm Password <span className="text-destructive">*</span>
             </label>
             <input
               type="password"
@@ -250,12 +250,12 @@ export function CreateAdmin() {
               onChange={(e) => updateField("confirmPassword", e.target.value)}
               placeholder="Re-enter password"
               className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-                errors.confirmPassword ? "border-red-300" : "border-input"
+                errors.confirmPassword ? "border-destructive/35" : "border-input"
               }`}
               disabled={loading}
             />
             {errors.confirmPassword && (
-              <p className="mt-1 text-xs text-red-500">
+              <p className="mt-1 text-xs text-destructive">
                 {errors.confirmPassword}
               </p>
             )}
@@ -265,7 +265,7 @@ export function CreateAdmin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-11 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mt-2"
+            className="w-full h-10 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition mt-2"
           >
             {loading ? (
               <>
@@ -290,7 +290,7 @@ export function CreateAdmin() {
             <button
               type="button"
               onClick={() => navigate("/owner/manage-admins")}
-              className="w-full h-11 border border-blue-200 bg-brand-primary-light text-brand-primary rounded-[14px] hover:bg-brand-primary-light text-base font-semibold transition"
+              className="w-full h-10 border border-accent/25 bg-brand-primary-light text-brand-primary rounded-lg hover:bg-brand-primary-light text-base font-semibold transition"
             >
               View Admin List
             </button>

@@ -62,17 +62,17 @@ import { getOverallProgress } from "../../lib/projectTimelineStore.js";
 // ---------------------------------------------------------------------------
 
 const REPORT_STATUS_CONFIG = {
-  "Pending Admin": { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
-  Pending: { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
-  "Awaiting Expert": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Expert" },
-  "Awaiting Client": { color: "bg-blue-100 text-blue-700 border border-blue-200", label: "Awaiting Client" },
-  "Awaiting Evidence": { color: "bg-purple-100 text-purple-700 border border-purple-200", label: "Awaiting Evidence" },
-  "Awaiting Both": { color: "bg-purple-100 text-purple-700 border border-purple-200", label: "Awaiting Both Sides" },
-  "Awaiting Partner": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Partner" },
-  Returned: { color: "bg-rose-100 text-rose-700 border border-rose-200", label: "Returned" },
-  Resolved: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
-  Accepted: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
-  Rejected: { color: "bg-red-100 text-red-700 border border-red-200", label: "Rejected" },
+  "Pending Admin": { color: "bg-warning-light text-warning border border-warning/20", label: "Pending Admin" },
+  Pending: { color: "bg-warning-light text-warning border border-warning/20", label: "Pending Admin" },
+  "Awaiting Expert": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Expert" },
+  "Awaiting Client": { color: "bg-accent-light text-accent border border-accent/25", label: "Awaiting Client" },
+  "Awaiting Evidence": { color: "bg-warning-light text-warning border border-warning/30", label: "Awaiting Evidence" },
+  "Awaiting Both": { color: "bg-warning-light text-warning border border-warning/30", label: "Awaiting Both Sides" },
+  "Awaiting Partner": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Partner" },
+  Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
+  Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
+  Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
+  Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
 // ---------------------------------------------------------------------------
@@ -1147,9 +1147,9 @@ export function AdminReportDetail() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="animate-pulse space-y-6">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="h-64 bg-gray-200 rounded-2xl" />
-          <div className="h-48 bg-gray-200 rounded-2xl" />
+          <div className="h-8 bg-border rounded w-48" />
+          <div className="h-64 bg-border rounded-2xl" />
+          <div className="h-48 bg-border rounded-2xl" />
         </div>
       </div>
     );
@@ -1164,12 +1164,12 @@ export function AdminReportDetail() {
         <BackButton fallback={window.location.pathname.startsWith("/owner") ? "/owner/reports" : "/admin/disputes"} className="mb-6">
           Back to Dispute List
         </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <AlertTriangle className="w-12 h-12 text-red-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500">
+        <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
+          <AlertTriangle className="w-12 h-12 text-destructive/55 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-muted-foreground">
             {error || "Report Not Found"}
           </h3>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-sm text-muted-foreground/70 mt-1">
             This report may have been removed or does not exist.
           </p>
         </div>
@@ -1226,7 +1226,7 @@ export function AdminReportDetail() {
 
       {/* Feedback toast */}
       {feedback && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700 font-medium flex items-center gap-2">
+        <div className="mb-4 p-4 bg-success-light border border-success/20 rounded-xl text-sm text-success font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4" /> {feedback}
         </div>
       )}
@@ -1234,39 +1234,39 @@ export function AdminReportDetail() {
       {/* ---- Header ---- */}
       <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-2xl font-semibold text-foreground">
             {report.reportName || report.projectTitle || `Report #${id}`}
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <StatusBadge status={report.status} config={REPORT_STATUS_CONFIG} />
             {report.disputeType && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                 {report.disputeType}
               </span>
             )}
           </div>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-muted-foreground">
           Submitted: {formatDateTime(report.submittedAt || report.createdAt)}
         </p>
       </div>
 
       {/* Deadline warning banner */}
       {(report.status === "Awaiting Expert" || report.status === "Awaiting Client" || report.status === "Awaiting Both") && (
-        <div className="mb-6 p-4 bg-red-55/70 border border-red-200 text-red-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 text-destructive rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-red-105 rounded-lg text-red-650">
+            <div className="p-2 bg-destructive-light rounded-lg text-destructive">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm font-bold font-sans">DISPUTE EXPLANATION PERIOD</p>
-              <p className="text-xs text-red-755 font-sans mt-0.5">
+              <p className="text-sm font-semibold font-sans">DISPUTE EXPLANATION PERIOD</p>
+              <p className="text-xs text-destructive font-sans mt-0.5">
                 Defendant has up to 48 hours to submit an explanation. Status: <strong>{report.status}</strong>.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-mono font-bold">
+            <div className="px-4 py-2 bg-destructive text-primary-foreground rounded-lg text-sm font-mono font-semibold">
               {timeLeft}
             </div>
             {isDeadlineExpired && (
@@ -1274,7 +1274,7 @@ export function AdminReportDetail() {
                 type="button"
                 onClick={handleDefaultSettle}
                 disabled={actionLoading}
-                className="h-10 px-4 bg-red-700 hover:bg-red-800 text-white text-xs font-bold rounded-lg shadow transition-all cursor-pointer flex items-center gap-1"
+                className="h-10 px-4 bg-destructive hover:bg-destructive/85 text-primary-foreground text-xs font-semibold rounded-lg shadow transition-all cursor-pointer flex items-center gap-1"
               >
                 Default Settle
               </button>
@@ -1283,22 +1283,22 @@ export function AdminReportDetail() {
         </div>
       )}
 
-      {/* Awaiting Evidence purple countdown banner */}
+      {/* Awaiting Evidence countdown banner */}
       {report.status === "Awaiting Evidence" && (
-        <div className="mb-6 p-4 bg-purple-50 border border-purple-200 text-purple-900 rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="mb-6 p-4 bg-warning-light border border-warning/30 text-warning rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+            <div className="p-2 bg-warning-light rounded-lg text-warning">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-sm font-bold font-sans">EVIDENCE SUBMISSION PERIOD (48 HOURS)</p>
-              <p className="text-xs text-purple-700 font-sans mt-0.5">
+              <p className="text-sm font-semibold font-sans">EVIDENCE SUBMISSION PERIOD (48 HOURS)</p>
+              <p className="text-xs text-warning font-sans mt-0.5">
                 Both parties must submit additional evidence. Status: <strong>{report.status}</strong>.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-mono font-bold">
+            <div className="px-4 py-2 bg-warning text-primary-foreground rounded-lg text-sm font-mono font-semibold">
               {timeLeft}
             </div>
           </div>
@@ -1307,16 +1307,16 @@ export function AdminReportDetail() {
 
       {/* ---- Rejection notification preview ---- */}
       {isRejected && report.rejectionReason && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-          <h3 className="text-sm font-semibold text-red-800 mb-1">
+        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 rounded-xl">
+          <h3 className="text-sm font-semibold text-destructive mb-1">
             Rejection notification sent to Expert:
           </h3>
-          <p className="text-sm text-red-700">
+          <p className="text-sm text-destructive">
             Your report for project{" "}
             <strong>{report.projectTitle || report.projectId}</strong> has been
             rejected by Admin. Reason: {report.rejectionReason}
           </p>
-          <p className="text-xs text-red-500 mt-1">
+          <p className="text-xs text-destructive mt-1">
             Response time: {formatDateTime(new Date())}
           </p>
         </div>
@@ -1422,20 +1422,20 @@ export function AdminReportDetail() {
                       <div className="space-y-1.5 p-4 bg-muted/30 border border-border rounded-xl text-xs max-w-md">
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{progress}%</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Requested By:</span><span className="font-semibold text-blue-600">{isClientReporter ? "Client" : "Expert"}</span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Requested By:</span><span className="font-semibold text-accent">{isClientReporter ? "Client" : "Expert"}</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-orange-500">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-red-500">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
                         {isClientReporter ? (
                           <>
-                            <div className="flex justify-between font-semibold"><span className="text-foreground">Payout to Expert (progress + penalty):</span><span className="text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
-                            <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                            <div className="flex justify-between font-semibold"><span className="text-foreground">Payout to Expert (progress + penalty):</span><span className="text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
+                            <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-success"><MoneyDisplay amount={clientRefund} /></span></div>
                           </>
                         ) : (
                           <>
-                            <div className="flex justify-between font-semibold"><span className="text-foreground">Payout to Expert (progress - penalty - fee):</span><span className="text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
-                            <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                            <div className="flex justify-between font-semibold"><span className="text-foreground">Payout to Expert (progress - penalty - fee):</span><span className="text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
+                            <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-success"><MoneyDisplay amount={clientRefund} /></span></div>
                           </>
                         )}
                       </div>
@@ -1465,32 +1465,32 @@ export function AdminReportDetail() {
                       <div className="space-y-1.5">
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current progress:</span><span className="font-semibold text-foreground">{progress}%</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (First deduction 5%):</span><span className="font-semibold text-orange-600"><MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Violation penalty (10%):</span><span className="font-semibold text-red-500"><MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (First deduction 5%):</span><span className="font-semibold text-warning"><MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Violation penalty (10%):</span><span className="font-semibold text-destructive"><MoneyDisplay amount={penaltyFee} /></span></div>
                       </div>
 
                       <div className="border-t border-border pt-3 space-y-3">
                         <div>
-                          <p className="font-bold text-red-650 mb-1">CASE 1: CLIENT FAULT</p>
-                          <div className="pl-2 border-l-2 border-red-200 space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress + penalty):</span><span className="font-semibold text-amber-600"><MoneyDisplay amount={expertPayoutClientFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-green-600"><MoneyDisplay amount={clientRefundClientFault} /></span></div>
+                          <p className="font-semibold text-destructive mb-1">CASE 1: CLIENT FAULT</p>
+                          <div className="pl-2 border-l-2 border-destructive/20 space-y-1">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress + penalty):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutClientFault} /></span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundClientFault} /></span></div>
                           </div>
                         </div>
 
                         <div>
-                          <p className="font-bold text-red-650 mb-1">CASE 2: EXPERT FAULT</p>
-                          <div className="pl-2 border-l-2 border-amber-200 space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress - penalty - fee):</span><span className="font-semibold text-amber-600"><MoneyDisplay amount={expertPayoutExpertFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-green-600"><MoneyDisplay amount={clientRefundExpertFault} /></span></div>
+                          <p className="font-semibold text-destructive mb-1">CASE 2: EXPERT FAULT</p>
+                          <div className="pl-2 border-l-2 border-warning/20 space-y-1">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress - penalty - fee):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutExpertFault} /></span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundExpertFault} /></span></div>
                           </div>
                         </div>
 
                         <div>
-                          <p className="font-bold text-slate-700 mb-1">CASE 3: SPLIT FAULT</p>
-                          <div className="pl-2 border-l-2 border-slate-300 space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress):</span><span className="font-semibold text-amber-600"><MoneyDisplay amount={expertPayoutSplitFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-green-600"><MoneyDisplay amount={clientRefundSplitFault} /></span></div>
+                          <p className="font-semibold text-foreground mb-1">CASE 3: SPLIT FAULT</p>
+                          <div className="pl-2 border-l-2 border-border space-y-1">
+                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutSplitFault} /></span></div>
+                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundSplitFault} /></span></div>
                           </div>
                         </div>
                       </div>
@@ -1501,8 +1501,8 @@ export function AdminReportDetail() {
 
               {report.partnerRejectionReason && (
                 <div className="border-t border-border pt-4">
-                  <strong className="text-red-650 block text-xs uppercase tracking-wider">Partner declined cancellation with reason:</strong>
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl mt-2 font-medium text-red-800">
+                  <strong className="text-destructive block text-xs uppercase tracking-wider">Partner declined cancellation with reason:</strong>
+                  <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl mt-2 font-medium text-destructive">
                     &quot;{report.partnerRejectionReason}&quot;
                   </div>
                   <p className="text-xs text-muted-foreground italic mt-1">The system has returned the cancellation request to the requester to decide (Accept or Respond).</p>
@@ -1522,33 +1522,33 @@ export function AdminReportDetail() {
                   key={roundData.round}
                   title={`Evidence & Explanation (Round ${roundData.round})`}
                   icon={FileText}
-                  className="border-amber-200 bg-amber-50/10 mb-6"
+                  className="border-warning/20 bg-warning-light/10 mb-6"
                 >
                   <div className="p-6 bg-card border border-border rounded-xl space-y-6 text-left text-sm font-sans">
                     {roundData.adminNote && (
-                      <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg text-xs leading-relaxed font-sans">
+                      <div className="p-3 bg-warning-light border border-warning/20 text-warning rounded-lg text-xs leading-relaxed font-sans">
                         <strong>Admin request details:</strong> &quot;{roundData.adminNote}&quot;
                       </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {/* Client side */}
-                      <div className="p-4 bg-blue-50/30 border border-blue-100 rounded-xl space-y-3">
-                        <h4 className="text-sm font-bold text-blue-800">Client - Explanation (Round {roundData.round})</h4>
+                      <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
+                        <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {roundData.client.reason || roundData.client.explanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {roundData.client.explanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {roundData.client.desiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.client.reason || roundData.client.explanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.client.explanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.client.desiredResolution || "—"}</p>
 
                           {normalizeEvidence(roundData.client.evidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-blue-100/50">
-                              <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                            <div className="mt-3 pt-2 border-t border-accent/20">
+                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                               <div className="space-y-1.5 max-w-full overflow-hidden">
                                 {normalizeEvidence(roundData.client.evidence).map((e, idx) => (
                                   <a
                                     key={idx}
                                     href={e.fileUrl}
                                     onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                    className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                     title={e.fileName}
                                   >
                                     <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -1562,23 +1562,23 @@ export function AdminReportDetail() {
                       </div>
 
                       {/* Expert side */}
-                      <div className="p-4 bg-purple-50/30 border border-purple-100 rounded-xl space-y-3">
-                        <h4 className="text-sm font-bold text-purple-800">Expert - Explanation (Round {roundData.round})</h4>
+                      <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
+                        <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {roundData.expert.reason || roundData.expert.explanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {roundData.expert.explanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {roundData.expert.desiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.expert.reason || roundData.expert.explanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.expert.explanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.expert.desiredResolution || "—"}</p>
 
                           {normalizeEvidence(roundData.expert.evidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-purple-100/50">
-                              <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                            <div className="mt-3 pt-2 border-t border-warning/20">
+                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                               <div className="space-y-1.5 max-w-full overflow-hidden">
                                 {normalizeEvidence(roundData.expert.evidence).map((e, idx) => (
                                   <a
                                     key={idx}
                                     href={e.fileUrl}
                                     onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-purple-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                    className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                     title={e.fileName}
                                   >
                                     <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -1604,31 +1604,31 @@ export function AdminReportDetail() {
                 <SectionCard
                   title={`Evidence & Explanation (Round ${currentRoundNumber})`}
                   icon={FileText}
-                  className="border-amber-250 bg-amber-50/20 mb-6"
+                  className="border-warning/25 bg-warning-light/20 mb-6"
                 >
                   <div className="p-6 bg-card border border-border rounded-xl space-y-6 text-left text-sm font-sans">
-                    <div className="p-3 bg-amber-55 border border-amber-250 text-amber-900 rounded-lg text-xs leading-relaxed font-sans">
+                    <div className="p-3 bg-warning-light border border-warning/25 text-warning rounded-lg text-xs leading-relaxed font-sans">
                       <strong>Admin request details:</strong> &quot;{report.adminNote || "Additional explanation requested"}&quot;
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {/* Client side latest statement */}
-                      <div className="p-4 bg-blue-50/30 border border-blue-100 rounded-xl space-y-3">
-                        <h4 className="text-sm font-bold text-blue-800">Client - Explanation (Round {currentRoundNumber})</h4>
+                      <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
+                        <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.clientExplanationReason || report.clientExplanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.clientExplanation || "Client has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation || "Client has not submitted explanation yet..."}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
 
                           {normalizeEvidence(report.clientExplanationEvidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-blue-100/50">
-                              <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                            <div className="mt-3 pt-2 border-t border-accent/20">
+                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                               <div className="space-y-1.5 max-w-full overflow-hidden">
                                 {normalizeEvidence(report.clientExplanationEvidence).map((e, idx) => (
                                   <a
                                     key={idx}
                                     href={e.fileUrl}
                                     onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                    className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                     title={e.fileName}
                                   >
                                     <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -1642,23 +1642,23 @@ export function AdminReportDetail() {
                       </div>
 
                       {/* Expert side latest statement */}
-                      <div className="p-4 bg-purple-50/30 border border-purple-100 rounded-xl space-y-3">
-                        <h4 className="text-sm font-bold text-purple-800">Expert - Explanation (Round {currentRoundNumber})</h4>
+                      <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
+                        <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.expertExplanationReason || report.expertExplanation || "—"}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.expertExplanation || "Expert has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation || "Expert has not submitted explanation yet..."}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
 
                           {normalizeEvidence(report.expertExplanationEvidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-purple-100/50">
-                              <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                            <div className="mt-3 pt-2 border-t border-warning/20">
+                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                               <div className="space-y-1.5 max-w-full overflow-hidden">
                                 {normalizeEvidence(report.expertExplanationEvidence).map((e, idx) => (
                                   <a
                                     key={idx}
                                     href={e.fileUrl}
                                     onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-purple-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                    className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                     title={e.fileName}
                                   >
                                     <FileText className="w-3.5 h-3.5 shrink-0" />
@@ -1680,7 +1680,7 @@ export function AdminReportDetail() {
               const report = reportForPartiesInvolved; // Comprehensive shadowing for Parties Involved!
               return (
                 <SectionCard title="Parties Involved" icon={User}>
-                  <div className="flex border-b border-gray-200 mb-4 font-sans">
+                  <div className="flex border-b border-border mb-4 font-sans">
                     {(() => {
                       const report = reportForPartiesInvolved; // Variable Shadowing!
                       const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
@@ -1693,12 +1693,12 @@ export function AdminReportDetail() {
                         let activeClass = "";
                         if (role === "client") {
                           activeClass = isSelected
-                            ? "border-blue-600 text-blue-600 bg-blue-50/50"
-                            : "border-transparent text-gray-500 hover:text-blue-600 hover:bg-blue-50/20";
+                            ? "border-accent text-accent bg-accent-light/50"
+                            : "border-transparent text-muted-foreground hover:text-accent hover:bg-accent-light";
                         } else {
                           activeClass = isSelected
-                            ? "border-purple-600 text-purple-600 bg-purple-50/50"
-                            : "border-transparent text-gray-500 hover:text-purple-600 hover:bg-purple-50/20";
+                            ? "border-warning text-warning bg-warning-light/50"
+                            : "border-transparent text-muted-foreground hover:text-warning hover:bg-warning-light";
                         }
 
                         return (
@@ -1706,11 +1706,11 @@ export function AdminReportDetail() {
                             key={role}
                             type="button"
                             onClick={() => setActiveTab(role)}
-                            className={`flex-1 py-3 text-center border-b-2 font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeClass}`}
+                            className={`flex-1 py-2.5 text-center border-b-2 font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeClass}`}
                           >
                             <span>{label}</span>
                             {isReporter && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-105 text-red-700 font-medium">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive-light text-destructive font-medium">
                                 Reporter (Plaintiff)
                               </span>
                             )}
@@ -1725,46 +1725,46 @@ export function AdminReportDetail() {
                       const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
                       if (activeTab === "client") {
                         return (
-                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Client" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-blue-50/30 border-blue-100"
+                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Client" ? "bg-secondary/50 border-border select-none opacity-60" : "bg-accent-light/60 border-accent/20"
                             }`}>
                             {report.status === "Awaiting Client" && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                                <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                              <div className="absolute inset-0 flex items-center justify-center bg-card/20 z-10">
+                                <span className="bg-accent text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
                                   Awaiting explanation...
                                 </span>
                               </div>
                             )}
                             <div className="space-y-4 text-left">
                               <div>
-                                <p className="text-xs font-bold text-blue-750 uppercase tracking-wider mb-0.5">Client Name</p>
-                                <p className="text-base font-semibold text-gray-900">{report.clientName || report.clientId || "—"}</p>
-                                {report.clientEmail && <p className="text-xs text-gray-500">{report.clientEmail}</p>}
+                                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-0.5">Client Name</p>
+                                <p className="text-base font-semibold text-foreground">{report.clientName || report.clientId || "—"}</p>
+                                {report.clientEmail && <p className="text-xs text-muted-foreground">{report.clientEmail}</p>}
                               </div>
 
-                              <div className="border-t border-blue-100/50 pt-3">
+                              <div className="border-t border-accent/20 pt-3">
                                 {reporter === "client" ? (
                                   <div>
-                                    <p className="text-xs font-bold text-gray-500 uppercase mb-1">Violation / Dispute Details</p>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Violation / Dispute Details</p>
                                     <div className="space-y-2 break-words max-w-full">
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.reason}</p>
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.description}</p>
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.desiredResolution}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.reason}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.description}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.desiredResolution}</p>
 
                                       {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.clientEvidence).length > 0 && (
-                                        <div className="mt-3 pt-2 border-t border-blue-100/50">
-                                          <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                                        <div className="mt-3 pt-2 border-t border-accent/20">
+                                          <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                                           <div className="space-y-1.5 max-w-full overflow-hidden">
                                             {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.clientEvidence).map((e, idx) => (
                                               <a
                                                 key={idx}
                                                 href={e.fileUrl}
                                                 onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                                className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                                 title={e.fileName}
                                               >
                                                 <FileText className="w-3.5 h-3.5 shrink-0" />
                                                 <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Dispute Document ${idx + 1}`}</span>
-                                                {e.note && <span className="text-gray-400 font-normal truncate max-w-[120px]">({e.note})</span>}
+                                                {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
                                               </a>
                                             ))}
                                           </div>
@@ -1774,14 +1774,14 @@ export function AdminReportDetail() {
                                   </div>
                                 ) : (
                                   <div>
-                                    <p className="text-xs font-bold text-gray-500 uppercase mb-1">Response Explanation Report</p>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
                                     {report.clientExplanation ? (
                                       <div className="space-y-2 break-words max-w-full">
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.clientExplanationReason || report.clientExplanation}</p>
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.clientExplanation}</p>
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
                                         {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).length > 0 && (
-                                          <div className="mt-2 text-xs text-gray-500 max-w-full overflow-hidden">
+                                          <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
                                             <strong>Attached Documents:</strong>
                                             <div className="mt-1 space-y-1">
                                               {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).map((e, eIdx) => (
@@ -1789,12 +1789,12 @@ export function AdminReportDetail() {
                                                   key={eIdx}
                                                   href={e.fileUrl}
                                                   onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                  className="text-blue-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                                  className="text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                                   title={e.fileName}
                                                 >
                                                   <FileText className="w-3.5 h-3.5 shrink-0" />
                                                   <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${eIdx + 1}`}</span>
-                                                  {e.note && <span className="text-gray-400 font-normal truncate max-w-[120px]">({e.note})</span>}
+                                                  {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
                                                 </a>
                                               ))}
                                             </div>
@@ -1802,7 +1802,7 @@ export function AdminReportDetail() {
                                         )}
                                       </div>
                                     ) : (
-                                      <div className="py-6 text-center text-gray-400">
+                                      <div className="py-6 text-center text-muted-foreground/70">
                                         <p className="text-sm italic">Responder has not responded yet</p>
                                       </div>
                                     )}
@@ -1814,46 +1814,46 @@ export function AdminReportDetail() {
                         );
                       } else if (activeTab === "expert") {
                         return (
-                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Expert" ? "bg-gray-50/50 border-gray-200 select-none opacity-60" : "bg-purple-50/30 border-purple-100"
+                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Expert" ? "bg-secondary/50 border-border select-none opacity-60" : "bg-warning-light/60 border-warning/20"
                             }`}>
                             {report.status === "Awaiting Expert" && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-white/20 z-10">
-                                <span className="bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm">
+                              <div className="absolute inset-0 flex items-center justify-center bg-card/20 z-10">
+                                <span className="bg-warning text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
                                   Awaiting explanation...
                                 </span>
                               </div>
                             )}
                             <div className="space-y-4 text-left">
                               <div>
-                                <p className="text-xs font-bold text-purple-750 uppercase tracking-wider mb-0.5">Expert Name</p>
-                                <p className="text-base font-semibold text-gray-900">{report.expertName || report.expertId || "—"}</p>
-                                {report.expertEmail && <p className="text-xs text-gray-500">{report.expertEmail}</p>}
+                                <p className="text-xs font-semibold text-warning uppercase tracking-wider mb-0.5">Expert Name</p>
+                                <p className="text-base font-semibold text-foreground">{report.expertName || report.expertId || "—"}</p>
+                                {report.expertEmail && <p className="text-xs text-muted-foreground">{report.expertEmail}</p>}
                               </div>
 
-                              <div className="border-t border-purple-100/50 pt-3">
+                              <div className="border-t border-warning/20 pt-3">
                                 {reporter === "expert" ? (
                                   <div>
-                                    <p className="text-xs font-bold text-gray-500 uppercase mb-1">Dispute / Violation Details</p>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Dispute / Violation Details</p>
                                     <div className="space-y-2 break-words max-w-full">
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.reason}</p>
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.description}</p>
-                                      <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.desiredResolution}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.reason}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.description}</p>
+                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.desiredResolution}</p>
 
                                       {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.expertEvidence).length > 0 && (
-                                        <div className="mt-3 pt-2 border-t border-purple-100/50">
-                                          <strong className="text-xs text-gray-500 block mb-1">Attached Evidence & Screenshots:</strong>
+                                        <div className="mt-3 pt-2 border-t border-warning/20">
+                                          <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
                                           <div className="space-y-1.5 max-w-full overflow-hidden">
                                             {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.expertEvidence).map((e, idx) => (
                                               <a
                                                 key={idx}
                                                 href={e.fileUrl}
                                                 onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                className="text-xs text-purple-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                                className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                                 title={e.fileName}
                                               >
                                                 <FileText className="w-3.5 h-3.5 shrink-0" />
                                                 <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Dispute Document ${idx + 1}`}</span>
-                                                {e.note && <span className="text-gray-400 font-normal truncate max-w-[120px]">({e.note})</span>}
+                                                {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
                                               </a>
                                             ))}
                                           </div>
@@ -1863,14 +1863,14 @@ export function AdminReportDetail() {
                                   </div>
                                 ) : (
                                   <div>
-                                    <p className="text-xs font-bold text-gray-500 uppercase mb-1">Response Explanation Report</p>
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
                                     {report.expertExplanation ? (
                                       <div className="space-y-2 break-words max-w-full">
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Reason:</strong> {report.expertExplanationReason || report.expertExplanation}</p>
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Details:</strong> {report.expertExplanation}</p>
-                                        <p className="text-sm text-gray-800 break-words"><strong className="text-gray-700">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
                                         {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).length > 0 && (
-                                          <div className="mt-2 text-xs text-gray-500 max-w-full overflow-hidden">
+                                          <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
                                             <strong>Attached Documents:</strong>
                                             <div className="mt-1 space-y-1">
                                               {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).map((e, eIdx) => (
@@ -1878,12 +1878,12 @@ export function AdminReportDetail() {
                                                   key={eIdx}
                                                   href={e.fileUrl}
                                                   onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                  className="text-purple-600 hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                                  className="text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
                                                   title={e.fileName}
                                                 >
                                                   <FileText className="w-3.5 h-3.5 shrink-0" />
                                                   <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${eIdx + 1}`}</span>
-                                                  {e.note && <span className="text-gray-400 font-normal truncate max-w-[120px]">({e.note})</span>}
+                                                  {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
                                                 </a>
                                               ))}
                                             </div>
@@ -1891,7 +1891,7 @@ export function AdminReportDetail() {
                                         )}
                                       </div>
                                     ) : (
-                                      <div className="py-6 text-center text-gray-400">
+                                      <div className="py-6 text-center text-muted-foreground/70">
                                         <p className="text-sm italic">Responder has not responded yet</p>
                                       </div>
                                     )}
@@ -1916,24 +1916,24 @@ export function AdminReportDetail() {
           <SectionCard title="Additional Explanations from Both Parties" icon={FileText}>
             <div className="space-y-6">
               {report.additionalRounds.map((round, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-                  <h4 className="text-sm font-bold text-gray-850 mb-3 border-b pb-2">
+                <div key={idx} className="border border-border rounded-xl p-4 bg-secondary/50">
+                  <h4 className="text-sm font-semibold text-foreground mb-3 border-b pb-2">
                     Additional Explanation Round #{round.roundNumber}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Client additional submission */}
-                    <div className="bg-blue-50/20 border border-blue-100 rounded-xl p-4 text-left">
-                      <h5 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Client
+                    <div className="bg-accent-light/45 border border-accent/20 rounded-xl p-4 text-left">
+                      <h5 className="text-xs font-semibold text-primary uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-accent"></span> Client
                       </h5>
                       {round.clientExplanation ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-gray-700"><strong>Reason:</strong> {round.clientExplanationReason || "—"}</p>
-                          <p className="text-gray-750"><strong>Details:</strong> {round.clientExplanation || "—"}</p>
-                          <p className="text-gray-755"><strong>Desired Resolution:</strong> {round.clientExplanationDesiredResolution || "—"}</p>
+                          <p className="text-foreground"><strong>Reason:</strong> {round.clientExplanationReason || "—"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {round.clientExplanation || "—"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.clientExplanationDesiredResolution || "—"}</p>
                           {normalizeEvidence(round.clientExplanationEvidence).length > 0 && (
-                            <div className="pt-2 border-t border-blue-100/50 mt-2">
-                              <strong className="text-gray-500 block mb-1">Attached Documents:</strong>
+                            <div className="pt-2 border-t border-accent/20 mt-2">
+                              <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
                               <div className="space-y-1">
                                 {normalizeEvidence(round.clientExplanationEvidence).map((e, eIdx) => (
                                   <a
@@ -1941,7 +1941,7 @@ export function AdminReportDetail() {
                                     href={e.fileUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                    className="text-accent hover:underline flex items-center gap-1 cursor-pointer font-medium"
                                   >
                                     <FileText className="w-3.5 h-3.5" />
                                     {e.fileName || e.name || `Document ${eIdx + 1}`}
@@ -1952,23 +1952,23 @@ export function AdminReportDetail() {
                           )}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 italic">No additional explanation submitted yet...</p>
+                        <p className="text-xs text-muted-foreground/70 italic">No additional explanation submitted yet...</p>
                       )}
                     </div>
 
                     {/* Expert additional submission */}
-                    <div className="bg-purple-50/20 border border-purple-100 rounded-xl p-4 text-left">
-                      <h5 className="text-xs font-bold text-purple-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-purple-500"></span> Expert
+                    <div className="bg-warning-light/45 border border-warning/20 rounded-xl p-4 text-left">
+                      <h5 className="text-xs font-semibold text-warning uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-warning"></span> Expert
                       </h5>
                       {round.expertExplanation ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-gray-700"><strong>Reason:</strong> {round.expertExplanationReason || "—"}</p>
-                          <p className="text-gray-755"><strong>Details:</strong> {round.expertExplanation || "—"}</p>
-                          <p className="text-gray-755"><strong>Desired Resolution:</strong> {round.expertExplanationDesiredResolution || "—"}</p>
+                          <p className="text-foreground"><strong>Reason:</strong> {round.expertExplanationReason || "—"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {round.expertExplanation || "—"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.expertExplanationDesiredResolution || "—"}</p>
                           {normalizeEvidence(round.expertExplanationEvidence).length > 0 && (
-                            <div className="pt-2 border-t border-purple-100/50 mt-2">
-                              <strong className="text-gray-500 block mb-1">Attached Documents:</strong>
+                            <div className="pt-2 border-t border-warning/20 mt-2">
+                              <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
                               <div className="space-y-1">
                                 {normalizeEvidence(round.expertExplanationEvidence).map((e, eIdx) => (
                                   <a
@@ -1976,7 +1976,7 @@ export function AdminReportDetail() {
                                     href={e.fileUrl}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-purple-600 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                                    className="text-warning hover:underline flex items-center gap-1 cursor-pointer font-medium"
                                   >
                                     <FileText className="w-3.5 h-3.5" />
                                     {e.fileName || e.name || `Document ${eIdx + 1}`}
@@ -1987,7 +1987,7 @@ export function AdminReportDetail() {
                           )}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 italic">No additional explanation submitted yet...</p>
+                        <p className="text-xs text-muted-foreground/70 italic">No additional explanation submitted yet...</p>
                       )}
                     </div>
                   </div>
@@ -2006,8 +2006,8 @@ export function AdminReportDetail() {
                   <div>
                     {report.escalated || report.attemptRound >= 2 ? (
                       <div className="space-y-4 font-sans">
-                        <div className="p-4 bg-orange-50 border border-orange-200 rounded-xl text-orange-800 text-sm leading-relaxed mb-3">
-                          <p className="font-bold">🚨 Binding Dispute (Contract Cancellation Round {report.attemptRound || 2} — Binding Verdict)</p>
+                        <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm leading-relaxed mb-3">
+                          <p className="font-semibold">🚨 Binding Dispute (Contract Cancellation Round {report.attemptRound || 2} — Binding Verdict)</p>
                           <p className="mt-1">Cancellation escalated after partner's rejection. Select the verdict to split Escrow automatically:</p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2015,7 +2015,7 @@ export function AdminReportDetail() {
                             type="button"
                             onClick={() => handleExecuteEscalatedVerdict("client_fault")}
                             disabled={actionLoading}
-                            className="h-11 px-4 bg-red-650 text-white rounded-[12px] hover:bg-red-700 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                            className="h-10 px-4 bg-destructive text-primary-foreground rounded-[12px] hover:bg-destructive font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             ⚖️ Client Fault (Client penalized 10% → Paid to Expert)
                           </button>
@@ -2023,7 +2023,7 @@ export function AdminReportDetail() {
                             type="button"
                             onClick={() => handleExecuteEscalatedVerdict("expert_fault")}
                             disabled={actionLoading}
-                            className="h-11 px-4 bg-orange-600 text-white rounded-[12px] hover:bg-orange-700 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                            className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             ⚖️ Expert Fault (Expert penalized 10% → Paid to Client)
                           </button>
@@ -2031,7 +2031,7 @@ export function AdminReportDetail() {
                             type="button"
                             onClick={() => handleExecuteEscalatedVerdict("split_fault")}
                             disabled={actionLoading}
-                            className="h-11 px-4 bg-amber-600 text-white rounded-[12px] hover:bg-amber-700 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                            className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             ⚖️ Split Fault (Each party penalized 5%)
                           </button>
@@ -2039,7 +2039,7 @@ export function AdminReportDetail() {
                             type="button"
                             onClick={() => handleExecuteEscalatedVerdict("reject_lock")}
                             disabled={actionLoading}
-                            className="h-11 px-4 bg-gray-600 text-white rounded-[12px] hover:bg-gray-700 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
+                            className="h-10 px-4 bg-muted-foreground text-primary-foreground rounded-[12px] hover:bg-foreground/80 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
                             🔒 Reject cancellation & Lock cancellation feature
                           </button>
@@ -2051,7 +2051,7 @@ export function AdminReportDetail() {
                           type="button"
                           onClick={handleAdminApproveCancel}
                           disabled={actionLoading}
-                          className="flex-1 h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          className="flex-1 h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
                           Approve & forward to partner
@@ -2060,7 +2060,7 @@ export function AdminReportDetail() {
                           type="button"
                           onClick={() => setShowRejectModal(true)}
                           disabled={actionLoading}
-                          className="flex-1 h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                          className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
                           Reject cancellation request
@@ -2070,22 +2070,22 @@ export function AdminReportDetail() {
                   </div>
                 )}
                 {report.status === "Awaiting Partner" && (
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center text-amber-800 font-medium">
+                  <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-center text-warning font-medium">
                     Awaiting partner response to cancellation request...
                   </div>
                 )}
                 {report.status === "Returned" && (
-                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-center text-rose-750 font-medium">
+                  <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-center text-destructive font-medium">
                     Partner rejected the cancellation. Request returned to the initiator.
                   </div>
                 )}
                 {(report.status === "Resolved" || report.status === "Accepted") && (
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-center text-green-700 font-medium">
+                  <div className="p-4 bg-success-light border border-success/20 rounded-xl text-center text-success font-medium">
                     Contract cancellation resolved successfully (Project is closed).
                   </div>
                 )}
                 {report.status === "Rejected" && (
-                  <div className="p-4 bg-red-55/10 border border-red-200 rounded-xl text-center text-red-700 font-medium">
+                  <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-center text-destructive font-medium">
                     Contract cancellation was rejected/withdrawn (Project resumes).
                   </div>
                 )}
@@ -2099,7 +2099,7 @@ export function AdminReportDetail() {
                       type="button"
                       onClick={() => setShowAcceptModal(true)}
                       disabled={actionLoading}
-                      className="flex-1 h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      className="flex-1 h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                     >
                       {actionLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -2112,7 +2112,7 @@ export function AdminReportDetail() {
                       type="button"
                       onClick={() => setShowRejectModal(true)}
                       disabled={actionLoading}
-                      className="flex-1 h-11 px-5 bg-red-55 text-red-705 hover:bg-red-100 border border-red-200 rounded-[14px] disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                     >
                       {actionLoading ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -2130,7 +2130,7 @@ export function AdminReportDetail() {
                   return (
                     <div className="space-y-4">
                       <div className="text-left">
-                        <p className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wider">
+                        <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wider">
                           Settle Decision:
                         </p>
                         <div className="flex flex-wrap gap-3">
@@ -2139,7 +2139,7 @@ export function AdminReportDetail() {
                               type="button"
                               onClick={() => setShowContinueModal(true)}
                               disabled={actionLoading || isEvidenceAwaiting}
-                              className="h-11 px-5 bg-green-600 text-white rounded-[14px] hover:bg-green-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                              className="h-10 px-4 bg-success text-primary-foreground rounded-lg hover:bg-success/85 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center justify-center gap-2 transition cursor-pointer"
                             >
                               <Play className="w-4 h-4" />
                               Continue Project
@@ -2148,7 +2148,7 @@ export function AdminReportDetail() {
                               type="button"
                               onClick={() => setShowStopModal(true)}
                               disabled={actionLoading || isEvidenceAwaiting}
-                              className="h-11 px-5 bg-red-600 text-white rounded-[14px] hover:bg-red-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                              className="h-10 px-4 bg-destructive text-primary-foreground rounded-lg hover:bg-destructive disabled:opacity-55 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center justify-center gap-2 transition cursor-pointer"
                             >
                               <StopCircle className="w-4 h-4" />
                               Stop and Release Payment
@@ -2158,18 +2158,18 @@ export function AdminReportDetail() {
                             type="button"
                             onClick={() => setShowRequestBothModal(true)}
                             disabled={actionLoading || isEvidenceAwaiting}
-                            className="h-11 px-5 bg-purple-600 text-white rounded-[14px] hover:bg-purple-700 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                            className="h-10 px-4 bg-warning text-primary-foreground rounded-lg hover:bg-warning/90 disabled:opacity-55 disabled:cursor-not-allowed text-sm font-medium inline-flex items-center justify-center gap-2 transition cursor-pointer"
                           >
                             <MessageCircle className="w-4 h-4" />
                             Submit both (Request additional)
                           </button>
                         </div>
                         {isEvidenceAwaiting ? (
-                          <p className="text-[11px] text-red-600 font-bold bg-red-50 border border-red-150 p-2.5 rounded-xl mt-3 text-left leading-normal">
+                          <p className="text-[11px] text-destructive font-semibold bg-destructive-light border border-destructive/20 p-2.5 rounded-xl mt-3 text-left leading-normal">
                             ⚠ Verdict buttons are locked until both parties submit additional evidence or the 48-hour deadline expires.
                           </p>
                         ) : report.status === "Awaiting Evidence" && isDeadlineExpired && (
-                          <p className="text-[11px] text-green-700 font-bold bg-green-50 border border-green-150 p-2.5 rounded-xl mt-3 text-left leading-normal">
+                          <p className="text-[11px] text-success font-semibold bg-success-light border border-success/20 p-2.5 rounded-xl mt-3 text-left leading-normal">
                             ✓ Evidence submission deadline expired. Arbitrator can now make a verdict based on available evidence.
                           </p>
                         )}
@@ -2182,8 +2182,8 @@ export function AdminReportDetail() {
 
             {/* ---- Resolved / Closed / Rejected: no actions ---- */}
             {(isResolved || isRejected) && (
-              <div className="p-4 bg-gray-50 rounded-lg text-center border border-gray-150">
-                <p className="text-sm font-semibold text-gray-700">
+              <div className="p-4 bg-secondary rounded-lg text-center border border-border-light">
+                <p className="text-sm font-semibold text-foreground">
                   {isResolved
                     ? `Resolved — ${report.resolution === "force_payout"
                       ? "Forced Payout to Expert"
@@ -2202,7 +2202,7 @@ export function AdminReportDetail() {
                       : "Report closed"}
                 </p>
                 {report.adminNote && (
-                  <p className="text-xs text-gray-500 mt-2 border-t border-gray-100 pt-2 italic">
+                  <p className="text-xs text-muted-foreground mt-2 border-t border-border-light pt-2 italic">
                     Notes: {report.adminNote}
                   </p>
                 )}
@@ -2241,12 +2241,12 @@ export function AdminReportDetail() {
           }}
           placeholder="Enter the reason for rejecting this report..."
           rows={3}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${rejectReasonError ? "border-red-300" : "border-gray-300"
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-destructive resize-vertical ${rejectReasonError ? "border-destructive/35" : "border-input"
             }`}
           disabled={actionLoading}
         />
         {rejectReasonError && (
-          <p className="text-xs text-red-500 mt-1">{rejectReasonError}</p>
+          <p className="text-xs text-destructive mt-1">{rejectReasonError}</p>
         )}
       </ConfirmationModal>
 
@@ -2280,8 +2280,8 @@ export function AdminReportDetail() {
         <div className="space-y-4">
           {/* Stop reason */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Final Decision Reason <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Final Decision Reason <span className="text-destructive">*</span>
             </label>
             <textarea
               value={stopReason}
@@ -2291,22 +2291,22 @@ export function AdminReportDetail() {
               }}
               placeholder="Enter reason for stopping the project..."
               rows={3}
-              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${stopReasonError ? "border-red-300" : "border-gray-300"
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-destructive resize-vertical ${stopReasonError ? "border-destructive/35" : "border-input"
                 }`}
               disabled={actionLoading}
             />
             {stopReasonError && (
-              <p className="text-xs text-red-500 mt-1">{stopReasonError}</p>
+              <p className="text-xs text-destructive mt-1">{stopReasonError}</p>
             )}
           </div>
 
           {/* Money handling */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-foreground mb-2">
               Handle Escrow Funds:
             </label>
             <div className="space-y-2">
-              <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-secondary transition">
                 <input
                   type="radio"
                   name="moneyAction"
@@ -2317,10 +2317,10 @@ export function AdminReportDetail() {
                   disabled={actionLoading}
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-foreground">
                     Refund to Client
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Refund the full{" "}
                     <MoneyDisplay
                       amount={report?.amount || report?.escrowAmount || 0}
@@ -2329,7 +2329,7 @@ export function AdminReportDetail() {
                   </p>
                 </div>
               </label>
-              <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+              <label className="flex items-start gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-secondary transition">
                 <input
                   type="radio"
                   name="moneyAction"
@@ -2340,10 +2340,10 @@ export function AdminReportDetail() {
                   disabled={actionLoading}
                 />
                 <div>
-                  <p className="text-sm font-medium text-gray-800">
+                  <p className="text-sm font-medium text-foreground">
                     Release to Expert
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     Transfer the full{" "}
                     <MoneyDisplay
                       amount={report?.amount || report?.escrowAmount || 0}
@@ -2394,12 +2394,12 @@ export function AdminReportDetail() {
                 : "Enter detailed reason/request for both parties to provide additional explanations..."
           }
           rows={3}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${evidenceNoteError ? "border-red-300" : "border-gray-300"
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${evidenceNoteError ? "border-destructive/35" : "border-input"
             }`}
           disabled={actionLoading}
         />
         {evidenceNoteError && (
-          <p className="text-xs text-red-500 mt-1">{evidenceNoteError}</p>
+          <p className="text-xs text-destructive mt-1">{evidenceNoteError}</p>
         )}
       </ConfirmationModal>
 
@@ -2422,12 +2422,12 @@ export function AdminReportDetail() {
           }}
           placeholder="Enter reason for force payout..."
           rows={3}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${forceReasonError ? "border-red-300" : "border-gray-300"
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${forceReasonError ? "border-destructive/35" : "border-input"
             }`}
           disabled={actionLoading}
         />
         {forceReasonError && (
-          <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
+          <p className="text-xs text-destructive mt-1">{forceReasonError}</p>
         )}
       </ConfirmationModal>
 
@@ -2450,12 +2450,12 @@ export function AdminReportDetail() {
           }}
           placeholder="Enter reason for force refund..."
           rows={3}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-red-500 resize-vertical ${forceReasonError ? "border-red-300" : "border-gray-300"
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-destructive resize-vertical ${forceReasonError ? "border-destructive/35" : "border-input"
             }`}
           disabled={actionLoading}
         />
         {forceReasonError && (
-          <p className="text-xs text-red-500 mt-1">{forceReasonError}</p>
+          <p className="text-xs text-destructive mt-1">{forceReasonError}</p>
         )}
       </ConfirmationModal>
 
@@ -2478,12 +2478,12 @@ export function AdminReportDetail() {
           }}
           placeholder="Enter detailed request/reason for additional explanations to be sent to both parties..."
           rows={3}
-          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${requestBothNoteError ? "border-red-300" : "border-gray-300"
+          className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${requestBothNoteError ? "border-destructive/35" : "border-input"
             }`}
           disabled={actionLoading}
         />
         {requestBothNoteError && (
-          <p className="text-xs text-red-500 mt-1">{requestBothNoteError}</p>
+          <p className="text-xs text-destructive mt-1">{requestBothNoteError}</p>
         )}
       </ConfirmationModal>
     </div>
@@ -2496,9 +2496,9 @@ export function AdminReportDetail() {
 
 function SectionCard({ title, icon: Icon, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-        {Icon && <Icon className="w-4 h-4 text-gray-400" />}
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5">
+      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+        {Icon && <Icon className="w-4 h-4 text-muted-foreground/70" />}
         {title}
       </h3>
       {children}
@@ -2515,11 +2515,10 @@ function DetailGrid({ children }) {
 function DetailItem({ label, value }) {
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-      <p className="text-sm text-gray-800">{value}</p>
+      <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+      <p className="text-sm text-foreground">{value}</p>
     </div>
   );
 }
 
 export default AdminReportDetail;
-

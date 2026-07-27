@@ -49,17 +49,17 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+  let badgeClass = "bg-accent-light text-accent border-accent/25";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    badgeClass = "bg-success-light0/10 text-success border-success/20";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+    badgeClass = "bg-destructive-light0/10 text-destructive border-destructive/20";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-red-500/10 text-red-500 border border-red-500/20 font-semibold";
+    badgeClass = "bg-destructive-light0/10 text-destructive border border-destructive/20 font-semibold";
   } else {
     const hasProjectRecord = !!project.projectId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -69,7 +69,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      badgeClass = "bg-warning-light/10 text-warning border-warning/20";
     }
   }
 
@@ -556,11 +556,11 @@ export function MyProjectsList() {
 
   const getProposalStatusBadgeClass = (status) => {
     const s = status?.toLowerCase();
-    if (s === "accepted") return "bg-green-50 text-green-700 border-green-200 border";
-    if (s === "declined") return "bg-red-50 text-red-700 border-red-200 border";
-    if (s === "under_review" || s === "under review") return "bg-brand-primary-light text-brand-primary border-blue-200 border";
-    if (s === "pending_escrow" || s === "pending escrow" || s === "pending_pay" || s === "pending pay") return "bg-amber-50 text-amber-700 border-amber-200 border";
-    return "bg-yellow-50 text-yellow-700 border-yellow-200 border";
+    if (s === "accepted") return "bg-success-light text-success border-success/20 border";
+    if (s === "declined") return "bg-destructive-light text-destructive border-destructive/20 border";
+    if (s === "under_review" || s === "under review") return "bg-brand-primary-light text-brand-primary border-accent/25 border";
+    if (s === "pending_escrow" || s === "pending escrow" || s === "pending_pay" || s === "pending pay") return "bg-warning-light text-warning border-warning/20 border";
+    return "bg-warning-light text-warning border-warning/20 border";
   };
 
   const handleBackToList = () => {
@@ -625,13 +625,13 @@ export function MyProjectsList() {
         </button>
 
         {showInviteSuccessBanner && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="mb-6 p-4 bg-success-light border border-success/20 text-success rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
             <span className="font-semibold text-sm">
               Successfully invited expert {invitedExpertName ? `"${invitedExpertName}" ` : ""}
             </span>
             <button
               onClick={() => setShowInviteSuccessBanner(false)}
-              className="text-green-650 hover:text-green-800 transition-colors"
+              className="text-success hover:text-success transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -641,7 +641,7 @@ export function MyProjectsList() {
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-4 border-b border-border/60 pb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">{selectedProject.title}</h1>
+              <h1 className="text-2xl font-semibold text-foreground mb-2">{selectedProject.title}</h1>
               <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary">
                 Status: {selectedProject.status}
               </span>
@@ -660,7 +660,7 @@ export function MyProjectsList() {
                 {safeArray(selectedProject.useCases).map((uc, i) => (
                   <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-left">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground">
+                      <p className="font-semibold text-foreground">
                         User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `User Story #${i + 1}`}</span>
                       </p>
                       {uc.description && (
@@ -670,7 +670,7 @@ export function MyProjectsList() {
                       )}
                     </div>
                     {(uc.originalDurationDays || uc.durationDays) && (
-                      <span className="px-2.5 py-1.5 bg-accent/10 text-accent font-bold rounded-lg whitespace-nowrap self-start sm:self-center text-xs">
+                      <span className="px-2.5 py-1.5 bg-accent/10 text-accent font-semibold rounded-lg whitespace-nowrap self-start sm:self-center text-xs">
                         Duration: {uc.originalDurationDays || uc.durationDays} days
                       </span>
                     )}
@@ -841,7 +841,7 @@ export function MyProjectsList() {
 
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8">
           <div className="border-b border-border/60 pb-4 mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold text-foreground">
               {isAcceptedView 
                 ? `Proposal connected to: ${selectedProject.title}`
                 : `Proposals list for: ${selectedProject.title}`
@@ -864,7 +864,7 @@ export function MyProjectsList() {
               {/* Proposal Header Card */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border/60 pb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">{proposal.proposalTitle}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{proposal.proposalTitle}</h3>
                   <p className="text-base text-muted-foreground mt-1">
                     Expert: <span className="font-semibold text-foreground/80">{proposal.expertName}</span>
                   </p>
@@ -895,7 +895,7 @@ export function MyProjectsList() {
               {/* Sections */}
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
                   <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                     {proposal.coverLetter || "No introduction provided."}
                   </p>
@@ -903,7 +903,7 @@ export function MyProjectsList() {
 
                 {proposal.technicalApproach && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {proposal.technicalApproach}
                     </p>
@@ -912,7 +912,7 @@ export function MyProjectsList() {
 
                 {proposal.tasks && proposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
                         {selectedProject.useCases.map((uc) => {
@@ -923,7 +923,7 @@ export function MyProjectsList() {
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-foreground text-sm">
+                                    <span className="font-semibold text-foreground text-sm">
                                       UserStory: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
@@ -947,14 +947,14 @@ export function MyProjectsList() {
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
                                       {/* Minitasks */}
                                       {task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
                                             <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                                           ))}
@@ -974,14 +974,14 @@ export function MyProjectsList() {
                         {proposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
                             {/* Minitasks */}
                             {task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
                                   <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                                 ))}
@@ -995,7 +995,7 @@ export function MyProjectsList() {
                 ) : (
                   proposal.timelineMilestones && (
                     <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
                       <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                         {proposal.timelineMilestones}
                       </p>
@@ -1005,7 +1005,7 @@ export function MyProjectsList() {
 
                 {proposal.dependencies && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {proposal.dependencies}
                     </p>
@@ -1015,7 +1015,7 @@ export function MyProjectsList() {
                 {/* Attached Assets for Client (Single Accepted Proposal Detail) */}
                 {proposal.attachments && proposal.attachments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {proposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
@@ -1067,7 +1067,7 @@ export function MyProjectsList() {
               {/* Escrow payment direct button for single accepted proposal */}
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-sm text-left">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Escrow Setup</h3>
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Escrow Setup</h3>
                   
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
@@ -1077,7 +1077,7 @@ export function MyProjectsList() {
                       className="mt-1 w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50"
                     />
                     <label htmlFor="agreeEscrowSingle" className="text-sm text-foreground/80 font-medium">
-                      Confirm that you want to deposit <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
+                      Confirm that you want to deposit <span className="font-semibold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
                     </label>
                   </div>
 
@@ -1100,7 +1100,7 @@ export function MyProjectsList() {
                         }
                       });
                     }}
-                    className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
+                    className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
                   >
                     Confirm Escrow Deposit
                   </button>
@@ -1111,13 +1111,13 @@ export function MyProjectsList() {
                 <div className="pt-6 border-t border-border/60 flex items-center justify-end gap-3">
                   <Link
                     to={`/client/projects/${selectedProject.projectId || selectedProject.id}`}
-                    className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    className="h-10 px-4 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <Briefcase className="w-4 h-4" /> Manage Project Progress
                   </Link>
                   <Link
                     to={`/messenger/${proposal.expertId}`}
-                    className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    className="h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" /> Contact Expert
                   </Link>
@@ -1175,7 +1175,7 @@ export function MyProjectsList() {
                       className="p-5 rounded-2xl border bg-card border-border hover:border-input transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="text-left">
-                        <h4 className="font-bold text-foreground text-base">{p.expertName}</h4>
+                        <h4 className="font-semibold text-foreground text-base">{p.expertName}</h4>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                           {p.expertCategory && (
                             <span className="font-medium">Category: {p.expertCategory}</span>
@@ -1199,7 +1199,7 @@ export function MyProjectsList() {
                             )}
                           </div>
                         )}
-                        <p className="text-base font-bold text-brand-primary mt-2">
+                        <p className="text-base font-semibold text-brand-primary mt-2">
                           Bid: <MoneyDisplay amount={p.bidAmount} /> · {p.durationDays} days
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -1226,7 +1226,7 @@ export function MyProjectsList() {
                             setViewedProposal(p);
                             setShowEscrowConfirm(false);
                           }}
-                          className="h-11 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground text-sm font-semibold rounded-xl transition-colors border border-brand-primary"
+                          className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground text-sm font-medium rounded-lg transition-colors border border-brand-primary"
                         >
                           View Proposal
                         </button>
@@ -1241,7 +1241,7 @@ export function MyProjectsList() {
             <div className="space-y-6 text-left">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border/60 pb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">Proposal</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Proposal</h3>
                   <p className="text-base text-muted-foreground mt-1">
                     Expert: <span className="font-semibold text-foreground/80">{viewedProposal.expertName}</span>
                   </p>
@@ -1272,7 +1272,7 @@ export function MyProjectsList() {
               {/* Sections */}
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
                   <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                     {viewedProposal.coverLetter || "No introduction provided."}
                   </p>
@@ -1280,7 +1280,7 @@ export function MyProjectsList() {
 
                 {viewedProposal.technicalApproach && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {viewedProposal.technicalApproach}
                     </p>
@@ -1289,7 +1289,7 @@ export function MyProjectsList() {
 
                 {viewedProposal.tasks && viewedProposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
                         {selectedProject.useCases.map((uc) => {
@@ -1300,7 +1300,7 @@ export function MyProjectsList() {
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-foreground text-sm">
+                                    <span className="font-semibold text-foreground text-sm">
                                       UserStory: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
@@ -1324,14 +1324,14 @@ export function MyProjectsList() {
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
                                       {/* Minitasks */}
                                       {false && task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
                                             <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                                           ))}
@@ -1351,14 +1351,14 @@ export function MyProjectsList() {
                         {viewedProposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
                             {/* Minitasks */}
                             {false && task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
                                   <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
                                 ))}
@@ -1372,7 +1372,7 @@ export function MyProjectsList() {
                 ) : (
                   viewedProposal.timelineMilestones && (
                     <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
                       <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                         {viewedProposal.timelineMilestones}
                       </p>
@@ -1382,7 +1382,7 @@ export function MyProjectsList() {
 
                 {viewedProposal.dependencies && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {viewedProposal.dependencies}
                     </p>
@@ -1392,7 +1392,7 @@ export function MyProjectsList() {
                 {/* Attached Assets for Client (ViewedProposal Detail) */}
                 {viewedProposal.attachments && viewedProposal.attachments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {viewedProposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
@@ -1446,14 +1446,14 @@ export function MyProjectsList() {
                 <button
                   type="button"
                   onClick={() => handleDeclineProposal(viewedProposal.id)}
-                  className="h-11 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[15px] font-semibold transition-all"
+                  className="h-10 px-4 bg-destructive hover:bg-destructive text-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
                 >
                   Decline Proposal
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAcceptProposal(viewedProposal)}
-                  className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
+                  className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
                 >
                   Accept Proposal
                 </button>
@@ -1489,7 +1489,7 @@ export function MyProjectsList() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">All Projects</h1>
+          <h1 className="text-2xl font-semibold text-foreground">All Projects</h1>
           <p className="text-muted-foreground mt-1">Manage your posted projects</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -1501,7 +1501,7 @@ export function MyProjectsList() {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+              className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -1512,7 +1512,7 @@ export function MyProjectsList() {
           </div>
           <Link
             to="/client/post-project"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
+            className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
           >
           <PlusCircle className="w-4 h-4" /> Post New Project
         </Link>
@@ -1536,7 +1536,7 @@ export function MyProjectsList() {
           </p>
           <Link
             to="/client/post-project"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium"
+            className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium"
           >
             Post a Project
           </Link>
@@ -1628,7 +1628,7 @@ export function MyProjectsList() {
                   )}
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Budget</span>
-                    <span className="font-bold text-success text-sm">
+                    <span className="font-semibold text-success text-sm">
                       <MoneyDisplay amount={project.budget} />
                     </span>
                   </div>

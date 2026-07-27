@@ -426,7 +426,7 @@ export function PostProject() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Project Title <span className="text-red-500">*</span>
+                    Project Title <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="text" name="title" id="title"
@@ -439,7 +439,7 @@ export function PostProject() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Description <span className="text-red-500">*</span>
+                    Description <span className="text-destructive">*</span>
                   </label>
                   <textarea
                     name="description" id="description"
@@ -578,14 +578,14 @@ export function PostProject() {
                         <button
                           type="button"
                           onClick={() => setUseCases(useCases.filter((_, i) => i !== index))}
-                          className="absolute top-2 right-2.5 text-xs font-medium text-muted-foreground hover:text-red-600 transition-colors"
+                          className="absolute top-2 right-2.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
                         >
                           Remove
                         </button>
                       )}
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          User Story Title <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          User Story Title <span className="text-destructive">*</span>
                         </label>
                         <input
                           type="text"
@@ -597,8 +597,8 @@ export function PostProject() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Description <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Description <span className="text-destructive">*</span>
                         </label>
                         <textarea
                           value={uc.description}
@@ -616,8 +616,8 @@ export function PostProject() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Duration (days) <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Duration (days) <span className="text-destructive">*</span>
                         </label>
                         <input
                           type="number" min="1"
@@ -635,7 +635,7 @@ export function PostProject() {
           </AnimatedReveal>
 
           {/* Timeline Summary Box */}
-          <div className="rounded-xl border px-4 py-3 text-sm bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300">
+          <div className="rounded-xl border px-4 py-2.5 text-sm bg-accent-light border-accent/20 text-accent dark:bg-accent-light dark:border-accent/30 dark:text-accent">
             <div className="flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
               Timeline Summary
@@ -716,7 +716,7 @@ export function PostProject() {
             <button
               type="submit"
               disabled={submitting || !isFormValid}
-              className={`flex-[7] py-3.5 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-all text-base ${
+              className={`flex-[7] py-2.5 rounded-lg font-medium inline-flex items-center justify-center gap-2 transition-all text-base ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover shadow-md"
@@ -728,7 +728,7 @@ export function PostProject() {
               type="button"
               onClick={handleRecommendExperts}
               disabled={submitting || !isFormValid}
-              className={`flex-[3] py-3.5 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-all ${
+              className={`flex-[3] py-2.5 rounded-lg font-medium inline-flex items-center justify-center gap-2 transition-all ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-accent-light text-accent hover:bg-accent/10 font-semibold shadow-sm"
@@ -771,13 +771,13 @@ export function PostProject() {
         >
           <div className="flex items-center justify-between mb-5 border-b border-border/60 pb-3">
             <div>
-              <h2 className="text-sm font-bold text-foreground">AI Recommendations</h2>
+              <h2 className="text-sm font-semibold text-foreground">AI Recommendations</h2>
               <p className="text-xs text-muted-foreground mt-0.5 font-medium">Matching experts</p>
             </div>
             <button
               type="button"
               onClick={() => setShowRecommendations(false)}
-              className="text-xs text-muted-foreground hover:text-muted-foreground font-semibold transition-colors"
+              className="text-xs text-muted-foreground hover:text-muted-foreground font-medium transition-colors"
             >
               Close
             </button>
@@ -805,8 +805,8 @@ export function PostProject() {
                         <h3 className="font-semibold text-foreground text-sm leading-snug truncate">
                           {expert.name}
                         </h3>
-                        <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold inline-flex items-center gap-0.5">
-                          <Star className="w-3 h-3 fill-emerald-500 text-emerald-500" />
+                        <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-semibold inline-flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-success text-success" />
                           {expert.rating}
                         </span>
                       </div>
@@ -856,7 +856,7 @@ export function PostProject() {
                     <button
                       type="button"
                       onClick={() => setSelectedRecommendExpert(expert)}
-                      className="block w-full h-11 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary/60 text-sm font-medium text-center transition-colors mt-auto"
+                      className="block w-full h-10 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary/60 text-sm font-medium text-center transition-colors mt-auto"
                     >
                       View Detail
                     </button>
@@ -867,7 +867,7 @@ export function PostProject() {
                   <button
                     type="button"
                     onClick={() => setVisibleCount((prev) => prev + 3)}
-                    className="w-full h-11 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-xl text-sm font-bold transition-colors text-center border border-border mt-2"
+                    className="w-full h-10 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-lg text-sm font-medium transition-colors text-center border border-border mt-2"
                   >
                     Add Expert
                   </button>
@@ -888,11 +888,11 @@ export function PostProject() {
               <div className="bg-card rounded-2xl border border-border shadow-sm p-4 space-y-6">
                 {/* Avatar + Name Info */}
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-brand-primary text-lg">
+                  <div className="w-14 h-14 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0 font-semibold text-brand-primary text-lg">
                     {selectedRecommendExpert.name?.split(" ").map((w) => w[0]).join("").toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-foreground truncate">{selectedRecommendExpert.name}</h2>
+                    <h2 className="text-sm font-semibold text-foreground truncate">{selectedRecommendExpert.name}</h2>
                     <p className="text-foreground/80 font-medium text-sm truncate">{selectedRecommendExpert.title}</p>
                     <p className="text-muted-foreground text-xs truncate">{selectedRecommendExpert.email}</p>
                   </div>
@@ -920,7 +920,7 @@ export function PostProject() {
                   )}
                   {selectedRecommendExpert.rating != null && (
                     <span className="inline-flex items-center gap-1.5">
-                      <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                      <Star className="w-3.5 h-3.5 fill-warning text-warning flex-shrink-0" />
                       {selectedRecommendExpert.rating} ({selectedRecommendExpert.clientReviews?.length || 0} reviews)
                     </span>
                   )}
@@ -981,7 +981,7 @@ export function PostProject() {
                       {selectedRecommendExpert.portfolio.map((item, i) => (
                         <div
                           key={i}
-                          className="border border-border rounded-lg p-2.5 hover:border-blue-200 transition-colors bg-card"
+                          className="border border-border rounded-lg p-2.5 hover:border-accent/25 transition-colors bg-card"
                         >
                           <h4 className="font-medium text-foreground text-sm">{item.title}</h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-normal">
@@ -1013,7 +1013,7 @@ export function PostProject() {
                               {Array.from({ length: review.rating || 0 }, (_, j) => (
                                 <Star
                                   key={j}
-                                  className="w-3 h-3 fill-yellow-400 text-yellow-400"
+                                  className="w-3 h-3 fill-warning text-warning"
                                 />
                               ))}
                             </div>
@@ -1038,7 +1038,7 @@ export function PostProject() {
                       setSelectedRecommendExpert(null);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="w-full h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[15px]"
+                    className="w-full h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[15px]"
                   >
                     Invite
                   </button>

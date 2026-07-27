@@ -9,6 +9,9 @@ import {
   CheckCircle,
   PlusCircle,
   Send,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
@@ -66,6 +69,50 @@ const statusColors = {
   failed: "bg-destructive/10 text-destructive",
 };
 
+const transactionSortColumns = [
+  { key: "type", label: "Type", align: "left" },
+  { key: "description", label: "Description", align: "left" },
+  { key: "amount", label: "Amount", align: "right" },
+  { key: "status", label: "Status", align: "right" },
+  { key: "date", label: "Date", align: "right" },
+];
+
+function getTransactionSortValue(tx, key) {
+  const lowerType = tx.type?.toLowerCase();
+  if (key === "type") return typeLabels[lowerType] || tx.type || "";
+  if (key === "description") return tx.projectTitle || tx.description || "";
+  if (key === "amount") return Number(tx.amount ?? tx.Amount ?? 0) || 0;
+  if (key === "status") return tx.status || tx.projectStatus || "";
+  if (key === "date") {
+    const rawStr = tx.createdAt || "";
+    const dateValue = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : "")).getTime();
+    return Number.isFinite(dateValue) ? dateValue : 0;
+  }
+  return "";
+}
+
+function sortTransactions(rows, sortState) {
+  if (!sortState.key || !sortState.dir) return rows;
+
+  return [...rows].sort((a, b) => {
+    const aVal = getTransactionSortValue(a, sortState.key);
+    const bVal = getTransactionSortValue(b, sortState.key);
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && aVal !== "" && bVal !== "";
+
+    if (bothNumeric) {
+      return sortState.dir === "asc" ? aNum - bNum : bNum - aNum;
+    }
+
+    const result = String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return sortState.dir === "asc" ? result : -result;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -86,6 +133,7 @@ export function Billing() {
   const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -96,6 +144,15 @@ export function Billing() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const handleTransactionSort = (key) => {
+    setTransactionSort((prev) => {
+      if (prev.key !== key) return { key, dir: "asc" };
+      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    });
+  };
+
+  const sortedTransactions = sortTransactions(data?.transactions || [], transactionSort);
 
   useEffect(() => {
     const currentUserId = user?.id || user?.Id;
@@ -351,7 +408,7 @@ export function Billing() {
             });
           }
 
-          // Insert rows for each cancelled/disputed project — dispute verdict vs cancellation negotiation
+          // Insert rows for each cancelled/disputed project - dispute verdict vs cancellation negotiation
           function addVerdictRows(projIdLower, split, tDate) {
             const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
             const escrowRow = cancelledEscrowDepositRows.get(projIdLower);
@@ -439,7 +496,7 @@ export function Billing() {
               } catch (e) { }
             }
 
-            // Cancellation negotiation fallback (Luồng huỷ thông thường - KHÔNG ĐỤNG VÀO)
+            // Cancellation negotiation fallback (normal cancellation flow - do not change)
             if (split?.clientRefund > 0) {
               myTransactions.push({
                 id: `cancel-refund-${projIdLower}`,
@@ -756,7 +813,7 @@ export function Billing() {
     try {
       await api.payments.releaseEscrow({ transactionId });
     } catch {
-      // Demo — no visual change needed
+      // Demo - no visual change needed
     }
   };
 
@@ -777,7 +834,7 @@ export function Billing() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
-      <h1 className="text-2xl font-bold text-foreground mb-2">Billing &amp; Payments</h1>
+      <h1 className="text-2xl font-semibold text-foreground mb-2">Billing &amp; Payments</h1>
       <p className="text-muted-foreground mb-8">Manage your wallet, escrow payments, and transaction history.</p>
 
       {/* Feedback banner */}
@@ -802,7 +859,7 @@ export function Billing() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-semibold text-foreground">
                   <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
                 </p>
               </div>
@@ -811,14 +868,14 @@ export function Billing() {
               <button
                 type="button"
                 onClick={() => setShowDepositModal(true)}
-                className="px-3.5 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <PlusCircle className="w-3.5 h-3.5" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
-                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <Send className="w-3.5 h-3.5" /> Withdraw
               </button>
@@ -833,7 +890,7 @@ export function Billing() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">In Escrow</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.escrowBalance ?? 0} />
               </p>
             </div>
@@ -924,7 +981,7 @@ export function Billing() {
                   <button
                     type="submit"
                     disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
-                    className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
+                    className="h-10 px-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                   >
                     {submitting ? "Processing..." : "Confirm Escrow"}
                   </button>
@@ -932,7 +989,7 @@ export function Billing() {
                     <button
                       type="button"
                       onClick={() => setShowDepositForm(false)}
-                      className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-colors"
+                      className="h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-medium transition-colors"
                     >
                       Cancel
                     </button>
@@ -962,15 +1019,34 @@ export function Billing() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                  {transactionSortColumns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTransactionSort(col.key)}
+                        className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                        title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                      >
+                        {col.label}
+                        {transactionSort.key === col.key ? (
+                          transactionSort.dir === "asc" ? (
+                            <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                          )
+                        ) : (
+                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {data.transactions.map((tx) => {
+                {sortedTransactions.map((tx) => {
                   const projId = tx.projectId;
                   const projIdLower = projId ? String(projId).toLowerCase() : "";
                   const dbStatus = (tx.projectStatus || "").toLowerCase();
@@ -1107,7 +1183,7 @@ export function Billing() {
       {showDepositModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -1131,7 +1207,7 @@ export function Billing() {
                 <button
                   type="submit"
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
-                  className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
@@ -1141,7 +1217,7 @@ export function Billing() {
                     setShowDepositModal(false);
                     setWalletDepositAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>
@@ -1155,7 +1231,7 @@ export function Billing() {
       {showWithdrawModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -1180,7 +1256,7 @@ export function Billing() {
                 <button
                   type="submit"
                   disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
-                  className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
@@ -1190,7 +1266,7 @@ export function Billing() {
                     setShowWithdrawModal(false);
                     setWithdrawAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>

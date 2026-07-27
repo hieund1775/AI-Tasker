@@ -1,8 +1,8 @@
-import { Component } from "react";
+﻿import { Component } from "react";
 import { AlertTriangle, RefreshCw, Home, LayoutDashboard } from "lucide-react";
 
 // =============================================================================
-// ErrorBoundary — global error boundary that catches render errors and shows
+// ErrorBoundary â€” global error boundary that catches render errors and shows
 // a professional fallback UI instead of a white screen or stack trace.
 //
 // In development mode (import.meta.env.DEV), the error message is shown.
@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component {
             </div>
 
             {/* Title */}
-            <h1 className="text-xl font-bold text-foreground mb-2">
+            <h1 className="text-xl font-semibold text-foreground mb-2">
               Something went wrong
             </h1>
 

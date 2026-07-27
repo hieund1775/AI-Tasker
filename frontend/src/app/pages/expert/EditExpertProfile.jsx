@@ -185,7 +185,7 @@ export function EditExpertProfile() {
           </Link>
         )}
 
-        <h1 className="text-2xl font-bold text-foreground">
+        <h1 className="text-2xl font-semibold text-foreground">
           {user?.hasProfile === false
             ? "Complete profile to start"
             : "Edit Expert Profile"}
@@ -197,7 +197,7 @@ export function EditExpertProfile() {
         className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {error && (
-          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium">
+          <div className="p-3 bg-destructive-light text-destructive rounded-lg text-sm font-medium">
             {error}
           </div>
         )}
@@ -205,7 +205,7 @@ export function EditExpertProfile() {
         {/* Contact Person */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Contact Person <span className="text-red-500">*</span>
+            Contact Person <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -219,7 +219,7 @@ export function EditExpertProfile() {
         {/* Professional Title */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Professional Title <span className="text-red-500">*</span>
+            Professional Title <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -236,7 +236,7 @@ export function EditExpertProfile() {
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Category <span className="text-red-500">*</span>
+              Category <span className="text-destructive">*</span>
             </label>
             <select
               value={formData.category}
@@ -260,7 +260,7 @@ export function EditExpertProfile() {
           {/* Specialization */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Specialization <span className="text-red-500">*</span>
+              Specialization <span className="text-destructive">*</span>
             </label>
             <select
               value={formData.specialization?.name || formData.specialization}
@@ -286,7 +286,7 @@ export function EditExpertProfile() {
         {/* Skills Selector (Togglable buttons) */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Skills <span className="text-red-500">*</span>
+            Skills <span className="text-destructive">*</span>
           </label>
           {!formData.category || !formData.specialization ? (
             <p className="text-sm text-muted-foreground">
@@ -322,7 +322,7 @@ export function EditExpertProfile() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Email Address <span className="text-red-500">*</span>
+              Email Address <span className="text-destructive">*</span>
             </label>
             <input
               type="email"
@@ -335,7 +335,7 @@ export function EditExpertProfile() {
 
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number <span className="text-destructive">*</span>
             </label>
             <input
               type="tel"
@@ -423,7 +423,7 @@ export function EditExpertProfile() {
         {/* Bio */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Bio <span className="text-red-500">*</span>
+            Bio <span className="text-destructive">*</span>
           </label>
           <textarea
             value={formData.bio}
@@ -439,7 +439,7 @@ export function EditExpertProfile() {
           <button
             type="submit"
             disabled={loading}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
+            className="h-10 px-4 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {loading ? "Saving..." : "Save Changes"}
@@ -448,7 +448,7 @@ export function EditExpertProfile() {
           {user?.hasProfile !== false && (
             <Link
               to="/expert/profile"
-              className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+              className="h-10 px-4 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
             >
               Cancel
             </Link>

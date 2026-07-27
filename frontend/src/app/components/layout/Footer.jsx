@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -11,7 +11,7 @@ export function Footer() {
           <div className="flex items-center gap-3">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-xs">AI</span>
+                <span className="text-primary-foreground font-semibold text-xs">AI</span>
               </div>
               <span className="text-sm font-semibold text-foreground tracking-tight">Tasker</span>
             </Link>

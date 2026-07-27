@@ -39,7 +39,7 @@ export function ReportButton({
   // User already submitted a report (before admin accepts/rejects it)
   if (hasReported) {
     return (
-      <div className={`inline-flex items-center gap-2 h-11 px-5 bg-secondary text-muted-foreground rounded-[14px] text-base font-semibold cursor-not-allowed ${className}`}>
+      <div className={`inline-flex items-center gap-2 h-10 px-4 bg-secondary text-muted-foreground rounded-lg text-base font-semibold cursor-not-allowed ${className}`}>
         <AlertTriangle className="w-4 h-4" />
         Report Submitted
       </div>
@@ -61,7 +61,7 @@ export function ReportButton({
           <button
             type="button"
             onClick={onClick}
-            className={`inline-flex items-center gap-2 h-11 px-5 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 rounded-[14px] text-base font-semibold transition ${className}`}
+            className={`inline-flex items-center gap-2 h-10 px-4 bg-warning-light text-warning hover:bg-warning-light border border-warning/20 rounded-lg text-base font-semibold transition ${className}`}
           >
             <AlertTriangle className="w-4 h-4" />
             Response to Accusation
@@ -71,7 +71,7 @@ export function ReportButton({
 
       if (isReporter) {
         return (
-          <div className={`inline-flex items-center gap-2 h-11 px-5 bg-secondary text-muted-foreground rounded-[14px] text-base font-semibold cursor-not-allowed ${className}`}>
+          <div className={`inline-flex items-center gap-2 h-10 px-4 bg-secondary text-muted-foreground rounded-lg text-base font-semibold cursor-not-allowed ${className}`}>
             <AlertTriangle className="w-4 h-4" />
             Project Disputed
           </div>
@@ -81,7 +81,7 @@ export function ReportButton({
 
     // Fallback: can't determine role — show disputed state (non-interactive)
     return (
-      <div className={`inline-flex items-center gap-2 h-11 px-5 bg-secondary text-muted-foreground rounded-[14px] text-base font-semibold cursor-not-allowed ${className}`}>
+      <div className={`inline-flex items-center gap-2 h-10 px-4 bg-secondary text-muted-foreground rounded-lg text-base font-semibold cursor-not-allowed ${className}`}>
         <AlertTriangle className="w-4 h-4" />
         Project Disputed
       </div>
@@ -93,7 +93,7 @@ export function ReportButton({
     <button
       type="button"
       onClick={onClick}
-      className={`inline-flex items-center gap-2 h-11 px-5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-[14px] text-base font-semibold transition ${className}`}
+      className={`inline-flex items-center gap-2 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg text-base font-semibold transition ${className}`}
     >
       <AlertTriangle className="w-4 h-4" />
       Report Dispute

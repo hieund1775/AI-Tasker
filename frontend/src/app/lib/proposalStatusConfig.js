@@ -9,7 +9,7 @@ import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 export const PROPOSAL_STATUS = {
   pending: {
     label: "Pending",
-    className: "bg-yellow-100 text-yellow-700",
+    className: "bg-warning-light text-warning",
     icon: Clock,
     meaning: "Proposal has been submitted and is waiting for the client's decision.",
   },
@@ -21,13 +21,13 @@ export const PROPOSAL_STATUS = {
   },
   declined: {
     label: "Declined",
-    className: "bg-red-100 text-red-700",
+    className: "bg-destructive-light text-destructive",
     icon: XCircle,
     meaning: "The client declined this proposal.",
   },
   rejected: {
     label: "Rejected",
-    className: "bg-red-100 text-red-700",
+    className: "bg-destructive-light text-destructive",
     icon: XCircle,
     meaning: "The client rejected this proposal.",
   },
@@ -45,37 +45,37 @@ export const PROPOSAL_STATUS = {
   },
   pending_escrow: {
     label: "Pending Payment",
-    className: "bg-amber-100 text-amber-700",
+    className: "bg-warning-light text-warning",
     icon: Clock,
     meaning: "The client accepted the proposal, pending escrow payment.",
   },
   pending_pay: {
     label: "Pending Pay",
-    className: "bg-amber-100 text-amber-700",
+    className: "bg-warning-light text-warning",
     icon: Clock,
     meaning: "The client accepted the proposal, pending escrow payment.",
   },
   report: {
     label: "Reported",
-    className: "bg-red-100 text-red-700",
+    className: "bg-destructive-light text-destructive",
     icon: AlertCircle,
     meaning: "This proposal/project has been reported.",
   },
   reported: {
     label: "Reported",
-    className: "bg-red-100 text-red-700",
+    className: "bg-destructive-light text-destructive",
     icon: AlertCircle,
     meaning: "This proposal/project has been reported.",
   },
   expired: {
     label: "Expired",
-    className: "bg-gray-100 text-gray-500 line-through",
+    className: "bg-muted text-muted-foreground line-through",
     icon: Clock,
     meaning: "This proposal has expired after 7 days without client response.",
   },
   settled_dispute: {
     label: "Settled dispute",
-    className: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
+    className: "bg-success-light text-success border border-success/20 font-semibold",
     icon: CheckCircle,
     meaning: "Dispute settled by force action.",
   },

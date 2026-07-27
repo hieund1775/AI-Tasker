@@ -19,7 +19,7 @@ import { safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 import { api, enrichFileUrl } from "../../../services/api.js";
 
-// ── Helpers for mini-task file resolution and blob downloads ──
+// â”€â”€ Helpers for mini-task file resolution and blob downloads â”€â”€
 function resolveMiniTaskFile(productFile) {
   if (!productFile) return null;
   let parsed = null;
@@ -97,16 +97,16 @@ function formatFileSize(bytes) {
 }
 
 // =============================================================================
-// MiniTaskChecklist — reusable mini-task checklist with role-based permissions.
+// MiniTaskChecklist â€” reusable mini-task checklist with role-based permissions.
 //
 // Props:
-//   miniTasks     — array of mini task objects
-//   editable      — boolean (true for expert, false for client)
-//   onToggle      — (taskId, miniTaskId) => void  (only called when editable)
-//   onUpdate      — (miniTaskId, updates) => void (new prop for inline edit)
-//   compact       — boolean (true for inline card display, false for full detail)
-//   emptyMessage  — custom empty message (optional)
-//   loading       — boolean, shows skeleton rows
+//   miniTasks     â€” array of mini task objects
+//   editable      â€” boolean (true for expert, false for client)
+//   onToggle      â€” (taskId, miniTaskId) => void  (only called when editable)
+//   onUpdate      â€” (miniTaskId, updates) => void (new prop for inline edit)
+//   compact       â€” boolean (true for inline card display, false for full detail)
+//   emptyMessage  â€” custom empty message (optional)
+//   loading       â€” boolean, shows skeleton rows
 // =============================================================================
 
 export function MiniTaskChecklist({
@@ -467,7 +467,7 @@ export function MiniTaskChecklist({
                           href={mini.productLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-medium transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           <span>Product Link</span>
@@ -577,4 +577,3 @@ export function MiniTaskChecklist({
     </div>
   );
 }
-

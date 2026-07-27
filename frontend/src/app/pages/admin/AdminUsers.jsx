@@ -23,17 +23,17 @@ import { useAuth } from "../../hooks/useAuth.js";
 
 const ROLE_COLORS = {
   client: "bg-brand-primary-light text-brand-primary",
-  expert: "bg-purple-100 text-purple-700",
-  admin: "bg-red-100 text-red-700",
-  owner: "bg-yellow-100 text-yellow-700",
+  expert: "bg-warning-light text-warning",
+  admin: "bg-destructive-light text-destructive",
+  owner: "bg-warning-light text-warning",
 };
 
 const STATUS_CONFIG = {
-  active: { color: "bg-green-100 text-green-700", label: "Active" },
-  inactive: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  suspended: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  locked: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  banned: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  active: { color: "bg-success-light text-success", label: "Active" },
+  inactive: { color: "bg-destructive-light text-destructive", label: "Inactive" },
+  suspended: { color: "bg-destructive-light text-destructive", label: "Inactive" },
+  locked: { color: "bg-destructive-light text-destructive", label: "Inactive" },
+  banned: { color: "bg-destructive-light text-destructive", label: "Inactive" },
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -219,7 +219,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     <div className="space-y-6">
 
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
+      <h1 className="text-2xl font-semibold text-foreground mb-2">
         User Management
       </h1>
       <p className="text-muted-foreground mb-6">
@@ -227,13 +227,13 @@ export function AdminUsers({ excludeRoles = [] }) {
       </p>
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -267,7 +267,7 @@ export function AdminUsers({ excludeRoles = [] }) {
                   const url = `${basePath}/${profileType}/${row.id}`;
                   navigate(url);
                 }}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-accent-light text-accent hover:bg-accent-light border border-accent/25"
               >
                 <Eye className="w-3.5 h-3.5" />
                 View
@@ -283,8 +283,8 @@ export function AdminUsers({ excludeRoles = [] }) {
                 }
                 disabled={actionLoading}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${isLocked
-                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  ? "bg-success-light text-success hover:bg-success-light border border-success/20"
+                  : "bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20"
                   }`}
               >
                 {isLocked ? (

@@ -242,13 +242,13 @@ export function AdminProjects() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Project Management</h1>
+      <h1 className="text-2xl font-semibold text-foreground mb-2">Project Management</h1>
       <p className="text-muted-foreground mb-6">
         View and manage all platform projects, requirements, and proposals.
       </p>
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -289,7 +289,7 @@ export function AdminProjects() {
             {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-brand-primary" />
                   {selectedDetailProject.title || selectedDetailProject.Title || "Project Detail"}
                 </h3>
@@ -322,13 +322,13 @@ export function AdminProjects() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground font-medium">Budget</p>
-                      <p className="text-sm font-bold text-foreground mt-1">
+                      <p className="text-sm font-semibold text-foreground mt-1">
                         <MoneyDisplay amount={fullProjectDetail?.budget || selectedDetailProject.budget || selectedDetailProject.Budget || 0} />
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground font-medium">Duration</p>
-                      <p className="text-sm font-bold text-foreground mt-1">
+                      <p className="text-sm font-semibold text-foreground mt-1">
                         {fullProjectDetail?.durationDays || selectedDetailProject.durationDays || selectedDetailProject.DurationDays || 1} Days
                       </p>
                     </div>
@@ -342,7 +342,7 @@ export function AdminProjects() {
 
                   {/* Category & Skills */}
                   <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Category & Skills</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category & Skills</h4>
                     <div className="flex flex-wrap gap-2 text-xs">
                       {(fullProjectDetail?.category || selectedDetailProject.category) && (
                         <span className="px-2.5 py-1 bg-brand-primary/10 text-brand-primary font-semibold rounded-md">
@@ -359,7 +359,7 @@ export function AdminProjects() {
 
                   {/* Description */}
                   <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Description</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</h4>
                     <div className="bg-secondary/30 border border-border rounded-xl p-4 text-sm text-foreground/90 whitespace-pre-wrap">
                       {fullProjectDetail?.description || selectedDetailProject.description || selectedDetailProject.Description || "No description provided."}
                     </div>
@@ -368,7 +368,7 @@ export function AdminProjects() {
                   {/* Tasks / User Stories (WBS) */}
                   {((fullProjectDetail?.useCases && fullProjectDetail.useCases.length > 0) || (fullProjectDetail?.jobPostTasks && fullProjectDetail.jobPostTasks.length > 0)) && (
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">User Stories / WBS Breakdown</h4>
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">User Stories / WBS Breakdown</h4>
                       <div className="space-y-2">
                         {(fullProjectDetail.useCases || fullProjectDetail.jobPostTasks).map((uc, idx) => (
                           <div key={idx} className="bg-secondary/40 border border-border rounded-xl p-4 space-y-2">
@@ -385,7 +385,7 @@ export function AdminProjects() {
 
                   {/* Attachments */}
                   <div className="space-y-2">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Project Attachments</h4>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Project Attachments</h4>
                     {(() => {
                       const cached = fullProjectDetail?._attachments || selectedDetailProject._attachments;
                       const rawBE = fullProjectDetail?.attachmentUrl || selectedDetailProject.attachmentUrl || selectedDetailProject.AttachmentUrl;
@@ -455,7 +455,7 @@ export function AdminProjects() {
             {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-6 py-4 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <FileText className="w-5 h-5 text-brand-primary" />
                   Proposals ({proposalsList.length})
                 </h3>
@@ -521,11 +521,11 @@ export function AdminProjects() {
                       {/* Proposal Header */}
                       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">
+                          <div className="w-10 h-10 rounded-full bg-brand-primary/10 text-brand-primary font-semibold flex items-center justify-center text-sm">
                             {expertDisplayName.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold text-foreground">{expertDisplayName}</h4>
+                            <h4 className="text-sm font-semibold text-foreground">{expertDisplayName}</h4>
                             <p className="text-xs text-muted-foreground">Proposal #{idx + 1}</p>
                           </div>
                         </div>
@@ -533,13 +533,13 @@ export function AdminProjects() {
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="text-xs text-muted-foreground font-medium">Bid Amount</p>
-                            <p className="text-sm font-bold text-brand-primary">
+                            <p className="text-sm font-semibold text-brand-primary">
                               <MoneyDisplay amount={bid} />
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-muted-foreground font-medium">Timeline</p>
-                            <p className="text-sm font-bold text-foreground">{estDays} Days</p>
+                            <p className="text-sm font-semibold text-foreground">{estDays} Days</p>
                           </div>
                           <StatusBadge status={status} entity="proposal" />
                         </div>
@@ -548,7 +548,7 @@ export function AdminProjects() {
                       {/* Cover Letter / Introduction */}
                       {coverText && (
                         <div className="space-y-1">
-                          <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Cover Letter / Introduction</h5>
+                          <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Cover Letter / Introduction</h5>
                           <div className="bg-card border border-border rounded-lg p-3 text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">
                             {coverText}
                           </div>
@@ -558,7 +558,7 @@ export function AdminProjects() {
                       {/* Parsed WBS Tasks */}
                       {parsedWbs && parsedWbs.tasks && parsedWbs.tasks.length > 0 && (
                         <div className="space-y-2">
-                          <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Proposed User Stories ({parsedWbs.tasks.length})</h5>
+                          <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Proposed User Stories ({parsedWbs.tasks.length})</h5>
                           <div className="space-y-2">
                             {parsedWbs.tasks.map((t, tIdx) => {
                               const cleanTitle = (t.title || "").replace(/\s*\[UCID:[^\]]+\]/gi, "").trim();
@@ -589,7 +589,7 @@ export function AdminProjects() {
                       {/* Proposal Attachments */}
                       {atts.length > 0 && (
                         <div className="space-y-1.5 pt-1">
-                          <h5 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Attached Assets ({atts.length})</h5>
+                          <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Attached Assets ({atts.length})</h5>
                           <div className="flex flex-wrap gap-2">
                             {atts.map((att, aIdx) => {
                               const rawUrl = typeof att === "string" ? att : (att.url || att.Url || "#");

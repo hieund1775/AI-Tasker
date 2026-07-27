@@ -218,20 +218,20 @@ export function JobDetail() {
         actions={
           user?.role === "expert" && !invitation ? (
             hasSubmitted ? (
-              <button disabled className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed">
+              <button disabled className="h-10 px-4 bg-secondary text-muted-foreground border border-border rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed">
                 <Send className="w-4 h-4" /> Proposal Submitted
               </button>
             ) : user.hasProfile ? (
-              <button type="button" onClick={() => navigate(`/expert/jobs/${id}/proposal`)} className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-medium text-sm inline-flex items-center gap-2 transition-colors">
+              <button type="button" onClick={() => navigate(`/expert/jobs/${id}/proposal`)} className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-medium text-sm inline-flex items-center gap-2 transition-colors">
                 <Send className="w-4 h-4" /> Apply Now
               </button>
             ) : (
               <div className="flex flex-col items-end gap-1.5">
-                <button disabled className="h-11 px-5 bg-muted text-muted-foreground rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed opacity-60">
+                <button disabled className="h-10 px-4 bg-muted text-muted-foreground rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed opacity-60">
                   <Send className="w-4 h-4" /> Apply Now
                 </button>
-                <span className="text-xs text-red-500 font-medium">
-                  Please <Link to="/expert/profile/edit" className="underline hover:text-red-700">complete your Profile</Link> to apply.
+                <span className="text-xs text-destructive font-medium">
+                  Please <Link to="/expert/profile/edit" className="underline hover:text-destructive">complete your Profile</Link> to apply.
                 </span>
               </div>
             )
@@ -241,16 +241,16 @@ export function JobDetail() {
 
       {/* Invitation banner */}
       {invitation && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="bg-success-light dark:bg-success-light border border-success/20 dark:border-success/30 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">You've been invited to this project!</h4>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Please Accept or Decline this invitation.</p>
+            <h4 className="text-sm font-semibold text-success dark:text-success">You've been invited to this project!</h4>
+            <p className="text-xs text-success dark:text-success mt-1">Please Accept or Decline this invitation.</p>
           </div>
           <div className="flex gap-3">
-            <button type="button" onClick={handleAcceptInvite} className="h-10 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <button type="button" onClick={handleAcceptInvite} className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
               Accept
             </button>
-            <button type="button" onClick={handleDeclineInvite} className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <button type="button" onClick={handleDeclineInvite} className="h-10 px-4 bg-destructive hover:bg-destructive text-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
               Decline
             </button>
           </div>
@@ -272,7 +272,7 @@ export function JobDetail() {
               {safeArray(job.useCases).map((uc, i) => (
                 <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2 text-left">
-                    <p className="font-bold text-foreground text-sm">
+                    <p className="font-semibold text-foreground text-sm">
                       User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
                     </p>
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
@@ -419,4 +419,3 @@ export function JobDetail() {
     </div>
   );
 }
-

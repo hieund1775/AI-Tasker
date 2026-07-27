@@ -38,15 +38,15 @@ function getFileColor(file) {
   const type = file.type || "";
   const name = (file.name || "").toLowerCase();
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif)$/.test(name))
-    return "text-green-500";
-  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-red-500";
+    return "text-success";
+  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-destructive";
   if (
     type ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     /\.docx?$/.test(name)
   )
-    return "text-blue-500";
-  if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
+    return "text-accent";
+  if (/\.zip$/.test(name) || type.includes("zip")) return "text-warning";
   return "text-muted-foreground";
 }
 
@@ -224,14 +224,14 @@ export function FileUploadDropzone({
             ${isDragging
               ? "border-brand-primary bg-brand-primary-light/30"
               : error
-                ? "border-red-300 bg-red-50/20"
+                ? "border-destructive/35 bg-destructive-light"
                 : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
             }
           `}
         >
           <Upload
             className={`w-8 h-8 mx-auto mb-2 ${
-              isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-muted-foreground/60"
+              isDragging ? "text-brand-primary" : error ? "text-destructive/55" : "text-muted-foreground/60"
             }`}
           />
           <p className="text-sm font-semibold text-foreground/80">
@@ -245,7 +245,7 @@ export function FileUploadDropzone({
               handleBrowse();
             }}
             disabled={disabled || !canAddMore}
-            className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-[14px] text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+            className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-lg text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
           >
             <Upload className="w-3.5 h-3.5" />
             Browse Files
@@ -255,7 +255,7 @@ export function FileUploadDropzone({
 
       {/* Error message */}
       {error && (
-        <p className="flex items-center gap-1.5 text-xs text-red-500">
+        <p className="flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
           {error}
         </p>
@@ -291,7 +291,7 @@ export function FileUploadDropzone({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="w-7 h-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
+                  className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
                   title="Remove file"
                 >
                   <X className="w-3.5 h-3.5" />

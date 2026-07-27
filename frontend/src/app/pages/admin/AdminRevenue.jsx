@@ -254,10 +254,10 @@ export function AdminRevenue() {
     {
       key: "amount",
       label: "System Revenue Amount",
-      className: "text-right font-semibold text-green-600",
+      className: "text-right font-semibold text-success",
       sortable: true,
       render: (val) => (
-        <span className="text-green-600 font-semibold">
+        <span className="text-success font-semibold">
           +<MoneyDisplay amount={Math.abs(val)} />
         </span>
       ),
@@ -281,7 +281,7 @@ export function AdminRevenue() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Revenue &amp; Transactions</h1>
+      <h1 className="text-2xl font-semibold text-foreground mb-2">Revenue &amp; Transactions</h1>
       <p className="text-muted-foreground mb-8">Platform system wallet revenue summary and transaction audit log.</p>
 
       {/* Summary cards */}
@@ -291,7 +291,7 @@ export function AdminRevenue() {
             label: "Total Realized Revenue (SystemWallet)",
             value: <MoneyDisplay amount={Math.abs(s.totalRevenue)} />,
             icon: TrendingUp,
-            color: "text-green-600 bg-green-100",
+            color: "text-success bg-success-light",
             desc: "Realized revenue credited to system wallet",
           },
           {
@@ -305,7 +305,7 @@ export function AdminRevenue() {
             label: "In Escrow (Active Projects)",
             value: <MoneyDisplay amount={Math.abs(s.escrowHeld)} />,
             icon: DollarSign,
-            color: "text-purple-600 bg-purple-100",
+            color: "text-warning bg-warning-light",
             desc: "Total escrow funds locked in active projects",
           },
         ].map((card, i) => (
@@ -316,7 +316,7 @@ export function AdminRevenue() {
               </div>
             </div>
             <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
-            <p className="text-xl font-bold text-foreground mt-0.5">{card.value}</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5">{card.value}</p>
             <p className="text-xs text-muted-foreground/70 mt-1">{card.desc}</p>
           </div>
         ))}

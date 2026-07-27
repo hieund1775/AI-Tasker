@@ -1,4 +1,4 @@
-import * as TogglePrimitive from "@radix-ui/react-toggle";
+﻿import * as TogglePrimitive from "@radix-ui/react-toggle";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils.js";
 
@@ -12,7 +12,7 @@ const toggleVariants = cva(
           "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
       },
       size: {
-        default: "h-11 px-4 min-w-11",
+        default: "h-10 px-4 min-w-11",
         sm: "h-10 px-3 min-w-10",
         lg: "h-12 px-5 min-w-12",
       },

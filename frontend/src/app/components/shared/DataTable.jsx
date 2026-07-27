@@ -1,18 +1,18 @@
 // =============================================================================
-// DataTable — reusable admin table with search, filter, pagination, and actions.
+// DataTable - reusable admin table with search, filter, pagination, and actions.
 //
 // Props:
-//   columns       — [{ key, label, sortable?, render?, filterOptions?: [{label, value}] }]
-//   data          — array of row objects
-//   loading       — boolean
-//   emptyMessage  — string shown when no data
-//   searchPlaceholder — placeholder for search input
-//   searchValue   — controlled search value
-//   onSearchChange — (value: string) => void
-//   filters       — optional filter controls rendered above the table (global filters)
-//   actions       — (row) => JSX — action buttons per row
-//   onRowClick    — (row) => void — row click handler
-//   pageSize      — number of rows per page (default: 10)
+//   columns       - [{ key, label, sortable?, render?, filterOptions?: [{label, value}] }]
+//   data          - array of row objects
+//   loading       - boolean
+//   emptyMessage  - string shown when no data
+//   searchPlaceholder - placeholder for search input
+//   searchValue   - controlled search value
+//   onSearchChange - (value: string) => void
+//   filters       - optional filter controls rendered above the table (global filters)
+//   actions       - (row) => JSX - action buttons per row
+//   onRowClick    - (row) => void - row click handler
+//   pageSize      - number of rows per page (default: 10)
 // =============================================================================
 
 import { Search, X, Database, ChevronLeft, ChevronRight, Filter, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
@@ -49,9 +49,8 @@ export function DataTable({
 
   const handleSort = (colKey) => {
     setSortState(prev => {
-      if (prev.key !== colKey) return { key: colKey, dir: 'desc' };
-      if (prev.dir === 'desc') return { key: colKey, dir: 'asc' };
-      return { key: null, dir: null };
+      if (prev.key !== colKey) return { key: colKey, dir: "asc" };
+      return { key: colKey, dir: prev.dir === "asc" ? "desc" : "asc" };
     });
     setCurrentPage(1);
   };
@@ -146,10 +145,10 @@ export function DataTable({
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border flex flex-col shadow-sm">
+    <div className="bg-card rounded-2xl border border-border flex flex-col shadow-sm overflow-hidden">
       {/* Header: search + global filters */}
       {(onSearchChange || filters || !onSearchChange) && (
-        <div className="px-5 py-4 border-b border-border flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="px-5 py-4 border-b border-border/70 bg-card/70 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="relative w-full sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
             <input
@@ -157,12 +156,12 @@ export function DataTable({
               placeholder={searchPlaceholder}
               value={searchVal}
               onChange={(e) => handleSearch(e.target.value)}
-              className="w-full h-10 pl-9 pr-8 text-sm border border-input rounded-lg bg-background outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary placeholder:text-muted-foreground/50 transition-colors"
+              className="w-full h-10 pl-9 pr-8 text-sm border border-input rounded-xl bg-input-background outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground/50 transition-colors"
             />
             {searchVal && (
               <button
                 onClick={() => handleSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-md hover:bg-muted"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-lg hover:bg-muted"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -176,21 +175,21 @@ export function DataTable({
       <div className="overflow-x-auto min-h-[300px]">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-secondary/30">
+            <tr className="border-b border-border/70 bg-secondary/45">
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`text-left px-5 py-3.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-wider relative ${
+                  className={`text-left px-5 py-2.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-[0.08em] relative ${
                     col.className || ""
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    {col.sortable ? (
+                    {col.sortable !== false ? (
                       <button
                         type="button"
                         onClick={() => handleSort(col.key)}
                         className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer group"
-                        title={sortState.key === col.key ? (sortState.dir === 'desc' ? 'Sort ascending' : 'Clear sort') : 'Sort descending'}
+                        title={sortState.key === col.key && sortState.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
                       >
                         {col.label}
                         <span className="flex flex-col -space-y-1">
@@ -256,7 +255,7 @@ export function DataTable({
                 </th>
               ))}
               {actions && (
-                <th className="text-right px-5 py-3.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="text-right px-5 py-2.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Actions
                 </th>
               )}
@@ -293,7 +292,7 @@ export function DataTable({
               paginatedData.map((row, idx) => (
                 <tr
                   key={row.id || idx}
-                  className={`border-b border-border/40 hover:bg-muted/30 transition-colors ${
+                  className={`border-b border-border/45 hover:bg-accent/[0.035] transition-colors ${
                     onRowClick ? "cursor-pointer" : ""
                   }`}
                   onClick={() => onRowClick?.(row)}
@@ -329,7 +328,7 @@ export function DataTable({
 
       {/* Footer: Pagination */}
       {!loading && totalItems > 0 && (
-        <div className="px-5 py-4 border-t border-border flex items-center justify-between bg-secondary/10">
+        <div className="px-5 py-4 border-t border-border/70 flex items-center justify-between bg-secondary/25">
           <div className="text-sm text-muted-foreground">
             Showing <span className="font-medium text-foreground">{startIndex + 1}</span> to{" "}
             <span className="font-medium text-foreground">{endIndex}</span> of{" "}
@@ -341,7 +340,7 @@ export function DataTable({
               <button
                 onClick={() => handlePageChange(safeCurrentPage - 1)}
                 disabled={safeCurrentPage === 1}
-                className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-xl border border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -359,7 +358,7 @@ export function DataTable({
                       <button
                         key={pageNumber}
                         onClick={() => handlePageChange(pageNumber)}
-                        className={`min-w-[32px] h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                        className={`min-w-[32px] h-8 flex items-center justify-center rounded-xl text-sm font-medium transition-colors ${
                           safeCurrentPage === pageNumber
                             ? "bg-brand-primary text-brand-primary-foreground border border-brand-primary"
                             : "border border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -385,7 +384,7 @@ export function DataTable({
               <button
                 onClick={() => handlePageChange(safeCurrentPage + 1)}
                 disabled={safeCurrentPage === totalPages}
-                className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+                className="p-1.5 rounded-xl border border-border text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -398,4 +397,3 @@ export function DataTable({
 }
 
 export default DataTable;
-

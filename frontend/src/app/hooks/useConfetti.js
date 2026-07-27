@@ -1,8 +1,8 @@
-import { useCallback } from "react";
+﻿import { useCallback } from "react";
 import confetti from "canvas-confetti";
 
 /**
- * useConfetti — fires a subtle confetti burst for celebrations.
+ * useConfetti â€” fires a subtle confetti burst for celebrations.
  *
  * Think Stripe dashboard's subtle confetti, not full-screen fireworks.
  * Call fire() on project completion, milestone achievement, etc.
@@ -13,11 +13,16 @@ import confetti from "canvas-confetti";
  */
 export function useConfetti() {
   const fire = useCallback((options = {}) => {
+    const styles = getComputedStyle(document.documentElement);
+    const themeColors = ["--accent", "--primary", "--success"]
+      .map((token) => styles.getPropertyValue(token).trim())
+      .filter(Boolean);
+
     const defaults = {
       particleCount: 80,
       spread: 60,
       origin: { y: 0.6 },
-      colors: ["#3b82f6", "#10b981", "#f59e0b"],
+      colors: themeColors,
       ...options,
     };
 

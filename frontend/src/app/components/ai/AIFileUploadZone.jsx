@@ -24,14 +24,14 @@ function getFileColor(file) {
   const type = file.type || "";
   const name = (file.name || "").toLowerCase();
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif)$/.test(name))
-    return "text-green-500";
-  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-red-500";
+    return "text-success";
+  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-destructive";
   if (
     type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     /\.docx?$/.test(name)
   )
-    return "text-blue-500";
-  if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
+    return "text-accent";
+  if (/\.zip$/.test(name) || type.includes("zip")) return "text-warning";
   return "text-muted-foreground";
 }
 
@@ -224,7 +224,7 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
                   <button
                     type="button"
                     onClick={() => removeFile(index)}
-                    className="w-6 h-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center"
+                    className="w-6 h-6 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-md transition-colors inline-flex items-center justify-center"
                     title="Remove file"
                   >
                     <X className="w-3 h-3" />

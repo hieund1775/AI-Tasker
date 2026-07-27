@@ -214,7 +214,7 @@ export function ReportForm({
       {/* ---- Entered fields ---- */}
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Response Reason" : "Report Reason"} <span className="text-red-500">*</span>
+          {isResponse ? "Response Reason" : "Report Reason"} <span className="text-destructive">*</span>
         </label>
         <input
           type="text"
@@ -222,18 +222,18 @@ export function ReportForm({
           onChange={(e) => setReason(e.target.value)}
           placeholder={isResponse ? "e.g. Deliverable completed but client has not released funds" : "e.g. Client has not paid after project completion"}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-            errors.reason ? "border-red-300" : "border-input"
+            errors.reason ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.reason && (
-          <p className="mt-1 text-xs text-red-500">{errors.reason}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.reason}</p>
         )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          Dispute Type <span className="text-red-500">*</span>
+          Dispute Type <span className="text-destructive">*</span>
         </label>
         <select
           value={disputeType}
@@ -251,7 +251,7 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Detailed Response Content" : "Detailed Description"} <span className="text-red-500">*</span>
+          {isResponse ? "Detailed Response Content" : "Detailed Description"} <span className="text-destructive">*</span>
         </label>
         <textarea
           value={description}
@@ -259,18 +259,18 @@ export function ReportForm({
           placeholder={isResponse ? "Describe explanation in detail..." : "Describe the issue in detail, timeline of events..."}
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.description ? "border-red-300" : "border-input"
+            errors.description ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.description && (
-          <p className="mt-1 text-xs text-red-500">{errors.description}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.description}</p>
         )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Desired Resolution" : "Desired Resolution"} <span className="text-red-500">*</span>
+          {isResponse ? "Desired Resolution" : "Desired Resolution"} <span className="text-destructive">*</span>
         </label>
         <textarea
           value={desiredResolution}
@@ -278,12 +278,12 @@ export function ReportForm({
           placeholder={isResponse ? "e.g. Request full payout release from escrow" : "How would you like this to be resolved?"}
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.desiredResolution ? "border-red-300" : "border-input"
+            errors.desiredResolution ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.desiredResolution && (
-          <p className="mt-1 text-xs text-red-500">
+          <p className="mt-1 text-xs text-destructive">
             {errors.desiredResolution}
           </p>
         )}
@@ -308,7 +308,7 @@ export function ReportForm({
           )}
         </div>
         {errors.evidence && (
-          <p className="mb-2 text-xs text-red-500">{errors.evidence}</p>
+          <p className="mb-2 text-xs text-destructive">{errors.evidence}</p>
         )}
 
         {evidence.length === 0 && (
@@ -334,7 +334,7 @@ export function ReportForm({
                 <button
                   type="button"
                   onClick={() => removeEvidence(item.id)}
-                  className="p-1 text-muted-foreground hover:text-red-500 transition cursor-pointer"
+                  className="p-1 text-muted-foreground hover:text-destructive transition cursor-pointer"
                   disabled={isLoading}
                 >
                   <X className="w-4 h-4" />
@@ -387,7 +387,7 @@ export function ReportForm({
         <button
           type="submit"
           disabled={isLoading}
-          className="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2 transition"
+          className="px-5 py-2.5 bg-destructive text-primary-foreground rounded-lg text-sm font-medium hover:bg-destructive disabled:opacity-50 inline-flex items-center gap-2 transition"
         >
           {isLoading ? (
             <>

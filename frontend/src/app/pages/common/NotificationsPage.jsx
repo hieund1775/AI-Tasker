@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 import { Button } from "../../components/ui/button.jsx";
@@ -175,7 +175,7 @@ export function NotificationsPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
             {unreadCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-bold">
+              <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-semibold">
                 {unreadCount}
               </span>
             )}

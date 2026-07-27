@@ -80,17 +80,17 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+  let badgeClass = "bg-accent-light text-accent border-accent/25";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    badgeClass = "bg-success-light0/10 text-success border-success/20";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+    badgeClass = "bg-destructive-light0/10 text-destructive border-destructive/20";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+    badgeClass = "bg-destructive-light text-destructive border border-destructive/20 font-semibold";
   } else {
     const hasProjectRecord = !!project.projectId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -100,7 +100,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      badgeClass = "bg-warning-light/10 text-warning border-warning/20";
     }
   }
 
@@ -361,13 +361,13 @@ export function ClientDashboard() {
       </div>
 
       {/* Hero Welcome Banner */}
-      <div className="relative bg-gradient-to-br from-accent/[0.06] via-accent/[0.02] to-violet-500/[0.03] rounded-2xl border border-border/50 shadow-sm p-6 mb-8 overflow-hidden group">
+      <div className="relative bg-gradient-to-br from-accent/[0.06] via-accent/[0.02] to-warning/[0.04] rounded-2xl border border-border/50 shadow-sm p-6 mb-8 overflow-hidden group">
         <div className="absolute inset-0 brand-neural opacity-10 pointer-events-none" />
         {/* Subtle animated shimmer on hover */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1200 pointer-events-none" />
         <div className="relative flex items-center gap-4">
           <div className="relative">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-violet-500/10 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-accent/20 to-warning/15 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform duration-300">
               <User className="w-6 h-6 text-accent" />
             </div>
             <div className="absolute inset-0 rounded-xl bg-accent/8 blur-lg -z-[1] animate-sparkle-pulse" />
@@ -514,7 +514,7 @@ export function ClientDashboard() {
                         </div>
                         <div>
                           <span className="block text-[11px] uppercase font-semibold tracking-[0.04em] text-muted-foreground">Budget</span>
-                          <span className="font-bold text-sm text-success">
+                          <span className="font-semibold text-sm text-success">
                             <MoneyDisplay amount={p.budget} />
                           </span>
                         </div>
@@ -561,7 +561,7 @@ export function ClientDashboard() {
                             );
                             if (existingActiveReport) {
                               return (
-                                <span className="h-9 px-4 border border-amber-300 text-amber-700 bg-amber-50 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                <span className="h-9 px-4 border border-warning/35 text-warning bg-warning-light rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
                                   <AlertTriangle className="w-3.5 h-3.5" /> Dispute is processing
                                 </span>
                               );
@@ -586,7 +586,7 @@ export function ClientDashboard() {
                                   setExplainingReport(reportForProject);
                                   setShowExplanationForm(true);
                                 }}
-                                className="h-9 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                                className="h-9 px-4 bg-warning-light hover:bg-warning border border-warning/20 text-primary-foreground rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
                                 <AlertTriangle className="w-3.5 h-3.5" /> Submit Response
                               </button>

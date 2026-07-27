@@ -1,10 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Mail, CheckCircle, X } from "lucide-react";
 import { forgotPassword } from "../../../services/authService";
 
 /**
- * ForgotPasswordPage — password reset request screen.
+ * ForgotPasswordPage â€” password reset request screen.
  */
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -53,11 +53,11 @@ export function ForgotPasswordPage() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-base">AI</span>
+              <span className="text-primary-foreground font-semibold text-base">AI</span>
             </div>
-            <span className="text-xl font-bold text-foreground tracking-tight">Tasker</span>
+            <span className="text-xl font-semibold text-foreground tracking-tight">Tasker</span>
           </Link>
-          <h2 className="text-xl font-bold text-foreground tracking-tight">Forgot Password</h2>
+          <h2 className="text-xl font-semibold text-foreground tracking-tight">Forgot Password</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {submitted
               ? "Check your email for reset instructions."

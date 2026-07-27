@@ -139,7 +139,7 @@ export function EditClientProfile() {
         <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <h1 className="text-2xl font-bold text-foreground">Edit Profile</h1>
+        <h1 className="text-2xl font-semibold text-foreground">Edit Profile</h1>
       </div>
 
       <form
@@ -156,7 +156,7 @@ export function EditClientProfile() {
         ].map(({ key, label, type, required }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              {label} {required && <span className="text-red-500">*</span>}
+              {label} {required && <span className="text-destructive">*</span>}
             </label>
             <input
               type={type}
@@ -184,13 +184,13 @@ export function EditClientProfile() {
           <button
             type="submit"
             disabled={saving}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="h-10 px-4 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Changes"}
           </button>
           <Link
             to="/client/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+            className="h-10 px-4 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

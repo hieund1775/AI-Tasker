@@ -125,11 +125,11 @@ export function SignUpPage() {
                   className="absolute inset-0 opacity-30 rounded-lg"
                   style={{ background: 'radial-gradient(circle at 40% 30%, white 0%, transparent 60%)' }}
                 />
-                <span className="text-primary-foreground font-bold text-base relative z-[1]">AI</span>
+                <span className="text-primary-foreground font-semibold text-base relative z-[1]">AI</span>
               </div>
-              <span className="text-xl font-bold text-foreground tracking-tight">Tasker</span>
+              <span className="text-xl font-semibold text-foreground tracking-tight">Tasker</span>
             </Link>
-            <h2 className="text-xl font-bold text-foreground tracking-tight">Create Account</h2>
+            <h2 className="text-xl font-semibold text-foreground tracking-tight">Create Account</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">Join our platform today</p>
           </div>
 
@@ -236,7 +236,7 @@ export function SignUpPage() {
                     setError("");
                   }}
                   className="w-full h-10 px-3.5 pr-10 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   required
                 />
                 <button
@@ -266,7 +266,7 @@ export function SignUpPage() {
                     setError("");
                   }}
                   className="w-full h-10 px-3.5 pr-10 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50 transition-shadow"
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   required
                 />
                 <button
@@ -304,7 +304,7 @@ export function SignUpPage() {
             </p>
           </div>
 
-          {/* Demo hint — remove in production */}
+          {/* Demo hint â€” remove in production */}
           <div className="mt-4 p-3 bg-secondary/30 border border-border rounded-lg">
             <p className="text-xs text-muted-foreground text-center">
               <span className="font-semibold">Demo:</span> Choose Client or Expert

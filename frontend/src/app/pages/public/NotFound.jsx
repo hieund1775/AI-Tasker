@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import { FileQuestion } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -26,7 +26,7 @@ export function NotFound() {
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.15, duration: 0.5, ease: "easeOut" }}
-            className="text-8xl font-bold text-foreground/8 mb-2 select-none"
+            className="text-8xl font-semibold text-foreground/8 mb-2 select-none"
           >
             404
           </motion.p>
@@ -36,7 +36,7 @@ export function NotFound() {
             <FileQuestion className="w-8 h-8 text-muted-foreground/40" />
           </div>
 
-          <h2 className="text-xl font-bold text-foreground mb-2">Page Not Found</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-2">Page Not Found</h2>
           <p className="text-sm text-muted-foreground mb-7 max-w-xs mx-auto leading-relaxed">
             The page you are looking for doesn&apos;t exist or has been moved.
           </p>

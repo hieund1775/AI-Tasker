@@ -24,15 +24,15 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 // ---------------------------------------------------------------------------
 
 const REPORT_STATUS_CONFIG = {
-  "Pending Admin": { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
-  Pending: { color: "bg-yellow-100 text-yellow-700 border border-yellow-200", label: "Pending Admin" },
-  "Awaiting Expert": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Expert" },
+  "Pending Admin": { color: "bg-warning-light text-warning border border-warning/20", label: "Pending Admin" },
+  Pending: { color: "bg-warning-light text-warning border border-warning/20", label: "Pending Admin" },
+  "Awaiting Expert": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Expert" },
   "Awaiting Client": { color: "bg-secondary text-secondary-foreground border border-border", label: "Awaiting Client" },
-  "Awaiting Partner": { color: "bg-amber-100 text-amber-700 border border-amber-200", label: "Awaiting Partner" },
-  Returned: { color: "bg-rose-100 text-rose-700 border border-rose-200", label: "Returned" },
-  Resolved: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
-  Accepted: { color: "bg-green-100 text-green-700 border border-green-200", label: "Resolved" },
-  Rejected: { color: "bg-red-100 text-red-700 border border-red-200", label: "Rejected" },
+  "Awaiting Partner": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Partner" },
+  Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
+  Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
+  Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
+  Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
 const STATUS_OPTIONS = [
@@ -144,12 +144,12 @@ export function AdminDisputes() {
         const disputeKey = row.disputeType || val || "other";
         const label = reportTypes[disputeKey] || disputeKey;
         const colors = {
-          financial: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800",
-          communication: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800",
-          quality: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-400 dark:border-purple-800",
-          deadline: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800",
-          other: "bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-800/30 dark:text-gray-400 dark:border-gray-700",
-          cancellation: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-400 dark:border-rose-800",
+          financial: "bg-success-light text-success border-success/20 dark:bg-success-light dark:text-success dark:border-success/30",
+          communication: "bg-accent-light text-accent border-accent/25 dark:bg-accent-light dark:text-accent dark:border-accent/30",
+          quality: "bg-warning-light text-warning border-warning/30 dark:bg-warning-light dark:text-warning dark:border-warning/30",
+          deadline: "bg-warning-light text-warning border-warning/20 dark:bg-warning-light dark:text-warning dark:border-warning/30",
+          other: "bg-secondary text-foreground border-border dark:bg-secondary dark:text-muted-foreground dark:border-border",
+          cancellation: "bg-destructive-light text-destructive border-destructive/20 dark:bg-destructive-light dark:text-destructive dark:border-destructive/30",
         };
         const badgeClass = colors[disputeKey] || colors.other;
         return (
@@ -219,7 +219,7 @@ export function AdminDisputes() {
 
       {/* Error state */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -228,23 +228,23 @@ export function AdminDisputes() {
       {!loading && !error && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           <div className="bg-card rounded-xl border border-border p-4 text-center">
-            <p className="text-2xl font-bold text-foreground">{allReports.length}</p>
+            <p className="text-2xl font-semibold text-foreground">{allReports.length}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Total Reports</p>
           </div>
-          <div className="bg-card rounded-xl border border-yellow-200 dark:border-yellow-800 p-4 text-center">
-            <p className="text-2xl font-bold text-yellow-700 dark:text-yellow-400">
+          <div className="bg-card rounded-xl border border-warning/20 dark:border-warning/30 p-4 text-center">
+            <p className="text-2xl font-semibold text-warning dark:text-warning">
               {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Active</p>
           </div>
-          <div className="bg-card rounded-xl border border-green-200 dark:border-green-800 p-4 text-center">
-            <p className="text-2xl font-bold text-green-700 dark:text-green-400">
+          <div className="bg-card rounded-xl border border-success/20 dark:border-success/30 p-4 text-center">
+            <p className="text-2xl font-semibold text-success dark:text-success">
               {allReports.filter(r => r.status === "Resolved" || r.status === "Accepted" || r.status === "cancel_done").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Resolved</p>
           </div>
-          <div className="bg-card rounded-xl border border-red-200 dark:border-red-800 p-4 text-center">
-            <p className="text-2xl font-bold text-red-700 dark:text-red-400">
+          <div className="bg-card rounded-xl border border-destructive/20 dark:border-destructive/30 p-4 text-center">
+            <p className="text-2xl font-semibold text-destructive dark:text-destructive">
               {allReports.filter(r => r.status === "Rejected").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Rejected</p>

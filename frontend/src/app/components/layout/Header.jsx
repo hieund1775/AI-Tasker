@@ -117,24 +117,24 @@ export function Header() {
   };
 
   // Common nav link style
-  const navLinkClass = "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-foreground after:transition-all hover:after:w-full";
-  const activeNavClass = "text-sm font-medium text-foreground";
+  const navLinkClass = "inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
+  const activeNavClass = "inline-flex h-10 items-center rounded-xl bg-secondary px-3.5 text-sm font-semibold text-foreground shadow-inner shadow-foreground/[0.025]";
 
   return (
-    <header className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-50 select-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+    <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
+      <div className="mx-auto max-w-[1180px] px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">AI</span>
+              <span className="text-primary-foreground font-semibold text-sm">AI</span>
             </div>
             <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
           </Link>
 
           {/* Navigation Link Items — desktop only */}
           {isAuthenticated && role && (
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden items-center gap-3 md:flex">
               {role !== "admin" && role !== "owner" && role !== "staff" && (
                 <Link
                   to={`/${role}/dashboard`}
@@ -171,14 +171,14 @@ export function Header() {
           )}
 
           {/* Right Side Control Toolbar */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
                 {/* Wallet (Client only) */}
                 {role === "client" && (
                   <Link
                     to="/client/billing"
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
                     title="Billing & Wallet"
                   >
                     <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
@@ -189,7 +189,7 @@ export function Header() {
                 {role === "expert" && (
                   <Link
                     to="/expert/wallet"
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
                     title="Wallet"
                   >
                     <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
@@ -201,7 +201,7 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => setShowThemeMenu(!showThemeMenu)}
-                    className={`p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center ${
+                    className={`p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center ${
                       showThemeMenu ? "bg-secondary text-foreground" : ""
                     }`}
                     title={`Theme: ${getThemeLabel()}`}
@@ -229,7 +229,7 @@ export function Header() {
                               setTheme(mode);
                               setShowThemeMenu(false);
                             }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
                               theme === mode
                                 ? "bg-accent-light text-accent font-medium"
                                 : "text-foreground hover:bg-secondary"
@@ -252,14 +252,14 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className={`p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all relative flex items-center justify-center ${
+                    className={`p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all relative flex items-center justify-center ${
                       showNotifications ? "bg-secondary text-foreground" : ""
                     }`}
                   >
                     <Bell className="w-4.5 h-4.5 stroke-[1.8]" />
 
                     {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] bg-accent text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background px-[3px]">
+                      <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] bg-accent text-primary-foreground rounded-full text-[9px] font-semibold flex items-center justify-center border border-background px-[3px]">
                         {unreadCount}
                       </span>
                     )}
@@ -268,7 +268,7 @@ export function Header() {
                   {/* Notification Dropdown */}
                   {showNotifications && (
                     <div className="absolute right-0 top-11 w-80 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 text-left animate-fade-in">
-                      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
                         <span className="text-xs font-semibold text-foreground uppercase tracking-[0.04em]">
                           Notifications
                         </span>
@@ -297,7 +297,7 @@ export function Header() {
                                 setShowNotifications(false);
                                 if (noti.linkTo) navigate(noti.linkTo);
                               }}
-                              className={`px-4 py-3 flex items-start gap-3 transition-colors cursor-pointer ${
+                              className={`px-4 py-2.5 flex items-start gap-3 transition-colors cursor-pointer ${
                                 noti.isUnread
                                   ? "bg-accent/[0.04] hover:bg-accent/[0.08]"
                                   : "hover:bg-secondary/50"
@@ -339,7 +339,7 @@ export function Header() {
                 {/* Profile Link */}
                 <Link
                   to={`/${role}/profile`}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
+                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
                   title="Profile"
                 >
                   <User className="w-4.5 h-4.5 stroke-[1.8]" />
@@ -347,7 +347,7 @@ export function Header() {
 
                 <button
                   onClick={handleLogout}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors ml-1"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-xl transition-colors ml-1"
                 >
                   <LogOut className="w-4 h-4" />
                   <span>Logout</span>
@@ -372,7 +372,7 @@ export function Header() {
 
             {/* Mobile menu toggle */}
             <button
-              className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
+              className="md:hidden p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
               onClick={() => setShowMobileMenu(!showMobileMenu)}
             >
               {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

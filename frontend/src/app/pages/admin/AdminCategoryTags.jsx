@@ -349,7 +349,7 @@ export function AdminCategoryTags() {
           <Tag className="w-5 h-5 text-accent" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-2xl font-semibold text-foreground">
             Skills &amp; Categories
           </h1>
         </div>
@@ -363,8 +363,8 @@ export function AdminCategoryTags() {
         <div
           className={`mb-4 p-3 border rounded-lg text-sm ${
             feedback.type === "error"
-              ? "bg-red-50 border-red-200 text-red-700"
-              : "bg-green-50 border-green-200 text-green-700"
+              ? "bg-destructive-light border-destructive/20 text-destructive"
+              : "bg-success-light border-success/20 text-success"
           }`}
         >
           {feedback.text}
@@ -382,7 +382,7 @@ export function AdminCategoryTags() {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 isActive
                   ? "border-accent text-accent"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -390,7 +390,7 @@ export function AdminCategoryTags() {
             >
               <Icon className="w-4 h-4" />
               {tab.label}
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                 isActive ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground"
               }`}>
                 {count}
@@ -407,7 +407,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {skillsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {skillsError}
             </div>
           )}
@@ -483,7 +483,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {categoriesError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {categoriesError}
             </div>
           )}
@@ -559,7 +559,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {specializationsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {specializationsError}
             </div>
           )}
