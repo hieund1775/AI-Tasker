@@ -657,10 +657,14 @@ export function AdminReportDetail() {
       await acceptReport(id, report);
       // Pause project as disputed
       if (report?.projectId) {
-        const res = await pauseProjectAsDisputed(report.projectId, { reportId: id, staffId });
-        const disputeId = res?.disputeId || res?.DisputeId || res?.data?.disputeId || res?.data?.DisputeId;
-        if (disputeId) {
-          localStorage.setItem(`dispute_id_for_report_${id}`, disputeId);
+        try {
+          const res = await pauseProjectAsDisputed(report.projectId, { reportId: id, staffId });
+          const disputeId = res?.disputeId || res?.DisputeId || res?.data?.disputeId || res?.data?.DisputeId;
+          if (disputeId) {
+            localStorage.setItem(`dispute_id_for_report_${id}`, disputeId);
+          }
+        } catch (disputeErr) {
+          console.warn("pauseProjectAsDisputed API call fallback:", disputeErr);
         }
         localStorage.setItem(`project_status_${report.projectId}`, "disputed");
       }
@@ -682,6 +686,9 @@ export function AdminReportDetail() {
         projectId: report?.projectId,
         reportId: id,
       }).catch(() => { });
+
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      fetchReport();
     } catch (err) {
       showToast(err.message || "Error accepting report.");
     } finally {

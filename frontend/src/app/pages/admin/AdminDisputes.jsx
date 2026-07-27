@@ -84,6 +84,9 @@ export function AdminDisputes() {
 
   useEffect(() => {
     fetchReports();
+    const handleUpdate = () => fetchReports();
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [fetchReports]);
 
   // Apply filters locally whenever search/status/allReports change

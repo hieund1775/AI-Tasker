@@ -730,7 +730,8 @@ export function ExpertDashboard() {
                       <div className="flex items-center">
                         {(() => {
                           const isDisputed = displayStatus === "Disputed";
-                          if (!isDisputed) {
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
                             return (
                               <button
                                 onClick={() => {

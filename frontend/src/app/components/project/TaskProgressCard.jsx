@@ -93,11 +93,13 @@ export function TaskProgressCard({
   task,
   role = "client",
   projectId,
+  projectStatus,
   loading = false,
   onToggleMiniTask,
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isProjectClosed = ["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((projectStatus || "").toLowerCase());
 
   const [showDeclineForm, setShowDeclineForm] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
@@ -237,7 +239,7 @@ export function TaskProgressCard({
   const isChecklistCompleted = task.displayStatus === "Checklist Completed" || task.status === "checklist_completed";
   const isRework = task.displayStatus === "Rework" || task.status === "rework";
   const isWaitingForExpertProduct = task.displayStatus === "Waiting for Expert Product" || task.status === "waiting_expert_product";
-  const hasMainProduct = !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile));
+  const hasMainProduct = !!(task.productLink || task.productFile);
   const hasEvidence = !!task.handoverEvidence;
   const allMinisDone = task.completedMiniTasks === task.totalMiniTasks && task.totalMiniTasks > 0;
   const productRequested = task?.urgentRequest === true || task?.productRequested === true;

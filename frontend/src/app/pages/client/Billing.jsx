@@ -37,6 +37,7 @@ const typeLabels = {
   platformfee: "platform fee",
   platform_fee: "platform fee",
   cancel: "cancellation request",
+  report_request: "reported request",
   verdict: "report",
 };
 
@@ -123,7 +124,7 @@ export function Billing() {
           const projectReportMap = new Map();
           reports.forEach(r => {
             const pId = String(r.projectId || r.ProjectId || "").toLowerCase();
-            if (pId && (r.reportType === "cancellation" || r.disputeType === "cancellation")) {
+            if (pId) {
               projectReportMap.set(pId, r);
             }
           });
@@ -307,16 +308,22 @@ export function Billing() {
                 return; // Skip all other raw rows for cancelled project
               }
 
-              // Skip deposit transactions that match dispute verdict refund amounts
+              // Skip deposit transactions that match dispute/report verdict refund amounts
               if (lType === "deposit" || lType === "manualdeposit") {
                 let isVerdictDeposit = false;
                 cancelledProjectSplits.forEach((split, pid) => {
+                  const grossBudget = split.escrowTotal || split.clientRefund || 10000;
+                  const platformFee = Math.round(grossBudget * 0.05);
+                  const netRefund = grossBudget - platformFee;
+                  if (Math.abs(tAmount - netRefund) < 2.0 || Math.abs(tAmount - split.clientRefund) < 2.0) {
+                    isVerdictDeposit = true;
+                  }
                   const dvRaw = localStorage.getItem(`dispute_verdict_${pid}`);
                   if (!dvRaw) return;
                   try {
                     const dv = JSON.parse(dvRaw);
                     const netAmount = dv.clientReceives - dv.clientFee;
-                    if (Math.abs(tAmount - netAmount) < 1) isVerdictDeposit = true;
+                    if (Math.abs(tAmount - netAmount) < 2.0) isVerdictDeposit = true;
                   } catch (e) { }
                 });
                 if (isVerdictDeposit) return;
@@ -362,6 +369,47 @@ export function Billing() {
               });
             }
 
+            const report = projectReportMap.get(projIdLower);
+            const isReportResolvedByAdmin = report && (
+              report.reportType !== "cancellation" ||
+              report.adminNote ||
+              localStorage.getItem(`report_status_${projIdLower}`) ||
+              ["Resolved", "Accepted"].includes(report.status)
+            );
+
+            if (isReportResolvedByAdmin) {
+              // Report Flow (Admin resolution): Only show rows IF Client actually receives refund!
+              if (split?.clientRefund > 0) {
+                const grossBudget = split.escrowTotal || split.clientRefund || 10000;
+                const pFee = Math.round(grossBudget * 0.05);
+
+                myTransactions.push({
+                  id: `report-refund-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: grossBudget,
+                  type: "report_request",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split?.title || "Project",
+                });
+
+                if (pFee > 0) {
+                  myTransactions.push({
+                    id: `report-fee-${projIdLower}`,
+                    projectId: projIdLower,
+                    amount: -pFee,
+                    type: "platform_fee",
+                    status: "done",
+                    createdAt: tDate,
+                    projectTitle: split?.title || "Project",
+                    description: "systemfee",
+                  });
+                }
+              }
+              // If clientRefund <= 0 (Released to Expert), Client Billing stays 100% quiet ("im ru")!
+              return;
+            }
+
             if (dvRaw) {
               try {
                 const dv = JSON.parse(dvRaw);
@@ -391,15 +439,13 @@ export function Billing() {
               } catch (e) { }
             }
 
-            // Cancellation negotiation fallback (Luồng huỷ thông thường - không ảnh hưởng tố cáo)
+            // Cancellation negotiation fallback (Luồng huỷ thông thường - KHÔNG ĐỤNG VÀO)
             if (split?.clientRefund > 0) {
-              const report = projectReportMap.get(projIdLower);
-              const rowType = report ? "escrow_refund" : "cancel";
               myTransactions.push({
                 id: `cancel-refund-${projIdLower}`,
                 projectId: projIdLower,
                 amount: split.clientRefund,
-                type: rowType,
+                type: "cancel",
                 status: "done",
                 createdAt: tDate,
                 projectTitle: split?.title || "Project",
@@ -1015,7 +1061,7 @@ export function Billing() {
                   else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
                   else if (lowerType === "verdict") displayDesc = "report successful";
                   else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
-                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType)) {
+                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel", "report_request"].includes(lowerType)) {
                     displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : (tx.description || "Project: AI-Tasker");
                   }
 

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 using AITasker_Modular.Modules.ChatModule;
 using AITasker_Modular.Modules.JobModule;
 using AITasker_Modular.Modules.UserModule;
@@ -21,11 +22,28 @@ public class Project
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? ProjectLink { get; set; }
+    public string? ProjectFile { get; set; }      // Lưu tên file sản phẩm tổng do expert nộp
+    public string? DeclineReason { get; set; }     // Lưu lý do từ chối cuối cùng của Client
     public Guid? ConversationId { get; set; }
+    public string? Metadata { get; set; } // NEW METADATA FIELD
 
     public JobPost? JobPost { get; set; }
+
+    [JsonIgnore]
     public ApplicationUser? Client { get; set; }
+
+    [JsonIgnore]
     public ApplicationUser? Expert { get; set; }
+
+    [NotMapped]
+    [JsonPropertyName("client")]
+    public string ClientName => Client?.FullName ?? string.Empty;
+
+    [NotMapped]
+    [JsonPropertyName("expert")]
+    public string ExpertName => Expert?.FullName ?? string.Empty;
+
     public Conversation? Conversation { get; set; }
     public ICollection<ProjectSkill> ProjectSkills { get; set; } = new List<ProjectSkill>();
+    public ICollection<Task> Tasks { get; set; } = new List<Task>();
 }

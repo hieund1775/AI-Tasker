@@ -1,35 +1,55 @@
 using Microsoft.AspNetCore.Mvc;
 using AITasker_Modular.Modules.UserModule;
 using AITasker_Modular.Helpers;
+using System.Threading.Tasks;
 
-namespace AITasker_Modular.Modules.InteractionModule;
-
-[ApiController]
-[Route("api/interactions")]
-public class InteractionController : ControllerBase
+namespace AITasker_Modular.Modules.InteractionModule
 {
-    private readonly IInteractionService _service;
-    private readonly IUserService _userService;
-
-    public InteractionController(IInteractionService service, IUserService userService)
+    [ApiController]
+    [Route("api/interactions")]
+    public class InteractionController : ControllerBase
     {
-        _service = service;
-        _userService = userService;
-    }
+        private readonly IInteractionService _service;
+        private readonly IUserService _userService;
 
-    [HttpGet]
-    public async Task<IActionResult> Get()
-    {
-        var (_, errorResult) = await this.ValidateAdminOrOwnerAsync(_userService);
-        if (errorResult != null)
-            return errorResult;
+        public InteractionController(IInteractionService service, IUserService userService)
+        {
+            _service = service;
+            _userService = userService;
+        }
 
-        return Ok(await _service.GetReviewsAsync());
-    }
+        [HttpGet]
+        public async Task<IActionResult> Get()
+        {
+            // [FIX] Trả về danh sách giao dịch kèm theo ProjectTitle để Frontend không cần load thêm
+            var logs = await _service.GetAllTransactionLogsWithTitleAsync();
+            return Ok(logs);
+        }
 
-    [HttpPost("transaction")]
-    public async Task<IActionResult> Transaction(TransactionLog transactionLog)
-    {
-        return Ok(await _service.RecordTransactionAsync(transactionLog));
+        [HttpPost("transaction")]
+        public async Task<IActionResult> Transaction([FromBody] TransactionLog transactionLog)
+        {
+            try
+            {
+                var result = await _service.RecordTransactionAsync(transactionLog);
+                return Ok(result);
+            }
+            catch (System.ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Collections.Generic.KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (System.InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi xử lý hệ thống: " + ex.Message });
+            }
+        }
     }
 }
