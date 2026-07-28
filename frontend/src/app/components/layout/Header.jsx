@@ -4,6 +4,7 @@ import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } 
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { timeAgo } from "../../lib/dateUtils.js";
+import { saveAccountTheme } from "../../lib/themePreference.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,13 @@ export function Header() {
 
   const { role, isAuthenticated, logout, user } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const userThemeKey = user?.id || user?.Id || user?.email || user?.Email || null;
+
+  const handleThemeChange = (mode) => {
+    if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, mode);
+    setTheme(mode);
+    setShowThemeMenu(false);
+  };
 
   const getThemeIcon = () => {
     if (theme === "system") return <Monitor className="w-4.5 h-4.5 stroke-[1.8]" />;
@@ -270,10 +278,7 @@ export function Header() {
                           <button
                             key={mode}
                             type="button"
-                            onClick={() => {
-                              setTheme(mode);
-                              setShowThemeMenu(false);
-                            }}
+                            onClick={() => handleThemeChange(mode)}
                             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
                               theme === mode
                                 ? "bg-accent-light text-accent font-medium"

@@ -6,19 +6,14 @@ import { ErrorBoundary } from "./components/shared/ErrorBoundary.jsx";
 import { Toaster } from "./components/ui/sonner.jsx";
 import { AccountThemeSync } from "./components/theme/AccountThemeSync.jsx";
 
-const TAB_THEME_STORAGE_KEY = (() => {
-  if (typeof window === "undefined") return "aitasker_theme_session";
-
-  const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `aitasker_theme_session_${id}`;
-})();
+const THEME_STORAGE_KEY = "aitasker_theme_session";
 
 export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
         attribute="class"
-        storageKey={TAB_THEME_STORAGE_KEY}
+        storageKey={THEME_STORAGE_KEY}
         defaultTheme="system"
         enableSystem
         disableTransitionOnChange

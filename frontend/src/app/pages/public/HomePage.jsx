@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "../../hooks/useAuth.js";
+import { rememberPendingTheme } from "../../lib/themePreference.js";
 import { HeroSection } from "../../components/landing/HeroSection.jsx";
 import { HowItWorks } from "../../components/landing/HowItWorks.jsx";
 import { ProductShowcase } from "../../components/landing/ProductShowcase.jsx";
@@ -74,7 +75,11 @@ export function HomePage() {
                       <button
                         key={mode}
                         type="button"
-                        onClick={() => { setTheme(mode); setShowThemeMenu(false); }}
+                        onClick={() => {
+                          rememberPendingTheme(mode);
+                          setTheme(mode);
+                          setShowThemeMenu(false);
+                        }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
                           theme === mode
                             ? "bg-accent-light text-accent font-medium"

@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { toast } from "sonner";
+import { rememberPendingTheme } from "../../lib/themePreference.js";
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -86,7 +87,9 @@ export function SignUpPage() {
               onClick={() => {
                 const modes = ["light", "dark", "system"];
                 const idx = modes.indexOf(theme ?? "system");
-                setTheme(modes[(idx + 1) % modes.length]);
+                const nextTheme = modes[(idx + 1) % modes.length];
+                rememberPendingTheme(nextTheme);
+                setTheme(nextTheme);
               }}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
               title={`Theme: ${theme === "system" ? "System" : resolvedTheme === "dark" ? "Dark" : "Light"}`}

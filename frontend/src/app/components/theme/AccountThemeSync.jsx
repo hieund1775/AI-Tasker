@@ -1,36 +1,40 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import { useAuth } from "../../hooks/useAuth.js";
-
-const THEME_PREFIX = "aitasker_theme_user_";
+import { consumePendingTheme, readAccountTheme, saveAccountTheme } from "../../lib/themePreference.js";
 
 export function AccountThemeSync() {
   const { isAuthenticated, user } = useAuth();
   const { theme, setTheme } = useTheme();
-  const loadingStoredTheme = useRef(false);
+  const loadedKeyRef = useRef(null);
+
+  const userKey = user?.id || user?.Id || user?.email || user?.Email || null;
 
   const accountThemeKey = useMemo(() => {
-    if (!isAuthenticated || !user) return null;
-    const userKey = user.id || user.Id || user.email || user.Email;
-    return userKey ? `${THEME_PREFIX}${userKey}` : null;
-  }, [isAuthenticated, user]);
+    if (!isAuthenticated || !userKey) return null;
+    return userKey;
+  }, [isAuthenticated, userKey]);
 
   useEffect(() => {
-    if (!accountThemeKey || typeof window === "undefined") return;
+    if (!accountThemeKey || loadedKeyRef.current === accountThemeKey || typeof window === "undefined") return;
 
-    const storedTheme = window.localStorage.getItem(accountThemeKey) || "system";
-    loadingStoredTheme.current = true;
-    setTheme(storedTheme);
+    loadedKeyRef.current = accountThemeKey;
+    const pendingTheme = consumePendingTheme();
 
-    window.setTimeout(() => {
-      loadingStoredTheme.current = false;
-    }, 0);
-  }, [accountThemeKey, setTheme]);
+    if (pendingTheme) {
+      saveAccountTheme(accountThemeKey, pendingTheme);
+      setTheme(pendingTheme);
+      return;
+    }
 
-  useEffect(() => {
-    if (!accountThemeKey || !theme || loadingStoredTheme.current || typeof window === "undefined") return;
-    window.localStorage.setItem(accountThemeKey, theme);
-  }, [accountThemeKey, theme]);
+    const storedTheme = readAccountTheme(accountThemeKey);
+    if (storedTheme) {
+      setTheme(storedTheme);
+      return;
+    }
+
+    if (theme) saveAccountTheme(accountThemeKey, theme);
+  }, [accountThemeKey, setTheme, theme]);
 
   return null;
 }
