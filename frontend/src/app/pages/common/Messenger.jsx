@@ -1,25 +1,45 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router";
+import { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth.js";
+import { safeArray, safeDateTimeFormat } from "../../lib/safety.js";
+import api from "../../../services/api.js";
 import {
   Send,
   Plus,
   Image,
-  File,
+  Paperclip,
   FolderOpen,
   X,
+  Download,
+  Eye,
   MessageSquare,
 } from "lucide-react";
-import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+
+// ---------------------------------------------------------------------------
+// In-memory session messages — appended when user sends a message in the UI
+// ---------------------------------------------------------------------------
+const _sessionMessages = [];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Detect the current user based on the conversation participants. */
+function detectCurrentUser(convId, conversations) {
+  if (!convId) return null;
+  const conv = conversations.find((c) => c.id === convId);
+  if (!conv) return null;
+  return conv.participants[0];
+}
+
+// ---------------------------------------------------------------------------
+// Attachment types for the plus menu
+// ---------------------------------------------------------------------------
+
 const ATTACH_OPTIONS = [
-  { key: "image", label: "Upload Image", icon: Image, color: "text-blue-500", ext: ".png", mime: "image/png" },
-  { key: "file", label: "Upload File", icon: File, color: "text-gray-600", ext: ".pdf", mime: "application/pdf" },
-  { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-amber-500", ext: "/", mime: "folder" },
+  { key: "image", label: "Upload Image", icon: Image, color: "text-primary", ext: ".png", mime: "image/png" },
+  { key: "file", label: "Upload File", icon: Paperclip, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
+  { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-warning", ext: "/", mime: "folder" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -29,210 +49,225 @@ const ATTACH_OPTIONS = [
 export function Messenger() {
   const { id: activeConvId } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { user } = useAuth();
-
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
-  // Target expert to start a conversation with
-  const targetExpertId = searchParams.get("expertId");
-  const targetJobPostId = searchParams.get("jobPostId");
-
-  // State
-  const [conversations, setConversations] = useState([]);
-  const [activeMessages, setActiveMessages] = useState([]);
-  const [loadingConversations, setLoadingConversations] = useState(true);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-
-  // Plus menu
+  // ---- Plus menu state ----
   const [showPlusMenu, setShowPlusMenu] = useState(false);
+  const [showSentFiles, setShowSentFiles] = useState(false);
 
-  // Pending attachments
+  // ---- Pending attachments (before sending) ----
   const [pendingAttachments, setPendingAttachments] = useState([]);
 
-  // ─── Load conversations ──────────────────────────────────────────────────
-  const loadConversations = useCallback(async () => {
-    if (!user?.id) return;
+  // ---- Sent attachments tracker ----
+  const [sentAttachments, setSentAttachments] = useState([]);
+
+  const { user } = useAuth();
+  const demoUserId = user?.id;
+
+  const [allMessages, setAllMessages] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeConversation, setActiveConversation] = useState(null);
+
+  // Fetch conversations
+  const loadConversations = async () => {
+    if (!demoUserId) return;
     try {
-      setLoadingConversations(true);
-      const list = await api.chat.getConversations();
-      setConversations(Array.isArray(list) ? list : []);
+      // 1. L?y list cu?c h?i tho?i t? backend
+      let convs = await api.chat.getUserConversations(demoUserId).catch(() => []);
+      
+      // 2. N?u trn URL cA3 id c?a user mA cha cA3 cu?c h?i tho?i nAo, thA t?o m?i/l?y
+      if (activeConvId) {
+        // Ki?m tra xem activeConvId hi?n t?i cA3 ph?i lA conversationId khA'ng
+        let activeC = convs.find((c) => c.id === activeConvId);
+        
+        // If NOT, it might be UserId. Create or retrieve the conversation with that user.
+        if (!activeC && activeConvId.length > 20) {
+          const isClient = String(user?.role).toLowerCase() === "client";
+          try {
+            activeC = await api.chat.createConversation({
+              clientId: isClient ? demoUserId : activeConvId,
+              expertId: isClient ? activeConvId : demoUserId,
+            });
+            // Thm vAo list vA replace URL ? ch? th?ng ?n conversationId th?t
+            if (activeC) {
+              convs = [activeC, ...convs.filter(c => c.id !== activeC.id)];
+              navigate(`/messenger/${activeC.id}`, { replace: true });
+            }
+          } catch (err) {
+            console.error("Could not get/create conversation with user:", err);
+          }
+        }
+      }
+
+      // Convert backend format to frontend UI format
+      const mappedList = convs.map((c) => {
+        const isClient = String(demoUserId).toLowerCase() === String(c.clientId).toLowerCase();
+        return {
+          id: c.id,
+          name: isClient ? c.expertName : c.clientName,
+          role: isClient ? "Expert" : "Client",
+          lastMessage: c.lastMessageContent || "No messages yet",
+          messages: [], // S? fetch sau
+        };
+      });
+
+      setConversations(mappedList);
+      
+      // Fetch tin nh?n cho conversation ang active
+      if (activeConvId) {
+        const activeC = mappedList.find(c => c.id === activeConvId);
+        if (activeC) {
+          const msgs = await api.chat.getMessages(activeC.id).catch(() => []);
+          activeC.messages = msgs.map(m => ({
+            id: m.id,
+            text: m.content || "",
+            time: safeDateTimeFormat(m.createdAt, { hour: "2-digit", minute: "2-digit" }, ""),
+            isOwn: String(m.senderId).toLowerCase() === String(demoUserId).toLowerCase(),
+          }));
+          setActiveConversation({ ...activeC });
+        }
+      } else {
+        setActiveConversation(null);
+      }
     } catch (err) {
-      console.error("Failed to load conversations:", err);
-      setConversations([]);
+      console.error("Failed to load messenger data:", err);
     } finally {
-      setLoadingConversations(false);
+      setLoading(false);
     }
-  }, [user?.id]);
+  };
 
   useEffect(() => {
     loadConversations();
-    // Poll for new messages every 10 seconds
-    const interval = setInterval(loadConversations, 10000);
-    return () => clearInterval(interval);
-  }, [loadConversations]);
+    const timer = setInterval(loadConversations, 3000);
+    return () => clearInterval(timer);
+  }, [demoUserId, activeConvId]);
 
-  // ─── Load messages for active conversation ───────────────────────────────
+  // ---- Debug: log state changes ----
   useEffect(() => {
-    if (!activeConvId) {
-      setActiveMessages([]);
-      return;
-    }
-    async function loadMessages() {
-      try {
-        setLoadingMessages(true);
-        const msgs = await api.chat.getMessages(activeConvId);
-        setActiveMessages(Array.isArray(msgs) ? msgs : []);
-        // Mark as read
-        await api.chat.markRead(activeConvId).catch(() => {});
-      } catch (err) {
-        console.error("Failed to load messages:", err);
-        setActiveMessages([]);
-      } finally {
-        setLoadingMessages(false);
-      }
-    }
-    loadMessages();
-    // Poll for new messages every 5 seconds when viewing a conversation
-    const interval = setInterval(loadMessages, 5000);
-    return () => clearInterval(interval);
-  }, [activeConvId]);
-
-  // ─── Auto-create conversation when navigated with expertId ───────────────
-  useEffect(() => {
-    if (!targetExpertId || !user?.id) return;
-    // Check if conversation already exists
-    const existing = conversations.find(
-      (c) => c.expertId === targetExpertId || c.clientId === targetExpertId
+    console.log(
+      "[Messenger] activeConvId:",
+      activeConvId,
+      "| demoUserId:",
+      demoUserId,
+      "| conversations:",
+      conversations.length,
+      "| activeConversation:",
+      activeConversation?.name || "NONE"
     );
-    if (existing) {
-      navigate(`/messenger/${existing.id}`, { replace: true });
-      return;
-    }
-    // Create new conversation
-    async function createConv() {
-      try {
-        // Determine correct client/expert IDs based on current user's role
-        const isExpert = user.role === "Expert";
-        const clientId = isExpert ? targetExpertId : user.id;
-        const expertId = isExpert ? user.id : targetExpertId;
+  }, [activeConvId, demoUserId, conversations.length, activeConversation]);
 
-        const newConv = await api.chat.createConversation({
-          clientId,
-          expertId,
-          jobPostId: targetJobPostId || null,
-        });
-        await loadConversations();
-        navigate(`/messenger/${newConv.id}`, { replace: true });
-      } catch (err) {
-        console.error("Failed to create conversation:", err);
-      }
-    }
-    createConv();
-  }, [targetExpertId, user?.id]);
-
-  // ─── Scroll to bottom when messages change ───────────────────────────────
+  // ---- Scroll to bottom ----
+  const messagesContainerRef = useRef(null);
   const prevMessageCountRef = useRef(0);
   const didInitialLoadRef = useRef(false);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
-    const currentCount = activeMessages.length;
+
+    const currentCount = activeConversation?.messages?.length || 0;
     const prevCount = prevMessageCountRef.current;
 
     if (didInitialLoadRef.current && currentCount > prevCount) {
       container.scrollTop = container.scrollHeight;
     }
-    if (!didInitialLoadRef.current) {
+
+    if (activeConversation && !didInitialLoadRef.current) {
       didInitialLoadRef.current = true;
     }
     prevMessageCountRef.current = currentCount;
-  }, [activeMessages.length]);
+  }, [activeConversation?.messages?.length]);
 
   useEffect(() => {
     didInitialLoadRef.current = false;
     prevMessageCountRef.current = 0;
   }, [activeConvId]);
 
-  // ─── Close plus menu on outside click ────────────────────────────────────
+  // ---- Close plus menu on outside click ----
   useEffect(() => {
-    if (!showPlusMenu) return;
-    const handler = () => setShowPlusMenu(false);
+    if (!showPlusMenu && !showSentFiles) return;
+    const handler = () => {
+      setShowPlusMenu(false);
+      setShowSentFiles(false);
+    };
     const id = setTimeout(() => document.addEventListener("click", handler), 50);
     return () => {
       clearTimeout(id);
       document.removeEventListener("click", handler);
     };
-  }, [showPlusMenu]);
+  }, [showPlusMenu, showSentFiles]);
 
-  // ─── Add attachment ──────────────────────────────────────────────────────
+  // ---- Add attachment from plus menu ----
   const handleAddAttachment = (type) => {
-    const mockFiles = {
-      image: { name: `image-${Date.now().toString(36)}.png`, type: "image/png", size: "245 KB" },
-      file: { name: `document-${Date.now().toString(36)}.pdf`, type: "application/pdf", size: "1.8 MB" },
-      folder: { name: `project-files-${Date.now().toString(36)}/`, type: "folder", size: "3 files" },
-    };
-    const file = mockFiles[type];
-    if (file) {
-      setPendingAttachments((prev) => [...prev, { ...file, id: `att-${Date.now()}` }]);
+    if (fileInputRef.current) {
+      if (type === "image") {
+        fileInputRef.current.accept = "image/*";
+        fileInputRef.current.removeAttribute("webkitdirectory");
+      } else if (type === "folder") {
+        fileInputRef.current.accept = "";
+        fileInputRef.current.setAttribute("webkitdirectory", "true");
+      } else {
+        fileInputRef.current.accept = "";
+        fileInputRef.current.removeAttribute("webkitdirectory");
+      }
+      fileInputRef.current.click();
     }
     setShowPlusMenu(false);
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    const newAttachments = files.map((file) => {
+      // Create a temporary object for the UI until backend API handles uploads
+      return {
+        id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file: file,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: (file.size / 1024).toFixed(0) + " KB",
+      };
+    });
+    
+    setPendingAttachments((prev) => [...prev, ...newAttachments]);
+    // Reset input so the same file can be selected again
+    e.target.value = null;
   };
 
   const removePendingAttachment = (id) => {
     setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  // ─── Send message ────────────────────────────────────────────────────────
+  // ---- Send message ----
   const handleSend = async () => {
     const hasText = message.trim().length > 0;
     const hasAttachments = pendingAttachments.length > 0;
     if (!hasText && !hasAttachments) return;
-    if (!activeConvId || !user?.id) return;
-
-    // Build content with attachment info
-    let content = message.trim();
-    if (hasAttachments) {
-      const attInfo = pendingAttachments.map((a) => `[Attachment: ${a.name} (${a.size})]`).join(", ");
-      content = content ? `${content}\n${attInfo}` : attInfo;
-    }
-
-    // Optimistically add to UI
-    const tempId = `temp-${Date.now()}`;
-    const optimistic = {
-      id: tempId,
-      conversationId: activeConvId,
-      senderId: user.id,
-      senderName: user.fullName,
-      content,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-    setActiveMessages((prev) => [...prev, optimistic]);
-    setMessage("");
-    setPendingAttachments([]);
+    if (!activeConvId) return;
 
     try {
-      const sent = await api.chat.sendMessage({
+      const payload = {
         conversationId: activeConvId,
-        senderId: user.id,
-        content,
-      });
-      // Replace optimistic message with real one
-      setActiveMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...sent, senderName: user.fullName } : m))
-      );
+        senderId: demoUserId,
+        content: message.trim(),
+        // Note: Backend currently only accepts text content for Dto, but we can extend later.
+      };
+
+      await api.chat.sendMessage(payload);
+      setMessage("");
+      setPendingAttachments([]);
+      loadConversations();
     } catch (err) {
       console.error("Failed to send message:", err);
-      // Remove optimistic message on failure
-      setActiveMessages((prev) => prev.filter((m) => m.id !== tempId));
     }
   };
 
-  // ─── Handle Enter key ────────────────────────────────────────────────────
+  // ---- Handle Enter key ----
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -240,72 +275,58 @@ export function Messenger() {
     }
   };
 
-  // ─── Build enriched conversation list ────────────────────────────────────
-  const enrichedConversations = conversations.map((conv) => {
-    const otherName = user?.role === "Expert" ? conv.clientName : conv.expertName;
-    const otherRole = user?.role === "Expert" ? "Client" : conv.expertName ? "Expert" : "";
-    return {
-      ...conv,
-      displayName: otherName || "Unknown",
-      displayRole: otherRole,
-      initials: (otherName || "?")[0].toUpperCase(),
-    };
-  });
+  // ---- Collect all sent attachments across conversations ----
+  const allSentAttachments = sentAttachments;
 
-  const activeConversation = enrichedConversations.find((c) => c.id === activeConvId) || null;
+  // ===========================================================================
+  // Render
+  // ===========================================================================
 
-  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex h-[calc(100vh-10rem)]">
-        {/* Conversation List */}
-        <div className="w-80 border-r border-gray-200 flex-shrink-0 flex flex-col">
-          <div className="p-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Messages</h2>
+      <div className="bg-card rounded-2xl border border-border shadow-sm flex h-[calc(100vh-10rem)]">
+        {/* ================================================================ */}
+        {/* Conversation List                                                   */}
+        {/* ================================================================ */}
+        <div className="w-80 border-r border-border flex-shrink-0 flex flex-col">
+          <div className="p-4 border-b border-border">
+            <h2 className="font-semibold text-foreground">Messages</h2>
           </div>
-          {loadingConversations ? (
+          {conversations.length === 0 ? (
             <div className="p-8 text-center flex-1 flex items-center justify-center">
-              <p className="text-sm text-gray-400 animate-pulse">Loading conversations...</p>
-            </div>
-          ) : enrichedConversations.length === 0 ? (
-            <div className="p-8 text-center flex-1 flex items-center justify-center">
-              <div>
-                <MessageSquare className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">No conversations yet</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Start a conversation from a project or proposal.
+              <div className="text-center">
+                <div className="relative w-16 h-16 mx-auto mb-4">
+                  <div className="absolute inset-0 rounded-full bg-muted/40 animate-pulse" />
+                  <div className="relative w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                    <MessageSquare className="w-7 h-7 text-muted-foreground/30" />
+                  </div>
+                </div>
+                <p className="text-sm font-semibold text-foreground/60 mb-1">No conversations yet</p>
+                <p className="text-xs text-muted-foreground max-w-[220px] mx-auto leading-relaxed">
+                  Messages from your projects and proposals will appear here.
                 </p>
               </div>
             </div>
           ) : (
             <div className="overflow-y-auto flex-1">
-              {enrichedConversations.map((conv) => (
+              {conversations.map((conv) => (
                 <button
                   type="button"
                   onClick={() => navigate(`/messenger/${conv.id}`)}
                   key={conv.id}
-                  className={`w-full text-left block p-4 hover:bg-gray-50 border-b border-gray-50 transition-colors ${
-                    conv.id === activeConvId ? "bg-blue-50 border-l-2 border-l-blue-500" : ""
+                  className={`w-full text-left block p-4 hover:bg-secondary/70 border-b border-border transition-all duration-150 ${
+                    conv.id === activeConvId ? "bg-accent/5 border-l-[3px] border-l-accent shadow-[inset_0_0_0_1px_rgba(59,130,246,0.08)]" : "border-l-[3px] border-l-transparent"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-sm font-bold text-blue-700">{conv.initials}</span>
+                    <div className="w-10 h-10 bg-brand-primary-light rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-sm font-bold text-brand-primary">
+                        {conv.name?.[0] || "?"}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                          {conv.displayName}
-                        </p>
-                        {conv.unreadCount > 0 && (
-                          <span className="ml-2 px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">
-                            {conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-gray-500 truncate">
-                        {conv.lastMessage || "No messages yet"}
-                      </p>
+                      <p className="text-sm font-semibold text-foreground truncate">{conv.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{conv.lastMessage}</p>
                     </div>
                   </div>
                 </button>
@@ -314,37 +335,47 @@ export function Messenger() {
           )}
         </div>
 
-        {/* Chat Area */}
+        {/* ================================================================ */}
+        {/* Chat Area                                                           */}
+        {/* ================================================================ */}
         <div className="flex-1 flex flex-col min-w-0" key={activeConvId || "empty"}>
           {!activeConversation ? (
             <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <Send className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
+              <div className="text-center px-4">
+                <div className="relative w-20 h-20 mx-auto mb-5">
+                  <div className="absolute inset-0 rounded-full bg-muted/40 animate-pulse" />
+                  <div className="relative w-20 h-20 rounded-full bg-muted flex items-center justify-center">
+                    <Send className="w-9 h-9 text-muted-foreground/25" />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-foreground/60 mb-2">
                   Select a conversation
                 </h3>
-                <p className="text-sm text-gray-400">
-                  Choose a conversation from the list to start messaging.
+                <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  Choose a conversation from the list to start messaging. Your project and proposal contacts will appear here.
                 </p>
               </div>
             </div>
           ) : (
             <>
               {/* Chat header */}
-              <div className="p-4 border-b border-gray-100 flex-shrink-0">
+              <div className="p-4 border-b border-border flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-blue-700">
-                      {activeConversation.initials}
-                    </span>
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent/15 to-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-foreground">
+                        {activeConversation.name?.[0] || "?"}
+                      </span>
+                    </div>
+                    {/* Online indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-success border-2 border-card" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900">
-                      {activeConversation.displayName}
+                    <h3 className="font-semibold text-foreground">
+                      {activeConversation.name}
                     </h3>
-                    <p className="text-xs text-gray-500">
-                      {activeConversation.displayRole}
-                      {activeConversation.jobTitle ? ` · ${activeConversation.jobTitle}` : ""}
+                    <p className="text-xs text-muted-foreground">
+                      {activeConversation.role || "Client"}
                     </p>
                   </div>
                 </div>
@@ -352,52 +383,65 @@ export function Messenger() {
 
               {/* Messages */}
               <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-                {loadingMessages && activeMessages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-sm text-gray-400 animate-pulse">Loading messages...</p>
-                  </div>
-                ) : activeMessages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-sm text-gray-400">No messages yet. Say hello!</p>
-                  </div>
-                ) : (
-                  activeMessages.map((msg) => {
-                    const isOwn = msg.senderId === user?.id;
-                    const time = msg.createdAt
-                      ? new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                      : "";
-                    return (
-                      <div
-                        key={msg.id}
-                        className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                      >
+                {activeConversation.messages?.map((msg, idx) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.isOwn ? "justify-end" : "justify-start"} animate-fade-in`}
+                    style={{ animationDelay: `${Math.min(idx * 30, 200)}ms` }}
+                  >
+                    <div
+                      className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
+                        msg.isOwn
+                          ? "bg-gradient-to-br from-accent to-accent-hover text-white rounded-br-md shadow-md"
+                          : "bg-secondary text-foreground rounded-bl-md border border-border/60 shadow-sm"
+                      }`}
+                    >
+                      {/* Attachment display */}
+                      {msg.attachment && (
                         <div
-                          className={`max-w-[70%] px-4 py-2.5 rounded-2xl ${
-                            isOwn
-                              ? "bg-blue-900 text-white rounded-br-md"
-                              : "bg-gray-100 text-gray-900 rounded-bl-md"
+                          className={`mb-2 p-2 rounded-lg flex items-center gap-2 ${
+                            msg.isOwn ? "bg-primary/20" : "bg-muted"
                           }`}
                         >
-                          {!isOwn && (
-                            <p className="text-xs font-semibold text-blue-700 mb-0.5">
-                              {msg.senderName || "User"}
-                            </p>
+                          {msg.attachment.type === "image/png" ? (
+                            <Image className="w-5 h-5 flex-shrink-0" />
+                          ) : msg.attachment.type === "folder" ? (
+                            <FolderOpen className="w-5 h-5 flex-shrink-0" />
+                          ) : (
+                            <FileIcon className="w-5 h-5 flex-shrink-0" />
                           )}
-                          <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                          <p
-                            className={`text-[10px] mt-1.5 ${
-                              isOwn ? "text-blue-200" : "text-gray-400"
-                            }`}
-                          >
-                            {time}
-                          </p>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium truncate">
+                              {msg.attachment.name}
+                            </p>
+                            <p className="text-xs opacity-70">
+                              {msg.attachment.size}
+                            </p>
+                          </div>
+                          <Download className="w-4 h-4 flex-shrink-0 opacity-70 cursor-pointer" />
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      )}
+
+                      {/* Text */}
+                      {msg.text && <p className="text-sm whitespace-pre-wrap">{msg.text}</p>}
+
+                      {/* Time */}
+                      <p
+                        className={`text-xs mt-1.5 ${
+                          msg.isOwn ? "text-primary-foreground/70" : "text-muted-foreground"
+                        }`}
+                      >
+                        {msg.time}
+                      </p>
+                    </div>
+                  </div>
+                ))}
                 <div ref={messagesEndRef} />
               </div>
+
+              {/* ============================================================ */}
+              {/* Input Area                                                      */}
+              {/* ============================================================ */}
 
               {/* Pending attachments preview */}
               {pendingAttachments.length > 0 && (
@@ -405,20 +449,20 @@ export function Messenger() {
                   {pendingAttachments.map((att) => (
                     <div
                       key={att.id}
-                      className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5"
+                      className="inline-flex items-center gap-2 bg-brand-primary-light border border-blue-200 rounded-lg px-3 py-1.5"
                     >
                       {att.type === "image/png" ? (
-                        <Image className="w-4 h-4 text-blue-500" />
+                        <Image className="w-4 h-4 text-brand-primary" />
                       ) : att.type === "folder" ? (
                         <FolderOpen className="w-4 h-4 text-amber-500" />
                       ) : (
-                        <File className="w-4 h-4 text-gray-500" />
+                        <FileIcon className="w-4 h-4 text-muted-foreground" />
                       )}
-                      <span className="text-xs font-medium text-gray-700">{att.name}</span>
+                      <span className="text-xs font-medium text-foreground/80">{att.name}</span>
                       <button
                         type="button"
                         onClick={() => removePendingAttachment(att.id)}
-                        className="p-0.5 text-gray-400 hover:text-red-500"
+                        className="p-0.5 text-muted-foreground hover:text-red-500"
                       >
                         <X className="w-3 h-3" />
                       </button>
@@ -428,24 +472,33 @@ export function Messenger() {
               )}
 
               {/* Input row */}
-              <div className="p-3 border-t border-gray-100 flex-shrink-0">
+              <div className="p-3 border-t border-border flex-shrink-0">
                 <div className="flex items-center gap-2">
-                  {/* Plus button */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    multiple
+                    className="hidden"
+                  />
+                  {/* Plus button with dropdown */}
                   <div className="relative flex-shrink-0">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setShowPlusMenu((v) => !v);
+                        setShowSentFiles(false);
                       }}
-                      className="h-10 w-10 flex items-center justify-center bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-colors"
+                      className="h-10 w-10 flex items-center justify-center bg-secondary text-muted-foreground rounded-xl hover:bg-muted transition-colors"
                       title="Add attachment"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
+
                     {showPlusMenu && (
                       <div
-                        className="absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-20 min-w-[210px]"
+                        className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-lg py-1 z-20 min-w-[210px]"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {ATTACH_OPTIONS.map((opt) => (
@@ -453,12 +506,71 @@ export function Messenger() {
                             key={opt.key}
                             type="button"
                             onClick={() => handleAddAttachment(opt.key)}
-                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 inline-flex items-center gap-3 transition-colors"
+                            className="w-full text-left px-4 py-2.5 hover:bg-secondary text-sm text-foreground/80 inline-flex items-center gap-3 transition-colors"
                           >
                             <opt.icon className={`w-4 h-4 ${opt.color}`} />
                             {opt.label}
                           </button>
                         ))}
+                        <div className="border-t border-border my-1" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSentFiles(true);
+                            setShowPlusMenu(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-secondary text-sm text-foreground/80 inline-flex items-center gap-3 transition-colors"
+                        >
+                          <Eye className="w-4 h-4 text-brand-green" />
+                          View Sent Attachments
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Sent attachments modal */}
+                    {showSentFiles && (
+                      <div
+                        className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-xl shadow-lg py-3 px-4 z-20 w-[280px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-sm font-semibold text-foreground">Sent Files</h4>
+                          <button
+                            type="button"
+                            onClick={() => setShowSentFiles(false)}
+                            className="text-muted-foreground hover:text-muted-foreground"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {allSentAttachments.length === 0 ? (
+                          <p className="text-xs text-muted-foreground py-2">
+                            No attachments sent yet.
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {allSentAttachments.map((att, idx) => (
+                              <div
+                                key={att.id || idx}
+                                className="flex items-center gap-2 bg-secondary/60 rounded-lg p-2"
+                              >
+                                {att.type === "image/png" ? (
+                                  <Image className="w-4 h-4 text-brand-primary flex-shrink-0" />
+                                ) : att.type === "folder" ? (
+                                  <FolderOpen className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                                ) : (
+                                  <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs font-medium text-foreground/80 truncate">
+                                    {att.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{att.size}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -471,7 +583,7 @@ export function Messenger() {
                       onKeyDown={handleKeyDown}
                       placeholder="Type a message... (Enter to send)"
                       rows={1}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none min-h-10 max-h-[120px]"
+                      className="w-full px-4 py-2 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring text-sm resize-none min-h-10 max-h-[120px] bg-input-background"
                     />
                   </div>
 
@@ -480,7 +592,7 @@ export function Messenger() {
                     type="button"
                     onClick={handleSend}
                     disabled={!message.trim() && pendingAttachments.length === 0}
-                    className="h-10 w-10 flex items-center justify-center bg-blue-900 text-white rounded-xl hover:bg-blue-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                    className="h-10 w-10 flex items-center justify-center bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     title="Send message"
                   >
                     <Send className="w-5 h-5" />

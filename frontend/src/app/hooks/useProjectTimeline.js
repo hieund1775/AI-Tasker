@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
+import api from "../../services/api.js";
+import { getProjectAuditLogs, formatAuditMessage } from "../lib/auditTrail.js";
 
 import {
   getDeadlineInfo,
@@ -9,6 +11,7 @@ import {
   resolveExtension,
   resetProjectTimeline,
   deriveTaskStatus,
+  getEffectiveDeadlineDate,
 } from "../lib/projectTimelineStore.js";
 
 // =============================================================================
@@ -33,6 +36,9 @@ export function useProjectTimeline(role, projectId) {
   const [rejectReason, setRejectReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Live countdown tick — triggers re-render every 10 seconds for real-time deadline display
+  const [tick, setTick] = useState(0);
+
   // Track activity version so we re-fetch timeline after navigation-back
   const [activityVersion, setActivityVersion] = useState(0);
 
@@ -51,7 +57,14 @@ export function useProjectTimeline(role, projectId) {
       setError(null);
       try {
         const data = await loadTimeline();
-        if (!cancelled) setProject(data);
+        if (!cancelled) {
+          setProject(data);
+
+          // Backend now provides activityLogs inside the project response, or we fetch them separately via API.
+          // Wait, api.timeline.getActivityLogs needs to be called to fetch the logs.
+          const logs = await api.timeline.getActivityLogs(projectId).catch(() => []);
+          setProject(prev => ({ ...prev, activityLogs: logs || [] }));
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err.message || "Failed to load project timeline.");
@@ -64,6 +77,14 @@ export function useProjectTimeline(role, projectId) {
     fetchTimeline();
     return () => { cancelled = true; };
   }, [projectId, activityVersion]);
+
+  // ── Live countdown tick ──
+  useEffect(() => {
+    const isActive = project && ["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase());
+    if (!isActive) return;
+    const interval = setInterval(() => setTick((t) => t + 1), 10000); // every 10s
+    return () => clearInterval(interval);
+  }, [project?.status, project?.id]);
 
   // ---- Poll sessionStorage for activity version changes (navigation-back detection) ----
   useEffect(() => {
@@ -78,15 +99,44 @@ export function useProjectTimeline(role, projectId) {
     return () => clearInterval(interval);
   }, []);
 
+  // Listen to DB update events to refresh timeline in real-time
+  useEffect(() => {
+    let cancelled = false;
+    const handleDbUpdate = async () => {
+      try {
+        const data = await loadTimeline();
+        if (!cancelled && data) {
+          setProject(data);
+        }
+      } catch (err) {
+        console.error("Silent timeline update failed:", err);
+      }
+    };
+    window.addEventListener("aitasker_db_update", handleDbUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("aitasker_db_update", handleDbUpdate);
+    };
+  }, [projectId]);
+
   // ---- Derived values ----
   const tasks = project?.tasks || [];
   const overallProgress = getOverallProgress(tasks);
+  const rawLogs = project?.activityLogs || [];
+  const projectLogs = Array.isArray(rawLogs) ? rawLogs.map(log => ({
+    id: log.id || log.Id,
+    actor: log.actorName || log.ActorName || log.actor || log.Actor,
+    time: log.createdAt || log.CreatedAt || log.timestamp,
+    message: log.description || log.Description || formatAuditMessage(log)
+  })) : [];
 
   const completedTasks = tasks.filter(
     (task) => deriveTaskStatus(task) === "Completed",
   ).length;
 
-  const deadlineInfo = getDeadlineInfo(project?.projectDeadlineDate);
+  const deadlineInfo = getDeadlineInfo(
+    getEffectiveDeadlineDate(project)?.toISOString()
+  );
 
   // ---- Scroll to last opened / submitted task after data loads ----
   useEffect(() => {
@@ -214,6 +264,7 @@ export function useProjectTimeline(role, projectId) {
     completedTasks,
     deadlineInfo,
     hasPendingExtension,
+    projectLogs,
 
     // Actions
     retry,

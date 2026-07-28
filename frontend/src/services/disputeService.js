@@ -11,17 +11,6 @@
 import api from "./api.js";
 
 // ---------------------------------------------------------------------------
-// API endpoint placeholders (TODO: update when backend is ready)
-// ---------------------------------------------------------------------------
-
-const DISPUTE_ENDPOINTS = {
-  pauseProjectAsDisputed: "/reports/{id}/accept", // PUT — accept report changes project to "Disputed"
-  continueProject: "/projects/{id}/status",       // PUT — resume project (status=InProgress)
-  stopProject: "/projects/{id}/status",           // PUT — stop project permanently (status=Cancelled)
-  createDisputeChat: "/chat/conversations",        // POST — create 3-party confrontation group chat
-};
-
-// ---------------------------------------------------------------------------
 // pauseProjectAsDisputed(projectId, payload)
 // ---------------------------------------------------------------------------
 
@@ -29,19 +18,12 @@ const DISPUTE_ENDPOINTS = {
  * Mark a project as "Disputed" (lock all actions for Client & Expert).
  *
  * @param {string} projectId
- * @param {object} payload — { reportId: string, reason?: string }
+ * @param {object} payload — { reportId: string, reason?: string, staffId?: string }
  * @returns {Promise<object>}
  */
 export async function pauseProjectAsDisputed(projectId, payload = {}) {
-  if (!DISPUTE_ENDPOINTS.pauseProjectAsDisputed) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] pauseProjectAsDisputed — endpoint not configured");
-    return { success: true, projectId, status: "Disputed" };
-  }
-  return api.put(
-    DISPUTE_ENDPOINTS.pauseProjectAsDisputed.replace("{id}", projectId),
-    payload,
-  );
+  const staffId = payload.staffId;
+  return api.disputes.triggerLock(projectId, payload.reason || "Project Locked due to Dispute", staffId);
 }
 
 // ---------------------------------------------------------------------------
@@ -57,15 +39,8 @@ export async function pauseProjectAsDisputed(projectId, payload = {}) {
  * @returns {Promise<object>}
  */
 export async function continueProject(projectId, payload = {}) {
-  if (!DISPUTE_ENDPOINTS.continueProject) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] continueProject — endpoint not configured");
-    return { success: true, projectId, status: "Active" };
-  }
-  return api.put(
-    DISPUTE_ENDPOINTS.continueProject.replace("{id}", projectId),
-    payload,
-  );
+  // C# ProjectsController updateStatus takes status as query param: PUT /api/Projects/{id}/status?status=in_progress
+  return api.put(`/Projects/${projectId}/status?status=in_progress`);
 }
 
 // ---------------------------------------------------------------------------
@@ -80,26 +55,15 @@ export async function continueProject(projectId, payload = {}) {
  * @param {object} payload — {
  *   reason: string (required),
  *   moneyAction: "refund" | "release",
- *   adminNote?: string,
- *   attachments?: File[],
+ *   reportId: string (required),
+ *   staffId?: string,
  * }
  * @returns {Promise<object>}
  */
 export async function stopProject(projectId, payload) {
-  if (!DISPUTE_ENDPOINTS.stopProject) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] stopProject — endpoint not configured");
-    return {
-      success: true,
-      projectId,
-      status: "Stopped",
-      moneyAction: payload.moneyAction,
-    };
-  }
-  return api.put(
-    DISPUTE_ENDPOINTS.stopProject.replace("{id}", projectId),
-    payload,
-  );
+  const staffId = payload.staffId;
+  const winnerRole = payload.moneyAction === "refund" ? "Client" : "Expert";
+  return api.disputes.executeVerdict(payload.reportId, winnerRole, payload.reason, staffId);
 }
 
 // ---------------------------------------------------------------------------
@@ -107,8 +71,7 @@ export async function stopProject(projectId, payload) {
 // ---------------------------------------------------------------------------
 
 /**
- * Create or open a 3-party confrontation group chat:
- *   Admin + Client + Expert
+ * Create or open a group chat for dispute:
  *
  * @param {object} payload — {
  *   reportId: string,
@@ -120,12 +83,10 @@ export async function stopProject(projectId, payload) {
  * @returns {Promise<object>} chat session info
  */
 export async function createDisputeChat(payload) {
-  if (!DISPUTE_ENDPOINTS.createDisputeChat) {
-    // TODO: add API endpoint here
-    console.warn("[DisputeService] createDisputeChat — endpoint not configured");
-    return { success: true, chatId: null, ...payload };
-  }
-  return api.post(DISPUTE_ENDPOINTS.createDisputeChat, payload);
+  return api.chat.createConversation({
+    clientId: payload.clientId,
+    expertId: payload.expertId,
+  });
 }
 
 // ---------------------------------------------------------------------------

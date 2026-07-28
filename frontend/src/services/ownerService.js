@@ -20,13 +20,13 @@ import api from "./api.js";
 // ---------------------------------------------------------------------------
 
 const OWNER_ENDPOINTS = {
-  createAdminAccount: "/users/register",  // POST — Owner creates an Admin account (role=admin)
-  banAdminAccount: "/users/{id}/set-active",  // PUT  — Owner locks/bans an Admin
-  getAdminUsers: "/users",              // GET  — list of users (filter role=admin)
-  getOwnerDashboardStats: "/platform/stats",  // GET  — aggregate dashboard statistics
-  getMonthlyTrafficStats: "/platform/stats",   // GET  — monthly traffic data
-  getYearlyPostStats: "/platform/stats",       // GET  — total posts per year
-  getTotalPaymentStats: "/platform/stats",     // GET  — total money transferred
+  createAdminAccount: "/Admin/owner/create-staff",
+  banAdminAccount: "/Admin/owner/ban-staff/{id}",
+  getAdminUsers: "/users",
+  getOwnerDashboardStats: "/Admin/owner/system-dashboard",
+  getMonthlyTrafficStats: "/Admin/owner/system-dashboard", // Fallback mapping
+  getYearlyPostStats: "/Admin/owner/system-dashboard", // Fallback mapping
+  getTotalPaymentStats: "/Admin/owner/system-dashboard", // Fallback mapping
 };
 
 // ---------------------------------------------------------------------------
@@ -42,147 +42,45 @@ const OWNER_ENDPOINTS = {
  * @returns {Promise<object>} created admin user
  */
 export async function createAdminAccount(payload) {
-  if (!OWNER_ENDPOINTS.createAdminAccount) {
-    // TODO: add API endpoint here, or reuse /api/users/register with role=admin
-    console.warn("[OwnerService] createAdminAccount — endpoint not configured");
-    return { success: true, email: payload.email, role: "admin" };
-  }
   return api.post(OWNER_ENDPOINTS.createAdminAccount, {
-    ...payload,
-    role: "admin",
+    Username: payload.username,
+    Password: payload.password,
+    FullName: payload.fullName,
+    PhoneNumber: payload.phoneNumber
   });
 }
 
-// ---------------------------------------------------------------------------
-// banAdminAccount(adminId, payload)
-// ---------------------------------------------------------------------------
-
-/**
- * Owner locks/bans an Admin account.
- *
- * @param {string} adminId
- * @param {object} payload — { reason?: string }
- * @returns {Promise<object>}
- */
 export async function banAdminAccount(adminId, payload = {}) {
-  if (!OWNER_ENDPOINTS.banAdminAccount) {
-    // TODO: add API endpoint here — could reuse /api/users/{id}/set-active
-    console.warn("[OwnerService] banAdminAccount — endpoint not configured");
-    return { success: true, adminId, status: "banned" };
-  }
   return api.put(
     OWNER_ENDPOINTS.banAdminAccount.replace("{id}", adminId),
     payload,
   );
 }
 
-// ---------------------------------------------------------------------------
-// getAdminUsers(params)
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch list of Admin accounts.
- *
- * @param {object} params — { search?, status?, page?, limit? }
- * @returns {Promise<object>} { data: User[], total: number }
- */
 export async function getAdminUsers(params = {}) {
-  if (!OWNER_ENDPOINTS.getAdminUsers) {
-    // TODO: add API endpoint here — could filter /api/users?role=admin
-    console.warn("[OwnerService] getAdminUsers — endpoint not configured");
-    return { data: [], total: 0 };
-  }
-  return api.get(OWNER_ENDPOINTS.getAdminUsers, { params });
+  return api.get(OWNER_ENDPOINTS.getAdminUsers, { params: { ...params, role: 'admin' } });
 }
 
-// ---------------------------------------------------------------------------
-// getOwnerDashboardStats(params)
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch aggregate dashboard statistics for Owner.
- *
- * @param {object} params — { period?: "month" | "year" }
- * @returns {Promise<object>} {
- *   totalUsers, totalProjects, totalRevenue, totalDisputes,
- *   activeAdmins, platformGrowth, ...
- * }
- */
 export async function getOwnerDashboardStats(params = {}) {
-  if (!OWNER_ENDPOINTS.getOwnerDashboardStats) {
-    // TODO: add API endpoint here
-    console.warn("[OwnerService] getOwnerDashboardStats — endpoint not configured");
-    return null;
-  }
   return api.get(OWNER_ENDPOINTS.getOwnerDashboardStats, { params });
 }
 
-// ---------------------------------------------------------------------------
-// getMonthlyTrafficStats(params)
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch monthly visit data from Clients and Experts for bar chart display.
- *
- * @param {object} params — { year?: number, month?: number }
- * @returns {Promise<object>} {
- *   months: string[],
- *   clientVisits: number[],
- *   expertVisits: number[],
- * }
- */
 export async function getMonthlyTrafficStats(params = {}) {
-  if (!OWNER_ENDPOINTS.getMonthlyTrafficStats) {
-    // TODO: add API endpoint here
-    console.warn("[OwnerService] getMonthlyTrafficStats — endpoint not configured");
-    return { months: [], clientVisits: [], expertVisits: [] };
-  }
-  return api.get(OWNER_ENDPOINTS.getMonthlyTrafficStats, { params });
+  return api.get(OWNER_ENDPOINTS.getMonthlyTrafficStats, { params })
+    .then(res => res?.monthlyTraffic || { months: [], clientVisits: [], expertVisits: [] })
+    .catch(() => ({ months: [], clientVisits: [], expertVisits: [] }));
 }
 
-// ---------------------------------------------------------------------------
-// getYearlyPostStats(params)
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch total post/job counts by year for chart display.
- *
- * @param {object} params — { year?: number }
- * @returns {Promise<object>} {
- *   years: number[],
- *   postCounts: number[],
- * }
- */
 export async function getYearlyPostStats(params = {}) {
-  if (!OWNER_ENDPOINTS.getYearlyPostStats) {
-    // TODO: add API endpoint here
-    console.warn("[OwnerService] getYearlyPostStats — endpoint not configured");
-    return { years: [], postCounts: [] };
-  }
-  return api.get(OWNER_ENDPOINTS.getYearlyPostStats, { params });
+  return api.get(OWNER_ENDPOINTS.getYearlyPostStats, { params })
+    .then(res => res?.yearlyPosts || { years: [], postCounts: [] })
+    .catch(() => ({ years: [], postCounts: [] }));
 }
 
-// ---------------------------------------------------------------------------
-// getTotalPaymentStats(params)
-// ---------------------------------------------------------------------------
-
-/**
- * Fetch total money Clients have transferred to Experts for chart display.
- *
- * @param {object} params — { year?: number, month?: number }
- * @returns {Promise<object>} {
- *   labels: string[],
- *   amounts: number[],
- *   totalAmount: number,
- * }
- */
 export async function getTotalPaymentStats(params = {}) {
-  if (!OWNER_ENDPOINTS.getTotalPaymentStats) {
-    // TODO: add API endpoint here
-    console.warn("[OwnerService] getTotalPaymentStats — endpoint not configured");
-    return { labels: [], amounts: [], totalAmount: 0 };
-  }
-  return api.get(OWNER_ENDPOINTS.getTotalPaymentStats, { params });
+  return api.get(OWNER_ENDPOINTS.getTotalPaymentStats, { params })
+    .then(res => res?.paymentStats || { labels: [], amounts: [], totalAmount: 0 })
+    .catch(() => ({ labels: [], amounts: [], totalAmount: 0 }));
 }
 
 // ---------------------------------------------------------------------------

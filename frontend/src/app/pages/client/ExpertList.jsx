@@ -1,18 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
-import {
-  Search,
-  Star,
-  MapPin,
-  ArrowRight,
-  SlidersHorizontal,
-  X,
-  LayoutGrid,
-  List,
-  Award,
-} from "lucide-react";
+import { Search, Star, MapPin, SlidersHorizontal, X } from "lucide-react";
+import { SkillTags } from "../../components/shared/SkillTags.jsx";
+import { Button } from "../../components/ui/button.jsx";
 import api from "../../../services/api.js";
-import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 
 // ---------------------------------------------------------------------------
 // Checkbox group — reusable inner component
@@ -23,7 +14,7 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
 
   return (
     <div className="mb-5">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5">
+      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
         {title}
       </h4>
       <div className="space-y-1.5">
@@ -38,13 +29,13 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
                 type="checkbox"
                 checked={checked}
                 onChange={() => onToggle(opt.value)}
-                className="w-4 h-4 rounded border-gray-300 text-blue-900 focus:ring-blue-900 accent-blue-900"
+                className="w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50 accent-brand-primary flex-shrink-0"
               />
-              <span className="text-sm text-gray-700 group-hover:text-gray-900">
+              <span className="text-sm text-foreground/80 group-hover:text-foreground">
                 {opt.label}
               </span>
               {opt.count != null && (
-                <span className="text-xs text-gray-400 ml-auto">{opt.count}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{opt.count}</span>
               )}
             </label>
           );
@@ -55,153 +46,15 @@ function CheckboxGroup({ title, options, selected, onToggle }) {
 }
 
 // ---------------------------------------------------------------------------
-// Expert card
-// ---------------------------------------------------------------------------
-
-function ExpertCard({ expert, viewMode }) {
-  const avatarGradient =
-    expert.avatar ||
-    ["from-blue-400 to-purple-500", "from-green-400 to-teal-500", "from-orange-400 to-red-500", "from-pink-400 to-rose-500"][
-      Math.abs(expert.name?.charCodeAt(0) || 0) % 4
-    ];
-
-  if (viewMode === "grid") {
-    return (
-      <Link
-        to={`/client/experts/${expert.id}`}
-        className="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-lg hover:border-purple-200 transition-all group"
-      >
-        <div className="flex items-start gap-4 mb-4">
-          <div
-            className={`w-14 h-14 rounded-xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center flex-shrink-0 shadow-sm`}
-          >
-            <span className="text-white font-bold text-lg">
-              {expert.name?.[0] || "?"}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 truncate group-hover:text-blue-900 transition-colors">
-              {expert.name}
-            </h3>
-            <p className="text-sm text-gray-500">{expert.specialization}</p>
-            <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-              {expert.location && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />
-                  {expert.location}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="font-semibold text-gray-900 text-sm">{expert.rating}</span>
-            <span className="text-xs text-gray-400">
-              ({expert.completedProjects} projects)
-            </span>
-          </div>
-          <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
-        </div>
-      </Link>
-    );
-  }
-
-  // List view
-  return (
-    <Link
-      to={`/client/experts/${expert.id}`}
-      className="block bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md hover:border-gray-300 transition-all group"
-    >
-      <div className="flex items-center gap-4">
-        <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center flex-shrink-0`}
-        >
-          <span className="text-white font-bold text-base">
-            {expert.name?.[0] || "?"}
-          </span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h3 className="font-semibold text-gray-900 group-hover:text-blue-900 transition-colors">
-              {expert.name}
-            </h3>
-            <span className="inline-flex items-center gap-1 text-sm font-medium text-yellow-600">
-              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-              {expert.rating}
-            </span>
-          </div>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {expert.specialization}
-            {expert.location ? ` · ${expert.location}` : ""}
-          </p>
-          {expert.skills?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {expert.skills.slice(0, 5).map((s, i) => (
-                <span
-                  key={i}
-                  className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-[11px] font-medium"
-                >
-                  {s}
-                </span>
-              ))}
-              {expert.skills.length > 5 && (
-                <span className="text-[11px] text-gray-400">+{expert.skills.length - 5}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flex-shrink-0 text-right">
-          <div className="text-sm font-semibold text-gray-900">
-            {expert.completedProjects}+
-          </div>
-          <div className="text-xs text-gray-400">projects</div>
-        </div>
-        <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-blue-500 flex-shrink-0 transition-colors" />
-      </div>
-    </Link>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Loading skeleton
-// ---------------------------------------------------------------------------
-
-function ExpertListSkeleton({ viewMode }) {
-  const cols = viewMode === "grid" ? "grid md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3";
-  const cards = Array.from({ length: 6 });
-  return (
-    <div className={cols}>
-      {cards.map((_, i) => (
-        <div key={i} className="bg-white rounded-xl border border-gray-200 p-5">
-          <div className="flex items-start gap-4 mb-4">
-            <LoadingSkeleton className="w-14 h-14 rounded-xl flex-shrink-0" />
-            <div className="flex-1">
-              <LoadingSkeleton className="h-5 w-2/3 mb-2" />
-              <LoadingSkeleton className="h-4 w-1/2" />
-            </div>
-          </div>
-          <div className="flex justify-between pt-3 border-t border-gray-100">
-            <LoadingSkeleton className="h-4 w-24" />
-            <LoadingSkeleton className="h-4 w-8" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main component
+// Component
 // ---------------------------------------------------------------------------
 
 export function ExpertList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState("grid");
 
   // Multi-select checkbox filters
+  const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [selectedDomains, setSelectedDomains] = useState(new Set());
   const [selectedTech, setSelectedTech] = useState(new Set());
   const [selectedRatings, setSelectedRatings] = useState(new Set());
@@ -209,25 +62,125 @@ export function ExpertList() {
 
   const [experts, setExperts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [skillsList, setSkillsList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   useEffect(() => {
     async function loadExperts() {
       try {
         setLoading(true);
-        const res = await api.experts.list();
-        const expertsOnly = (Array.isArray(res) ? res : [])
-          .filter((u) => u.role?.toLowerCase() === "expert" && u.expertProfile)
-          .map((u) => ({
-            id: u.id,
-            name: u.fullName,
-            specialization: u.expertProfile.major || "AI Specialist",
-            location: u.expertProfile.location || "",
-            rating: Number(u.expertProfile.successRate) || 0,
-            completedProjects: 0,
-            skills: u.expertProfile.skills || [],
-            avatar: null,
-          }));
+        const [res, cats, skills] = await Promise.all([
+          api.experts.list().catch(() => []),
+          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getSkills().catch(() => []),
+        ]);
+        
+        setCategoriesList(cats || []);
+        setSkillsList(skills || []);
+
+        const expertsOnly = (res || [])
+          .filter((u) => u.role?.toLowerCase() === "expert")
+          .map((u) => {
+            const profile = u.expertProfile || {};
+            
+            // Decode Expert Category Name
+            let resolvedCatName = profile.category || u.category || "";
+            const matchedCat = (cats || []).find(c => c.id === resolvedCatName);
+            if (matchedCat) {
+              resolvedCatName = matchedCat.name;
+            }
+
+            // Decode Expert Specialization Name
+            let resolvedSpecName = profile.specialization || profile.major || u.specialization || "";
+            let foundSpec = false;
+            for (const cat of (cats || [])) {
+              const matchedSpec = cat.specializations?.find(s => s.id === resolvedSpecName);
+              if (matchedSpec) {
+                resolvedSpecName = matchedSpec.name;
+                foundSpec = true;
+                break;
+              }
+            }
+            if (!foundSpec && resolvedSpecName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedSpecName = "AI Specialist";
+            }
+
+            if (resolvedCatName.match(/^[0-9a-fA-F-]{36}$/)) {
+              resolvedCatName = "AI & Computing";
+            }
+
+            // Decode Expert Skills
+            const resolvedExpertSkills = (profile.skills || []).map(sk => {
+              if (typeof sk === "string" && sk.startsWith("skill-")) {
+                const match = (skills || []).find(s => s.id === sk);
+                return match ? match.name : sk;
+              }
+              return typeof sk === "string" ? sk : sk?.name || "";
+            });
+
+            return {
+              id: u.id,
+              name: u.fullName,
+              title: profile.jobTitle || resolvedSpecName || "AI Specialist",
+              specialization: resolvedSpecName || "AI Specialist",
+              category: resolvedCatName || "AI & Computing",
+              location: profile.location || "N/A",
+              bio: profile.bio || u.bio || "No biography provided.",
+              rating: null,
+              completedProjects: profile.completedProjects || 0,
+              hourlyRate: profile.hourlyRate || 0,
+              skills: resolvedExpertSkills,
+              avatar: null,
+            };
+          });
         setExperts(expertsOnly);
+
+        // Load full profile + evaluate for each expert in parallel
+        const expertIds = expertsOnly.map(e => e.id);
+        if (expertIds.length > 0) {
+          const [userResults, reviewResults] = await Promise.all([
+            Promise.allSettled(expertIds.map(eid => api.users.getById(eid))),
+            Promise.allSettled(expertIds.map(eid => api.reviews.getExpertReviews(eid))),
+          ]);
+
+          // Map full user data (completed projects from projects array, hourlyRate)
+          const userMap = {};
+          userResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const u = result.value;
+              const allProjects = u.projects || u.Projects || [];
+              const completedCount = allProjects.filter(p =>
+                ["completed", "complete", "resolved"].includes((p.status || p.Status || "").toLowerCase())
+              ).length;
+              userMap[expertIds[idx]] = {
+                completedProjects: completedCount,
+                hourlyRate: u.expertProfile?.hourlyRate || 0,
+              };
+            }
+          });
+
+          // Map evaluate (average rating)
+          const ratingMap = {};
+          reviewResults.forEach((result, idx) => {
+            if (result.status === "fulfilled" && result.value) {
+              const reviewsList = result.value.reviews || [];
+              if (reviewsList.length > 0) {
+                const totalRating = reviewsList.reduce((sum, r) => sum + (r.rating || 0), 0);
+                const avg = (totalRating / reviewsList.length).toFixed(1).replace(".0", "");
+                ratingMap[expertIds[idx]] = avg;
+              }
+            }
+          });
+
+          setExperts(prev => prev.map(e => ({
+            ...e,
+            rating: ratingMap[e.id] || null,
+            completedProjects: userMap[e.id]?.completedProjects ?? e.completedProjects,
+            hourlyRate: userMap[e.id]?.hourlyRate ?? e.hourlyRate,
+          })));
+        }
       } catch (err) {
         console.error("Failed to load experts list:", err);
       } finally {
@@ -237,32 +190,66 @@ export function ExpertList() {
     loadExperts();
   }, []);
 
-  // ── Filter options derived from expert data ──
+  // ---- Filter options derived from expert data -----------------------------
 
-  const domainOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => {
-      e.specialization.split(/,\s*/).forEach((s) => {
-        if (s.trim()) items.add(s.trim());
-      });
+  // Category options: retrieve fully from Backend categories API (Filter duplicates)
+  const categoryOptions = useMemo(() => {
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (cat.name && !list.some(item => item.value === cat.name)) {
+        list.push({
+          value: cat.name,
+          label: cat.name,
+          count: experts.filter((e) => e.category === cat.name).length,
+        });
+      }
     });
-    return [...items].sort().map((domain) => ({
-      value: domain,
-      label: domain,
-      count: experts.filter((e) => e.specialization.includes(domain)).length,
-    }));
-  }, [experts]);
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
 
+  // Domain expertise: retrieve fully from Backend categories API
+  // Only retrieve specializations officially belonging to Backend categories
+  const domainOptions = useMemo(() => {
+    const list = [];
+    categoriesList.forEach((cat) => {
+      if (Array.isArray(cat.specializations)) {
+        cat.specializations.forEach((spec) => {
+          if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
+            // Count actual matching experts
+            const count = experts.filter((e) => e.specialization === spec.name).length;
+            
+            if (!list.some(item => item.value === spec.name)) {
+              list.push({
+                value: spec.name,
+                label: spec.name,
+                count: count,
+              });
+            }
+          }
+        });
+      }
+    });
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [categoriesList, experts]);
+
+  // Core technology (Skills): retrieve fully from Backend skills API (Filter duplicates)
   const techOptions = useMemo(() => {
-    const items = new Set();
-    experts.forEach((e) => e.skills.forEach((s) => items.add(s)));
-    return [...items].sort().map((skill) => ({
-      value: skill,
-      label: skill,
-      count: experts.filter((e) => e.skills.includes(skill)).length,
-    }));
-  }, [experts]);
+    const list = [];
+    skillsList.forEach((skill) => {
+      if (skill.name && !skill.name.match(/^[0-9a-fA-F-]{36}$/)) { // Only use real skill names
+        if (!list.some(item => item.value === skill.name)) {
+          list.push({
+            value: skill.name,
+            label: skill.name,
+            count: experts.filter((e) => e.skills.includes(skill.name)).length,
+          });
+        }
+      }
+    });
+    return list.sort((a, b) => a.label.localeCompare(b.label));
+  }, [skillsList, experts]);
 
+  // Rating tiers derived from actual expert ratings
   const ratingOptions = useMemo(() => {
     const tiers = [];
     const maxRating = Math.max(...experts.map((e) => e.rating), 0);
@@ -272,17 +259,17 @@ export function ExpertList() {
     return tiers;
   }, [experts]);
 
+  // Experience tiers derived from actual completed project counts
   const experienceOptions = useMemo(() => {
     const tiers = [];
     const maxProjects = Math.max(...experts.map((e) => e.completedProjects), 0);
-    if (maxProjects >= 10) tiers.push({ value: "10", label: "10+ projects" });
     if (maxProjects >= 20) tiers.push({ value: "20", label: "20+ projects" });
     if (maxProjects >= 30) tiers.push({ value: "30", label: "30+ projects" });
+    if (maxProjects >= 40) tiers.push({ value: "40", label: "40+ projects" });
     return tiers;
   }, [experts]);
 
-  // ── Toggle helpers ──
-
+  // ---- Toggle helpers ------------------------------------------------------
   const toggleFilter = (setter) => (value) => {
     setter((prev) => {
       const next = new Set(prev);
@@ -292,21 +279,24 @@ export function ExpertList() {
   };
 
   const clearAllFilters = () => {
+    setSelectedCategories(new Set());
     setSelectedDomains(new Set());
     setSelectedTech(new Set());
     setSelectedRatings(new Set());
     setSelectedExperience(new Set());
+    setCurrentPage(1);
   };
 
   const hasActiveFilters =
+    selectedCategories.size > 0 ||
     selectedDomains.size > 0 ||
     selectedTech.size > 0 ||
     selectedRatings.size > 0 ||
     selectedExperience.size > 0;
 
-  // ── Filter logic ──
-
+  // ---- Filter logic --------------------------------------------------------
   const filtered = experts.filter((e) => {
+    // Text search
     if (
       searchTerm &&
       !e.name?.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -314,139 +304,140 @@ export function ExpertList() {
     ) {
       return false;
     }
+
+    // Category filter
+    if (selectedCategories.size > 0) {
+      if (!selectedCategories.has(e.category)) return false;
+    }
+
+    // Domain filter (OR within group)
     if (selectedDomains.size > 0) {
       const domains = e.specialization.split(/,\s*/).map((s) => s.trim());
       if (!domains.some((d) => selectedDomains.has(d))) return false;
     }
+
+    // Technology filter (OR within group)
     if (selectedTech.size > 0) {
       if (!e.skills.some((s) => selectedTech.has(s))) return false;
     }
+
+    // Rating filter (OR within group — highest selected tier wins)
     if (selectedRatings.size > 0) {
       const minRequired = Math.min(...[...selectedRatings].map(Number));
       if (e.rating < minRequired) return false;
     }
+
+    // Experience filter (OR within group — highest selected tier wins)
     if (selectedExperience.size > 0) {
       const minRequired = Math.min(...[...selectedExperience].map(Number));
       if (e.completedProjects < minRequired) return false;
     }
+
     return true;
   });
 
+  // Pagination
+  const totalPages = Math.max(Math.ceil(filtered.length / itemsPerPage), 1);
+  const activePage = currentPage > totalPages ? 1 : currentPage;
+  const paginatedExperts = filtered.slice((activePage - 1) * itemsPerPage, activePage * itemsPerPage);
+
+  // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* ── Header ── */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Find AI Experts</h1>
-        <p className="text-gray-500">
-          {loading
-            ? "Loading expert profiles..."
-            : `${filtered.length} ${filtered.length === 1 ? "expert" : "experts"} available`}
-        </p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Recommended Experts</h1>
+        <p className="text-muted-foreground">Browse and connect with skilled AI professionals</p>
       </div>
 
-      {/* ── Search + Controls row ── */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* Search + Filter toggle */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
           <input
             type="text"
             placeholder="Search by name or specialization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:border-blue-900 focus:ring-1 focus:ring-blue-900 text-sm"
+            className="w-full pl-10 pr-4 py-3 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-input-background"
           />
         </div>
-
         <button
           type="button"
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-2.5 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition ${
-            showFilters || hasActiveFilters
-              ? "border-blue-900 bg-blue-50 text-blue-900"
-              : "border-gray-300 text-gray-700 hover:bg-gray-50"
-          }`}
+          className={`px-4 py-3 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${showFilters || hasActiveFilters
+              ? "border-primary bg-primary-light text-primary"
+              : "border-border text-foreground hover:bg-secondary"
+            }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           Filters
-          {hasActiveFilters && <span className="w-2 h-2 bg-blue-600 rounded-full" />}
+          {hasActiveFilters && (
+            <span className="w-2 h-2 bg-primary rounded-full" />
+          )}
         </button>
-
-        {/* View toggle */}
-        <div className="flex border border-gray-300 rounded-xl overflow-hidden">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`p-2.5 ${viewMode === "grid" ? "bg-blue-50 text-blue-900" : "bg-white text-gray-500 hover:bg-gray-50"}`}
-            title="Grid view"
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`p-2.5 ${viewMode === "list" ? "bg-blue-50 text-blue-900" : "bg-white text-gray-500 hover:bg-gray-50"}`}
-            title="List view"
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
-      {/* ── Active filter chips ── */}
+      {/* Active filter chips */}
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          {[...selectedDomains].map((v) => (
-            <span key={v} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+          {[...selectedCategories].map((v) => (
+            <span key={v} className="px-3 py-1 bg-success-light text-success rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
-              <button onClick={() => toggleFilter(setSelectedDomains)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedCategories)(v)}><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+          {[...selectedDomains].map((v) => (
+            <span key={v} className="px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-xs font-medium inline-flex items-center gap-1">
+              {v}
+              <button onClick={() => toggleFilter(setSelectedDomains)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedTech].map((v) => (
-            <span key={v} className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+            <span key={v} className="px-3 py-1 bg-accent-light text-accent rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
-              <button onClick={() => toggleFilter(setSelectedTech)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedTech)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedRatings].map((v) => (
-            <span key={v} className="px-3 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
+            <span key={v} className="px-3 py-1 bg-warning-light text-warning rounded-full text-xs font-medium inline-flex items-center gap-1">
               ★ {v}+
-              <button onClick={() => toggleFilter(setSelectedRatings)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+              <button onClick={() => toggleFilter(setSelectedRatings)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           {[...selectedExperience].map((v) => (
-            <span key={v} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium inline-flex items-center gap-1">
-              <Award className="w-3 h-3" /> {v}+
-              <button onClick={() => toggleFilter(setSelectedExperience)(v)}>
-                <X className="w-3 h-3" />
-              </button>
+            <span key={v} className="px-3 py-1 bg-success-light text-success rounded-full text-xs font-medium inline-flex items-center gap-1">
+              {v}+ projects
+              <button onClick={() => toggleFilter(setSelectedExperience)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
           <button
             type="button"
             onClick={clearAllFilters}
-            className="text-xs text-gray-400 hover:text-gray-600 ml-1"
+            className="text-xs text-muted-foreground hover:text-foreground ml-2"
           >
             Clear all
           </button>
         </div>
       )}
 
-      {/* ── Filter panel ── */}
+      {/* Filter panel — checkbox groups */}
       {showFilters && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-6 shadow-sm">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-card rounded-xl border border-border p-6 mb-6 shadow-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             <CheckboxGroup
-              title="Domain Expertise"
+              title="Select A category"
+              options={categoryOptions}
+              selected={selectedCategories}
+              onToggle={toggleFilter(setSelectedCategories)}
+            />
+            <CheckboxGroup
+              title="Area of expertise or Specialization"
               options={domainOptions}
               selected={selectedDomains}
               onToggle={toggleFilter(setSelectedDomains)}
             />
             <CheckboxGroup
-              title="Core Technology"
+              title="Required Skills"
               options={techOptions}
               selected={selectedTech}
               onToggle={toggleFilter(setSelectedTech)}
@@ -464,11 +455,11 @@ export function ExpertList() {
               onToggle={toggleFilter(setSelectedExperience)}
             />
           </div>
-          <div className="flex justify-end mt-4 pt-4 border-t border-gray-100">
+          <div className="flex justify-end mt-4 pt-4 border-t border-border">
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-sm text-gray-500 hover:text-gray-700 font-medium"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Clear all filters
             </button>
@@ -476,31 +467,148 @@ export function ExpertList() {
         </div>
       )}
 
-      {/* ── Results ── */}
-      {loading ? (
-        <ExpertListSkeleton viewMode={viewMode} />
-      ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center shadow-sm">
-          <Search className="w-14 h-14 text-gray-200 mx-auto mb-5" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">No experts found</h3>
-          <p className="text-sm text-gray-400 max-w-md mx-auto">
+      {/* Results */}
+      {filtered.length === 0 ? (
+        <div className="bg-card rounded-xl border border-border p-12 text-center">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <Search className="w-8 h-8 text-muted-foreground/30" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground/60 mb-2">No experts found</h3>
+          <p className="text-sm text-muted-foreground">
             {searchTerm || hasActiveFilters
-              ? "Try adjusting your search or clearing filters."
-              : "No AI experts are currently available. Check back soon."}
+              ? "Try adjusting your search or filters."
+              : "No AI experts are currently available."}
           </p>
         </div>
-      ) : viewMode === "grid" ? (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((expert) => (
-            <ExpertCard key={expert.id} expert={expert} viewMode="grid" />
-          ))}
-        </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((expert) => (
-            <ExpertCard key={expert.id} expert={expert} viewMode="list" />
+        <>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {paginatedExperts.map((expert) => (
+            <div
+              key={expert.id}
+              className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors shadow-sm flex flex-col justify-between"
+            >
+              <div>
+                {/* ── Top: name + rating badge ── */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <h3 className="font-semibold text-foreground text-[15px] leading-snug">
+                    {expert.name}
+                  </h3>
+                  {expert.rating && Number(expert.rating) > 0 ? (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold inline-flex items-center gap-1">
+                      <Star className="w-3.5 h-3.5 fill-success text-success" />
+                      {expert.rating}
+                    </span>
+                  ) : (
+                    <span className="flex-shrink-0 px-2 py-0.5 bg-muted text-muted-foreground rounded-full text-xs font-medium">
+                      None
+                    </span>
+                  )}
+                </div>
+
+                {/* ── Title + location ── */}
+                <p className="text-sm text-muted-foreground mb-2.5">
+                  {expert.title}
+                  {expert.location ? (
+                    <>
+                      {" · "}
+                      <span className="font-medium text-foreground/70">
+                        {expert.location}
+                      </span>
+                    </>
+                  ) : null}
+                </p>
+
+                {/* ── Bio ── */}
+                {expert.bio && (
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
+                    {expert.bio}
+                  </p>
+                )}
+
+                {/* ── Skill tags ── */}
+                {expert.skills?.length > 0 && (
+                  <div className="mb-3">
+                    <SkillTags
+                      skills={expert.skills}
+                      maxVisible={4}
+                    />
+                  </div>
+                )}
+
+                {/* ── Stats ── */}
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      {expert.completedProjects}
+                    </span>{" "}
+                    completed projects
+                  </span>
+                  <span className="text-muted-foreground/60">·</span>
+                  <span className="text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      {expert.hourlyRate}
+                    </span>{" "}
+                    USD/hr
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Action ── */}
+              <Button
+                variant="default"
+                size="default"
+                className="w-full mt-auto"
+                asChild
+              >
+                <Link to={`/client/experts/${expert.id}`}>
+                  View Profile
+                </Link>
+              </Button>
+            </div>
           ))}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-6 mt-6 border-t border-border">
+            <span className="text-sm text-muted-foreground">
+              Showing {(activePage - 1) * itemsPerPage + 1} to {Math.min(activePage * itemsPerPage, filtered.length)} of {filtered.length} experts
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={activePage === 1}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i + 1)}
+                    className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
+                      activePage === i + 1
+                        ? "bg-brand-primary text-brand-primary-foreground shadow-sm"
+                        : "hover:bg-secondary text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={activePage === totalPages}
+                className="h-9 px-3 border border-border rounded-lg text-sm font-medium hover:bg-secondary disabled:opacity-50 disabled:pointer-events-none transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

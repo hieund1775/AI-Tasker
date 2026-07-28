@@ -1,17 +1,24 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
-  DollarSign,
   Clock,
   MapPin,
-  User,
-  Tag,
   Send,
   Calendar,
+  User,
+  Tag,
+  Layers,
+  CheckCircle2,
+  FileText,
+  Paperclip,
 } from "lucide-react";
-import { BackButton } from "../../components/shared/BackButton.jsx";
+import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import { safeArray, safeDateFormat } from "../../lib/safety.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { SectionCard } from "../../components/shared/SectionCard.jsx";
+import api, { enrichFileUrl } from "../../../services/api.js";
+import { notificationService } from "../../../services/notificationHelper.js";
 
 export function JobDetail() {
   const { id } = useParams();
@@ -21,200 +28,395 @@ export function JobDetail() {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [invitation, setInvitation] = useState(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchJobData() {
+    async function fetchJob() {
       setLoading(true);
       setError(null);
       try {
-        const jobData = await api.jobPosts.getById(id);
-        if (!jobData) {
-          if (!cancelled) setError("Job not found.");
+        const project = await api.jobPosts.getById(id);
+        if (!project) {
+          if (!cancelled) setError("Project not found.");
           return;
         }
+
+        let clientInfo = null;
+        if (project.clientId) {
+          try {
+            const clientUser = await api.users.getById(project.clientId);
+            if (clientUser) {
+              let parsedStatus = {};
+              try {
+                parsedStatus = JSON.parse(clientUser.status);
+              } catch {
+                parsedStatus = { companyName: "", location: "" };
+              }
+              clientInfo = {
+                name: clientUser.fullName || clientUser.name || "Client",
+                company: parsedStatus.companyName || "",
+                location: parsedStatus.location || "",
+              };
+            }
+          } catch (e) {
+            console.error("Failed to load client details:", e);
+          }
+        }
+
+        let invitationProposal = null;
+        let hasSubmittedProp = false;
+        let extendedDeadlineStr = null;
+        if (user && user.role === "expert") {
+          try {
+            const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
+            invitationProposal = myProposals.find(
+              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) === 0 && p.status?.toLowerCase() === "pending"
+            );
+            hasSubmittedProp = myProposals.some(
+              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
+            );
+            // Check for accepted proposal with extended deadline
+            const acceptedProposal = myProposals.find(p =>
+              p.jobPostId === project.id &&
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+            );
+            if (acceptedProposal?.projectId) {
+              try {
+                const storedDeadline = localStorage.getItem(`project_deadline_${acceptedProposal.projectId}`);
+                if (storedDeadline) extendedDeadlineStr = storedDeadline;
+              } catch (e) { /* ignore */ }
+            }
+          } catch (e) {
+            console.error("Failed to load proposals for job:", e);
+          }
+        }
+
         if (!cancelled) {
+          // api.jobPosts.getById already executed mapJobPost(), so useCases, requiredSkills, category
+          // are already mapped correctly. Just assign client info.
           setJob({
-            id: jobData.id,
-            title: jobData.title,
-            description: jobData.description,
-            budget: jobData.budget,
-            createdAt: jobData.createdAt,
-            category: jobData.category,
-            categoryLabel: jobData.category,
-            requiredSkills: jobData.jobPostSkills?.map(s => s.skill) || [],
-            client: {
-              name: jobData.clientName || "Client",
-              location: jobData.clientLocation || "",
-            },
+            ...project,
+            client: clientInfo,
+            _extendedDeadline: extendedDeadlineStr, // store extended deadline for display
           });
+          setInvitation(invitationProposal);
+          setHasSubmitted(hasSubmittedProp);
         }
       } catch (apiError) {
+        console.error("API error loading job details:", apiError);
         if (!cancelled) setError("Failed to load job details.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchJobData();
+    fetchJob();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, user?.id]);
 
-  if (loading)
+  const handleAcceptInvite = () => {
+    navigate(`/expert/jobs/${id}/proposal`);
+  };
+
+  const handleDeclineInvite = async () => {
+    if (!invitation) return;
+    try {
+      // 1. Decline proposal invitation in database
+      await api.proposals.updateStatus(invitation.id, "declined");
+
+      // 2. Notify the client
+      if (job?.clientId) {
+        await notificationService.notifyInviteDeclined({
+          clientUserId: job.clientId,
+          expertName: user?.fullName || user?.name || "An expert",
+          jobTitle: job.title,
+          jobPostId: job.id
+        });
+      }
+
+      alert("You have successfully declined the invitation!");
+      setInvitation(null);
+    } catch (e) {
+      console.error("Failed to decline invite:", e);
+      alert("Failed to decline invitation. Please try again!");
+    }
+  };
+
+  if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mx-auto" />
-            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
-          </div>
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-48" />
+          <div className="h-64 bg-muted rounded-2xl" />
         </div>
       </div>
     );
-  if (error)
+  }
+
+  if (error || !job) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/jobs" className="mb-6">
-          Back to Jobs
-        </BackButton>
-        <div className="bg-white rounded-xl border border-red-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-red-600 mb-2">
-            Failed to load job
-          </h3>
-          <p className="text-sm text-gray-500">{error}</p>
+        <PageHeader title="Job Details" subtitle="—" divider={false} />
+        <div className="bg-card rounded-2xl border border-destructive/20 p-12 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-destructive mb-2">{error || "Job not found"}</h3>
+          <p className="text-sm text-muted-foreground">This job may have been removed or is no longer available.</p>
         </div>
       </div>
     );
-  if (!job)
-    return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/jobs" className="mb-6">
-          Back to Jobs
-        </BackButton>
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
-            Job not found
-          </h3>
-          <p className="text-sm text-gray-400">
-            This job may have been removed or is no longer available.
-          </p>
-        </div>
-      </div>
-    );
+  }
+
+  // Use requiredSkills already mapped by mapJobPost() in api.js
+  const skills = (job.requiredSkills && job.requiredSkills.length > 0)
+    ? job.requiredSkills
+    : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
+
+  const deadlineText = (() => {
+    if (!job.deadline) return null;
+
+    // Use extended deadline from localStorage if available (project extension approved)
+    if (job._extendedDeadline) {
+      return safeDateFormat(job._extendedDeadline, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      }, String(job._extendedDeadline));
+    }
+
+    // Convert numeric deadline (days) to actual date based on job creation date
+    const num = Number(job.deadline);
+    if (!Number.isNaN(num) && num < 1000) {
+      const startDate = new Date(job.createdAt || job.CreatedAt || Date.now());
+      if (!Number.isNaN(startDate.getTime())) {
+        const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
+        return safeDateFormat(deadlineDate.toISOString(), {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        }, `${num} days`);
+      }
+    }
+    return safeDateFormat(job.deadline, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    }, String(job.deadline));
+  })();
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/expert/jobs" className="mb-6">
-        Back to Jobs
-      </BackButton>
-
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-gray-100">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
-              <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-gray-500">
-                <span className="flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" /> Budget: $
-                  {job.budget != null ? job.budget.toLocaleString() : "—"}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-4 h-4" /> Posted:{" "}
-                  {job.createdAt
-                    ? new Date(job.createdAt).toLocaleDateString()
-                    : "Recently"}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Tag className="w-4 h-4" />{" "}
-                  {job.categoryLabel || job.category}
-                </span>
-              </div>
-            </div>
-
-            {user?.role === "expert" &&
-              (user.hasProfile ? (
-                <button
-                  type="button"
-                  onClick={() => navigate(`/expert/jobs/${id}/proposal`)}
-                  className="px-6 py-3 bg-blue-900 text-white rounded-xl hover:bg-blue-800 font-medium inline-flex items-center gap-2 shadow-sm transition-colors"
-                >
+      <PageHeader
+        title={job.title}
+        subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` · ${job.client.company}` : ""}`}
+        badge={
+          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary capitalize">
+            {job.status || "Open"}
+          </span>
+        }
+        actions={
+          user?.role === "expert" && !invitation ? (
+            hasSubmitted ? (
+              <button disabled className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed">
+                <Send className="w-4 h-4" /> Proposal Submitted
+              </button>
+            ) : user.hasProfile ? (
+              <button type="button" onClick={() => navigate(`/expert/jobs/${id}/proposal`)} className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-medium text-sm inline-flex items-center gap-2 transition-colors">
+                <Send className="w-4 h-4" /> Apply Now
+              </button>
+            ) : (
+              <div className="flex flex-col items-end gap-1.5">
+                <button disabled className="h-11 px-5 bg-muted text-muted-foreground rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed opacity-60">
                   <Send className="w-4 h-4" /> Apply Now
                 </button>
-              ) : (
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    disabled
-                    className="px-6 py-3 bg-gray-300 text-gray-500 rounded-xl font-medium inline-flex items-center gap-2 cursor-not-allowed"
-                  >
-                    <Send className="w-4 h-4" /> Apply Now
-                  </button>
-                  <span className="text-xs text-red-500 font-medium">
-                    {/* SỬA: CHUYỂN TỚI EDIT-PROFILE */}
-                    Vui lòng{" "}
-                    <Link to="/expert/edit-profile" className="underline">
-                      hoàn thiện Profile
-                    </Link>{" "}
-                    để ứng tuyển.
-                  </span>
+                <span className="text-xs text-red-500 font-medium">
+                  Please <Link to="/expert/profile/edit" className="underline hover:text-red-700">complete your Profile</Link> to apply.
+                </span>
+              </div>
+            )
+          ) : undefined
+        }
+      />
+
+      {/* Invitation banner */}
+      {invitation && (
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">You've been invited to this project!</h4>
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Please Accept or Decline this invitation.</p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={handleAcceptInvite} className="h-10 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+              Accept
+            </button>
+            <button type="button" onClick={handleDeclineInvite} className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+              Decline
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {/* Description */}
+        <SectionCard title="Description" icon={FileText} padding="lg">
+          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+            {job.description || "No description provided."}
+          </p>
+        </SectionCard>
+
+        {/* User Stories */}
+        {safeArray(job.useCases).length > 0 && (
+          <SectionCard title="Project User Stories" icon={Layers} padding="lg">
+            <div className="space-y-3">
+              {safeArray(job.useCases).map((uc, i) => (
+                <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2 text-left">
+                    <p className="font-bold text-foreground text-sm">
+                      User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
+                    </p>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
+                  </div>
+                  {uc.description ? (
+                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">Description: {uc.description}</p>
+                  ) : null}
                 </div>
               ))}
-          </div>
-        </div>
+            </div>
+          </SectionCard>
+        )}
 
-        <div className="p-8 space-y-8">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">
-              Description
-            </h2>
-            <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-              {job.description || "No description provided."}
-            </p>
-          </div>
-          {job.requiredSkills && job.requiredSkills.length > 0 && (
+        {/* Category + Specialization */}
+        <SectionCard title="Category & Skills" icon={Tag} padding="lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">
-                Required Skills
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {(Array.isArray(job.requiredSkills)
-                  ? job.requiredSkills
-                  : []
-                ).map((skill, i) => (
-                  <span
-                    key={i}
-                    className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium"
-                  >
-                    {typeof skill === "string" ? skill : skill.name || skill}
-                  </span>
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
+              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "—"}</p>
+            </div>
+            {(job.specialization || job.specializationName) && (
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Specialization</p>
+                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "—"}</p>
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Required Skills</p>
+            {skills.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {skills.map((skill) => (
+                  <span key={skill} className="px-2.5 py-0.5 bg-brand-primary-light text-brand-primary rounded-md text-xs font-medium">{skill}</span>
                 ))}
               </div>
-            </div>
-          )}
-          {job.client && (
-            <div className="border-t pt-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                About the Client
-              </h2>
-              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <User className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">
-                    {job.client.name || "Client"}
-                  </p>
-                  {job.client.location && (
-                    <p className="text-sm text-gray-500 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5" /> {job.client.location}
-                    </p>
-                  )}
-                </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">No required skills listed.</p>
+            )}
+          </div>
+        </SectionCard>
+
+        {/* Project Attachments */}
+        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg">
+          {(() => {
+            const cached = job._attachments;
+            const rawBE = job.attachmentUrl || job.AttachmentUrl;
+            let files = [];
+            if (Array.isArray(cached) && cached.length > 0) {
+              files = cached;
+            } else if (typeof rawBE === "string" && rawBE.trim().length > 0) {
+              try {
+                const parsed = JSON.parse(rawBE);
+                files = Array.isArray(parsed) ? parsed : [{ name: rawBE.split("/").pop(), url: rawBE }];
+              } catch {
+                files = [{ name: rawBE.split("/").pop(), url: rawBE }];
+              }
+            }
+
+            // Deduplicate files by url
+            const uniqueFiles = [];
+            const seenUrls = new Set();
+            for (const f of files) {
+              const rawU = typeof f === "string" ? f : (f.url || f.Url || f.name);
+              if (rawU && !seenUrls.has(rawU)) {
+                seenUrls.add(rawU);
+                uniqueFiles.push(f);
+              }
+            }
+
+            if (uniqueFiles.length === 0) {
+              return <p className="text-sm text-muted-foreground italic">None</p>;
+            }
+
+            return (
+              <div className="flex flex-wrap gap-2">
+                {uniqueFiles.map((file, idx) => {
+                  const rawUrl = typeof file === "string" ? file : (file.url || file.Url || file.path || file.Path || "#");
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+
+                  let fileName = typeof file === "object" ? (file.name || file.Name || file.originalName || file.fileName) : null;
+                  if (!fileName && typeof rawUrl === "string") {
+                    const baseName = rawUrl.split("/").pop() || "Attachment";
+                    fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                    if (!fileName) fileName = baseName;
+                  }
+
+                  const handleDownloadFile = async (e) => {
+                    e.preventDefault();
+                    if (!fileUrl || fileUrl === "#") return;
+                    try {
+                      const res = await fetch(fileUrl);
+                      const blob = await res.blob();
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = fileName || "Project_Attachment";
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      console.warn("Direct blob download failed, falling back to window.open:", err);
+                      window.open(fileUrl, "_blank");
+                    }
+                  };
+
+                  return (
+                    <a
+                      key={idx}
+                      href={fileUrl}
+                      onClick={handleDownloadFile}
+                      download={fileName || true}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary border border-border rounded-lg text-xs font-medium text-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                      title={`Download ${fileName}`}
+                    >
+                      <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{fileName || "Attachment"}</span>
+                    </a>
+                  );
+                })}
               </div>
+            );
+          })()}
+        </SectionCard>
+
+        {/* Stats */}
+        <SectionCard padding="lg">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-0.5">Budget</p>
+              <p className="font-semibold text-foreground text-sm"><MoneyDisplay amount={job.budget} /></p>
             </div>
-          )}
-        </div>
+            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
+              <p className="font-semibold text-foreground text-sm">{deadlineText || "—"}</p>
+            </div>
+            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+              <p className="text-xs text-muted-foreground mb-0.5">Posted</p>
+              <p className="font-semibold text-foreground text-sm">{safeDateFormat(job.createdAt, { month: "short", day: "numeric", year: "numeric" })}</p>
+            </div>
+          </div>
+        </SectionCard>
       </div>
     </div>
   );
 }
+

@@ -1,9 +1,28 @@
-namespace AITasker_Modular.Modules.ProjectModule;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public interface IProjectService
+namespace AITasker_Modular.Modules.ProjectModule
 {
-    Task<IReadOnlyList<Project>> GetProjectsAsync();
-    Task<Project> UpdateProgressAsync(string projectId, string status); // Changed Guid to string
-    Task<bool> ApproveMiniTaskAsync(string miniTaskId); // Changed Guid to string
-    Task<string> SaveFeedbackAsync(string miniTaskId, string feedback); // Changed Guid to string
+    public interface IProjectService
+    {
+        Task<IEnumerable<Project>> GetProjectsByClientAsync(Guid clientId);
+        Task<IEnumerable<Project>> GetProjectsByExpertAsync(Guid expertId);
+        Task<Project?> UpdateProjectStatusAsync(Guid projectId, string status);
+        Task<Project?> SubmitProjectLinkAsync(Guid projectId, string projectLink);
+        Task<Project?> GetProjectByIdAsync(Guid projectId);
+        Task<MiniTask?> UpdateMiniTaskAsync(Guid miniTaskId, string? title, bool isCompleted, string? feedbackContent, Guid? feedbackSenderId, int? duration, string? productLink, string? productFile);
+        Task<Task?> GetTaskWithTimelineAsync(Guid taskId);
+        Task<Task?> UpdateTaskStatusAsync(Guid taskId, string status);
+        Task<Task?> CreateTaskAsync(Guid projectId, string title);
+        Task<MiniTask?> CreateMiniTaskAsync(Guid taskId, string title, int? duration);
+        Task<bool> DeleteTaskAsync(Guid taskId);
+        Task<bool> DeleteMiniTaskAsync(Guid miniTaskId);
+        Task<Task?> SubmitTaskForReviewAsync(Guid taskId, string? notes = null);
+        Task<Task?> ReviewTaskAsync(Guid taskId, bool approve, string? feedbackContent, Guid feedbackSenderId);
+        Task<Project?> CreateProjectFromProposalAsync(Guid proposalId);
+
+        Task<bool> LockProjectForDisputeAsync(Guid projectId);
+        Task<decimal> PayoutDisputeEscrowAsync(Guid projectId, string winnerRole);
+    }
 }

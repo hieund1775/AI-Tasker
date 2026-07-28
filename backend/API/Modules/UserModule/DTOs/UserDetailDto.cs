@@ -12,11 +12,14 @@ public class UserDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 }
 
 public class UserWalletDto
 {
     public decimal Balance { get; set; }
+    public decimal EscrowBalance { get; set; }
+    public decimal TotalEarned { get; set; }
 }
 
 public class UserExpertProfileDto
@@ -29,6 +32,13 @@ public class UserExpertProfileDto
     public decimal ReputationCredit { get; set; }
     public string? Location { get; set; }
     public double SuccessRate { get; set; }
+    // NEW FIELDS:
+    public string? Category { get; set; }
+    public List<string> Skills { get; set; } = new();
+    public string? Phone { get; set; }
+    public string? Website { get; set; }
+    public string? Industry { get; set; }
+    public decimal HourlyRate { get; set; }
 }
 
 public class UserJobPostDto
@@ -47,7 +57,10 @@ public class UserProposalDto
     public string Id { get; set; } = string.Empty;
     public string JobPostId { get; set; } = string.Empty;
     public decimal BidAmount { get; set; }
-    public string CoverLetter { get; set; } = string.Empty;
+    public int EstimatedDuration { get; set; }
+    public string Introduction { get; set; } = string.Empty;
+    public string Implementation { get; set; } = string.Empty;
+    public string? Portfolio { get; set; }
     public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
@@ -63,6 +76,13 @@ public class UserProjectDto
     public DateTime StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public string? ProjectLink { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public decimal Budget { get; set; }
+    public string? Category { get; set; }
+    // NEW PROPERTIES:
+    public string ClientName { get; set; } = string.Empty;
+    public string SpecializationName { get; set; } = string.Empty;
+    public List<string> ProjectSkills { get; set; } = new();
 }
 
 public class UserDetailDto
@@ -74,6 +94,7 @@ public class UserDetailDto
     public string Status { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string? PhoneNumber { get; set; }
 
     public UserWalletDto? Wallet { get; set; }
     public UserExpertProfileDto? ExpertProfile { get; set; }

@@ -8,20 +8,21 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, ShieldOff, Shield, Filter } from "lucide-react";
+import { Search, ShieldOff, Shield, Filter, Eye, X } from "lucide-react";
+import { useNavigate } from "react-router";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
 // Status & Role configs
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  client: "bg-blue-100 text-blue-700",
+  client: "bg-brand-primary-light text-brand-primary",
   expert: "bg-purple-100 text-purple-700",
   admin: "bg-red-100 text-red-700",
   owner: "bg-yellow-100 text-yellow-700",
@@ -29,9 +30,10 @@ const ROLE_COLORS = {
 
 const STATUS_CONFIG = {
   active: { color: "bg-green-100 text-green-700", label: "Active" },
-  suspended: { color: "bg-red-100 text-red-700", label: "Locked" },
-  locked: { color: "bg-red-100 text-red-700", label: "Locked" },
-  banned: { color: "bg-red-100 text-red-700", label: "Locked" },
+  inactive: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  suspended: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  locked: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  banned: { color: "bg-red-100 text-red-700", label: "Inactive" },
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -45,15 +47,18 @@ const ROLE_FILTER_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export function AdminUsers({ excludeRoles = [] }) {
+  const navigate = useNavigate();
+  const { role: userRole } = useAuth();
+  const rawRole = (userRole || "").toLowerCase();
+  const currentUserRole = rawRole === "staff" ? "admin" : rawRole;
+
   const [users, setUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  // Frontend filtering — role exclusion + role filter applied on API results
+  // Frontend filtering — role exclusion
   const filteredUsers = useMemo(() => {
     let result = users;
     // Exclude specified roles (e.g. Owner page excludes admins)
@@ -62,16 +67,16 @@ export function AdminUsers({ excludeRoles = [] }) {
         (u) => !excludeRoles.includes((u.role || "").toLowerCase()),
       );
     }
-    // Apply role filter
-    if (roleFilter) {
+    // Admin cannot see owner accounts
+    if (currentUserRole === "admin") {
       result = result.filter(
-        (u) => (u.role || "").toLowerCase() === roleFilter.toLowerCase(),
+        (u) => (u.role || "").toLowerCase() !== "owner"
       );
     }
     return result;
-  }, [users, roleFilter, excludeRoles]);
+  }, [users, excludeRoles, currentUserRole]);
 
-  // Modal state
+  // Modal states
   const [lockModal, setLockModal] = useState(null); // { userId, userName, currentStatus }
 
   // -----------------------------------------------------------------------
@@ -81,17 +86,23 @@ export function AdminUsers({ excludeRoles = [] }) {
     setLoading(true);
     setError(null);
     try {
-      const params = {};
-      if (searchTerm) params.search = searchTerm;
-      const result = await api.users.list(params);
-      setUsers(Array.isArray(result) ? result : result?.data || []);
+      const result = await api.users.list();
+      const rawData = Array.isArray(result) ? result : result?.data || [];
+      const normalizedData = rawData.map(u => {
+        const roleLower = (u.role || u.Role || "").trim().toLowerCase();
+        return {
+          ...u,
+          role: roleLower === "staff" ? "admin" : roleLower
+        };
+      });
+      setUsers(normalizedData);
     } catch (err) {
       setError(err.message || "Unable to load user list.");
       setUsers([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchUsers();
@@ -108,8 +119,8 @@ export function AdminUsers({ excludeRoles = [] }) {
   const handleToggleLock = useCallback(
     async (userId, currentStatus) => {
       setActionLoading(true);
-      const isActive = currentStatus === "active";
-      const newStatus = isActive ? "suspended" : "active";
+      const isActive = (currentStatus || "").toLowerCase() === "active";
+      const newStatus = isActive ? "Inactive" : "Active";
       try {
         await api.put(`/users/${userId}/set-active`, {
           isActive: !isActive,
@@ -119,6 +130,12 @@ export function AdminUsers({ excludeRoles = [] }) {
             u.id === userId ? { ...u, status: newStatus } : u,
           ),
         );
+        if (isActive) {
+          localStorage.setItem("aitasker_user_banned", JSON.stringify({ userId, timestamp: Date.now() }));
+        } else {
+          localStorage.removeItem("aitasker_user_banned");
+        }
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         showToast(
           isActive
             ? "User has been locked."
@@ -143,29 +160,43 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "User",
       render: (val, row) => (
         <div>
-          <p className="text-sm font-medium text-gray-900">
+          <p className="text-sm font-medium text-foreground">
             {val || row.name || "—"}
           </p>
-          <p className="text-xs text-gray-500">{row.email || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
         </div>
       ),
     },
     {
       key: "role",
       label: "Role",
-      render: (val) => (
-        <span
-          className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            ROLE_COLORS[val?.toLowerCase()] || "bg-gray-100 text-gray-700"
-          }`}
-        >
-          {val || "—"}
-        </span>
-      ),
+      filterOptions: [
+        { label: "Client", value: "client" },
+        { label: "Expert", value: "expert" },
+        { label: "Admin", value: "admin" },
+      ],
+      render: (val) => {
+        if (!val) return "—";
+        const normalized = val.trim().toLowerCase();
+        const displayLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+        return (
+          <span
+            className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              ROLE_COLORS[normalized] || "bg-secondary text-foreground/80"
+            }`}
+          >
+            {displayLabel}
+          </span>
+        );
+      },
     },
     {
       key: "status",
       label: "Status",
+      filterOptions: [
+        { label: "Active", value: "active" },
+        { label: "Inactive", value: "inactive" },
+      ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
       ),
@@ -174,7 +205,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       key: "createdAt",
       label: "Joined",
       render: (val) => (
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "—"}
         </span>
       ),
@@ -185,15 +216,13 @@ export function AdminUsers({ excludeRoles = [] }) {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/dashboard" className="mb-4">
-        Back to Dashboard
-      </BackButton>
+    <div className="space-y-6">
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">
+
+      <h1 className="text-2xl font-bold text-foreground mb-2">
         User Management
       </h1>
-      <p className="text-gray-600 mb-6">
+      <p className="text-muted-foreground mb-6">
         View and manage platform users.
       </p>
 
@@ -209,48 +238,40 @@ export function AdminUsers({ excludeRoles = [] }) {
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-900 text-sm appearance-none bg-white"
-          >
-            {ROLE_FILTER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
       <DataTable
         columns={columns}
         data={filteredUsers}
         loading={loading}
-        emptyMessage={roleFilter ? `No users found with role "${ROLE_FILTER_OPTIONS.find(o => o.value === roleFilter)?.label || roleFilter}".` : "No users found."}
+        emptyMessage="No users found."
         actions={(row) => {
+          const rowRole = (row.role || "").toLowerCase();
           // Don't allow locking owner accounts
-          if (row.role?.toLowerCase() === "owner") return null;
+          if (rowRole === "owner") return null;
+          // Admin cannot lock other admin accounts (but Owner can)
+          if (currentUserRole === "admin" && rowRole === "admin") {
+            return null;
+          }
+          const statusLower = (row.status || "").toLowerCase();
           const isLocked =
-            row.status === "suspended" ||
-            row.status === "locked" ||
-            row.status === "banned";
+            statusLower === "inactive" ||
+            statusLower === "suspended" ||
+            statusLower === "locked" ||
+            statusLower === "banned";
           return (
             <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const basePath = currentUserRole === "owner" ? "/owner" : "/admin";
+                  const profileType = rowRole === "expert" ? "profile-expert" : "profile-client";
+                  const url = `${basePath}/${profileType}/${row.id}`;
+                  navigate(url);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                View
+              </button>
               <button
                 type="button"
                 onClick={() =>
@@ -261,11 +282,10 @@ export function AdminUsers({ excludeRoles = [] }) {
                   })
                 }
                 disabled={actionLoading}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition ${
-                  isLocked
-                    ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                    : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
-                }`}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${isLocked
+                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  }`}
               >
                 {isLocked ? (
                   <>

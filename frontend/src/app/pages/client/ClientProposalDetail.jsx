@@ -9,7 +9,7 @@ import {
   Briefcase,
   Paperclip,
   Image,
-  File,
+  File as FileIcon,
   FolderOpen,
   MessageSquare,
   PenLine,
@@ -313,31 +313,63 @@ export function ClientProposalDetail() {
               <p className="text-sm text-gray-400">No attachments included.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {attachments.map((att, idx) => (
-                  <div
-                    key={att.id || idx}
-                    className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3"
-                  >
-                    {att.type === "image/png" || att.fileType === "image/png" ? (
-                      <Image className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                    ) : att.type === "folder" ? (
-                      <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                    ) : (
-                      <File className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">
-                        {att.name || att.fileName || "Attachment"}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {att.type || att.fileType || "file"}
-                        {att.size || att.fileSize
-                          ? ` · ${att.size || att.fileSize}`
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                {attachments.map((att, idx) => {
+                  const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+                  let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                  if (!rawName && typeof rawUrl === "string") {
+                    rawName = rawUrl.split("/").pop() || "Attachment";
+                  }
+                  const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                  const finalName = cleanName || rawName;
+
+                  const handleDownloadFile = async (e) => {
+                    e.preventDefault();
+                    if (!fileUrl || fileUrl === "#") return;
+                    try {
+                      const res = await fetch(fileUrl);
+                      const blob = await res.blob();
+                      const blobUrl = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = blobUrl;
+                      a.download = finalName;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(blobUrl);
+                    } catch (err) {
+                      window.open(fileUrl, "_blank");
+                    }
+                  };
+
+                  return (
+                    <a
+                      key={att.id || idx}
+                      href={fileUrl}
+                      onClick={handleDownloadFile}
+                      download={finalName}
+                      className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer transition-colors"
+                      title={`Download ${finalName}`}
+                    >
+                      {att.type === "image/png" || att.fileType === "image/png" ? (
+                        <Image className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      ) : att.type === "folder" ? (
+                        <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                      ) : (
+                        <FileIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-700 truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
+                          {finalName}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {att.type || att.fileType || "file"}
+                          {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
               </div>
             )}
           </DetailSection>

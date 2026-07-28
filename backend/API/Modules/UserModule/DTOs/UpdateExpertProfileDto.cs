@@ -18,4 +18,12 @@ public class UpdateExpertProfileDto
     public string? PortfolioUrls { get; set; }
 
     public string? Location { get; set; }
+
+    // NEW FIELDS:
+    public string? Category { get; set; }
+    public List<string> Skills { get; set; } = new();
+    public string? Phone { get; set; }
+    public string? Website { get; set; }
+    public string? Industry { get; set; }
+    public decimal HourlyRate { get; set; }
 }
