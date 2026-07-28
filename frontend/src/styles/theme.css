@@ -949,34 +949,6 @@ body::before {
   box-shadow: 0 10px 28px color-mix(in srgb, var(--foreground) 5%, transparent);
 }
 
-.page-shell::before {
-  content: "";
-  position: fixed;
-  top: 4rem;
-  bottom: 0;
-  left: clamp(0.75rem, 2vw, 1.5rem);
-  right: clamp(0.75rem, 2vw, 1.5rem);
-  z-index: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(
-      180deg,
-      transparent,
-      color-mix(in srgb, var(--accent) 30%, transparent) 18%,
-      color-mix(in srgb, var(--border) 62%, transparent) 54%,
-      transparent
-    ) left center / 1px 100% no-repeat,
-    linear-gradient(
-      180deg,
-      transparent,
-      color-mix(in srgb, var(--accent) 30%, transparent) 18%,
-      color-mix(in srgb, var(--border) 62%, transparent) 54%,
-      transparent
-    ) right center / 1px 100% no-repeat;
-  opacity: 0.46;
-  animation: ai-side-line-pulse 7.5s ease-in-out infinite;
-}
-
 .page-shell::after {
   content: "";
   position: fixed;
@@ -1698,8 +1670,7 @@ body::before {
   .ai-rail-node,
   .ai-rail-orbit,
   .ai-rail-spark,
-  .ai-visual-chart span,
-  .page-shell::before {
+  .ai-visual-chart span {
     animation: none !important;
   }
 }
