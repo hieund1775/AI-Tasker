@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useAuth } from "../../hooks/useAuth.js";
 import { rememberPendingTheme } from "../../lib/themePreference.js";
@@ -9,24 +8,13 @@ import { HowItWorks } from "../../components/landing/HowItWorks.jsx";
 import { ProductShowcase } from "../../components/landing/ProductShowcase.jsx";
 
 export function HomePage() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const { isAuthenticated, role } = useAuth();
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const themeRef = useRef(null);
 
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (themeRef.current && !themeRef.current.contains(e.target)) {
-        setShowThemeMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const getThemeIcon = () => {
-    if (theme === "system") return <Monitor className="w-4 h-4" />;
-    return resolvedTheme === "dark" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />;
+  const handleThemeToggle = () => {
+    const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+    rememberPendingTheme(nextTheme);
+    setTheme(nextTheme);
   };
 
   const dashboardPath =
@@ -55,44 +43,16 @@ export function HomePage() {
           </Link>
           <div className="flex items-center gap-3">
             {/* Theme Toggle */}
-            <div className="relative" ref={themeRef}>
+            <div className="relative">
               <button
                 type="button"
-                onClick={() => setShowThemeMenu(!showThemeMenu)}
+                onClick={handleThemeToggle}
                 className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
-                title="Change theme"
+                title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
               >
-                {getThemeIcon()}
+                {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
-              {showThemeMenu && (
-                <div className="absolute right-0 top-10 w-36 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
-                  <div className="p-1">
-                    {[
-                      { mode: "light", icon: Sun, label: "Light" },
-                      { mode: "dark", icon: Moon, label: "Dark" },
-                      { mode: "system", icon: Monitor, label: "System" },
-                    ].map(({ mode, icon: Icon, label }) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => {
-                          rememberPendingTheme(mode);
-                          setTheme(mode);
-                          setShowThemeMenu(false);
-                        }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-                          theme === mode
-                            ? "bg-accent-light text-accent font-medium"
-                            : "text-foreground hover:bg-secondary"
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
             {isAuthenticated ? (
               <Link

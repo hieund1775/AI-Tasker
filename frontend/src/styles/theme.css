@@ -246,10 +246,6 @@
     min-height: 100%;
   }
 
-  #root > :not(.ai-decorative-rails) {
-    position: relative;
-    z-index: 1;
-  }
 
   html {
     scrollbar-gutter: stable;
@@ -959,16 +955,26 @@ body::before {
   top: 4rem;
   bottom: 0;
   left: clamp(0.75rem, 2vw, 1.5rem);
-  width: 1px;
+  right: clamp(0.75rem, 2vw, 1.5rem);
+  z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    transparent,
-    color-mix(in srgb, var(--accent) 35%, transparent) 18%,
-    color-mix(in srgb, var(--border) 80%, transparent) 54%,
-    transparent
-  );
-  opacity: 0.72;
+  background:
+    linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 30%, transparent) 18%,
+      color-mix(in srgb, var(--border) 62%, transparent) 54%,
+      transparent
+    ) left center / 1px 100% no-repeat,
+    linear-gradient(
+      180deg,
+      transparent,
+      color-mix(in srgb, var(--accent) 30%, transparent) 18%,
+      color-mix(in srgb, var(--border) 62%, transparent) 54%,
+      transparent
+    ) right center / 1px 100% no-repeat;
+  opacity: 0.46;
+  animation: ai-side-line-pulse 7.5s ease-in-out infinite;
 }
 
 .page-shell::after {
@@ -1162,7 +1168,7 @@ body::before {
 .ai-decorative-rails {
   position: fixed;
   inset: 4rem 0 0;
-  z-index: 0;
+  z-index: 1;
   pointer-events: none;
   overflow: hidden;
   mask-image: linear-gradient(
@@ -1181,15 +1187,19 @@ body::before {
   top: clamp(5rem, 14vh, 9rem);
   display: grid;
   gap: clamp(1rem, 3vh, 1.65rem);
+  animation: ai-rail-float 11s ease-in-out infinite;
 }
 
 .ai-decorative-rail-left {
-  left: max(1rem, calc((100vw - var(--layout-max)) / 2 - 7.75rem));
+  left: calc((100vw - var(--layout-max)) / 2 - 7.75rem);
+  --rail-x: 0.35rem;
 }
 
 .ai-decorative-rail-right {
-  right: max(1rem, calc((100vw - var(--layout-max)) / 2 - 7.75rem));
+  right: calc((100vw - var(--layout-max)) / 2 - 7.75rem);
   top: clamp(7rem, 18vh, 12rem);
+  --rail-x: -0.35rem;
+  animation-delay: -5s;
 }
 
 .ai-rail-node {
@@ -1207,6 +1217,8 @@ body::before {
     0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
     0 16px 32px color-mix(in srgb, var(--foreground) 7%, transparent);
   opacity: calc(0.76 - (var(--rail-index) * 0.04));
+  animation: ai-node-breathe 8s ease-in-out infinite;
+  animation-delay: calc(var(--rail-index) * -0.75s);
 }
 
 .ai-decorative-rail-left .ai-rail-node:nth-child(even) {
@@ -1233,18 +1245,136 @@ body::before {
     0 24px 58px color-mix(in srgb, var(--foreground) 9%, transparent);
   opacity: 0.74;
   backdrop-filter: blur(10px);
+  animation: ai-panel-drift 10s ease-in-out infinite;
 }
 
 .ai-business-visual-left {
-  left: max(1.75rem, calc((100vw - var(--layout-max)) / 2 - 10.75rem));
+  left: calc((100vw - var(--layout-max)) / 2 - 10.75rem);
   bottom: clamp(4rem, 10vh, 7rem);
-  transform: rotate(-4deg);
+  --panel-rotate: -4deg;
 }
 
 .ai-business-visual-right {
-  right: max(1.75rem, calc((100vw - var(--layout-max)) / 2 - 10.75rem));
+  right: calc((100vw - var(--layout-max)) / 2 - 10.75rem);
   bottom: clamp(8rem, 18vh, 13rem);
-  transform: rotate(4deg);
+  --panel-rotate: 4deg;
+  animation-delay: -3.5s;
+}
+
+.ai-image-panel {
+  position: absolute;
+  display: grid;
+  width: 10.5rem;
+  min-height: 12rem;
+  gap: 0.95rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+  border-radius: 1.75rem;
+  color: color-mix(in srgb, var(--foreground) 48%, transparent);
+  background:
+    radial-gradient(circle at 35% 16%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+    radial-gradient(circle at 80% 78%, color-mix(in srgb, var(--success) 12%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--card) 62%, transparent), color-mix(in srgb, var(--background) 34%, transparent));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 7%, transparent) inset,
+    0 20px 52px color-mix(in srgb, var(--foreground) 8%, transparent);
+  opacity: 0.7;
+  backdrop-filter: blur(12px);
+  animation: ai-panel-drift 9.5s ease-in-out infinite;
+}
+
+.ai-image-panel-left {
+  left: calc((100vw - var(--layout-max)) / 2 - 9rem);
+  top: clamp(18rem, 36vh, 24rem);
+  --panel-rotate: 5deg;
+}
+
+.ai-image-panel-right {
+  right: calc((100vw - var(--layout-max)) / 2 - 9rem);
+  top: clamp(23rem, 44vh, 31rem);
+  --panel-rotate: -5deg;
+  animation-delay: -4s;
+}
+
+.ai-image-core {
+  position: relative;
+  display: grid;
+  min-height: 4.75rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+  border-radius: 1.25rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 48%),
+    color-mix(in srgb, var(--card) 72%, transparent);
+}
+
+.ai-image-panel-right .ai-image-core {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.8rem;
+}
+
+.ai-image-core::before,
+.ai-image-core::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.ai-image-core::before {
+  inset: 0.8rem;
+  border: 1px dashed color-mix(in srgb, var(--accent) 36%, transparent);
+}
+
+.ai-image-core::after {
+  width: 2.9rem;
+  height: 2.9rem;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  filter: blur(12px);
+}
+
+.ai-image-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.ai-image-grid span {
+  aspect-ratio: 1;
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.ai-image-grid span:nth-child(2),
+.ai-image-grid span:nth-child(5) {
+  background: color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.ai-image-flow {
+  display: grid;
+  gap: 0.52rem;
+}
+
+.ai-image-flow span {
+  height: 0.62rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+
+.ai-image-flow span:nth-child(1) {
+  width: 86%;
+}
+
+.ai-image-flow span:nth-child(2) {
+  width: 58%;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.ai-image-flow span:nth-child(3) {
+  width: 74%;
 }
 
 .ai-visual-header {
@@ -1329,12 +1459,14 @@ body::before {
   min-width: 0;
   border-radius: 999px 999px 0.35rem 0.35rem;
   background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 76%, transparent), color-mix(in srgb, var(--success) 44%, transparent));
+  transform-origin: bottom;
+  animation: ai-chart-breathe 5.8s ease-in-out infinite;
 }
 
 .ai-visual-chart span:nth-child(1) { height: 42%; }
-.ai-visual-chart span:nth-child(2) { height: 72%; }
-.ai-visual-chart span:nth-child(3) { height: 56%; }
-.ai-visual-chart span:nth-child(4) { height: 88%; }
+.ai-visual-chart span:nth-child(2) { height: 72%; animation-delay: -1.2s; }
+.ai-visual-chart span:nth-child(3) { height: 56%; animation-delay: -2.4s; }
+.ai-visual-chart span:nth-child(4) { height: 88%; animation-delay: -3.6s; }
 
 .ai-visual-avatar-row {
   display: flex;
@@ -1369,32 +1501,35 @@ body::before {
   border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
   border-radius: 999px;
   opacity: 0.42;
+  animation: ai-orbit-drift 18s linear infinite;
 }
 
 .ai-rail-orbit-left {
-  left: max(-6rem, calc((100vw - var(--layout-max)) / 2 - 12rem));
-  transform: rotate(-18deg);
+  left: calc((100vw - var(--layout-max)) / 2 - 12rem);
+  --orbit-rotate: -18deg;
 }
 
 .ai-rail-orbit-right {
-  right: max(-6rem, calc((100vw - var(--layout-max)) / 2 - 12rem));
-  transform: rotate(18deg);
+  right: calc((100vw - var(--layout-max)) / 2 - 12rem);
+  --orbit-rotate: 18deg;
+  animation-direction: reverse;
 }
 
 .ai-rail-spark {
   position: absolute;
   color: color-mix(in srgb, var(--accent) 55%, transparent);
   opacity: 0.62;
+  animation: ai-spark-glow 4.8s ease-in-out infinite;
 }
 
 .ai-rail-spark-left {
   top: 5.5rem;
-  left: max(2.5rem, calc((100vw - var(--layout-max)) / 2 - 4rem));
+  left: calc((100vw - var(--layout-max)) / 2 - 4rem);
 }
 
 .ai-rail-spark-right {
   top: 22rem;
-  right: max(2.5rem, calc((100vw - var(--layout-max)) / 2 - 4rem));
+  right: calc((100vw - var(--layout-max)) / 2 - 4rem);
 }
 
 .dark .ai-rail-node {
@@ -1425,8 +1560,27 @@ body::before {
   opacity: 0.72;
 }
 
+.dark .ai-image-panel {
+  color: color-mix(in srgb, var(--foreground) 44%, transparent);
+  background:
+    radial-gradient(circle at 35% 16%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 42%),
+    radial-gradient(circle at 80% 78%, color-mix(in srgb, var(--success) 14%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--card) 44%, transparent), color-mix(in srgb, var(--background) 22%, transparent));
+  border-color: color-mix(in srgb, var(--border) 54%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent) inset,
+    0 22px 56px color-mix(in srgb, #000000 22%, transparent);
+  opacity: 0.68;
+}
+
 @media (max-width: 88rem) {
   .ai-decorative-rails {
+    display: none;
+  }
+}
+
+@media (max-width: 96rem) {
+  .ai-image-panel {
     display: none;
   }
 }
@@ -1449,6 +1603,82 @@ body::before {
   }
 }
 
+@keyframes ai-panel-drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(var(--panel-rotate, 0deg));
+  }
+  50% {
+    transform: translate3d(0, -0.45rem, 0) rotate(var(--panel-rotate, 0deg));
+  }
+}
+
+@keyframes ai-rail-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(var(--rail-x, 0), -0.75rem, 0);
+  }
+}
+
+@keyframes ai-node-breathe {
+  0%, 100% {
+    opacity: calc(0.68 - (var(--rail-index) * 0.035));
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
+      0 14px 28px color-mix(in srgb, var(--foreground) 6%, transparent);
+  }
+  50% {
+    opacity: calc(0.82 - (var(--rail-index) * 0.035));
+    box-shadow:
+      0 1px 0 color-mix(in srgb, var(--foreground) 7%, transparent) inset,
+      0 18px 36px color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+}
+
+@keyframes ai-orbit-drift {
+  0% {
+    transform: rotate(var(--orbit-rotate, 0deg)) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(calc(var(--orbit-rotate, 0deg) + 8deg)) translate3d(0, -0.35rem, 0);
+  }
+  100% {
+    transform: rotate(calc(var(--orbit-rotate, 0deg) + 16deg)) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes ai-chart-breathe {
+  0%, 100% {
+    transform: scaleY(0.94);
+    opacity: 0.72;
+  }
+  50% {
+    transform: scaleY(1.04);
+    opacity: 0.92;
+  }
+}
+
+@keyframes ai-spark-glow {
+  0%, 100% {
+    opacity: 0.42;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes ai-side-line-pulse {
+  0%, 100% {
+    opacity: 0.34;
+  }
+  50% {
+    opacity: 0.58;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1460,5 +1690,16 @@ body::before {
     animation: none !important;
     transform: none !important;
     filter: none !important;
+  }
+
+  .ai-image-panel,
+  .ai-business-visual,
+  .ai-decorative-rail,
+  .ai-rail-node,
+  .ai-rail-orbit,
+  .ai-rail-spark,
+  .ai-visual-chart span,
+  .page-shell::before {
+    animation: none !important;
   }
 }

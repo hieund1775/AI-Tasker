@@ -48,6 +48,30 @@ export function AIDecorativeRails() {
       <div className="ai-rail-orbit ai-rail-orbit-right" />
       <Sparkles className="ai-rail-spark ai-rail-spark-left h-4 w-4" strokeWidth={1.7} />
       <Sparkles className="ai-rail-spark ai-rail-spark-right h-4 w-4" strokeWidth={1.7} />
+      <div className="ai-image-panel ai-image-panel-left">
+        <div className="ai-image-core">
+          <Bot className="h-8 w-8" strokeWidth={1.5} />
+        </div>
+        <div className="ai-image-grid">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
+      <div className="ai-image-panel ai-image-panel-right">
+        <div className="ai-image-core">
+          <Building2 className="h-7 w-7" strokeWidth={1.5} />
+          <Network className="h-5 w-5" strokeWidth={1.5} />
+        </div>
+        <div className="ai-image-flow">
+          <span />
+          <span />
+          <span />
+        </div>
+      </div>
       <div className="ai-business-visual ai-business-visual-left">
         <div className="ai-visual-header">
           <Cpu className="h-4 w-4" strokeWidth={1.7} />
