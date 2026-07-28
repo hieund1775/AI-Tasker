@@ -6,7 +6,11 @@ import { ErrorBoundary } from "./components/shared/ErrorBoundary.jsx";
 import { Toaster } from "./components/ui/sonner.jsx";
 import { AccountThemeSync } from "./components/theme/AccountThemeSync.jsx";
 
-const THEME_STORAGE_KEY = "aitasker_theme_session";
+const THEME_STORAGE_KEY = (() => {
+  if (typeof window === "undefined") return "aitasker_theme_session";
+  const id = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `aitasker_theme_tab_${id}`;
+})();
 
 export default function App() {
   return (
