@@ -1,12 +1,23 @@
-# AI-Tasker: Overall System Flow & Database Architecture
+# NEW SPECIFICATION SYSTEM SPECIFICATION DOCUMENT: AI-TASKER
 
-This document provides a comprehensive overview of the **AI-Tasker** freelance marketplace platform, covering its database schema, overall lifecycle flow, role-based workflows, and transition details.
+This document specifies the complete new business flow for the **AI-Tasker** platform (a freelance marketplace for artificial intelligence solutions), reshaping project decomposition, project execution workflows, and dispute resolution to optimize the user experience and secure escrow funds.
 
 ---
 
-## 1. System Flowchart (Project Lifecycle)
+## CHAPTER 1: WORK BREAKDOWN STRUCTURE (WBS) BY USE CASE (4 LEVELS)
 
-The diagram below illustrates the complete lifecycle of a project on AI-Tasker, from user signup and job posting to escrow payment, task execution, dispute resolution, and review feedback.
+The AI-Tasker system transitions entirely to a **Use-Case-Driven** model. All operations from job posting, bidding, and scheduling to execution and acceptance run under the following strict hierarchical structure:
+
+$$\text{Project} \rightarrow \text{Use Cases (Defined by Client)} \rightarrow \text{Tasks (Decomposed by Expert)} \rightarrow \text{MiniTasks (Detailed Checklist)}$$
+
+1. **Project**: The overall project created by the Client based on business needs.
+2. **Use Cases**: The list of standardized use cases defined by the Client from requirements documents. Each Use Case is assigned a unique `UseCase_ID` (GUID/Identity).
+3. **Tasks**: Technical milestones proposed by the Expert under each Use Case, linked dynamically via `useCaseId` (instead of array index) to prevent data mismatch when Client modifies Use Cases. Experts cannot modify or delete Client's original Use Cases.
+4. **MiniTasks**: The smallest checklist units under each Task for the Expert to check off and report daily progress.
+
+---
+
+## CHAPTER 2: DETAILED PROJECT LIFECYCLE (5 PHASES)
 
 ```mermaid
 sequenceDiagram
@@ -15,272 +26,219 @@ sequenceDiagram
     actor Expert as Expert
     actor Admin as Admin
     participant DB as AITasker DB / System
-    participant Escrow as Escrow (Project Balance)
+    participant Escrow as Escrow (Project Funds)
 
-    %% 1. Onboarding
-    Note over Client, Expert: Phase 1: Onboarding & Setup
-    Client->>DB: Register Client Account & Initialize Wallet
-    Expert->>DB: Register Expert Account, Setup Profile & Initialize Wallet
+    %% Phase 1
+    Note over Client, DB: Phase 1: AI Initialization & WBS
+    Client->>DB: Upload BRD/SRS & Post Job
+    DB->>DB: AI scans file, auto-decomposes into Use Cases & Original Timeline
+    Client->>DB: Configure Total Deadline (>= Total original timeline)
 
-    %% 2. Job Posting & Proposals
-    Note over Client, Expert: Phase 2: Bidding & Negotiation
-    Client->>DB: Post Job (JobPosts & JobRequirements)
-    Expert->>DB: Browse Jobs & Submit Proposal (Proposals)
-    Client->>Expert: Chat (Conversations / Messages) & Negotiate
-
-    %% 3. Hiring & Escrow
-    Note over Client, Escrow: Phase 3: Hiring & Funding Escrow
-    Client->>DB: Accept Proposal (Hires Expert)
-    DB->>DB: Create Project (Status: PendingEscrow)
-    Client->>DB: Deposit Budget (Fund Project)
-    DB->>Escrow: Transfer funds from Client Wallet to Project EscrowBalance
-    DB->>DB: Update Project (Status: Active) & Job (Status: Hired/Closed)
-
-    %% 4. Execution
-    Note over Client, Expert: Phase 4: Project Execution & Milestones
-    Expert->>DB: Create Tasks (Milestones)
-    Expert->>DB: Create MiniTasks (Deliverables)
-    loop Tasks Development
-        Expert->>DB: Complete MiniTask & Request Review
-        Client-->>DB: Give feedback on MiniTask (FeedbackContent)
-        Expert->>DB: Update and re-submit if needed
-        Client->>DB: Approve MiniTask (IsCompleted = true)
+    %% Phase 2
+    Note over Client, Expert: Phase 2: Dynamic Bidding & Pricing
+    Expert->>DB: View original Use Cases, add Tasks & MiniTasks under them
+    Expert->>DB: Fill completion days & price for each Task (Roll-up)
+    alt Use Case Time Deviation < 0 (exceeded limit)
+        DB-->>Expert: Red alert & ask for confirmation to request Client extension
     end
-    DB->>DB: Auto-complete Tasks when all MiniTasks are done
-    Expert->>DB: Submit Final Delivery (ProjectLink)
-
-    %% 5. Project Resolution / Payout
-    rect rgb(240, 248, 255)
-        alt Scenario A: Happy Flow (Acceptance)
-            Client->>DB: Approve Final Project Delivery
-            DB->>Escrow: Release EscrowBalance
-            Escrow->>DB: Transfer to Expert Wallet (Success)
-            DB->>DB: Set Project Status to Completed
-        else Scenario B: Dispute Flow
-            Client/Expert->>DB: Raise Dispute (Project Status: Disputed)
-            Admin->>DB: Review Chat History, Tasks & MiniTasks
-            Admin->>DB: Resolve Dispute (Refund ratio / Split escrow)
-            DB->>Escrow: Distribute EscrowBalance
-            Escrow->>DB: Transfer split amounts to Client Wallet & Expert Wallet
-            DB->>DB: Set Project Status to Resolved
+    Expert->>DB: Submit Proposal
+    loop 7-day Countdown
+        Note over DB: Auto-timer background execution
+        DB-->>Client: Day 6: Dispatch urgent reminder to process proposal
+        alt Day 7: Client has not processed
+            DB->>DB: Auto-cancel proposal (Set status to Expired/Rejected)
         end
     end
 
-    %% 6. Review & Rating
-    Note over Client, Expert: Phase 5: Feedback
-    Client->>DB: Submit Review for Expert (Rating 1-5, Comment)
-    Expert->>DB: Submit Review for Client (Rating 1-5, Comment)
-    DB->>DB: Recalculate Expert's SuccessRate & ReputationCredit
+    %% Phase 3
+    Note over Client, Escrow: Phase 3: Hiring & Escrow
+    Client->>DB: Accept Expert's Proposal
+    DB->>Escrow: Fund escrow using Price & Time proposed by Expert
+    DB->>DB: Archive original JobPost (Status: Done, block new applications)
+
+    %% Phase 4
+    Note over Client, Expert: Phase 4: Execution & Milestone Acceptance
+    Expert->>DB: Mark 100% MiniTasks completed (Status: Checklist Completed)
+    alt Flow 1: Quick Accept
+        Client->>DB: Click Quick Accept -> Task becomes DONE
+    alt Flow 2: Product Requested
+        Client->>DB: Click Request Product -> Wait state on Client UI
+        DB-->>Expert: Unlock Submit Product button
+        Expert->>DB: Fill Product Link/File -> Status: Waiting for Approval
+        Client->>DB: View Product -> Open Modal -> Verification
+        alt Choice A: Accept
+            Client->>DB: Click Accept -> Task becomes DONE
+        else Choice B: Decline
+            Client->>DB: Click Decline -> Enter feedback -> REWORK (Orange status)
+            DB-->>Expert: Unlock Submit Product to re-submit new work
+        end
+    end
+
+    %% Phase 5
+    Note over Client, Escrow: Phase 5: Final Delivery & Release Payment
+    Note over Expert, Client: All Tasks/Use Cases reach DONE status
+    Expert->>DB: Submit Work (Upload Project Link & compressed source code archive)
+    DB->>DB: Project changes status to Final Product Submitted
+    Client->>DB: Click View Final Work -> Open verification modal
+    Client->>DB: Click Accept Final Delivery inside modal
+    Client->>DB: Click Release Payment on dashboard
+    DB->>Escrow: Release EscrowBalance to Expert's Available Balance
+    DB->>DB: Project closed successfully (Status: Completed)
 ```
+
+### PHASE 1: JOBPOST INITIALIZATION BY AI AND USE CASE METRICS
+- **Posting a Job (Client)**: When creating a job posting (`JobPost`), the Client can upload a requirements document (BRD/SRS). The system's AI automatically scans the file and decomposes it into a list of standardized `Use Cases`.
+- **Set Original Parameters**: Each Use Case contains a list of specific tasks/requirements and a mandatory original timeline limit (e.g., Use Case 1 needs at most 14 days).
+- **Total Time Calculation Rule**:
+  - The system automatically calculates:
+    $$\text{Total Original Time} = \sum \text{Time of each Use Case}$$
+  - The Client can configure a Total Deadline for the `JobPost` under the strict validation rule:
+    $$\text{Total Deadline} \ge \text{Total Original Time}$$
+
+### PHASE 2: DYNAMIC BIDDING (PROPOSAL COUPLING) & 7-DAY EXPIRATION COUNTDOWN
+1. **Expert Technical Analysis & Bidding**:
+   - The Expert views the job posting, using the Client's Use Cases as the mandatory standard (no permission to edit or delete the Client's original Use Cases).
+   - Under each Use Case, the Expert adds technical `Tasks` (milestones) and `MiniTasks` (detailed checklists).
+   - The Expert enters completion days and price for each Task. The system automatically rolls up (**Roll-up**) these values to calculate the total bid price and total bid timeline.
+    - **Validation Checks (Budget & Time Deviation)**:
+      - **Time Deviation**: $\text{Deviation} = \text{Client Original Duration} - \text{Expert Proposed Duration}$. If < 0, triggers request for timeline extension.
+      - **Budget Deviation**: $\text{Budget Deviation} = \text{Client Original Budget} - \text{Expert Proposed Bid}$.
+      - If **Budget Deviation < 0** (Expert's bid exceeds Client's original budget): The system displays a **prominent red warning banner** showing the exact deviation amount (e.g. `-$150.00`).
+      - The Expert must check a confirmation checkbox at the bottom of the proposal page to acknowledge and agree to submit a proposal exceeding the client's targets before the submit button is unlocked.
+2. **Auto-Cancellation and Reminders for Overdue Proposals (7-day mark)**:
+   - The system runs an automated background timer starting from the proposal submission time:
+     - **Day 6 (Reminder)**: If the Client has not processed the proposal, the system sends an urgent notification: *"You have a proposal from [Expert Name] expiring tomorrow. Please process it immediately before the system auto-cancels it."*
+     - **Day 7 (Auto-Cancel)**: If the Client remains silent, the proposal status shifts to `expired` or `rejected`. The application is returned, allowing the Expert to apply to other jobs.
+
+### PHASE 3: RECRUITMENT & ESCROW ACCORDING TO PROPOSED PARAMS
+- **Accept Proposal**: The Client accepts the Expert's structured `Proposal`.
+- **Actual Escrow Funding**: The total amount deposited into the escrow account (`escrowBalance` / Funds in Escrow) and the project timeline are determined **EXACTLY by the Price and Timeline proposed by the Expert**, replacing the Client's original configurations.
+- **Archive JobPost**: After successful escrow funding, the original `JobPost` remains in the Client's All Projects list with the status **Done** (Hired) to store history, and application features are locked for all other Experts.
+
+### PHASE 4: WORK EXECUTION & MILESTONE (TASK) ACCEPTANCE
+In the workspace, the manual "Submit for Review" button without evidence is entirely removed. The acceptance flow is completely evidence-driven and subject to an **Evidence Constraint**:
+1. **Expert checks off 100% of MiniTasks AND provides handover evidence** (Git commit SHA, report link, short explanation):
+   - Only when both conditions are met, the Task transitions to the **Checklist Completed** status.
+   - If milestones are 100% checked but evidence has not been submitted, the Task remains in the **In Progress** status, and Client verification options are not available.
+2. **Client Processing Options**:
+   - **Flow 1 (Quick Accept)**: The Client clicks the **Quick Accept** button $\rightarrow$ The Task instantly transitions to **DONE** without requiring file uploads.
+   - **Flow 2 (Inspect Deliverables)**:
+     - The Client clicks **Request Product** $\rightarrow$ The Client's screen shifts to a static message: *"Waiting for Expert to submit product..."*.
+     - The **Submit Product** button unlocks on the Expert's side.
+     - The Expert fills in the Product Link and attaches the Product File $\rightarrow$ Status changes to **Waiting for Approval**.
+     - On the Client's side, the **View Product** button lights up. Clicking it opens a Modal to inspect the work:
+       - **Accept (Choice A)**: Click **Accept** $\rightarrow$ Task status transitions to **DONE**.
+       - **Decline (Choice B)**: Click **Decline** $\rightarrow$ Displays a textarea to write decline feedback. Once submitted, the Task transitions to **REWORK (Orange color)**.
+3. **Rework Status (Orange color)**:
+   - When declined, the Expert's Task changes to the Rework status, styled in orange.
+   - The **Submit Product** button unlocks on the Expert's side to submit updated deliverables.
+   - The Client's screen displays a static waiting status message: *"Waiting for Expert to submit new product..."* with no redundant buttons.
+
+### PHASE 5: OVERALL ACCEPTANCE & RELEASE PAYMENT (PROJECT RELEASE)
+Once all Use Cases and Tasks reach the **DONE** status (overall project progress is exactly 100%):
+- **Expert Side (Final Handover)**: The workspace displays the final handover section. The Expert must click **Submit Work** to attach the deployed project link and the compressed source code archive (.zip, .rar). The project status shifts to **Final Product Submitted**.
+- **Client Side (Strict Payout Lock)**:
+  - Initially, the outer **Release Payment** and **View Final Work** buttons are disabled.
+  - Once the Expert submits $\rightarrow$ The **View Final Work** button is enabled. The Client clicks it to open the Modal to inspect the final deliverables.
+  - Inside the Modal, the Client clicks **Accept Final Delivery** $\rightarrow$ The Modal closes, and the outer **Release Payment** button is enabled (active).
+  - Clicking **Release Payment** $\rightarrow$ The system transfers the escrow balance into the Expert's Available Balance and closes the project as **Completed**.
 
 ---
 
-## 2. Database Entity Relationship (ER) Diagram
-
-Based on `DB.sql`, the database architecture forms a solid foundation tracking users, wallets, job details, proposals, active projects, tasks, communication, and transaction logs.
+## CHAPTER 3: STANDARDIZED REPORT & DISPUTE WORKFLOW
 
 ```mermaid
-erDiagram
-    Users ||--o| ExpertProfiles : "extends"
-    Users ||--|| Wallets : "has"
-    Users ||--o{ JobPosts : "posts (as Client)"
-    Users ||--o{ Conversations : "participates (as Client/Expert)"
-    Users ||--o{ Proposals : "submits (as Expert)"
-    Users ||--o{ Projects : "works on (as Client/Expert)"
-    Users ||--o{ Reviews : "creates / receives"
-    Users ||--o{ MiniTasks : "sends feedback (FeedbackSenderId)"
-
-    AICategoryDomains ||--o{ JobPosts : "categorizes"
-    AICategoryDomains }o--o{ ExpertProfiles : "belongs to (Many-to-Many)"
+graph TD
+    A[Reporter clicks Report] --> B[Submit report to Admin, status Pending]
+    B --> C{What does Responder see?}
+    C -->|Confidentiality| D[Responder sees nothing, project runs normally]
+    C -->|Confidentiality| E[Reporter's Report button changes to: In Progress]
     
-    Skills }o--o{ ExpertProfiles : "expert skills"
-    Skills }o--o{ JobPosts : "required job skills"
-    Skills }o--o{ Projects : "project tags"
-
-    JobPosts ||--o{ JobRequirements : "contains"
-    JobPosts ||--o{ Proposals : "receives"
-    JobPosts ||--o| Projects : "initiates"
-    JobPosts ||--o| Conversations : "references"
-
-    Conversations ||--o{ Messages : "contains"
-    Conversations ||--o| Projects : "communicates for"
-
-    Projects ||--o{ Tasks : "divided into"
-    Projects ||--o{ Reviews : "reviewed in"
-    Projects ||--o{ TransactionLogs : "recorded transactions"
+    B --> F[Admin reviews & Accepts dispute]
+    F --> G[Project status changes to: Disputed]
+    G --> H[Dashboard project card transitions to Dark Crimson style]
+    G --> I[Responder's Report button changes to: Response to Accusation]
     
-    Tasks ||--o{ MiniTasks : "split into"
-
-    Wallets ||--o{ TransactionLogs : "source / destination"
+    G --> J{Workspace Freeze Decision}
+    J -->|Flow 1: Client accuses Expert| K[Freeze all workspace activities - Read Only]
+    J -->|Flow 2: Expert accuses Client| L[Selective Freeze: Only lock Release Payment & View Final Work for Client]
+    
+    K --> M[Evidence collection: Evidence Phase]
+    L --> M
+    M --> N[Admin clicks Request More Evidence -> Shows reply form to both sides]
+    N --> O[Each party submits exactly once per request. Admin buttons locked until both submit]
+    O --> P{Admin Supreme Ruling}
+    
+    P -->|Flow 1: Continue| Q[Project unfreezes back to Active status]
+    P -->|Flow 1: Stop Project| R[Transfer 100% escrow balance to the innocent party, terminate project]
+    
+    P -->|Flow 2: Expert wins| S[Admin forces payout, transfers escrow to Expert wallet, close Completed]
+    P -->|Flow 2: Client wins| T[Admin refunds escrow to Client wallet, close project]
 ```
 
----
+### 1. Standardized Report Form Information (Confidentiality)
+When a party clicks **Report** (next to the Manage Project or Update Project button on the Dashboard):
+- **Publicly Shown Info**: Correct Full Names of Client and Expert, exact escrow balance (`escrowBalance`), and actual project start date (`Start Date`).
+- **Hidden Confidential Info**: The `Project ID` (to prevent exposing system identifiers), the raw ticket status (`Status`), the `scope of work space` field, and the `other` field are entirely removed.
 
-## 3. Comprehensive Workflow Explanations
+### 2. Admin Dispute Detail View
+- **Report Content**: Displays information according to the mandatory structure: *Report Reason \*, Dispute Type \*, Detailed Description \*, Desired Resolution \*, and Evidence \* files*.
+- **Parties Involved (Smart Interactive Tabs)**:
+  - Displays **Client** and **Expert** tabs with premium active colors.
+  - The tab of the party who raised the dispute first (Reporter) is selected by default when the page loads.
+  - If the other party (Responder) has not yet submitted their counter-response, their tab displays a clean blank state with the message: *"Responder has not responded yet"*.
 
-### 3.1 Onboarding & Authentication Flow
-- **Roles**:
-  - `client`: Posts jobs, hires experts, funds escrow, manages deliverables, reviews experts.
-  - `expert`: Updates profile (skills, portfolio, bio), submits proposals, manages tasks, submits code/links, reviews clients.
-  - `admin`: Moderates categories, tags, projects, reviews, disputes.
-  - `owner`: Inherits admin powers + creates and manages admin accounts.
-- **Wallet Setup**: Upon successful registration, the backend creates a `Wallet` record for the user initialized with a `$0.00` balance.
+### 3. Dual Dispute Paths and Resolution
 
-### 3.2 Bidding & Negotiation Flow
-1. **Posting a Job**: A `client` posts a `JobPost` specifying:
-   - Category (`AICategoryDomainId`), title, description, budget, and deadline.
-   - Distinct requirements (`JobRequirements`) representing feature use cases.
-   - Mandated skills (`Skills`).
-2. **Applying**: An `expert` submits a `Proposal` including their bid price (`BidAmount`), a `CoverLetter`, and **a structured 2-level milestone timeline (Tasks and sub-milestones)**.
-3. **Chatting**: The `client` and `expert` initiate a `Conversation` to clarify specifications. The conversation maintains a link to the `OriginJobPostId` so users know which job they are discussing.
+#### PATH 1: CLIENT ACCUSES EXPERT (Quality / Deadline Dispute)
+- **Initialization**: Client submits the report. The Client's Report button remains always visible and interactive across all project states to allow submission updates. The Client's management workspace **is not** frozen globally (`readOnly={false}` passed to `ProjectProgressPanel`), allowing Client to inspect progress and interact with other Use Cases normally.
+- **Workspace Freezing**:
+  - The project status shifts to **Disputed**.
+  - **On the Dashboard**: Project cards on both Client and Expert dashboards display a dark crimson theme (Crimson-to-Black gradient) with a prominent border.
+  - **Inside the Workspace**: A red warning banner is displayed at the top. The interface only disables interaction selectively for the specific Use Case undergoing product handover transactions (`waiting_expert_product`); other Use Cases remain interactive.
+- **Ongoing Evidence Submissions & 48-hour Countdown (Dispute Timeout)**:
+  - If the Admin requires more information, they trigger a request $\rightarrow$ Status changes to `Awaiting Evidence`.
+  - The system displays a **prominent purple warning banner with a 48-hour countdown timer** on the Admin view and user screens.
+  - Both parties see a prompt to submit further evidence. Each side can submit **exactly once** per request round.
+  - Initially, the Admin's ruling buttons are locked until both sides submit. However, **if the 48-hour response deadline expires**, the system automatically unlocks the ruling buttons, allowing the Admin to issue a final judgment based on available evidence.
+- **Admin Ruling Options**:
+  - **Continue**: The project is unfrozen, returning to `Active` state for both parties to resume work.
+  - **Stop Project**: The Admin determines the fault. 100% of the escrow balance (Funds in Escrow) is automatically transferred to the innocent party's wallet, and the project is terminated.
 
-### 3.3 The Escrow System & Project Creation Flow
-Escrow guarantees that the client has the funds, and the expert will get paid once requirements are met.
-To ensure transaction security and instant UI synchronization without a page refresh:
-1. **Accepting a Proposal & Auto-Escrow (Mock DB/Demo Auth Mode)**: When the client clicks "Accept Proposal" for Expert A, the system will:
-   - Update proposal status to `"accepted"` and reject other proposals for this job.
-   - Set `JobPost` status to `"hired"` (or `"closed"`).
-   - Deduct `BidAmount` from the Client's `Wallet` balance and transfer it to Client's `escrowBalance` / `pendingBalance`.
-   - Record an escrow deposit transaction (`"escrow_deposit"`).
-   - Parse structured tasks from the proposal's cover letter (if formatted in JSON) or generate standard milestone tasks, syncing them to the global tasks table.
-   - Create a new project in the `"active"` state with `escrowPaid = true` and `escrowStatus = "paid"`.
-   - Fire the Custom Event Bus event `"aitasker_db_update"` to refresh all pages.
-2. **Escrow Funding via API (Real API Mode)**:
-   - When the client deposits escrow funds via `Billing`, the system calls `/interactions/transaction` with payload:
-     ```json
-     {
-       "projectId": "guid-project-id",
-       "amount": 8500.0,
-       "transactionType": "escrow_payment",
-       "description": "Client pays full project amount into escrow"
-     }
-     ```
-   - This deducts the Client's wallet balance, sets the Project's `escrowStatus` to `"paid"`, and changes project status to `"active"`.
-3. **Hide Closed Job Posts**: The job post is immediately hidden from the Client's **All Projects** list (`MyProjectsPage.jsx`) and moves entirely to the "Active Projects" section of the Client and Expert Dashboards.
-4. **Targeted Notification Dispatches**:
-   - **New/Updated Proposals**: Sent only to the JobPost Client.
-   - **Proposal Decisions**: Hired expert receives an acceptance notification. Rejected experts receive rejection notifications.
-   - **Escrow Success**: Selected Expert A receives the activation notification (*"Khách hàng [Tên Client] đã nạp tiền ký quỹ thành công. Dự án chính thức bắt đầu!"*). Unrelated candidates receive nothing.
+#### PATH 2: EXPERT ACCUSES CLIENT (Payment / Unreleased Escrow Dispute)
+- **Initialization**: Expert submits a claim asserting that the Client is withholding payment despite project completion.
+- **Selective Freezing**:
+  - The project **is not** stopped, and checklist items remain active. Technical execution can continue.
+  - Only the Client's financial buttons (**Release Payment** and **View Final Work**) are locked to freeze the escrow funds.
+- **Cash Flow Decision**: The Admin decides the winning party:
+  - **Expert Wins**: Admin triggers **Force Payout**, releasing escrow funds to the Expert's Available Balance, closing the project as `Completed`.
+  - **Client Wins** (Expert submitted fraudulent or faulty work): Admin triggers **Force Refund**, returning escrow funds to the Client's wallet, terminating the project.
 
-### 3.4 Project Execution (Active Workspace & Milestone Progress) Flow
-AI-Tasker splits project tracking into **Tasks** and **MiniTasks** managed in custom dashboards (**ClientProjectManagement** & **ExpertProjectManagement**):
-1. **Tasks**: Coarse-grained milestones (e.g., "Build Database", "Setup Auth").
-2. **MiniTasks**: Fine-grained checklist items under each Task (e.g., "Write DB schema", "Test migrations").
-- **Collaboration & Progress**:
-  - The `expert` interacts directly with checkboxes to toggle a MiniTask's completed status. Toggling changes the `isCompleted` field, which dispatches `"aitasker_db_update"` and persists the state into Local Storage.
-  - **Automatic Progress Calculation**:
-    - **Individual Task Progress** = `Number of completed MiniTasks / Total MiniTasks under that Task` (%).
-    - **Total Project Progress** = `Sum of all Task progresses / Total number of Tasks` (%).
-  - **Task Display Status Derivation (`deriveTaskDisplayStatus`)**:
-    Task status is calculated dynamically based on mini-tasks and approval state:
-    - **Done**: The task has been approved or completed, and all sub-checklist mini-tasks are finished (green badge).
-    - **Decline**: Client rejected the submission and requested changes, corresponding to raw status `"needs_revision"` or `"decline"` (red warning badge).
-    - **Waiting For Approval**: Expert has submitted deliverables (purple badge).
-    - **Checklist Completed**: Checklist progress is 100% but product has not yet been submitted (amber badge).
-    - **In Progress**: At least one mini-task is completed or in progress.
-    - **Not Started**: No mini-tasks have been started yet or no mini-tasks exist.
-  - **Granular Mini-Task Inline Editing (Expert)**:
-    - When a task is declined, the Expert edits specific checklist mini-tasks (Title, Description, Product Link, or Product File) directly instead of task-level fields.
-    - Expert clicks "Sửa" on any pending mini-task to modify it, then clicks "Lưu".
-  - **Anti-Spam Lock**: When a task's status is Waiting for Approval (`Waiting For Approval`), the submission action buttons on the Expert's side are disabled to prevent double submissions.
-  - **Milestone Progress Dashboard Sync**:
-    - Project cards on both Client and Expert Dashboards calculate "Milestone Progress" dynamically from the central `tasks` table, synchronizing it 100% with the "Overall Progress" shown inside the project view.
-  - **Real-Time Sync**: Any changes made by the Expert are instantly updated on the Client's dashboard via the Event Bus without requiring a page reload.
+### 4. PATH 3: PROJECT TERMINATION & LIQUIDATION RULES (NEW)
+When either party requests a project revocation/termination mid-way, the project transitions to "Termination Pending" status. Admin reviews the current progress ($P\%$) based on DONE tasks. Once verified, the Escrow Balance ($E$) is liquidated using the following strict cash flow formulas:
 
-### 3.5 Delivery, Payout, and Rating Flow
-The product delivery and payout process is tightly bound to actual progress and a strict verification loop:
-1. **Milestone Deliverables Submission & Review (Expert & Client)**:
-   - **Expert**: The "Submit for Review" button has been completely removed. Expert only uses "Submit Product" to upload/link deliverables. This button is locked (`disabled`) by default, and only unlocked when checklist progress is 100% OR when Client requests product (which triggers `urgentRequest = true`). Once submitted, the task status becomes "Waiting For Approval".
-   - **Client**:
-     - When a task reaches 100% checklist progress but product is not yet submitted, the status is **"Checklist Completed"**. The Client has two action options:
-       - **Quick Accept**: Instantly approves the task (sets status to Done) without waiting for a product submission.
-       - **Request Product**: Sends an urgent request to the Expert to submit the deliverables (setting `urgentRequest = true` and unlocking the "Submit Product" button on the Expert's side).
-     - When the task is **"Waiting For Approval"**: The Client sees a **"Xem sản phẩm" (View Product)** button. Clicking opens a modal showing the deliverables (excluding checklist items for a clean view). Inside the modal are two buttons:
-       - **Accept**: Approves the task (status Done) and closes the modal.
-       - **Decline**: Closes the modal, unlocks the outer "Decline" button, and displays the decline reason feedback textarea below the task. Client can type feedback and submit to change status to "Decline" (raw status: `"needs_revision"`).
-2. **Release Payment & Project Final Delivery**:
-   - **Expert (Project Final Handover)**: When all tasks reach the "Done" state (overall project progress reaches 100%), the Expert's workspace displays the **Project Final Handover** section. The Expert cannot resolve the project without clicking the **Submit Work** button. Clicking opens a popup requesting:
-     - **Project Link**: Deployed link or repository link.
-     - **Project Files**: Compressed archives (.zip, .rar) containing code, documentation, etc.
-     Upon successful submission, the system dispatches an urgent notification to the Client and updates the project delivery status to `"Final Product Submitted"`.
-   - **Client (Review & Payout Verification Loop)**:
-     - **Step 1: Wait State & Locked Buttons**: The outer **Release Payment** button is visible but disabled by default. The **View Final Work** button next to it is also disabled until the Expert has submitted the final project deliverables.
-     - **Step 2: Inspect Deliverables (View Final Work)**: Once the Expert submits, the **View Final Work** button is enabled. The Client clicks it to open a Modal displaying the final Link/File. Within the modal:
-       - **Accept Final Delivery**: Closes the modal, sets the project delivery status to `"Accepted"`, and unlocks the outer **Release Payment** button.
-       - **Decline**: Prompts the Client to enter decline feedback, requiring the Expert to make adjustments and submit again via **Submit Work**.
-     - **Step 3: Pay Out and Complete Project**: Once the outer **Release Payment** button is unlocked and clicked, a confirmation dialog appears: *"Bạn có chắc chắn muốn giải ngân cho dự án [Tên dự án]?"*. On confirmation, the system calls `/interactions/transaction` with type `release_payment`, which transfers the escrow balance into the Expert's Available Balance and Total Earned, updates the project status to `Completed`, and opens the cross-review panel.
+#### SCENARIO A: CLIENT INITIATES TERMINATION
+- **Expert Receives**: Progress payment + 10% penalty compensated by Client.
+  $$\text{Expert Payout} = (E \times P\%) + (E \times 10\%)$$
+- **System Platform Fee**: 5% of total escrow billed to Client.
+  $$\text{Platform Fee} = E \times 5\%$$
+- **Client Refund**: Remaining balance after deducting Expert payout and System fee.
+  $$\text{Client Refund} = E \times (100\% - P\% - 15\%)$$
 
-3. **Review**: Both parties write a `Review`. The rating (1-5 stars) dynamically updates the expert's `SuccessRate` and `ReputationCredit`.
+#### SCENARIO B: EXPERT INITIATES TERMINATION
+- **Client Receives**: Unfinished progress balance + 10% penalty compensated by Expert.
+  $$\text{Client Refund} = E \times (100\% - P\%) + (E \times 10\%)$$
+- **System Platform Fee**: 5% of total escrow billed to Expert.
+  $$\text{Platform Fee} = E \times 5\%$$
+- **Expert Payout**: Remaining balance after penalties.
+  $$\text{Expert Payout} = E \times (P\% - 15\%)$$
 
-### 3.6 Dispute Flow
-If the client feels the expert failed to deliver, or the expert claims the client is refusing to pay:
-1. Either party clicks "Raise Dispute".
-2. The `Project` status changes to `"disputed"`. The `EscrowBalance` remains locked.
-3. An `admin` opens `AdminDisputes`, views the `Conversation` history, inspects the status of the `Tasks` and `MiniTasks`, and checks who gave what feedback.
-4. The admin decides a resolution split and invokes `/interactions/transaction` with transactionType `"dispute_refund"`:
-   - Releases a portion to the Expert and refunds the rest to the Client.
-5. The system performs the split, updates the respective user wallet balances, sets the project status to `"resolved"`, and registers a log in `TransactionLogs`.
-
-### 3.7 Detailed Targeted Notifications Schema
-State transitions trigger auto-generated notifications targeted to the correct user via `notificationHelper.js`:
-- **Proposal Triggers**:
-  - **New Proposal (`notifyNewProposal`)**: Sent to Client.
-  - **Updated Proposal (`notifyUpdatedProposal`)**: Sent to Client.
-  - **Proposal Decision (`notifyProposalDecision`)**: Congratulations sent to selected Expert; rejection sent to other bidders.
-  - **Escrow Funded (`notifyEscrowFunded`)**: Sent only to the hired Expert A.
-- **Task & MiniTask Triggers**:
-  - **Task Submitted for Review (`notifyTaskSubmittedForReview`)**: Sent to Client.
-  - **Task Approved (`notifyTaskApproved`)**: Sent to Expert.
-  - **Task Revision Requested (`notifyTaskRevisionRequested`)**: Sent to Expert with feedback text.
-  - **MiniTask Revision Requested (`notifyMiniTaskRevisionRequested`)**: Sent to Expert listing specific mini-tasks requiring revision.
-  - **Task Overdue (`notifyTaskOverdue`)**: Sent to both Client and Expert.
-  - **Urgent Submission Requested (`notifyUrgentSubmissionRequested`)**: Sent to Expert on client demand.
-
-### 3.8 Real-Time Sync & UI Updates (Custom Event Bus)
-To enable real-time dashboard updates without full page reloads:
-1. Any change in the mock DB or API calls dispatches a custom browser event:
-   ```javascript
-   window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-   ```
-2. Key pages (e.g., `ClientDashboard`, `ExpertDashboard`, `MyProjectsList`, `ProjectDetail`, `ExpertProjectDetail`) use a `useEffect` listener to intercept this event and silently refetch their datasets, instantly refreshing local states.
+### 5. SUCCESSFUL PROJECT COMPLETED PLATFORM FEE
+In Phase 5 (Overall Acceptance & Release Payment), upon successful project completion (100% progress), the system automatically deducts a 5% platform service fee before releasing funds to the Expert:
+$$\text{Final Expert Payout} = \text{escrowBalance} \times 95\%$$
+$$\text{System Revenue Wallet} = \text{escrowBalance} \times 5\%$$
 
 ---
 
-## 4. Summary of Recent UI/UX & Flow Enhancements (Updated 24/06/2026)
-
-To optimize user experience, the following features and interfaces have been synchronized and updated:
-
-### 4.1 Client-Side Workflow & UI
-- **Interface Simplification**: The redundant "View Detail" button has been completely removed from the project list screens (`ClientDashboard`, `MyProjectsPage.jsx`), keeping the workspace clean.
-- **Removed Task-level Accept Buttons**: Removed the independent "Accept" button for each major task. Deliverable verification is now centralized around the unified milestones review flow.
-- **Streamlined Control Bar (Only displays when Task is in `Waiting For Approval` state)**:
-  - **"Xem sản phẩm" (View Product) Button**: Opens a modal displaying the latest link or file submitted by the Expert for that Task (does not show sub-checklist items to avoid clutter).
-  - **"Decline" Button**: Placed directly next to "View Product".
-- **Dynamic Lock/Unlock Behavior**:
-  - If the Expert **has submitted** product deliverables (link/file): The outer "Decline" button starts disabled. The Client must click "Xem sản phẩm" to view deliverables. Inside the modal, they can choose **Accept** (set Task to Done and close) or **Decline** (close modal, unlock the outer "Decline" button, and auto-focus the reason feedback textarea underneath).
-  - If the Expert **has not submitted** product deliverables: The "Xem sản phẩm" button is disabled, and the outer "Decline" button is active immediately to reject and write feedback directly.
-  - If the Task **is not completed** (overall progress under 100% or not submitted for review): Both "Xem sản phẩm" and "Decline" buttons are hidden.
-
-### 4.2 Expert-Side Workflow & UI
-- **Spam Prevention Lock**: When a Task is in the `Waiting For Approval` (`pending_review`) state, both "Submit for Review" and "Submit Product" buttons are disabled (greyed out) until the Client responds.
-- **Granular Inline Editing on MiniTasks**: When a Task is declined by the Client, the Expert makes updates directly inside individual checklist rows (Title, Description, Product Link, File) rather than updating at the parent Task level.
-- **Decline Feedbacks Panel**: Positioned prominently in the center of the workspace view so the Expert can clearly read the Client's comments and requested changes.
-
-### 4.3 Dashboard Sync & Escrow Payout
-- **Dashboard Progress Alignment**: The "Milestone Progress" displayed on project cards for both Client and Expert Dashboards queries directly from the active `tasks` table, syncing it 100% with the "Overall Progress" shown inside the project view.
-- **Escrow Release Workflow (Release Payment)**:
-  - Once overall project progress reaches **exactly 100%** (all tasks marked Done), the Client is presented with a "Release Payment" (Giải ngân) button.
-  - Clicking this button displays a confirmation popup. Upon confirmation, the system releases the project's escrow budget (`escrowBalance`), depositing it directly into the Expert's **Available Balance** (`balance`) and **Total Earned** (`totalEarned`), setting project status to `"completed"`, and triggering real-time UI synchronization across all portals.
-
----
-
-## 5. Tech Stack Summary (Frontend & Backend)
-
-| Component | Technology | Role |
-| :--- | :--- | :--- |
-| **Frontend** | React 18 + Vite 6 + TailwindCSS v4 | User UI, dashboards, drag-and-drop task boards, instant messaging layout, dashboard charting. |
-| **Routing** | React Router v7 | Role-protected routing (`/client/*`, `/expert/*`, `/admin/*`, `/owner/*`). |
-| **Backend** | ASP.NET Core Web API (C#) | Business logic, authentication (JWT), transaction handling, database migrations, email notifications. |
-| **Database** | SQL Server (MSSQL) | Relational storage for users, profiles, chats, wallet transactions, projects, and task structures. |
-| **Communication** | REST API & WebSockets (SignalR) | Real-time chat messaging and automated status/notifications. |
-
+### CHAPTER 4: TECHNICAL DATA INTEGRITY (USECASE_ID MAPPING)
+To ensure absolute mapping integrity, the database and API layer dynamically assign unique `UseCase_ID` (such as `uc-index-projectId-date`) keys to each Use Case. All tasks are linked to their parent Use Case using `useCaseId` rather than a transient array index. If the Client reorders or deletes a Use Case, the Expert's tasks remain securely mapped to their correct, original Use Case without causing interface misalignment.

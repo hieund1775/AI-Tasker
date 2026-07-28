@@ -730,7 +730,8 @@ export function ExpertDashboard() {
                       <div className="flex items-center">
                         {(() => {
                           const isDisputed = displayStatus === "Disputed";
-                          if (!isDisputed) {
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
                             return (
                               <button
                                 onClick={() => {
@@ -928,14 +929,9 @@ export function ExpertDashboard() {
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
-              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Dispute Content:</p>
-                <p className="text-foreground/80"><strong>Reason:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Details:</strong> {explainingReport.description}</p>
-              </div>
 
               <ReportForm
-                project={activeContracts.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                project={activeContracts.find(p => String(p.id).toLowerCase() === String(explainingReport.projectId).toLowerCase()) || { id: explainingReport.projectId, title: explainingReport.reportName || explainingReport.projectTitle || explainingReport.projectName || "Project" }}
                 onSubmit={handleExpertSubmitExplanation}
                 onCancel={() => {
                   setShowExplanationForm(false);

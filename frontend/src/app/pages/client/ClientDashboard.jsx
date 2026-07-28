@@ -341,7 +341,7 @@ export function ClientDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="page-title">Dashboard</h1>
+          <h1 className="page-title">Client Dashboard</h1>
           <p className="page-subtitle">Manage your AI projects and find experts</p>
         </div>
         <div className="flex items-center gap-3">
@@ -552,11 +552,12 @@ export function ClientDashboard() {
                       <div className="flex items-center justify-end pt-1 gap-3">
                         {(() => {
                           const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
-                          if (!isDisputed) {
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
                             // Anti-spam: check if the project already has a pending report
                             const existingActiveReport = activeReports.find(r =>
                               (r.projectId === p.projectId || r.projectId === p.id) &&
-                              !["Rejected", "Resolved"].includes(r.status)
+                              !["Rejected", "Resolved", "Accepted", "Completed", "cancel_done"].includes(r.status)
                             );
                             if (existingActiveReport) {
                               return (
@@ -642,14 +643,9 @@ export function ClientDashboard() {
           </DialogHeader>
           {explainingReport && (
             <div className="space-y-6">
-              <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left">
-                <p className="font-semibold text-foreground">Dispute Content:</p>
-                <p className="text-foreground/80"><strong>Reason:</strong> {explainingReport.reason || explainingReport.reportName}</p>
-                <p className="text-foreground/80"><strong>Details:</strong> {explainingReport.description}</p>
-              </div>
 
               <ReportForm
-                project={clientProjects.find(p => p.id === explainingReport.projectId) || { id: explainingReport.projectId, title: explainingReport.reportName }}
+                project={clientProjects.find(p => String(p.id).toLowerCase() === String(explainingReport.projectId).toLowerCase()) || { id: explainingReport.projectId, title: explainingReport.reportName || explainingReport.projectTitle || explainingReport.projectName || "Project" }}
                 onSubmit={handleSubmitExplanation}
                 onCancel={() => {
                   setShowExplanationForm(false);

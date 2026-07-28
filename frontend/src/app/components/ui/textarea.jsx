@@ -5,9 +5,9 @@ function Textarea({ className, ...props }) {
     <textarea
       data-slot="textarea"
       className={cn(
-        "border-input placeholder:text-muted-foreground/60 flex min-h-20 w-full rounded-lg border bg-transparent px-3.5 py-2.5 text-sm shadow-none transition-colors outline-none",
-        "focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20",
-        "aria-invalid:ring-2 aria-invalid:ring-destructive/20 aria-invalid:border-destructive",
+        "border-input placeholder:text-muted-foreground/45 flex min-h-20 w-full rounded-lg border bg-input-background px-3 py-2.5 text-sm shadow-none transition-all duration-200 outline-none",
+        "focus-visible:border-accent/60 focus-visible:ring-[3px] focus-visible:ring-accent/12 focus-visible:shadow-glow-accent",
+        "aria-invalid:ring-[3px] aria-invalid:ring-destructive/15 aria-invalid:border-destructive",
         "disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}

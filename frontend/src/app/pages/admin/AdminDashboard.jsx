@@ -11,12 +11,16 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { getReports } from "../../../services/reportService.js";
 import api from "../../../services/api.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export function AdminDashboard() {
+  const { user } = useAuth();
+  const isOwner = (user?.role || user?.Role || "").toLowerCase() === "owner";
+
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeProjects: 0,
@@ -33,7 +37,7 @@ export function AdminDashboard() {
     const results = await Promise.allSettled([
       api.users.list({ timeout: DASHBOARD_TIMEOUT }),
       getReports({ status: "Pending" }),
-      api.users.systemDashboard().catch(() => null),
+      isOwner ? api.users.systemDashboard().catch(() => null) : Promise.resolve(null),
       api.payments.getTransactions().catch(() => []),
     ]);
 
@@ -134,18 +138,25 @@ export function AdminDashboard() {
       return 0;
     };
 
-    let totalRevenue = 0;
-    transactions.forEach(t => {
-      totalRevenue += getPlatformFee(t);
-    });
+    const systemDash = systemDashboardSettled.status === "fulfilled" ? systemDashboardSettled.value : null;
+    let totalRevenue = Math.abs(Number(systemDash?.totalPlatformRevenue ?? systemDash?.TotalPlatformRevenue ?? 0));
 
-    localReleases.forEach(r => {
-      const releaseProjIdLower = String(r.projectId).toLowerCase();
-      const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
-      if (!hasDbTx) {
-        totalRevenue += Number(r.amount) * 0.05;
-      }
-    });
+    if (totalRevenue === 0) {
+      const systemHistories = systemDash?.transactionHistories || systemDash?.TransactionHistories || [];
+      systemHistories.forEach(item => {
+        totalRevenue += Math.abs(Number(item.fee ?? item.Fee ?? item.amount ?? item.Amount ?? 0));
+      });
+    }
+
+    if (totalRevenue === 0) {
+      transactions.forEach(t => {
+        const lType = (t.type || t.Type || "").toLowerCase();
+        const tPlatformFee = Math.abs(Number(t.platformFee || t.PlatformFee || 0));
+        if (lType === "platformfee" || lType === "platform_fee" || (tPlatformFee > 0 && lType !== "releasepayment" && lType !== "escrow_release")) {
+          totalRevenue += tPlatformFee > 0 ? tPlatformFee : Math.abs(Number(t.amount || t.Amount || 0));
+        }
+      });
+    }
 
     setStats({
       totalUsers: totalUsersCount,

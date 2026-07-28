@@ -58,7 +58,7 @@ export function ExpertProfile() {
     setInteractions(initialInteractions);
   }, [completedProjects]);
 
-  const handleSaveInteraction = (projId) => {
+  const handleSaveInteraction = async (projId) => {
     const payload = {
       replyText: interactionType === "reply" ? replyText.trim() : "",
       requestRevisionText: interactionType === "revision" ? revisionReason.trim() : "",
@@ -74,19 +74,30 @@ export function ExpertProfile() {
       return;
     }
 
-    localStorage.setItem(`review_expert_reply_${projId}`, JSON.stringify(payload));
-    
-    setInteractions(prev => ({
-      ...prev,
-      [projId]: payload
-    }));
-
-    window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-    
-    setReplyText("");
-    setRevisionReason("");
-    setActiveReplyProjectId(null);
+    try {
+      if (interactionType === "reply") {
+        // Fetch review by projectId to get the reviewId
+        const review = await api.reviews.getReviewByProject(projId);
+        if (review && review.id) {
+          await api.reviews.replyReview(review.id, { replyContent: payload.replyText });
+        }
+      }
+      
+      // Keep local state updated for immediate UI change
+      setInteractions(prev => ({
+        ...prev,
+        [projId]: payload
+      }));
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setReplyText("");
+      setRevisionReason("");
+      setActiveReplyProjectId(null);
+    } catch (error) {
+      console.error("Failed to save interaction:", error);
+      alert("Failed to save your reply. Please try again.");
+    }
   };
+
 
   useEffect(() => {
     if (!authUser?.id) return;
@@ -247,7 +258,9 @@ export function ExpertProfile() {
               review = {
                 rating: dbReview.rating,
                 comment: dbReview.comment,
-                createdAt: dbReview.createdAt
+                createdAt: dbReview.createdAt,
+                expertReply: dbReview.expertReply,
+                replyCreatedAt: dbReview.replyCreatedAt
               };
             } else {
               const rawReview = localStorage.getItem(`project_review_${pId}`);

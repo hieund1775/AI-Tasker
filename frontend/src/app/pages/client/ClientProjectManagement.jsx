@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -12,7 +12,7 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { releaseProjectMoneyToExpert } from "../../../services/escrowService.js";
 import { cancelProjectContract } from "../../../services/escrowService.js";
-import api from "../../../services/api.js";
+import api, { enrichFileUrl } from "../../../services/api.js";
 import { createReport } from "../../../services/reportService.js";
 import {
   notifyPaymentReleased,
@@ -23,6 +23,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { DisputeBanner } from "../../components/shared/DisputeBanner.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
+import { uploadEvidenceFiles } from "../../../services/reportService.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
@@ -104,86 +105,40 @@ export default function ClientProjectDetail() {
 
   useEffect(() => {
     if (currentProjectId) {
-      // 1. Load adjusted review (second time) if any
-      const rawEdited = localStorage.getItem(`project_review_edited_${currentProjectId}`) || localStorage.getItem(`project_review_override_${currentProjectId}`);
-      if (rawEdited) {
-        try {
-          const parsed = JSON.parse(rawEdited);
-          setEditedReview(parsed);
-        } catch (e) {}
-      } else {
-        setEditedReview(null);
-      }
-
-      // 2. Fetch original review from backend API or local
+      // Fetch original review from backend API
       api.reviews.getReviewByProject(currentProjectId)
         .then((res) => {
-          if (res) {
+          if (res && res.id) {
             setReviewSaved(true);
-            const orig = { rating: res.rating || 0, comment: res.comment || "" };
+            const orig = { id: res.id, rating: res.rating || 0, comment: res.comment || "" };
             setOriginalReview(orig);
-            // Set initial rating/comment to display original review
             setRating(res.rating || 0);
             setComment(res.comment || "");
-          } else {
-            // Check local fallback for original review
-            const rawReview = localStorage.getItem(`project_review_${currentProjectId}`);
-            if (rawReview) {
-              try {
-                const parsed = JSON.parse(rawReview);
-                setReviewSaved(true);
-                setOriginalReview(parsed);
-                setRating(parsed.rating || 0);
-                setComment(parsed.comment || "");
-              } catch (e) {
-                setReviewSaved(false);
-                setOriginalReview(null);
-                setRating(0);
-                setComment("");
-              }
+            setEditedReview(null);
+
+            if (res.expertReply) {
+              setExpertReply({ replyText: res.expertReply, date: res.replyCreatedAt });
             } else {
-              setReviewSaved(false);
-              setOriginalReview(null);
-              setRating(0);
-              setComment("");
-            }
-          }
-        })
-        .catch(() => {
-          const rawReview = localStorage.getItem(`project_review_${currentProjectId}`);
-          if (rawReview) {
-            try {
-              const parsed = JSON.parse(rawReview);
-              setReviewSaved(true);
-              setOriginalReview(parsed);
-              setRating(parsed.rating || 0);
-              setComment(parsed.comment || "");
-            } catch (e) {
-              setReviewSaved(false);
-              setOriginalReview(null);
-              setRating(0);
-              setComment("");
+              setExpertReply(null);
             }
           } else {
             setReviewSaved(false);
             setOriginalReview(null);
             setRating(0);
             setComment("");
+            setExpertReply(null);
           }
+        })
+        .catch(() => {
+            setReviewSaved(false);
+            setOriginalReview(null);
+            setRating(0);
+            setComment("");
+            setExpertReply(null);
         });
       
       const dismissed = localStorage.getItem(`dismissed_review_${currentProjectId}`) === "true";
       setIsReviewDismissed(dismissed);
-
-      // Load expert reply / request revision
-      const rawReply = localStorage.getItem(`review_expert_reply_${currentProjectId}`);
-      if (rawReply) {
-        try {
-          setExpertReply(JSON.parse(rawReply));
-        } catch (e) {}
-      } else {
-        setExpertReply(null);
-      }
     }
   }, [currentProjectId]);
 
@@ -197,39 +152,30 @@ export default function ClientProjectDetail() {
       projectId: currentProjectId,
       rating: rating,
       comment: comment.trim(),
-      createdAt: new Date().toISOString()
     };
 
-    // Check if original review already exists
-    if (originalReview) {
-      // This is the edit turn (second time), stored in project_review_edited
-      localStorage.setItem(`project_review_edited_${currentProjectId}`, JSON.stringify(reviewData));
-      setEditedReview(reviewData);
-      setReviewSaved(true);
-      toast.success("Expert review updated successfully!");
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      setIsSavingReview(false);
+    if (originalReview && originalReview.id) {
+      // This is the edit turn (second time), call update API
+      api.reviews.updateReview(originalReview.id, reviewData)
+        .then(() => {
+          setOriginalReview({ ...originalReview, ...reviewData });
+          setReviewSaved(true);
+          toast.success("Expert review updated successfully!");
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        })
+        .catch(() => toast.error("Failed to update review"))
+        .finally(() => setIsSavingReview(false));
     } else {
       // This is the first evaluation turn
       api.reviews.createReview(reviewData)
-        .then(() => {
-          localStorage.removeItem(`project_review_override_${currentProjectId}`);
-          setOriginalReview(reviewData);
+        .then((res) => {
+          setOriginalReview({ id: res.id, ...reviewData });
           setReviewSaved(true);
           toast.success("Thank you for submitting your review!");
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         })
-        .catch((err) => {
-          console.warn("Backend save failed, using local storage override:", err);
-          localStorage.setItem(`project_review_override_${currentProjectId}`, JSON.stringify(reviewData));
-          setOriginalReview(reviewData);
-          setReviewSaved(true);
-          toast.success("Expert review submitted successfully!");
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        })
-        .finally(() => {
-          setIsSavingReview(false);
-        });
+        .catch(() => toast.error("Failed to save review"))
+        .finally(() => setIsSavingReview(false));
     }
   };
 
@@ -311,10 +257,12 @@ export default function ClientProjectDetail() {
     "delivery_accepted",
   ]);
 
-  // For client: hide cancel button only when project is truly 100% done
+  // For client: hide cancel button when all tasks are approved (100% progress) or terminal
   const isProjectFullyDone =
     allTasksApproved
-    && (HARD_TERMINAL_STATUSES.has(normalizedStatus) || FINAL_DELIVERY_DONE.has(normalizedFinalDeliveryStatus) || project?.finalDeliveryAccepted);
+    || HARD_TERMINAL_STATUSES.has(normalizedStatus)
+    || FINAL_DELIVERY_DONE.has(normalizedFinalDeliveryStatus)
+    || project?.finalDeliveryAccepted;
 
   const canCancel =
     !isProjectFullyDone
@@ -360,20 +308,21 @@ export default function ClientProjectDetail() {
 
   const handleClientSubmitExplanation = async (explanationData) => {
     try {
-      const isCancellation = report.reportType === "cancellation" || report.disputeType === "cancellation";
+      const isCancellation = report?.reportType === "cancellation" || report?.disputeType === "cancellation";
       if (isCancellation) {
         await api.put(`/reports/${report.id}/partner-reject-cancel`, {
           partnerRejectionReason: explanationData.reason || explanationData.description || "Decline contract cancellation request",
         });
       } else {
-        const evidenceUrl = Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0
-          ? (typeof explanationData.evidence[0].file === "string" ? explanationData.evidence[0].file : (explanationData.evidence[0].name || "Uploaded file"))
-          : null;
+        let evidenceUrl = explanationData.evidenceUrl || null;
+        if (Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0) {
+          evidenceUrl = await uploadEvidenceFiles(explanationData.evidence);
+        }
         await api.put(`/reports/${report.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
           explanation: explanationData.description || explanationData.reason || "",
           desiredResolution: explanationData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
-          userId: user?.id
+          userId: user?.id || user?.Id
         });
       }
       toast.success("Submitted response explanation successfully!");
@@ -543,10 +492,38 @@ export default function ClientProjectDetail() {
         }
       }
 
+      if (platformFee > 0) {
+        try {
+          await api.post("/interactions/transaction", {
+            projectId: currentProjectId,
+            amount: platformFee,
+            sourceWalletId: clientId,
+            reportId: report?.id,
+            status: "completed",
+            type: "PlatformFee",
+            transactionType: "PlatformFee",
+            description: `platform fee -5% (client cancel)`,
+          });
+        } catch (feeErr) {
+          console.warn("Client cancel platform fee transaction failed:", feeErr);
+        }
+      }
+
       const projIdLower = String(currentProjectId).toLowerCase();
-      localStorage.setItem(`cancellation_expert_payout_${projIdLower}`, correctExpertPayout);
-      localStorage.setItem(`cancellation_client_refund_${projIdLower}`, correctClientRefund);
-      localStorage.setItem(`project_status_${projIdLower}`, "cancelled");
+      
+      const cancellationMetadata = JSON.stringify({
+        expertPayout: correctExpertPayout,
+        clientRefund: correctClientRefund,
+        isEscalatedVerdict: false,
+        reason: "Client accepted cancellation"
+      });
+      
+      try {
+        await api.projects.updateStatus(currentProjectId, "Cancelled");
+        await api.projects.updateMetadata(currentProjectId, cancellationMetadata);
+      } catch (err) {
+        console.warn("Backend update status/metadata failed", err);
+      }
       toast.success("You agreed to cancel the contract. Funds have been split/refunded.");
 
       // Expert gets payout notification
@@ -1263,53 +1240,59 @@ export default function ClientProjectDetail() {
                 </button>
               )}
 
-              {cancelLocked && (
-                <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                  🔒 Cancel Locked
-                </span>
-              )}
-
-              {report && (report?.status === "Awaiting Client" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundClientSubmitted)) && (
-                <button
-                  type="button"
-                  onClick={() => setShowExplanationModal(true)}
-                  className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
-                >
-                  <AlertTriangle className="w-4 h-4" /> Submit Explanation
-                </button>
-              )}
-              {report && (
-                (report?.reporterRole === "client" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
-                report?.status === "Awaiting Expert" ||
-                ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundClientSubmitted)
-              ) && (
-                  <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
-                    <AlertTriangle className="w-4 h-4" /> Awaiting review...
-                  </div>
-                )}
-              {allTasksApproved && project.status !== "completed" && (
+              {!["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase()) && (
                 <>
-                  {/* View Final Work Button */}
-                  {project.finalDeliveryStatus === "Declined" ? (
+                  {cancelLocked && (
+                    <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
+                      🔒 Cancel Locked
+                    </span>
+                  )}
+
+                  {report && (report?.status === "Awaiting Client" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundClientSubmitted)) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowExplanationModal(true)}
+                      className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                    >
+                      <AlertTriangle className="w-4 h-4" /> Submit Explanation
+                    </button>
+                  )}
+                  {report && (
+                    (report?.reporterRole === "client" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
+                    report?.status === "Awaiting Expert" ||
+                    ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundClientSubmitted)
+                  ) && (
+                      <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                        <AlertTriangle className="w-4 h-4" /> Awaiting review...
+                      </div>
+                    )}
+                </>
+              )}
+              {allTasksApproved && (
+                <>
+                  {/* View Final Work Button — always visible once final product submitted or accepted */}
+                  {(project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" || project.status === "completed" || project.status === "payment_released") && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFinalWorkModal(true)}
+                      className="h-11 px-5 rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer"
+                    >
+                      View Final Work
+                    </button>
+                  )}
+
+                  {/* Declined state — waiting resubmit */}
+                  {project.finalDeliveryStatus === "Declined" && project.status !== "completed" && (
                     <button
                       disabled
                       className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                     >
                       Awaiting Expert resubmission
                     </button>
-                  ) : project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowFinalWorkModal(true)}
-                      disabled={isLocked}
-                      className={`h-11 px-5 rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all ${isLocked
-                        ? "bg-secondary text-muted-foreground border border-border cursor-not-allowed"
-                        : "bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer"
-                        }`}
-                    >
-                      View Final Work
-                    </button>
-                  ) : (
+                  )}
+
+                  {/* Not submitted yet */}
+                  {!project.finalDeliveryStatus && project.status !== "completed" && (
                     <button
                       disabled
                       className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
@@ -1318,26 +1301,28 @@ export default function ClientProjectDetail() {
                     </button>
                   )}
 
-                  {/* Release Payment Button */}
-                  {project.finalDeliveryStatus === "Accepted" && !isLocked ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowReleaseConfirmModal(true)}
-                      className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
-                    >
-                      <CreditCard className="w-4 h-4" /> Release Payment
-                    </button>
-                  ) : (
-                    <button
-                      disabled
-                      className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
-                    >
-                      <CreditCard className="w-4 h-4" /> Release Payment
-                    </button>
+                  {/* Release Payment Button — only before completed */}
+                  {project.status !== "completed" && project.status !== "payment_released" && (
+                    project.finalDeliveryStatus === "Accepted" && !isLocked ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowReleaseConfirmModal(true)}
+                        className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                      >
+                        <CreditCard className="w-4 h-4" /> Release Payment
+                      </button>
+                    ) : project.finalDeliveryStatus !== "Accepted" && project.status !== "completed" ? (
+                      <button
+                        disabled
+                        className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                      >
+                        <CreditCard className="w-4 h-4" /> Release Payment
+                      </button>
+                    ) : null
                   )}
                 </>
               )}
-              {project.status === "completed" && (
+              {(project.status === "completed" || project.status === "payment_released") && (
                 <button
                   disabled
                   className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
@@ -1430,21 +1415,76 @@ export default function ClientProjectDetail() {
               <div className="space-y-3 p-4 bg-muted/30 border border-border rounded-xl">
                 <p className="font-semibold text-foreground">Expert Final Deliverables:</p>
                 <div>
-                  <strong className="block text-muted-foreground text-xs uppercase tracking-wider">Project Link</strong>
-                  <a
-                    href={project?.finalProjectLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-accent hover:underline font-medium break-all"
-                  >
-                    {project?.finalProjectLink || "Link not provided"}
-                  </a>
+                  <strong className="block text-muted-foreground text-xs uppercase tracking-wider mb-0.5">Project Link</strong>
+                  {project?.finalProjectLink ? (
+                    <a
+                      href={project.finalProjectLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-accent hover:underline font-medium break-all"
+                    >
+                      {project.finalProjectLink}
+                    </a>
+                  ) : (
+                    <span className="text-sm font-semibold text-muted-foreground">None</span>
+                  )}
                 </div>
                 <div>
                   <strong className="block text-muted-foreground text-xs uppercase tracking-wider">Project Files</strong>
-                  <span className="font-semibold text-foreground break-all">
-                    {project?.finalProjectFile || "File not provided"}
-                  </span>
+                  {(() => {
+                    const raw = project?.finalProjectFile;
+                    if (!raw) return <span className="text-sm text-muted-foreground italic">File not provided</span>;
+                    let fileInfo = { url: "", name: raw };
+                    try {
+                      const parsed = JSON.parse(raw);
+                      if (parsed?.url || parsed?.fileUrl || parsed?.path) {
+                        const fileUrl = parsed.url || parsed.fileUrl || parsed.path;
+                        fileInfo = {
+                          url: fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl),
+                          name: parsed.name || parsed.originalName || fileUrl.split("/").pop(),
+                        };
+                      }
+                    } catch {
+                      const cleanStr = String(raw).trim();
+                      fileInfo = { url: cleanStr.startsWith("http") ? cleanStr : enrichFileUrl(cleanStr), name: cleanStr.split("/").pop().split("\\").pop() };
+                    }
+                    const getToken = () => sessionStorage.getItem("token") || sessionStorage.getItem("authToken") || sessionStorage.getItem("jwt");
+                    const handleView = async () => {
+                      try {
+                        const res = await fetch(fileInfo.url, { headers: { Authorization: `Bearer ${getToken()}` } });
+                        const blob = await res.blob();
+                        const type = res.headers.get("content-type") || blob.type || "application/octet-stream";
+                        const viewUrl = URL.createObjectURL(new Blob([blob], { type }));
+                        window.open(viewUrl, "_blank");
+                        setTimeout(() => URL.revokeObjectURL(viewUrl), 30000);
+                      } catch { window.open(fileInfo.url, "_blank"); }
+                    };
+                    const handleDownload = async () => {
+                      try {
+                        const res = await fetch(fileInfo.url, { headers: { Authorization: `Bearer ${getToken()}` } });
+                        const blob = await res.blob();
+                        const dlUrl = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = dlUrl; a.download = fileInfo.name;
+                        document.body.appendChild(a); a.click(); a.remove();
+                        URL.revokeObjectURL(dlUrl);
+                      } catch { window.open(fileInfo.url, "_blank"); }
+                    };
+                    return (
+                      <div className="flex items-center gap-2 mt-1">
+                        <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-accent font-medium break-all text-sm flex-1 truncate" title={fileInfo.name}>
+                          {fileInfo.name}
+                        </span>
+                        <button type="button" onClick={handleView} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="View file">
+                          <ExternalLink className="w-4 h-4" />
+                        </button>
+                        <button type="button" onClick={handleDownload} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="Download file">
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {project?.finalWorkSubmittedAt && (
                   <div className="pt-2.5 border-t border-border mt-3">
@@ -1706,7 +1746,7 @@ export default function ClientProjectDetail() {
 
 
 
-      {/* Dialog for Explanation Form */}
+{/* Dialog for Explanation Form */}
       <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
@@ -1714,27 +1754,6 @@ export default function ClientProjectDetail() {
               Submit Response to Report
             </DialogTitle>
           </DialogHeader>
-          <div className="p-4 bg-secondary/60 border border-border rounded-xl space-y-2 text-sm text-left mb-4">
-            {report?.reporterRole === "expert" ? (
-              <>
-                <p className="font-semibold text-foreground">Dispute from Expert:</p>
-                <p className="text-foreground/85"><strong>Reason:</strong> {report?.reason || report?.reportName}</p>
-                <p className="text-foreground/85"><strong>Details:</strong> {report?.description}</p>
-              </>
-            ) : (
-              <>
-                <p className="font-semibold text-foreground">Response explanation from Expert:</p>
-                {report?.expertExplanation ? (
-                  <>
-                    <p className="text-foreground/85"><strong>Reason:</strong> {report?.expertExplanationReason || "—"}</p>
-                    <p className="text-foreground/85"><strong>Details:</strong> {report?.expertExplanation}</p>
-                  </>
-                ) : (
-                  <p className="text-muted-foreground italic">Expert has not submitted a response explanation yet.</p>
-                )}
-              </>
-            )}
-          </div>
           <ReportForm
             project={project}
             onSubmit={async (formData) => {

@@ -3,27 +3,26 @@ import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// StatCard — reusable single statistic card (premium modern SaaS style).
+// StatCard — reusable single statistic card (premium AI dashboard style).
 //
 // Props:
 //   icon        — Lucide icon component
-//   label       — stat label text (e.g. "Active Projects")
+//   label       — stat label text
 //   value       — stat value (number, string, or ReactNode)
-//   description — optional supporting text below the value
-//   link        — optional route path (renders a "View →" link)
+//   description — optional supporting text
+//   link        — optional route path
 //   linkLabel   — custom link text (default "View")
-//   color       — Tailwind classes for the icon container
-//                  (e.g. "text-accent bg-accent-light")
-//   trend       — { direction: "up" | "down", value: string } (e.g. "+12%")
+//   color       — Tailwind classes for icon container
+//   trend       — { direction: "up" | "down", value: string }
 //   size        — "sm" | "md" (default "md")
-//   className   — additional classes for the card wrapper
-//   onClick     — optional click handler (ignored if `link` is set)
+//   className   — additional classes
+//   onClick     — optional click handler
 // =============================================================================
 
 const SIZE_STYLES = {
   sm: {
     card: "p-4",
-    iconWrapper: "w-8 h-8 rounded-lg mb-2.5",
+    iconWrapper: "w-8 h-8 rounded-lg mb-2",
     icon: "w-4 h-4",
     label: "text-xs text-muted-foreground font-medium uppercase tracking-[0.04em]",
     value: "text-lg",
@@ -31,7 +30,7 @@ const SIZE_STYLES = {
   },
   md: {
     card: "p-5",
-    iconWrapper: "w-9 h-9 rounded-lg mb-3",
+    iconWrapper: "w-9 h-9 rounded-lg mb-2.5",
     icon: "w-[18px] h-[18px]",
     label: "text-xs text-muted-foreground font-medium uppercase tracking-[0.04em]",
     value: "text-xl",
@@ -39,13 +38,13 @@ const SIZE_STYLES = {
   },
 };
 
-// Gradient color presets for icon containers
 const COLOR_PRESETS = {
   "text-accent bg-accent-light": "bg-gradient-to-br from-accent/15 to-accent/5",
   "text-success bg-success-light": "bg-gradient-to-br from-success/15 to-success/5",
   "text-warning bg-warning-light": "bg-gradient-to-br from-warning/15 to-warning/5",
   "text-destructive bg-destructive-light": "bg-gradient-to-br from-destructive/15 to-destructive/5",
   "text-primary bg-primary-light": "bg-gradient-to-br from-primary/10 to-primary/3",
+  "text-ai bg-ai-light": "bg-gradient-to-br from-ai/15 to-ai/5",
 };
 
 export function StatCard({
@@ -62,7 +61,6 @@ export function StatCard({
   onClick,
 }) {
   const s = SIZE_STYLES[size] || SIZE_STYLES.md;
-  // Use gradient preset if available, fall back to original color
   const iconBg = COLOR_PRESETS[color] || color;
 
   const body = (
@@ -75,7 +73,6 @@ export function StatCard({
             iconBg,
           )}
         >
-          {/* Subtle inner glow effect */}
           <div
             className="absolute inset-0 opacity-30 rounded-lg"
             style={{
@@ -87,7 +84,7 @@ export function StatCard({
       )}
       {label && <p className={s.label}>{label}</p>}
       <div className="flex items-baseline gap-2 mt-0.5">
-        <p className={cn("font-bold text-foreground animate-count-in", s.value)}>{value}</p>
+        <p className={cn("font-bold text-foreground tabular-nums", s.value)}>{value}</p>
         {trend && (
           <span
             className={cn(
@@ -106,10 +103,10 @@ export function StatCard({
         )}
       </div>
       {description && (
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        <p className="text-xs text-muted-foreground/75 mt-1">{description}</p>
       )}
       {link && (
-        <span className="text-xs text-accent hover:text-accent-hover mt-2 inline-flex items-center gap-1 font-medium">
+        <span className="text-xs text-accent hover:text-accent-hover mt-2 inline-flex items-center gap-1 font-medium transition-colors">
           {linkLabel} <ArrowRight className="w-3 h-3" />
         </span>
       )}
@@ -117,12 +114,11 @@ export function StatCard({
   );
 
   const cardClasses = cn(
-    "bg-card rounded-xl border border-border card-hover relative overflow-hidden group",
+    "bg-card rounded-xl border border-border/70 shadow-sm transition-all duration-300 relative overflow-hidden group hover:shadow-md hover:border-accent/20 hover:-translate-y-0.5",
     s.card,
     className,
   );
 
-  // Subtle gradient border glow on hover
   const gradientBorder = cn(
     "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none",
     "bg-gradient-to-br from-accent/[0.06] via-transparent to-primary/[0.04]",

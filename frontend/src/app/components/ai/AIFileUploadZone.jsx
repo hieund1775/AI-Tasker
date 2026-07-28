@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, FileText, Image, File } from "lucide-react";
+import { Upload, X, FileText, Image, File as LucideFileIcon } from "lucide-react";
 
 // ── Compact defaults for AI Planner panel ──
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
@@ -16,8 +16,8 @@ function getFileIcon(file) {
     /\.(pdf|docx?)$/.test(name)
   )
     return FileText;
-  if (/\.zip$/.test(name) || type.includes("zip")) return File;
-  return File;
+  if (/\.zip$/.test(name) || type.includes("zip")) return LucideFileIcon;
+  return LucideFileIcon;
 }
 
 function getFileColor(file) {
@@ -127,53 +127,55 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
 
   return (
     <div className="space-y-2">
-      {/* Compact drop zone */}
-      <div
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onClick={disabled ? undefined : handleBrowse}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleBrowse();
-          }
-        }}
-        className={`
-          relative border-2 border-dashed rounded-xl px-3 py-5 text-center transition-colors
-          ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-          ${isDragging
-            ? "border-brand-primary bg-brand-primary-light/30"
-            : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
-          }
-        `}
-      >
-        <Upload
-          className={`w-6 h-6 mx-auto mb-1.5 ${
-            isDragging ? "text-brand-primary" : "text-muted-foreground/60"
-          }`}
-        />
-        <p className="text-xs font-semibold text-muted-foreground">
-          Drop files or <span className="text-brand-primary">browse</span>
-        </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          PDF, DOCX, TXT, Images • Requirements
-        </p>
+      {/* Hidden file input always available */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={DEFAULT_ACCEPT_EXT}
+        onChange={handleFileInputChange}
+        className="hidden"
+        disabled={disabled}
+      />
 
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={DEFAULT_ACCEPT_EXT}
-          onChange={handleFileInputChange}
-          className="hidden"
-          disabled={disabled}
-        />
-      </div>
+      {/* Compact drop zone — hidden when files exist */}
+      {files.length === 0 && (
+        <div
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={disabled ? undefined : handleBrowse}
+          role="button"
+          tabIndex={disabled ? -1 : 0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleBrowse();
+            }
+          }}
+          className={`
+            relative border-2 border-dashed rounded-xl px-3 py-5 text-center transition-colors
+            ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+            ${isDragging
+              ? "border-brand-primary bg-brand-primary-light/30"
+              : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
+            }
+          `}
+        >
+          <Upload
+            className={`w-6 h-6 mx-auto mb-1.5 ${
+              isDragging ? "text-brand-primary" : "text-muted-foreground/60"
+            }`}
+          />
+          <p className="text-xs font-semibold text-muted-foreground">
+            Drop files or <span className="text-brand-primary">browse</span>
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            PDF, DOCX, TXT, Images • Requirements
+          </p>
+        </div>
+      )}
 
       {/* File list — compact */}
       {files.length > 0 && (

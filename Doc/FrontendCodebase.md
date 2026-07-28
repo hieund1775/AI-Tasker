@@ -173,3 +173,110 @@ Hệ thống sử dụng helper [notificationHelper.js](file:///d:/FPT/FPTU_Lear
     - Tiến độ dự án tổng = `trung bình cộng tiến độ của toàn bộ các Task` (%).
   - Chứa logic xác định trạng thái hiển thị của Task (`deriveTaskDisplayStatus`) phân tách rạch ròi 6 trạng thái: *Not Started, In Progress, Waiting For Approval, Done, Needs Revision, Reopen Requested*.
 
+---
+
+## 7. Cấu Hình Trạng Thái Đề Xuất & Trợ Lý AI Use Case (Mới Bổ Sung)
+
+### 7.1 Hệ Thống Quản Lý Trạng Thái Đề Xuất (proposalStatusConfig.js)
+Tệp [proposalStatusConfig.js](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/lib/proposalStatusConfig.js) là "single source of truth" quản lý thông tin trạng thái đề xuất (`Proposal`) trong toàn bộ giao diện:
+- **Các Trạng thái Đề xuất Hỗ trợ**:
+  - `pending`: Đang chờ Client phê duyệt (màu vàng).
+  - `accepted`: Đề xuất được chấp nhận (màu xanh lá).
+  - `declined`: Đề xuất bị từ chối (màu đỏ).
+  - `withdrawn`: Expert rút đơn trước khi phê duyệt (màu xám).
+  - `under_review`: Client đang tích cực xem xét (màu xanh dương).
+  - `pending_escrow`: Đã phê duyệt, đang chờ Client nạp tiền ký quỹ (màu cam).
+  - `expired`: Đề xuất tự động hủy sau 7 ngày không phản hồi (màu xám đậm).
+- **Hàm bổ trợ**: `getProposalStatusConfig(status)`, `getProposalStatusLabel(status)`, và `getProposalStatusClass(status)`.
+
+### 7.2 Quét Hạn Đề Xuất Tự Động (Giai đoạn 2)
+Tích hợp nghiệp vụ tự động hủy đề xuất sau 7 ngày trong [mockDatabase.js](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/data/mockDatabase.js) qua hàm `checkProposalDeadlines()`:
+- Quét danh sách đề xuất ở trạng thái `pending` hoặc `submitted`.
+- **Mốc 6 ngày**: Gửi thông báo khẩn cấp nhắc nhở Client duyệt đề xuất.
+- **Mốc 7 ngày (Quá hạn)**: Tự động chuyển trạng thái đề xuất thành `"expired"`, đồng thời bắn thông báo hủy đề xuất tới cả Client và Expert.
+
+### 7.3 Hộp thoại Chat AI Lập Kế Hoạch Use Cases (AIClientsUseCasePlanner.jsx)
+Tích hợp trợ lý AI lập kế hoạch dạng chat trực tiếp tại [AIClientsUseCasePlanner.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/ai/AIClientsUseCasePlanner.jsx):
+- **Cơ chế đọc tự động (Auto-trigger)**: Tự động trích xuất các thông tin hiện có trong Form đăng dự án (Tiêu đề, Mô tả và tài liệu đính kèm BRD/SRS) để chạy phân tích ngay khi Client mở bảng chat AI.
+- **Nhận diện nghiệp vụ (AI Domain Recognition)**: Phân loại thông minh dựa trên heuristics để đề xuất Category, Specialization, Skills tương thích và phân rã các Project Use Cases chuẩn hóa.
+- **Áp dụng tự động (Apply Plan)**: Cung cấp nút *"Áp dụng Use Cases này"* để đổ ngược dữ liệu đã phân tách vào form đăng tuyển.
+
+### 7.4 Tái Cấu Trúc Sidebar Đăng Dự Án Tab Kép (PostProject.jsx)
+Nâng cấp sidebar tại [PostProject.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/client/PostProject.jsx) từ hiển thị danh sách tĩnh sang hệ thống **Tab kép linh hoạt**:
+- **Tab 🤖 AI Use Cases**: Tích hợp khung chat của `AIClientsUseCasePlanner` để Client tương tác và lập Use Cases với AI.
+- **Tab 👤 Recommended**: Chứa danh sách Chuyên gia AI phù hợp được tối ưu hóa theo số dự án đã hoàn thành (ưu tiên chuyên gia có từ 3 dự án trở xuống).
+- Điều hướng mở Tab tương ứng khi Client bấm chọn nút *"Parse with AI"* hoặc *"Recommend Expert by AI"* bên trong form.
+
+---
+
+## 8. Đồng Bộ Use Cases Với Giao Diện Quản Lý Tiến Độ & Quản Lý Checklist Chi Tiết (Mới Bổ Sung)
+
+### 8.1 Ánh Xạ Use Case Động Vào Tasks & Milestones (Dynamic Use Case Mapping)
+- **Cơ chế**: Để đảm bảo tính nhất quán giữa mô tả công việc ban đầu của Client và các đầu việc của Expert, tiêu đề và mô tả của từng `Task` (Milestone lớn) hiển thị ở phía Client lẫn Expert được tự động lấy từ Use Case tương ứng thuộc dự án (`project.useCases[task.useCaseIndex]`).
+- **Phạm vi tác động**: 
+  - [TaskProgressCard.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/project/TaskProgressCard.jsx): Tự động đổi tiêu đề và mô tả, ẩn nút "Sửa mô tả" bên phía Expert.
+  - [TaskDetailPage.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/common/TaskDetailPage.jsx): Hiển thị đồng bộ Use Case info làm tiêu đề/mô tả của trang chi tiết công việc.
+
+### 8.2 Nghiệm Thu Công Việc Inline Phía Client (Client Inline Review Panel)
+- **Cơ chế**: Client không cần di chuyển sang trang chi tiết của từng Task để kiểm tra sản phẩm hoặc phê duyệt. Toàn bộ quy trình nghiệm thu được tích hợp trực tiếp ngay trên các thẻ Use Case ở trang quản lý tiến độ:
+  - Khi một Task có checklist hoàn thành 100% hoặc ở trạng thái chờ duyệt (`pending_review`), Client sẽ thấy nút duyệt nhanh **Phê duyệt (Accept)** và nút đòi hỏi sản phẩm **Yêu cầu sản phẩm (Request Product)**.
+  - Nếu Expert đã nộp liên kết/tài liệu sản phẩm, Client sẽ thấy nút **Xem sản phẩm (View Product)** để mở Modal đánh giá sản phẩm tổng quan và đưa ra lựa chọn duyệt hoặc yêu cầu sửa đổi (kèm lý do chi tiết) ngay tại chỗ.
+
+### 8.3 Đếm Ngược Thời Gian Thực Tế Còn Lại (Remaining Timeline Countdown)
+- **Hàm bổ trợ**: `getRemainingTimelineText(deadline)` trong [projectTimelineStore.js](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/lib/projectTimelineStore.js) thực hiện phân tích hạn chót và trả về thông tin thời gian còn lại (ưu tiên hiển thị 2 đơn vị lớn nhất như tháng & ngày, ngày & giờ, giờ & phút,...) hoặc cảnh báo quá hạn.
+- **Vị trí hiển thị**:
+  - Tiêu đề dự án ([ProjectHeaderCard.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/project/ProjectHeaderCard.jsx)): Cột **Timeline còn lại** trong bảng thông tin dự án.
+  - Thẻ Task ([TaskProgressCard.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/project/TaskProgressCard.jsx)): Huy hiệu đếm ngược kế bên thời hạn deadline.
+  - Trang chi tiết Task ([TaskDetailPage.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/common/TaskDetailPage.jsx)): Hiển thị thời gian còn lại dưới mốc deadline.
+
+### 8.4 Tinh Giản Xác Nhận Vượt Quá Chỉ Tiêu Phía Expert
+- **Thay đổi**: Tại [SendProposal.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/expert/SendProposal.jsx), loại bỏ hoàn toàn checkbox gia hạn timeline nằm trong danh sách Use Case:
+  - *Đã xóa*: `Tôi xác nhận proposal có Use Case vượt thời gian gốc và đồng ý gửi kèm đề xuất xin Client gia hạn.`
+  - *Giữ lại*: Checkbox ở cuối trang phía trên nút Gửi proposal (`Tôi xác nhận và đồng ý gửi đề xuất với mức chi phí/timeline vượt quá chỉ tiêu của khách hàng.`) để làm cổng xác nhận duy nhất khi gửi Proposal vượt định mức.
+
+### 8.5 Modal Chi Tiết Use Case & Checklist Cho Expert (Expert Use Case Detail Modal)
+- **Cơ chế**: Để giao diện trang chính gọn gàng hơn và tránh Expert vô tình tick nhầm tiến độ, danh sách các Tasks & Milestones con sẽ không được hiển thị trực tiếp trên trang quản lý tiến độ chính của Expert.
+- **Thiết kế**:
+  - Mỗi thẻ Use Case hiển thị thông tin chung và một nút **Detail** (Xem chi tiết).
+  - Khi click vào nút **Detail**, một Dialog modal ([ProjectProgressPanel.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/components/project/ProjectProgressPanel.jsx)) sẽ mở ra hiển thị danh sách Task, Milestone & Checklist thuộc riêng Use Case đó. Expert có thể thực hiện kiểm tra tiến độ, sửa mô tả, check-off checklist và submit sản phẩm hoàn thành ngay tại đây.
+
+---
+
+## 9. Đánh Dấu Hoàn Thành & Nhật Ký Hoạt Động Của Expert (Mới Bổ Sung)
+
+### 9.1 Đồng Bộ Hóa Và Tự Phục Hồi Nhiệm Vụ (Self-Healing Task Sync)
+- **Cơ chế tự phục hồi**: Trong trường hợp các nhiệm vụ (`Tasks`) chỉ tồn tại trong danh sách nhúng của dự án (`project.tasks`) mà chưa được ghi nhận ở bảng `tasks` toàn cục (ví dụ sau khi chấp nhận đề xuất), hàm `_getById("tasks", id)` trong [mockDatabase.js](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/data/mockDatabase.js) sẽ tự động tìm kiếm trong danh sách của dự án và đồng bộ ngược trở lại bảng `tasks` trên bộ nhớ trình duyệt.
+- **Đồng bộ hai chiều**: Mọi thao tác cập nhật (như `toggleMiniTaskCompletion`, `updateTask`) trên bảng `tasks` đều tự động đồng bộ ngược lại mảng `tasks` của `projects` tương ứng và ngược lại thông qua các hàm gốc `_create` và `_update` của Mock Database.
+
+### 9.2 Hiển Thị Checkbox Màu Xanh Lá Và Đánh Dấu Thẻ Nhiệm Vụ
+- **Checkbox màu xanh**: Thay đổi màu sắc biểu tượng Square/CheckSquare từ màu xanh dương thương hiệu sang màu xanh lá cây (`text-green-600`) khi nhiệm vụ đã hoàn thành.
+- **Tô màu nền nổi bật**: Khi một nhiệm vụ (Task) đạt tiến độ 100% (hoặc tất cả milestones con hoàn thành) hoặc một milestone đơn lẻ được tích chọn, giao diện [ExpertUseCaseUpdatePage.jsx](file:///d:/FPT/FPTU_LearnAndTest/FPT_Learning_Lesson/Course5_Summer2026/SWP301/AI-Tasker_Root/frontend/src/app/pages/expert/ExpertUseCaseUpdatePage.jsx) sẽ tự động chuyển nền và viền thẻ nhiệm vụ sang màu xanh lá nhẹ (`bg-green-50/40 border-green-200`) để chuyên gia dễ dàng nhận biết các đầu việc đã hoàn thành.
+
+### 9.3 Tự Động Ghi Nhật Ký Hoạt Động (Activity Logs) Theo Cú Pháp Yêu Cầu
+- **Hoạt động hoàn thành**: Khi tích chọn, hệ thống ghi nhật ký dưới dạng: `[Expert] hoàn thành...`.
+- **Hoạt động hủy hoàn thành (Bỏ tích)**: Khi Expert hủy chọn một checkbox, hệ thống sẽ ghi nhận hoạt động kèm cụm từ bắt buộc **đã thay đổi** để mô tả hành động (ví dụ: `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành...`).
+- **Hoạt động thay đổi tiêu đề**: Khi Expert sửa tên nhiệm vụ hoặc milestone, hệ thống ghi lại nhật ký chi tiết: `[Expert] đã thay đổi tiêu đề... từ "[Tên cũ]" thành "[Tên mới]"`.
+
+---
+
+## 10. Cập Nhật Các Tính Năng Nâng Cao Gần Đây (Checkpoint 3)
+
+### 10.1 Liên Kết Theo UseCase_ID Tránh Sai Lệch Dữ Liệu
+- **Tập tin**: `routes.jsx`, `ProjectProgressPanel.jsx`, `useProjectProgress.js`, `ExpertUseCaseUpdatePage.jsx`.
+- **Cơ chế**: Đường dẫn cập nhật Use Case phía Expert đổi tham số định tuyến từ `:index` sang `:useCaseId` (ví dụ: `/expert/projects/:id/usecase/:useCaseId`). Hàm lọc Task lấy `useCaseId` làm khóa chính thay vì mảng chỉ mục động, giúp dự án duy trì tính toàn vẹn dữ liệu ngay cả khi thứ tự Use Case bị thay đổi.
+
+### 10.2 Ràng Buộc Bằng Chứng Bàn Giao (Evidence Constraint)
+- **Tập tin**: `useProjectProgress.js`, `ExpertUseCaseUpdatePage.jsx`, `TaskProgressCard.jsx`, `TaskDetailPage.jsx`.
+- **Cơ chế**: Để Task đạt trạng thái nghiệm thu `"Checklist Completed"`, Expert phải điền và nộp bằng chứng bàn giao (Git commit SHA, link báo cáo...) trong Form trên trang cập nhật Use Case. Trình duyệt hiển thị hộp văn bản in rõ bằng chứng này ở cả góc nhìn Client và Expert.
+
+### 10.3 Banner Đỏ Cho Đề Xuất Lệch Ngân Sách (Budget Deviation Checks)
+- **Tập tin**: `SendProposal.jsx`.
+- **Cơ chế**: Hiển thị banner màu đỏ (`bg-red-50 text-red-800`) cảnh báo khi Expert điền giá thầu vượt quá ngân sách gốc của dự án. Hiển thị rõ số tiền Budget Deviation bị âm. Chặn nộp proposal cho đến khi hộp kiểm xác nhận vượt chỉ tiêu được tích chọn.
+
+### 10.4 Workspace Client Không Bị Khóa Cứng (Unblocked Workspace)
+- **Tập tin**: `ClientProjectManagement.jsx`, `ProjectProgressPanel.jsx`.
+- **Cơ chế**: Thiết lập `readOnly={false}` cho Progress Panel khi dự án bị tranh chấp. Khóa có chọn lọc (Scenario C) khi Use Case ở trạng thái `"waiting_expert_product"`. Nút Report (Báo cáo vi phạm) luôn hiển thị và khả dụng.
+
+### 10.5 Dispute Timeout 48h Của Tranh Chấp
+- **Tập tin**: `AdminReportDetail.jsx`.
+- **Cơ chế**: Hiển thị banner màu tím cảnh báo kèm đồng hồ đếm ngược khi trạng thái báo cáo là `"Awaiting Evidence"`. Mở khóa phán quyết tự động của Admin khi hết thời gian 48 giờ.

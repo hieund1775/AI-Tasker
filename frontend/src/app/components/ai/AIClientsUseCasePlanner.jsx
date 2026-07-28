@@ -79,16 +79,13 @@ function parseUseCasesFromPayload(payload) {
   if (!Array.isArray(payload)) return [];
   return payload.map((task, idx) => {
     const title = task.Title || task.title || `Use Case ${idx + 1}`;
-    const description = Array.isArray(task.MiniTasks || task.miniTasks)
-      ? (task.MiniTasks || task.miniTasks)
-          .map(mt => `- ${mt.Title || mt.title}`)
-          .join("\n")
-      : "";
+    const description = task.Description || task.description || "";
+    
     return {
       id: `uc-ai-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`,
       title,
       description,
-      originalDurationDays: ""
+      originalDurationDays: task.Duration || task.duration || ""
     };
   });
 }
@@ -116,7 +113,7 @@ export function AIClientsUseCasePlanner({
 
     const welcomeMsg = {
       role: "ai",
-      text: `Hello! I am your AI User Stories planning assistant.\n\nPlease upload your requirement document (BRD/SRS) above, or describe your project idea here (e.g., "I want to make a sales chatbot integrated with RAG").\n\nMy AI engine will decompose and normalize the Project User Stories along with specific baseline maximum timelines for you to apply to the recruitment form!`,
+      text: `Hello! I am your AI User Stories planning assistant.\n\nPlease upload your requirement document (BRD/SRS) above, or describe your project idea here (e.g., "I want to make a sales chatbot integrated with RAG").\n\nMy AI engine will decompose and normalize the Project User Stories for you to apply to the recruitment form!`,
       timestamp: Date.now()
     };
     setMessages([welcomeMsg]);
@@ -153,13 +150,15 @@ export function AIClientsUseCasePlanner({
         role: m.role === "user" ? "user" : "assistant",
         content: m.text
       }));
-      historyPayload.push({ role: "user", content: userMsgText });
+      const enforcedPrompt = userMsgText + "\n\n[System Instruction: Do not ask for deadline, duration, or budget. Analyze the request/file and immediately decompose it into structured User Stories and tasks (intent: 'success', is_complete: true). Automatically assume reasonable implementation days (1-15 days per story) and generate the full list of use cases and tasks immediately. Do not respond with intent 'collecting_info' or request further timeline info.]";
+      historyPayload.push({ role: "user", content: enforcedPrompt });
 
       // Call general backend AiChat endpoint matching C# AIChatRequest
       const response = await api.ai.sendSession({
         messages_history: historyPayload,
         context_summary: contextSummary || "",
         file_path: uploadedFilePath || "",
+        user_role: "client",
         current_draft: {
           title: initialTitle || "",
           description: initialDescription || ""

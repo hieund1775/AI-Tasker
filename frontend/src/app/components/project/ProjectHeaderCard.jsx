@@ -71,7 +71,10 @@ export function ProjectHeaderCard({
   });
 
   const endDate = (() => {
-    const endVal = project.endDate || project.EndDate || project.deadline || project.Deadline;
+    // Check localStorage for extended project deadline
+    const projId = project.id || project.Id;
+    const localDeadline = projId ? localStorage.getItem(`project_deadline_${projId}`) : null;
+    const endVal = localDeadline || project.projectDeadlineDate || project.endDate || project.EndDate || project.deadline || project.Deadline;
     if (!endVal) return "N/A";
     const num = Number(endVal);
     if (!Number.isNaN(num) && num < 1000) {
@@ -102,7 +105,12 @@ export function ProjectHeaderCard({
     // If active / in progress / disputed
     if (["active", "in_progress", "in progress", "disputed"].includes(status)) {
       let end = null;
-      const endVal = project.endDate || project.EndDate || project.deadline || project.Deadline;
+
+      // Check localStorage first (extended deadline from approval)
+      const projId = project.id || project.Id;
+      const localDeadline = projId ? localStorage.getItem(`project_deadline_${projId}`) : null;
+      const endVal = localDeadline || project.projectDeadlineDate || project.endDate || project.EndDate || project.deadline || project.Deadline;
+
       if (endVal) {
         const num = Number(endVal);
         if (!Number.isNaN(num) && num < 1000) {
@@ -274,6 +282,278 @@ export function ProjectHeaderCard({
           </div>
         </div>
       </div>
+
+      {/* Project Extension Request & Approval Flow (underneath stats grid) */}
+      {["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase()) && (
+        <ProjectExtensionControl
+          project={project}
+          role={role}
+        />
+      )}
+    </div>
+  );
+}
+
+// Sub-component for Project Extension Flow directly under stats grid
+function ProjectExtensionControl({ project, role }) {
+  const projId = project.id || project.Id;
+  const [showForm, setShowForm] = useState(false);
+  const [extendDays, setExtendDays] = useState("2");
+  const [extendReason, setExtendReason] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [extensionData, setExtensionData] = useState(null);
+
+  const loadExtension = () => {
+    if (!projId) return;
+    try {
+      const raw = localStorage.getItem(`project_extension_request_${projId}`);
+      if (raw) {
+        setExtensionData(JSON.parse(raw));
+      } else if (project?.extensionRequest) {
+        setExtensionData(project.extensionRequest);
+      } else {
+        setExtensionData(null);
+      }
+    } catch (e) {
+      setExtensionData(null);
+    }
+  };
+
+  useEffect(() => {
+    loadExtension();
+    const handleUpdate = () => loadExtension();
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    return () => window.removeEventListener("aitasker_db_update", handleUpdate);
+  }, [projId, project]);
+
+  const handleSubmitRequest = async () => {
+    const days = Number(extendDays);
+    if (!days || days <= 0 || !extendReason.trim()) return;
+    setSubmitting(true);
+    try {
+      const newReq = {
+        status: "pending",
+        requestedDays: days,
+        reason: extendReason.trim(),
+        requestedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(newReq));
+      setExtensionData(newReq);
+      setShowForm(false);
+      setExtendReason("");
+
+      // Dispatch event to sync UI across tabs
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      toast.success(`Extension request for +${days} days submitted to Client!`);
+    } catch (e) {
+      toast.error("Failed to submit extension request.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleApprove = () => {
+    if (!extensionData || !projId) return;
+    setSubmitting(true);
+    try {
+      const extraDays = Number(extensionData.requestedDays) || 1;
+
+      // Calculate current end date
+      const localDeadline = localStorage.getItem(`project_deadline_${projId}`);
+      const baseEnd = localDeadline || project.projectDeadlineDate || project.endDate || project.EndDate || project.deadline || project.Deadline;
+      let baseDate = new Date();
+
+      if (baseEnd) {
+        const num = Number(baseEnd);
+        if (!Number.isNaN(num) && num < 1000) {
+          baseDate = new Date(project.startDate || project.StartDate || project.createdAt || project.CreatedAt || new Date());
+          baseDate.setDate(baseDate.getDate() + num);
+        } else {
+          baseDate = new Date(baseEnd);
+        }
+      }
+
+      const newDate = new Date(baseDate.getTime() + extraDays * 24 * 60 * 60 * 1000);
+      localStorage.setItem(`project_deadline_${projId}`, newDate.toISOString());
+
+      const approvedReq = {
+        ...extensionData,
+        status: "approved",
+        approvedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(approvedReq));
+      setExtensionData(approvedReq);
+
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      toast.success(`Project deadline extended by +${extraDays} days successfully!`);
+    } catch (e) {
+      toast.error("Failed to approve extension.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleReject = () => {
+    if (!extensionData || !projId) return;
+    setSubmitting(true);
+    try {
+      const rejectedReq = {
+        ...extensionData,
+        status: "rejected",
+        rejectReason: rejectReason.trim(),
+        rejectedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(rejectedReq));
+      setExtensionData(rejectedReq);
+
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      toast.info("Project extension request rejected.");
+    } catch (e) {
+      toast.error("Failed to reject extension.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const isPending = extensionData && extensionData.status === "pending";
+  const isApproved = extensionData && extensionData.status === "approved";
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border">
+      {/* Expert action button if no active form or pending request */}
+      {role === "expert" && !showForm && !isPending && (
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-muted-foreground">
+            Need more time for this project? You can request an overall deadline extension.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowForm(true)}
+            className="px-3.5 py-1.5 bg-accent-light text-accent border border-accent/20 hover:bg-accent/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+          >
+            <Clock className="w-3.5 h-3.5" /> Request Project Extension
+          </button>
+        </div>
+      )}
+
+      {/* Expert extension request form */}
+      {role === "expert" && showForm && (
+        <div className="p-4 bg-accent-light/40 border border-accent/20 rounded-xl space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-accent flex items-center gap-1.5">
+              <Clock className="w-4 h-4" /> Extend Project Time
+            </h4>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              className="text-xs text-muted-foreground hover:text-foreground font-semibold"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Extra Days
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={extendDays}
+                onChange={(e) => setExtendDays(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 font-medium"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Reason
+              </label>
+              <input
+                type="text"
+                value={extendReason}
+                onChange={(e) => setExtendReason(e.target.value)}
+                placeholder="Why do you need more time for this project?"
+                className="w-full px-3 py-1.5 text-sm border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 font-medium"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              disabled={submitting || !extendReason.trim() || Number(extendDays) <= 0}
+              onClick={handleSubmitRequest}
+              className="px-4 py-1.5 bg-accent text-accent-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+            >
+              {submitting ? "Submitting..." : "Submit Extension Request"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Extension status banner */}
+      {isPending && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+                Project Extension Request (+{extensionData.requestedDays} days)
+              </span>
+            </div>
+            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+              Pending Review
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Reason:</span> {extensionData.reason}
+          </p>
+
+          {/* Client action buttons */}
+          {role === "client" && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleApprove}
+                className="px-4 py-1.5 bg-success text-success-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+              >
+                {submitting ? "Processing..." : `Approve (+${extensionData.requestedDays} Days)`}
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={handleReject}
+                className="px-4 py-1.5 bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+              >
+                Reject Request
+              </button>
+            </div>
+          )}
+
+          {role === "expert" && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 italic">
+              Your extension request has been sent to the Client for review.
+            </p>
+          )}
+        </div>
+      )}
+
+      {isApproved && (
+        <div className="p-3 bg-success/10 border border-success/20 rounded-xl flex items-center justify-between text-xs text-success font-medium">
+          <span>✅ Project deadline extended by +{extensionData.requestedDays} days.</span>
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.removeItem(`project_extension_request_${projId}`); } catch(e){}
+              setExtensionData(null);
+            }}
+            className="text-[11px] underline font-normal text-muted-foreground hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     </div>
   );
 }
