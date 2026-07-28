@@ -953,7 +953,7 @@ export function ExpertWallet() {
 
       {/* Deposit Modal */}
       {showDepositModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
@@ -1001,7 +1001,7 @@ export function ExpertWallet() {
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
             <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Send className="w-5 h-5 text-primary" /> Withdraw funds

@@ -240,6 +240,25 @@
     font-variant-numeric: tabular-nums;
   }
 
+  html {
+    scrollbar-gutter: stable;
+  }
+
+  html:has([data-modal-overlay]),
+  body:has([data-modal-overlay]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  [data-modal-overlay] {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
+
 body::before {
     content: '';
     position: fixed;

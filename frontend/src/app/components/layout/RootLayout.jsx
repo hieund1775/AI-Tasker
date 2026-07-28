@@ -111,7 +111,7 @@ export function RootLayout() {
     <div className="min-h-screen bg-background flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
       {/* Sleek Minimalist 10-Second Banned Notification Modal */}
       {bannedNotification && (
-        <div className="fixed inset-0 z-[999999] bg-foreground/55 backdrop-blur-sm flex items-center justify-center p-4">
+        <div data-modal-overlay className="fixed inset-0 z-[999999] bg-foreground/55 backdrop-blur-sm flex items-center justify-center p-4">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}

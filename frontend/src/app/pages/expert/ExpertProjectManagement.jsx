@@ -993,7 +993,7 @@ export default function ExpertProjectDetail() {
 
       {/* Submit Final Work Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden text-left animate-zoom-in">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
@@ -1144,7 +1144,7 @@ export default function ExpertProjectDetail() {
         const expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
         const clientRefund = contractAmount - expertPayout - platformFee;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
             <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
               {/* Header */}
               <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
@@ -1231,7 +1231,7 @@ export default function ExpertProjectDetail() {
 
               {/* Send Confirmation Dialog */}
               {showSendConfirmDialog && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
+                <div data-modal-overlay className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
                   <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
                     <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
                     <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>

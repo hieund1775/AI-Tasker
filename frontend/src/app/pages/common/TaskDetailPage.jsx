@@ -721,7 +721,7 @@ export default function TaskDetailPage() {
 
       {/* Revision request modal (Provide Revision Reason directly) */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Provide Revision Reason
@@ -966,7 +966,7 @@ export default function TaskDetailPage() {
 
       {/* Urgent request confirmation modal */}
       {showUrgentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-start gap-3 mb-4">
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive-light flex items-center justify-center">
@@ -1021,7 +1021,7 @@ export default function TaskDetailPage() {
 
       {/* Submit Product Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Submit Deliverables
@@ -1100,7 +1100,7 @@ export default function TaskDetailPage() {
 
       {/* Client View Product Modal */}
       {showViewProductModalClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden text-left">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
@@ -1281,7 +1281,7 @@ export default function TaskDetailPage() {
 
       {/* Evidence Submission Modal (Expert) */}
       {showEvidenceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
