@@ -318,8 +318,11 @@ export function useProjectProgress(projectId, role) {
     setTasks(updatedTasks);
 
     try {
-      // 2. Background API Call
+      // 2. Background API Call — preserve existing title, productLink, and productFile
       await api.projects.updateMiniTask(miniTaskId, {
+        title: miniTask.title || "",
+        productLink: miniTask.productLink || null,
+        productFile: miniTask.productFile || null,
         isCompleted: nextCompleted,
         feedbackSenderId: user?.id || null
       });

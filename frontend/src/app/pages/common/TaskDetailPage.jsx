@@ -419,12 +419,13 @@ export default function TaskDetailPage() {
     task?.status?.toLowerCase() === "pending_review" ||
     task?.status?.toLowerCase() === "pending review" ||
     displayStatus === "Waiting For Approval";
-  const hasMainProduct = task ? !!(task.productLink || task.productFile || task.miniTasks?.some(mt => mt.productLink || mt.productFile)) : false;
+  const hasMainProduct = task ? !!(task.productLink || task.productFile) : false;
   const isReopenRequested = task?.status === "reopen_requested" || task?.status === "Reopen Requested" || task?.status === "reopen requested";
   const isNeedsRevision = !isDone && !isWaitingForApproval && !!task?.declineReason;
   const isNotStarted = displayStatus === "Not Started";
   const isInProgress = displayStatus === "In Progress";
   const isDisputed = project?.status?.toLowerCase() === "disputed";
+  const isProjectClosed = ["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase());
 
   // Deadline info for badge — use computed deadline from taskDeadlineUtils
   const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, taskId, null) : null;
@@ -433,17 +434,17 @@ export default function TaskDetailPage() {
   const taskOverdue = projectId ? isTaskOverdue(projectId, taskId, null) : false;
 
   // Expert can toggle mini task checkboxes when task is not Done and not waiting for approval
-  const canToggleMiniTasks = isExpert && !isDone && !isWaitingForApproval && !isDisputed;
+  const canToggleMiniTasks = isExpert && !isDone && !isWaitingForApproval && !isDisputed && !isProjectClosed;
 
   // Expert can submit for review: all mini tasks complete, not already submitted/approved
   const canSubmitForReview =
-    isExpert && allComplete && !isDone && !isWaitingForApproval && !isDisputed;
+    isExpert && allComplete && !isDone && !isWaitingForApproval && !isDisputed && !isProjectClosed;
 
   // Client can approve: task is waiting for approval
-  const canApprove = isClient && isWaitingForApproval && !isDisputed;
+  const canApprove = isClient && isWaitingForApproval && !isDisputed && !isProjectClosed;
 
   // Client can request revision: task is waiting for approval
-  const canRequestRevision = isClient && isWaitingForApproval && !isDisputed;
+  const canRequestRevision = isClient && isWaitingForApproval && !isDisputed && !isProjectClosed;
 
   // Client can request reopen when task is Done — DEPRECATED: completed tasks are now permanently locked
   const canRequestReopen = false;
@@ -788,6 +789,7 @@ export default function TaskDetailPage() {
         <MiniTaskChecklist
           miniTasks={miniTasks}
           editable={canToggleMiniTasks}
+          isClosed={isProjectClosed}
           onToggle={(miniTaskId) => handleToggleMiniTask(taskId, miniTaskId)}
           onUpdate={(miniTaskId, updates) => handleUpdateMiniTask(taskId, miniTaskId, updates)}
           compact={false}

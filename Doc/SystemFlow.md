@@ -1,12 +1,23 @@
-# AI-Tasker: Luồng Nghiệp Vụ & Thiết Kế Cơ Sở Dữ Liệu
+# TÀI LIỆU ĐẶC TẢ HỆ THỐNG NGHIỆP VỤ MỚI: AI-TASKER
 
-Tài liệu này tổng hợp toàn bộ luồng nghiệp vụ tổng thể và thiết kế cơ sở dữ liệu của dự án **AI-Tasker** (Freelance Marketplace cho các giải pháp AI).
+Tài liệu này đặc tả toàn bộ luồng nghiệp vụ mới của hệ thống **AI-Tasker** (Freelance Marketplace cho các dự án trí tuệ nhân tạo), định hình lại cơ chế phân rã dự án, quy trình thực thi công việc và giải quyết tranh chấp theo mô hình tối ưu hóa trải nghiệm người dùng và bảo mật dòng tiền ký quỹ.
 
 ---
 
-## 1. Sơ đồ Tuần tự Vòng đời Dự án (Project Lifecycle Sequence Diagram)
+## CHƯƠNG 1: CẤU TRÚC PHÂN RÃ CÔNG VIỆC THEO USE CASE (4 CẤP)
 
-Dưới đây là luồng đi chi tiết từ lúc Client đăng tuyển, Expert ứng tuyển, thương lượng, đặt cọc ký quỹ (Escrow), theo dõi tiến độ qua Tasks & MiniTasks, cho đến khi nghiệm thu bàn giao và đánh giá chéo.
+Hệ thống AI-Tasker chuyển dịch toàn diện sang mô hình **Use-Case-Driven**. Mọi hoạt động từ đăng tuyển, đấu thầu, lập tiến độ cho đến thực thi và nghiệm thu đều chạy theo cấu trúc phân cấp nghiêm ngặt sau:
+
+$$\text{Project (Dự án)} \rightarrow \text{Use Cases (Client định nghĩa)} \rightarrow \text{Tasks (Expert phân rã)} \rightarrow \text{MiniTasks (Checklist chi tiết)}$$
+
+1. **Project (Dự án)**: Dự án tổng thể do Client tạo lập dựa trên nhu cầu của doanh nghiệp.
+2. **Use Cases (Mục tiêu nghiệp vụ)**: Danh sách các trường hợp sử dụng chuẩn hóa do Client định nghĩa sẵn từ tài liệu yêu cầu. Mỗi Use Case được gán một định danh duy nhất (`UseCase_ID` dạng GUID/Identity).
+3. **Tasks (Mốc công việc lớn)**: Các cột mốc kỹ thuật do Expert đề xuất nằm dưới từng Use Case và được liên kết bằng trường `useCaseId` duy nhất (thay vì chỉ mục mảng) để tránh bị lệch dữ liệu khi Client thay đổi/xóa Use Case. Expert không được quyền tự sửa đổi hay xóa Use Case của Client.
+4. **MiniTasks (Checklist chi tiết)**: Các đầu việc nhỏ nhất nằm dưới từng Task để Expert thực hiện tích checklist và báo cáo tiến độ công việc hàng ngày.
+
+---
+
+## CHƯƠNG 2: QUY TRÌNH VÒNG ĐỜI DỰ ÁN CHI TIẾT (5 GIAI ĐOẠN)
 
 ```mermaid
 sequenceDiagram
@@ -17,255 +28,231 @@ sequenceDiagram
     participant DB as AITasker DB / System
     participant Escrow as Escrow (Tiền ký quỹ dự án)
 
-    %% 1. Đăng ký tài khoản
-    Note over Client, Expert: Giai đoạn 1: Đăng ký & Khởi tạo
-    Client->>DB: Đăng ký tài khoản Client & Tạo Ví (Wallet)
-    Expert->>DB: Đăng ký tài khoản Expert, Tạo hồ sơ & Tạo Ví
+    %% Giai đoạn 1
+    Note over Client, DB: Giai đoạn 1: Khởi tạo & Phân rã AI
+    Client->>DB: Upload BRD/SRS & Đăng JobPost
+    DB->>DB: AI quét file, tự động phân rã thành Use Cases & Timeline gốc
+    Client->>DB: Cấu hình Deadline tổng (>= Tổng timeline gốc)
 
-    %% 2. Bidding
-    Note over Client, Expert: Giai đoạn 2: Đấu thầu & Thương lượng
-    Client->>DB: Đăng JobPost kèm yêu cầu chi tiết (JobRequirements)
-    Expert->>DB: Tìm kiếm Job & Gửi Proposal (BidAmount, CoverLetter)
-    Client->>Expert: Nhắn tin trao đổi qua Chat (Conversations)
-
-    %% 3. Ký quỹ
-    Note over Client, Escrow: Giai đoạn 3: Tuyển dụng & Ký quỹ (Escrow)
-    Client->>DB: Đồng ý tuyển dụng (Chấp nhận Proposal)
-    DB->>DB: Khởi tạo dự án (Project - Status: PendingEscrow)
-    Client->>DB: Nạp tiền thanh toán dự án
-    DB->>Escrow: Trích tiền từ Ví Client chuyển vào EscrowBalance của Project
-    DB->>DB: Cập nhật Project sang trạng thái Active
-
-    %% 4. Thực thi
-    Note over Client, Expert: Giai đoạn 4: Thực hiện dự án & Báo cáo tiến độ
-    Expert->>DB: Lập các mốc công việc (Tasks & MiniTasks)
-    loop Báo cáo & Phê duyệt đầu việc
-        Expert->>DB: Hoàn thành MiniTask & Gửi yêu cầu duyệt
-        Client-->>DB: Gửi phản hồi feedback trên MiniTask nếu chưa đạt
-        Expert->>DB: Chỉnh sửa và cập nhật lại
-        Client->>DB: Phê duyệt MiniTask (IsCompleted = true)
+    %% Giai đoạn 2
+    Note over Client, Expert: Giai đoạn 2: Đấu thầu động & Báo giá
+    Expert->>DB: Xem Use Cases gốc, thêm Tasks & MiniTasks bên dưới
+    Expert->>DB: Điền ngày hoàn thành & số tiền từng Task (Roll-up)
+    alt Độ lệch thời gian Use Case < 0 (vượt quá)
+        DB-->>Expert: Cảnh báo đỏ & Yêu cầu xác nhận xin gia hạn
     end
-    DB->>DB: Tự động hoàn thành Task khi toàn bộ MiniTask trực thuộc xong
-    Expert->>DB: Bàn giao sản phẩm cuối (ProjectLink)
-
-    %% 5. Thanh toán / Giải quyết tranh chấp
-    rect rgb(245, 245, 245)
-        alt Hợp tác suôn sẻ (Happy Flow)
-            Client->>DB: Phê duyệt nghiệm thu bàn giao cuối cùng
-            DB->>Escrow: Giải ngân EscrowBalance
-            Escrow->>DB: Chuyển tiền vào Ví của Expert (Cộng số dư khả dụng)
-            DB->>DB: Đóng dự án (Project Status: Completed)
-        else Xảy ra tranh chấp (Dispute Flow)
-            Client/Expert->>DB: Gửi đơn Tranh chấp (Project Status: Disputed)
-            Admin->>DB: Xem lịch sử chat, kiểm tra Tasks & đánh giá MiniTasks
-            Admin->>DB: Quyết định tỷ lệ hoàn trả / phân chia ngân quỹ ký quỹ
-            DB->>Escrow: Phân chia số dư EscrowBalance
-            Escrow->>DB: Hoàn tiền về Ví Client & Thanh toán Ví Expert theo tỷ lệ
-            DB->>DB: Đóng dự án (Project Status: Resolved)
+    Expert->>DB: Nộp Proposal
+    loop Đếm ngược 7 ngày
+        Note over DB: Chạy bộ đếm tự động
+        DB-->>Client: Ngày 6: Bắn thông báo khẩn nhắc xử lý đơn
+        alt Ngày 7: Client không xử lý
+            DB->>DB: Tự động hủy đơn (Đổi sang Expired/Rejected)
         end
     end
 
-    %% 6. Review
-    Note over Client, Expert: Giai đoạn 5: Đánh giá & Phản hồi
-    Client->>DB: Đánh giá Expert (Rating 1-5 sao, Nhận xét)
-    Expert->>DB: Đánh giá Client (Rating 1-5 sao, Nhận xét)
-    DB->>DB: Cập nhật tỷ lệ thành công (SuccessRate) & Điểm uy tín của Expert
+    %% Giai đoạn 3
+    Note over Client, Escrow: Giai đoạn 3: Tuyển dụng & Ký quỹ
+    Client->>DB: Chấp nhận Proposal của Expert
+    DB->>Escrow: Ký quỹ thực tế theo Giá và Thời gian do Expert đề xuất
+    DB->>DB: Lưu trữ JobPost gốc (Trạng thái Done, khóa ứng tuyển)
+
+    %% Giai đoạn 4
+    Note over Client, Expert: Giai đoạn 4: Thực thi & Nghiệm thu Task
+    Expert->>DB: Tích 100% MiniTasks (Trạng thái: Checklist Completed)
+    alt Luồng 1: Quick Accept
+        Client->>DB: Bấm Quick Accept -> Task chuyển DONE
+    alt Luồng 2: Yêu cầu sản phẩm
+        Client->>DB: Bấm Yêu cầu sản phẩm -> Khóa màn hình Client
+        DB-->>Expert: Mở khóa nút Submit Product
+        Expert->>DB: Điền Link/File sản phẩm -> Trạng thái: Waiting for Approval
+        Client->>DB: View Product -> Xem Modal -> Quyết định
+        alt Lựa chọn A: Phê duyệt
+            Client->>DB: Bấm Accept -> Task chuyển DONE
+        else Lựa chọn B: Từ chối
+            Client->>DB: Bấm Decline -> Nhập phản hồi -> Rework (Màu Cam)
+            DB-->>Expert: Mở khóa Submit Product để nộp lại sản phẩm mới
+        end
+    end
+
+    %% Giai đoạn 5
+    Note over Client, Escrow: Giai đoạn 5: Nghiệm thu tổng thể & Giải ngân
+    Note over Expert, Client: Tất cả Tasks/Use Cases đều đạt trạng thái DONE
+    Expert->>DB: Submit Work (Upload Link dự án & File mã nguồn nén)
+    DB->>DB: Dự án chuyển sang Final Product Submitted
+    Client->>DB: Bấm View Final Work -> Mở Modal thẩm định
+    Client->>DB: Bấm Accept Final Delivery inside Modal
+    Client->>DB: Bấm Release Payment ngoài màn hình chính
+    DB->>Escrow: Giải ngân tiền ký quỹ về Ví khả dụng của Expert
+    DB->>DB: Dự án kết thúc thành công (Status: Completed)
 ```
+
+### GIAI ĐOẠN 1: KHỞI TẠO JOBPOST BẰNG AI VÀ ĐỊNH LƯỢNG USE CASE
+- **Đăng bài tuyển dụng (Client)**: Client khi tạo bài đăng tuyển dụng (`JobPost`) có quyền tải lên tệp tài liệu yêu cầu (BRD/SRS). Hệ thống AI tự động quét tệp và phân tách thành danh sách các `Use Cases` chuẩn hóa.
+- **Thiết lập thông số gốc**: Mỗi Use Case chứa một danh sách nhiệm vụ/yêu cầu cụ thể và một timeline giới hạn gốc bắt buộc (Ví dụ: Use Case 1 cần hoàn thành tối đa 14 ngày).
+- **Quy tắc tính thời gian tổng**:
+  - Hệ thống tự động tính:
+    $$\text{Tổng thời gian gốc} = \sum \text{Thời gian của các Use Case}$$
+  - Client được quyền cấu hình Deadline tổng cho bài đăng `JobPost` với điều kiện kiểm tra nghiêm ngặt:
+    $$\text{Deadline tổng} \ge \text{Tổng thời gian gốc}$$
+
+### GIAI ĐOẠN 2: ĐẤU THẦU ĐỘNG (PROPOSAL COUPLING) & ĐẾM NGƯỢC HỦY ĐƠN
+1. **Expert phân rã kỹ thuật và Báo giá**:
+   - Expert xem bài đăng, lấy cấu trúc Use Case của Client làm tiêu chuẩn bắt buộc (không có quyền chỉnh sửa hay xóa Use Case gốc của Client).
+   - Dưới mỗi Use Case, Expert tự phân rã thêm các mốc công việc `Tasks` lớn và các `MiniTasks` (checklist công việc chi tiết).
+   - Expert điền số ngày hoàn thành và số tiền tương ứng cho từng đầu việc. Hệ thống tự động cộng dồn (**Roll-up**) để ra tổng ngân sách và tổng thời gian mới của đề xuất.
+   - **Logic kiểm tra độ lệch ngân sách và thời gian (Budget & Time Deviation)**:
+     - **Độ lệch thời gian**: $\text{Độ lệch} = \text{Thời gian gốc của Client} - \text{Thời gian đề xuất của Expert}$. Nếu < 0, cảnh báo xin gia hạn.
+     - **Độ lệch ngân sách**: $\text{Budget Deviation} = \text{Ngân sách gốc của Client} - \text{Tổng tiền đề xuất của Expert}$. 
+     - Nếu **Budget Deviation < 0** (vượt ngân sách gốc của Client): Hệ thống hiển thị **banner cảnh báo màu đỏ nổi bật** ghi nhận rõ số tiền lệch `Budget Deviation` (ví dụ: `-$150.00`).
+     - Bắt buộc Expert phải tích chọn hộp kiểm xác nhận đồng ý gửi đề xuất vượt chỉ tiêu ngân sách/timeline của khách hàng thì mới được phép nhấn nút nộp đơn (Proposal).
+2. **Cơ chế Tự động Hủy và Nhắc nhở Proposal quá hạn (Mốc 7 ngày)**:
+   - Hệ thống tự động chạy ngầm bộ đếm thời gian kể từ thời điểm Expert nộp đơn ứng tuyển:
+     - **Ngày thứ 6 (Gửi nhắc nhở)**: Nếu Client chưa phản hồi hay xử lý đơn, hệ thống bắn thông báo khẩn cấp tới Client: *"Bạn có đề xuất từ [Tên Expert] sắp quá hạn vào ngày mai. Vui lòng xử lý ngay trước khi hệ thống tự động hủy đơn."*
+     - **Ngày thứ 7 (Tự động Hủy)**: Nếu Client vẫn giữ im lặng, trạng thái đơn chuyển thành `expired` (Quá hạn) hoặc `rejected` (Tự động từ chối). Hệ thống hoàn trả hồ sơ để Expert tự do ứng tuyển Job khác.
+
+### GIAI ĐOẠN 3: TUYỂN DỤNG & KÝ QUỸ THEO THÔNG SỐ ĐỀ XUẤT
+- **Duyệt đơn**: Client chấp nhận đề xuất (`Proposal`) đã được cấu trúc hóa của Expert.
+- **Ký quỹ thực tế**: Toàn bộ ngân sách nạp vào ví ký quỹ (`escrowBalance` / Funds in Escrow) và thời gian thực hiện dự án sẽ lấy chính xác theo thông số **Giá và Thời gian mới do Expert đề xuất** làm căn cứ, thay thế hoàn toàn thông số gốc của Client.
+- **Lưu trữ JobPost**: Sau khi ký quỹ thành công, bài đăng gốc của `JobPost` vẫn được giữ lại trong danh sách All Projects của Client dưới trạng thái **Done** (Đã tuyển dụng) nhằm lưu trữ lịch sử hệ thống, đồng thời khóa tính năng ứng tuyển của Job này đối với các Expert khác.
+
+### GIAI ĐOẠN 4: THỰC THI CÔNG VIỆC VÀ NGHIỆM THU TỪNG MỐC (TASK)
+Trong không gian làm việc (Workspace), nút gửi duyệt thủ công suông (`Submit for Review`) bị xóa bỏ hoàn toàn. Luồng nghiệm thu chạy khép kín dựa trên bằng chứng sản phẩm và **ràng buộc bằng chứng bàn giao (Evidence Constraint)**:
+1. **Expert tích 100% MiniTasks và bắt buộc cung cấp bằng chứng bàn giao** (Git commit SHA, link báo cáo, giải trình...):
+   - Khi thỏa mãn cả 2 điều kiện này, Task mới chính thức chuyển thành trạng thái **Checklist Completed** (được hiển thị rõ bằng chứng bàn giao cho cả Expert và Client xem).
+   - Nếu Expert chỉ tích 100% milestone nhưng chưa điền/nộp bằng chứng bàn giao, Task vẫn giữ nguyên trạng thái **In Progress** và Client chưa thể phê duyệt hay yêu cầu sản phẩm.
+2. **Quy trình Client xử lý**:
+   - **Luồng 1 (Tin tưởng tuyệt đối)**: Client bấm nút **Quick Accept** $\rightarrow$ Task chuyển ngay sang trạng thái **DONE** mà không cần nộp file sản phẩm.
+   - **Luồng 2 (Kiểm tra sản phẩm bàn giao)**:
+     - Client bấm **Yêu cầu sản phẩm (Request Product)** $\rightarrow$ Màn hình Client chuyển sang trạng thái tĩnh: *"Đang chờ Expert nộp sản phẩm..."*.
+     - Nút **Submit Product** phía Expert lập tức được mở khóa.
+     - Expert điền Link sản phẩm và đính kèm File sản phẩm $\rightarrow$ Trạng thái chuyển thành **Waiting for Approval**.
+     - Phía Client thấy nút **Xem sản phẩm (View Product)** sáng lên. Client bấm mở Modal để kiểm tra nội dung bàn giao:
+       - **Đồng ý (Lựa chọn A)**: Bấm **Accept** $\rightarrow$ Task chuyển sang trạng thái **DONE**.
+       - **Từ chối (Lựa chọn B)**: Bấm **Decline** $\rightarrow$ Hệ thống hiển thị khung gõ lý do từ chối. Client gửi lý do từ chối $\rightarrow$ Trạng thái chuyển thành **REWORK (Màu Cam)**.
+3. **Trạng thái Rework (Màu cam)**:
+   - Khi bị từ chối, Task của Expert chuyển sang trạng thái Rework hiển thị bằng màu cam nổi bật.
+   - Nút **Submit Product** của Expert sáng lên để nộp lại sản phẩm mới sửa đổi.
+   - Màn hình Client hiển thị thông báo chờ tĩnh: *"Đang chờ Expert nộp sản phẩm mới..."* mà không có thêm nút bấm thừa nào.
+
+### GIAI ĐOẠN 5: NGHIỆM THU TỔNG THỂ & GIẢI NGÂN (PROJECT RELEASE)
+Khi toàn bộ các Use Case và các Task đều đã đạt trạng thái **DONE** (Tiến độ tổng của dự án đạt đúng 100%):
+- **Phía Expert (Nộp sản phẩm tổng)**: Màn hình hiển thị khu vực bàn giao cuối cùng. Expert bắt buộc phải bấm nút **Submit Work** để đính kèm Link dự án thực tế và File mã nguồn nén (.zip, .rar). Trạng thái dự án chuyển sang **Final Product Submitted**.
+- **Phía Client (Khóa giải ngân nghiêm ngặt)**:
+  - Mặc định ban đầu, nút **Release Payment (Giải ngân)** ngoài màn hình chính của Client và nút **Xem sản phẩm tổng (View Final Work)** bị khóa mờ (`disabled`).
+  - Khi Expert nộp xong sản phẩm tổng $\rightarrow$ Nút **View Final Work** sáng lên. Client bấm vào để mở Modal xem toàn bộ file/link bàn giao cuối cùng.
+  - Client bấm **Accept Final Delivery** bên trong Modal $\rightarrow$ Modal đóng, nút **Release Payment** ngoài màn hình chính chính thức được mở khóa (active).
+  - Client bấm **Release Payment** $\rightarrow$ Hệ thống tự động giải phóng tiền ký quỹ về ví khả dụng của Expert và đóng dự án ở trạng thái **Completed**.
 
 ---
 
-## 2. Sơ đồ Quan hệ Thực thể Database (Entity Relationship Diagram - ERD)
-
-Mối quan hệ giữa các bảng cơ sở dữ liệu dựa trên schema `DB.sql` của dự án:
+## CHƯƠNG 3: LUỒNG BÁO CÁO VI PHẠM & XỬ LÝ TRANH CHẤP CHUẨN HÓA (DISPUTE WORKFLOW)
 
 ```mermaid
-erDiagram
-    Users ||--o| ExpertProfiles : "kết thừa hồ sơ chuyên gia"
-    Users ||--|| Wallets : "sở hữu ví tiền"
-    Users ||--o{ JobPosts : "đăng tuyển (vai trò Client)"
-    Users ||--o{ Conversations : "nhắn tin trao đổi"
-    Users ||--o{ Proposals : "gửi đề xuất ứng tuyển (vai trò Expert)"
-    Users ||--o{ Projects : "tham gia thực hiện dự án"
-    Users ||--o{ Reviews : "đánh giá chéo"
-    Users ||--o{ MiniTasks : "gửi phản hồi/feedback"
-
-    AICategoryDomains ||--o{ JobPosts : "phân loại danh mục AI"
-    AICategoryDomains }o--o{ ExpertProfiles : "lĩnh vực chuyên môn (N-N)"
+graph TD
+    A[Bên nộp đơn bấm Report] --> B[Gửi đơn lên Admin ở trạng thái Pending]
+    B --> C{Bên Responder thấy gì?}
+    C -->|Bảo mật| D[Responder chưa nhận thông báo, dự án chạy bình thường]
+    C -->|Bảo mật| E[Nút Report của Reporter chuyển sang: Đang trong tiến hành]
     
-    Skills }o--o{ ExpertProfiles : "kỹ năng của chuyên gia"
-    Skills }o--o{ JobPosts : "kỹ năng yêu cầu của công việc"
-    Skills }o--o{ Projects : "nhãn kỹ năng dự án"
-
-    JobPosts ||--o{ JobRequirements : "gồm các yêu cầu nghiệp vụ chi tiết"
-    JobPosts ||--o{ Proposals : "nhận các đề xuất ứng tuyển"
-    JobPosts ||--o| Projects : "chuyển đổi thành dự án"
-    JobPosts ||--o| Conversations : "tham chiếu gốc nhắn tin"
-
-    Conversations ||--o{ Messages : "chứa các tin nhắn chat"
-    Conversations ||--o| Projects : "kết nối trao đổi cho dự án"
-
-    Projects ||--o{ Tasks : "chia thành các Milestone lớn"
-    Projects ||--o{ Reviews : "có đánh giá sau hoàn thành"
-    Projects ||--o{ TransactionLogs : "lưu nhật ký giao dịch tài chính"
+    B --> F[Admin xem xét & Bấm duyệt chấp nhận đơn]
+    F --> G[Trạng thái dự án chuyển sang: Disputed]
+    G --> H[Thẻ dự án Dashboard chuyển sang giao diện màu Đỏ Sẫm]
+    G --> I[Báo cáo của Responder đổi thành: Phản hồi vi phạm]
     
-    Tasks ||--o{ MiniTasks : "chia thành các đầu việc nhỏ"
-
-    Wallets ||--o{ TransactionLogs : "ví nguồn / ví đích chuyển tiền"
+    G --> J{Quyết định phân nhánh đóng băng}
+    J -->|Luồng 1: Client tố cáo Expert| K[Khóa toàn bộ hoạt động workspace - Read Only]
+    J -->|Luồng 2: Expert tố cáo Client| L[Selective Freeze: Chỉ khóa nút Release Payment & View Final Work của Client]
+    
+    K --> M[Đợt nộp bằng chứng bổ sung: Evidence Phase]
+    L --> M
+    M --> N[Admin bấm yêu cầu bổ sung -> Xuất hiện nút phản hồi cho cả 2 bên]
+    N --> O[Mỗi bên được nộp 1 lần duy nhất mỗi đợt. Admin khóa nút phán quyết cho đến khi đủ 2 bên]
+    O --> P{Phán quyết tối cao của Admin}
+    
+    P -->|Luồng 1: Continue| Q[Dự án mở khóa trở lại trạng thái Active]
+    P -->|Luồng 1: Stop Project| R[Trích 100% tiền ký quỹ về ví bên đúng, đóng dự án]
+    
+    P -->|Luồng 2: Expert thắng| S[Admin thực hiện giải ngân giùm, chuyển tiền ký quỹ vào ví Expert, đóng Completed]
+    P -->|Luồng 2: Client thắng| T[Admin hoàn trả tiền ký quỹ về ví Client, đóng dự án]
 ```
 
----
+### 1. Chuẩn hóa thông tin đơn gửi Report (Bảo mật thông tin)
+Khi một bên nhấn nút **Report** (nằm cạnh nút Manage Project hoặc Update Project trên Dashboard):
+- **Thông tin hiển thị công khai**: Họ tên đầy đủ chính xác của Client và Expert, số tiền ký quỹ chính xác (`escrowBalance`), và ngày bắt đầu dự án thực tế (`Start Date`).
+- **Ẩn thông tin bảo mật**: Ẩn hoàn toàn trường `Project ID` (tránh lộ mã hệ thống), trạng thái đơn (`Status`), trường `scope of work space` và trường `other` để tối giản và bảo mật.
 
-## 3. Các Luồng Nghiệp Vụ Chi Tiết
+### 2. Giao diện xem chi tiết của Admin (Dispute Detail View)
+- **Report Content**: Hiển thị chi tiết theo cấu trúc dữ liệu bắt buộc: *Report Reason \*, Dispute Type \*, Detailed Description \*, Desired Resolution \*, và các ảnh/file bằng chứng Evidence \**.
+- **Parties Involved (Tab tương tác nổi thông minh)**:
+  - Hiển thị 2 Tab **Client** và **Expert** với màu sắc nổi bật khi click chọn (Active tabs styled premium).
+  - Tab của bên nào gửi đơn tố cáo trước (Reporter) sẽ tự động hiển thị nội dung trước khi trang được tải.
+  - Nếu bên còn lại (Responder) chưa phản hồi giải trình vi phạm, nội dung bên tab của họ sẽ để trống kèm ghi chú rõ ràng: *"Responder has not responded yet" (Chưa có báo cáo phản hồi)*.
 
-### 3.1 Luồng Khởi tạo & Định danh (Onboarding)
-- Người dùng khi đăng ký sẽ lựa chọn vai trò:
-  - **Client**: Đăng tuyển công việc, thuê chuyên gia, đặt cọc ký quỹ, nghiệm thu sản phẩm.
-  - **Expert**: Hoàn thiện hồ sơ (kỹ năng, bằng cấp, mô tả bản thân, mức lương theo giờ), ứng tuyển dự án, thực hiện công việc.
-- Hệ thống tự động tạo một Ví (`Wallet`) cho tài khoản mới đăng ký để thực hiện các giao dịch trong hệ thống (số dư ban đầu mặc định $0).
+### 3. Hai luồng rẽ nhánh xử lý Tranh chấp tối cao
 
-### 3.2 Luồng Tuyển dụng & Thỏa thuận thương lượng
-1. **Đăng tin tuyển dụng**: Client đăng tin tuyển dụng (`JobPost`) kèm tiêu đề, mô tả, ngân sách dự kiến, thời hạn hoàn thành, và danh sách các kỹ năng AI cần thiết. Các yêu cầu chi tiết của dự án được lưu vào bảng `JobRequirements`.
-2. **Ứng tuyển**: Expert xem tin tuyển dụng và gửi đề xuất (`Proposal`) bao gồm giá thầu (`BidAmount`), thư giới thiệu (`CoverLetter`), cùng **bộ thiết lập kế hoạch tiến độ cấu trúc (nhập liệu 2 cấp gồm các Tasks lớn và Milestones/nhiệm vụ con tương ứng)**.
-3. **Thương lượng chat**: Client và Expert trò chuyện trực tuyến qua kênh chat (`Conversations` / `Messages`) để chốt chi tiết công việc.
+#### LUỒNG TRANH CHẤP 1: CLIENT TỐ CÁO EXPERT (Chất lượng / Tiến độ)
+- **Khởi tạo**: Client gửi đơn tố cáo. Nút Báo cáo vi phạm (Report) phía Client vẫn luôn hiển thị và khả dụng ở mọi trạng thái để Client có thể nộp bổ sung/cập nhật tố cáo khi cần. Màn hình quản lý của Client **không** bị khóa cứng (readOnly={false} cho ProjectProgressPanel) để Client có thể tiếp tục xem và tương tác với các Use Cases khác bình thường.
+- **Hiệu ứng Đóng băng Hệ thống (Workspace Freezing)**:
+  - Dự án chuyển trạng thái sang **Disputed**.
+  - **Ngoài Dashboard**: Thẻ dự án của cả Client và Expert chuyển sang giao diện màu đỏ sẫm (Crimson-to-Black gradient) cảnh báo.
+  - **Bên trong Không gian làm việc**: Xuất hiện banner cảnh báo đỏ trên đầu. Chỉ vô hiệu hóa thao tác có chọn lọc đối với Use Case đang xảy ra yêu cầu/giao dịch bàn giao (`waiting_expert_product`), các phần khác của dự án vẫn xem được bình thường.
+- **Cung cấp thêm bằng chứng liên tục & Hạn chót 48 giờ (Dispute Timeout)**:
+  - Nếu Admin thấy chưa đủ thông tin phân định, Admin bấm yêu cầu bổ sung $\rightarrow$ Trạng thái chuyển sang `Awaiting Evidence`.
+  - Hệ thống hiển thị **banner cảnh báo màu tím nổi bật và đếm ngược thời gian phản hồi (48 giờ)** trên màn hình Admin và các bên.
+  - Mỗi bên được nộp bằng chứng **đúng 1 lần duy nhất** cho mỗi đợt yêu cầu.
+  - Mặc định, Admin bị khóa tính năng phán quyết cho đến khi cả hai bên đã hoàn tất nộp bằng chứng của đợt đó. Tuy nhiên, **nếu hết hạn 48 giờ** mà một trong hai bên không phản hồi, hệ thống sẽ tự động mở khóa lại các nút phán quyết để Admin đưa ra phán quyết tối cao dựa trên các bằng chứng hiện có.
+- **Phán quyết của Admin**:
+  - **Hành động Continue (Tiếp tục)**: Dự án mở khóa trở lại trạng thái Active, hai bên tiếp tục làm việc bình thường.
+  - **Hành động Stop Project (Dừng dự án)**: Admin xác định bên sai. Hệ thống tự động trích 100% tiền ký quỹ (Funds in Escrow) chuyển thẳng về ví khả dụng của bên đúng, dự án kết thúc.
 
-### 3.3 Luồng Ký quỹ (Escrow Payment) & Khởi Tạo Dự Án
-Để đảm bảo an toàn giao dịch cho cả 2 bên và đồng bộ tức thì trên giao diện:
-1. **Chấp nhận đề xuất & Tự động Ký quỹ (Luồng Thử Nghiệm / Demo Auth Mode)**: Khi Client bấm nút "Chấp nhận đề xuất" của Expert A ở chế độ Mock DB:
-   - Trạng thái đề xuất chuyển thành `"accepted"`, đồng thời toàn bộ các đề xuất của các Expert khác cho công việc này chuyển thành `"rejected"`.
-   - Trạng thái JobPost chuyển thành `"hired"` (hoặc `"closed"`).
-   - Hệ thống tự động trừ tiền `BidAmount` từ ví khả dụng của Client chuyển vào ví ký quỹ `escrowBalance` / `pendingBalance` của Client.
-   - Ghi nhận Transaction Log ký quỹ loại `"escrow_deposit"`.
-   - Tự động trích xuất cấu trúc Tasks & Milestones từ CoverLetter (nếu là JSON cấu trúc) hoặc tự động sinh ra các mốc mặc định (nếu là Plain Text) để điền vào dự án.
-   - Khởi tạo Project mới ở trạng thái `"active"` với `escrowPaid = true`, `escrowStatus = "paid"`.
-   - Bắn sự kiện `"aitasker_db_update"` để đồng bộ UI tức thì.
-2. **Nạp tiền Ký quỹ thông qua API (Real API Mode)**:
-   - Client nạp tiền ký quỹ qua endpoint `/interactions/transaction` với payload:
-     ```json
-     {
-       "projectId": "guid-project-id",
-       "amount": 8500.0,
-       "transactionType": "escrow_payment",
-       "description": "Client pays full project amount into escrow"
-     }
-     ```
-   - Hệ thống trừ tiền từ ví Client, cập nhật `EscrowBalance` của Project và đổi trạng thái Project sang `"active"`.
-3. **Ẩn JobPost đã đóng**: JobPost vừa ký quỹ thành công sẽ ngay lập tức được ẩn đi khỏi trang danh sách "All Projects" của Client và chuyển hoàn toàn thành "Dự án đang chạy" trên Dashboard của cả Client và Expert được thuê nhờ vào cơ chế Custom Event Bus.
-4. **Thông báo Ký quỹ đúng đối tượng (Targeted Escrow Notifications)**:
-   - Khi có đề xuất mới hoặc cập nhật từ Expert A: Chỉ Client nhận thông báo.
-   - Khi ký quỹ thành công: Chỉ Expert được chọn nhận thông báo. Các ứng viên khác không nhận được gì để tránh spam.
+#### LUỒNG TRANH CHẤP 2: EXPERT TỐ CÁO CLIENT (Tranh chấp về tiền / Giam giữ giải ngân)
+- **Khởi tạo**: Expert nộp đơn kiện Client cố tình giam giữ giải ngân tiền dù dự án đã hoàn thành.
+- **Cơ chế Đóng băng có chọn lọc (Selective Freeze)**:
+  - Dự án **KHÔNG** bị dừng hoạt động hay khóa nút checklist. Các hoạt động thực thi kỹ thuật vẫn tiếp tục bình thường.
+  - Hệ thống chỉ khóa cứng tính năng tài chính của Client (Khóa nút **Release Payment** và nút **View Final Work**) nhằm phong tỏa dòng tiền ký quỹ trong Escrow, không cho Client tẩu tán tiền.
+- **Phán quyết dòng tiền cuối cùng**: Admin lựa chọn một trong hai bên thắng cuộc dựa trên bằng chứng thu thập được:
+  - **Nếu Expert đúng**: Admin thực hiện lệnh tối cao **Giải ngân (Force Payout)**, chuyển toàn bộ tiền ký quỹ sang ví khả dụng của Expert, đóng dự án thành `Completed`.
+  - **Nếu Client đúng** (Chứng minh được Expert nộp sản phẩm lỗi hoặc gian lận): Admin thực hiện **Hoàn trả (Force Refund)** tiền ký quỹ về ví Client, đóng dự án.
 
-### 3.4 Luồng Thực thi dự án (Project Execution & Milestone Progress)
-Theo dõi tiến độ dự án trên AI-Tasker được chia thành 2 cấp: **Tasks** (Mốc công việc lớn) và **MiniTasks** (Đầu việc chi tiết con) trong không gian quản trị dự án riêng biệt (`ClientProjectManagement` & `ExpertProjectManagement`):
-1. **Tasks**: Các mốc quan trọng lớn (ví dụ: "Thiết kế DB", "Cài đặt Auth").
-2. **MiniTasks**: Các mục công việc chi tiết nằm trong từng Task (ví dụ: "Viết script Schema", "Chạy DB Migration").
-- **Cơ chế hoạt động & Phối hợp**:
-  - **Expert** tích chọn/bỏ chọn trực tiếp các ô MiniTask. Việc thay đổi trạng thái `isCompleted` sẽ tự động kích hoạt cập nhật và phát sự kiện `aitasker_db_update`.
-  - **Tự động tính toán tiến độ**:
-    - **Tiến độ Task đơn lẻ** = `Số MiniTask đã hoàn thành / Tổng số MiniTask thuộc Task đó` (%).
-    - **Tiến độ tổng quan dự án (Overall Progress)** = `Tổng tiến độ của các Task / Tổng số lượng Task` (%).
-  - **Tự động tính toán trạng thái hiển thị của Task (`deriveTaskDisplayStatus`)**:
-    Trạng thái của từng Task được tính toán tự động dựa trên trạng thái của các MiniTask và tương tác phê duyệt:
-    - **Done (Hoàn thành)**: Task đã được Client phê duyệt hoặc hoàn thành, tất cả MiniTask trực thuộc đều đã xong (màu xanh lá).
-    - **Decline (Từ chối)**: Client từ chối bàn giao sản phẩm của Task và yêu cầu sửa đổi, tương ứng với trạng thái thô `"needs_revision"` hoặc `"decline"` (màu đỏ).
-    - **Waiting For Approval (Chờ phê duyệt)**: Expert đã nộp sản phẩm bàn giao, đang chờ Client kiểm tra và quyết định (màu tím).
-    - **Checklist Completed (Đã xong checklist)**: Tiến độ checklist của Task đạt 100% nhưng Expert chưa nộp sản phẩm chính thức (màu cam).
-    - **In Progress (Đang thực hiện)**: Có ít nhất một MiniTask được tích hoàn thành hoặc Task có thay đổi tiến độ nhưng chưa nộp sản phẩm.
-    - **Not Started (Chưa bắt đầu)**: Chưa có MiniTask nào được hoàn thành và chưa có tiến độ.
-  - **Tính năng Chỉnh sửa MiniTask con (Inline Edit - Expert)**:
-    - Khi một Task bị Client từ chối (Decline), Expert sẽ thực hiện sửa lỗi trực tiếp trên từng dòng checklist của các MiniTask con (Tiêu đề, Mô tả, Link sản phẩm, Tên file) thay vì sửa ở cấp độ Task lớn.
-    - Expert click vào nút "Sửa" trên MiniTask để cập nhật thông tin và nhấn "Lưu".
-  - **Khóa nút chống gửi spam**: Khi Task ở trạng thái Chờ phê duyệt (`Waiting For Approval`), cả hai nút "Submit for Review" (nếu có) và "Submit Product" phía Expert đều bị khóa (làm mờ) để tránh tình trạng Expert gửi sản phẩm liên tục khi Client chưa phản hồi.
-  - **Đồng bộ thanh tiến độ trên Dashboard**: Chỉ số "Milestone Progress" hiển thị trên thẻ dự án tại Dashboard của cả Client và Expert được đồng bộ trực tiếp và chính xác với "Overall Progress" dựa trên cùng dữ liệu bảng `tasks`.
-  - **Đồng bộ thời gian thực**: Mọi thay đổi do Expert cập nhật được phản ánh tức thì trên màn hình Client qua Custom Event Bus.
+#### LUỒNG TRANH CHẤP 3: THU HỒI DỰ ÁN CHỦ ĐỘNG (Mutual Cancellation / Termination)
+Khi một bên muốn hủy ngang dự án đang thực hiện (Tiến độ hoàn thành $P\%$), dự án chuyển sang trạng thái `Termination Pending`. Admin thẩm định tiến độ thực tế $P\%$ dựa trên số Task/MiniTask ở trạng thái `DONE`. Sau khi phê duyệt hủy (`Approve Termination`), ví ký quỹ ($E$) sẽ được phân chia như sau:
 
-### 3.5 Luồng Nghiệm thu & Giải ngân (Escrow Payout & Submission)
-Quy trình nộp sản phẩm và thanh toán được ràng buộc chặt chẽ bởi tiến độ thực tế và cơ chế xét duyệt nghiêm ngặt:
-1. **Nộp và xem sản phẩm nghiệm thu (Phía Client & Expert)**:
-   - **Phía Expert**: Nút "Submit for Review" bị loại bỏ hoàn toàn. Expert chỉ sử dụng nút "Submit Product" để nộp file/link sản phẩm. Nút này mặc định bị khóa (làm mờ), chỉ mở khóa khi:
-     - Tiến độ checklist của Task đạt 100%.
-     - Hoặc Client gửi yêu cầu khẩn cấp ("Request Product"), lúc này cờ `urgentRequest` được bật sang `true`.
-     Khi Expert điền Link/File sản phẩm và bấm "Submit Product", Task sẽ chuyển sang trạng thái "Waiting For Approval" (`pending_review`).
-   - **Phía Client**:
-     - Khi Task đạt tiến độ checklist 100% nhưng chưa nộp sản phẩm, trạng thái hiển thị là **"Checklist Completed"**. Client có 2 lựa chọn hành động:
-       - **Quick Accept (Duyệt nhanh)**: Phê duyệt hoàn thành Task ngay lập tức (chuyển sang "Done") mà không cần chờ nộp sản phẩm.
-       - **Request Product (Yêu cầu sản phẩm)**: Gửi thông báo yêu cầu Expert nộp sản phẩm bàn giao gấp (bật cờ `urgentRequest` ở phía Expert và mở khóa nút "Submit Product" cho Expert).
-     - Khi Task ở trạng thái **"Waiting For Approval"**: Client thấy nút **"Xem sản phẩm" (View Product)** hiển thị trực tiếp. Khi click vào nút này, hệ thống sẽ mở ra một modal hiển thị liên kết và file sản phẩm của Task đó (không kèm danh sách MiniTasks con để tránh rối mắt). Trong modal có 2 nút hành động chính:
-       - **Accept (Phê duyệt)**: Xác nhận sản phẩm đạt chất lượng, đóng modal và chuyển Task thành "Done".
-       - **Decline (Từ chối)**: Đóng modal xem sản phẩm, đồng thời mở khóa nút "Decline" ngoài giao diện và tự động hiển thị khung nhập lý do từ chối (feedback textarea) phía dưới dòng Task. Client nhập lý do và bấm gửi để chuyển Task sang trạng thái "Decline" (raw status: `"needs_revision"`).
-2. **Bàn giao và Giải ngân dự án (Release Payment & Project Final Handover)**:
-   - **Phía Expert (Bàn giao sản phẩm tổng)**: Khi toàn bộ các Task của dự án được Client duyệt hoàn thành (Tiến độ tổng đạt 100%), không gian làm việc của Expert sẽ hiển thị khu vực **Bàn giao dự án tổng thể**. Expert không thể kết thúc dự án nếu không bấm nút **Submit Work (Nộp sản phẩm tổng thể)**. Khi click, một popup mở ra yêu cầu cung cấp:
-     - **Project Link**: Đường dẫn deploy thực tế hoặc link repository chính thức.
-     - **Project Files**: Tệp nén (.zip, .rar) chứa mã nguồn, tài liệu hướng dẫn vận hành hoặc báo cáo.
-     Sau khi gửi thành công, hệ thống gửi thông báo khẩn tới Client và chuyển trạng thái bàn giao của dự án sang `"Final Product Submitted"` (Đã nộp sản phẩm tổng).
-   - **Phía Client (Thẩm định & Giải ngân theo thứ tự nghiêm ngặt)**:
-     - **Bước 1: Trạng thái chờ và Nút giải ngân bị khóa**: Mặc định, nút **Release Payment (Giải ngân)** trên màn hình chính của Client ở trạng thái khóa mờ (`disabled`). Nút **Xem sản phẩm tổng (View Final Work)** bên cạnh cũng bị khóa mờ nếu Expert chưa thực hiện bước nộp sản phẩm tổng.
-     - **Bước 2: Thẩm định sản phẩm tổng (View Final Work)**: Khi Expert đã nộp sản phẩm tổng thành công, nút **Xem sản phẩm tổng (View Final Work)** bên phía Client sẽ sáng lên (active). Client bấm vào để mở modal kiểm tra Link/File bàn giao. Trong modal này, Client có hành động:
-       - **Accept Final Delivery (Chấp nhận sản phẩm tổng)**: Đóng modal, chuyển trạng thái bàn giao sang `"Accepted"` và mở khóa (active) nút **Release Payment** ngoài màn hình chính.
-       - **Từ chối (Decline)**: Mở khung nhập lý do từ chối sản phẩm tổng để gửi phản hồi và ép Expert nộp lại qua nút **Submit Work**.
-     - **Bước 3: Giải ngân và Đóng dự án**: Khi Client bấm nút **Release Payment** ngoài màn hình chính (sau khi đã được mở khóa), popup xác nhận hiển thị: *"Bạn có chắc chắn muốn giải ngân cho dự án [Tên dự án]?"*. Khi đồng ý, hệ thống gọi API `/interactions/transaction` với loại `release_payment`:
-       - Trích toàn bộ tiền ký quỹ (`escrowBalance`) của dự án chuyển thẳng vào Ví khả dụng (`balance`) và Doanh thu tích lũy (`totalEarned`) của Expert.
-       - Đổi trạng thái dự án thành `Completed` (Hoàn thành) và trạng thái tin tuyển dụng tương ứng thành `completed`.
-       - Mở màn hình Đánh giá & Phản hồi chéo (Reviews) cho cả hai bên.
+- **Trường hợp A: Client chủ động thu hồi**
+  - **Expert nhận**: $(E \times P\%) + (E \times 10\%)$ (tiền đền bù từ Client).
+  - **Hệ thống thu (Platform Fee)**: $E \times 5\%$.
+  - **Client nhận lại**: $E \times (100\% - P\% - 15\%)$.
+  
+- **Trường hợp B: Expert chủ động thu hồi**
+  - **Client nhận lại**: $E \times (100\% - P\%) + (E \times 10\%)$ (tiền đền bù từ Expert).
+  - **Hệ thống thu (Platform Fee)**: $E \times 5\%$.
+  - **Expert nhận**: $E \times (P\% - 15\%)$.
 
-3. **Đánh giá**: Client và Expert thực hiện đánh giá chéo (`Reviews`). Hệ thống tự động tính toán lại tỷ lệ hoàn thành dự án (`SuccessRate`) và điểm uy tín (`ReputationCredit`) cho Expert dựa trên điểm rating vừa nhận.
-
-### 3.6 Luồng Giải quyết Tranh chấp (Dispute Resolution)
-1. Khi xảy ra mâu thuẫn (Ví dụ: Expert không làm việc hoặc Client không duyệt bài dù đã làm xong), một trong hai bên có thể nhấn nút "Yêu cầu Tranh chấp".
-2. Trạng thái dự án chuyển thành `Disputed`, tiền ký quỹ bị đóng băng.
-3. Admin truy cập trang Quản lý Tranh chấp (`AdminDisputes`), xem lịch sử chat và kiểm duyệt nhật ký hoàn thành của các `Tasks` / `MiniTasks` (cũng như các feedback Client đã gửi).
-4. Admin đưa ra phán quyết chia tiền ký quỹ thông qua API `/interactions/transaction` với loại `"dispute_refund"`:
-   - Hoàn trả một phần hoặc toàn bộ tiền ký quỹ về Ví Client và chuyển phần còn lại về Ví Expert.
-5. Hệ thống giải ngân tiền ký quỹ theo tỷ lệ của Admin về ví của hai bên và chuyển trạng thái dự án thành `Resolved`.
-
-### 3.7 Hệ thống Thông báo Toàn diện (Targeted Notifications System)
-Mọi thay đổi trạng thái quan trọng trong vòng đời dự án đều kích hoạt gửi thông báo tự động thông qua `notificationHelper.js` đến đúng đối tượng thụ hưởng:
-- **Luồng Đấu thầu (Proposal Triggers)**:
-  - **Đề xuất mới (`notifyNewProposal`)**: Gửi tới Client chủ JobPost khi Expert nộp hồ sơ.
-  - **Cập nhật đề xuất (`notifyUpdatedProposal`)**: Gửi tới Client khi Expert sửa đổi đề xuất theo yêu cầu.
-  - **Quyết định đề xuất (`notifyProposalDecision`)**: Gửi thông báo chúc mừng tới Expert được chọn; gửi thông báo từ chối tới các Expert không được chọn.
-  - **Ký quỹ thành công (`notifyEscrowFunded`)**: Gửi tới duy nhất Expert được chọn để báo hiệu dự án bắt đầu.
-- **Luồng Công việc & Nhiệm vụ (Task & MiniTask Triggers)**:
-  - **Nộp duyệt Task (`notifyTaskSubmittedForReview`)**: Gửi tới Client khi Expert hoàn thành toàn bộ MiniTask của một Task và yêu cầu nghiệm thu.
-  - **Phê duyệt Task (`notifyTaskApproved`)**: Gửi tới Expert khi Client bấm duyệt Task.
-  - **Yêu cầu sửa đổi Task (`notifyTaskRevisionRequested`)**: Gửi tới Expert kèm nội dung phản hồi (feedback) chi tiết của Client.
-  - **Yêu cầu sửa đổi MiniTask (`notifyMiniTaskRevisionRequested`)**: Gửi tới Expert khi Client chỉ ra cụ thể các đầu việc nhỏ cần sửa đổi kèm theo lý do.
-  - **Task quá hạn (`notifyTaskOverdue`)**: Gửi tới cả Client và Expert để cảnh báo khi mốc thời gian hoàn thành Task đã trôi qua mà chưa xong.
-  - **Yêu cầu khẩn cấp (`notifyUrgentSubmissionRequested`)**: Gửi tới Expert khi Client bấm nút yêu cầu hoàn thành gấp một đầu việc đang bị trễ.
-
-### 3.8 Cơ chế Đồng bộ Real-time qua Custom Event Bus
-Hệ thống sử dụng Custom Event Bus của trình duyệt để đạt hiệu ứng cập nhật dữ liệu tức thì (Real-time UI updates) mà không cần tải lại trang (reload):
-1. Mỗi khi Mock DB hoặc Mock API có sự thay đổi dữ liệu (tạo dự án, cập nhật đề xuất, thay đổi trạng thái MiniTask, giải ngân), hệ thống sẽ phát đi sự kiện:
-   ```javascript
-   window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-   ```
-2. Các React Component (như `ClientDashboard`, `ExpertDashboard`, `MyProjectsList`, `ProjectDetail`, `ExpertProjectDetail`) đăng ký lắng nghe sự kiện này trong hook `useEffect` và tự động thực hiện gọi lại hàm nạp dữ liệu (silent re-fetch) trong nền để cập nhật React state cục bộ, giúp giao diện người dùng luôn hiển thị thông tin mới nhất.
+#### PHÍ DỊCH VỤ HỆ THỐNG KHI DỰ ÁN HOÀN THÀNH (Success Fee)
+Khi dự án kết thúc thành công 100%, hệ thống tự động trích thu phí dịch vụ 5% trước khi chuyển tiền về ví của Expert:
+- **Expert nhận**: $\text{escrowBalance} \times 95\%$.
+- **Hệ thống thu**: $\text{escrowBalance} \times 5\%$.
 
 ---
 
-## 4. Tóm tắt Các Thay Đổi & Cải Tiến UI/UX Gần Đây (Cập Nhật 24/06/2026)
+## CHƯƠNG 4: CƠ CHẾ ĐỒNG BỘ TIẾN ĐỘ & NHẬT KÝ HOẠT ĐỘNG PHÍA EXPERT (MỚI BỔ SUNG)
 
-Để tối ưu hóa trải nghiệm người dùng, hệ thống đã được nâng cấp đồng bộ các tính năng sau:
+### 1. Quy trình tích/hủy hoàn thành nhiệm vụ (Check/Uncheck Checklist)
+- **Đánh dấu nổi bật (Highlight Completed)**:
+  - Khi Expert tích chọn hoàn thành một milestone/task đơn lẻ:
+    - Biểu tượng checkbox chuyển sang màu xanh lá cây (`text-green-600`).
+    - Thẻ nhiệm vụ tương ứng tự động đổi sang nền xanh lá nhạt (`bg-green-50/40 border-green-200`) để làm dấu trực quan cho Expert biết.
+    - Hệ thống tính toán và tự động cập nhật tiến độ Use Case hiện tại cùng tiến độ chung của toàn dự án.
+    - Ghi nhận lịch sử hoạt động dạng: `[Expert] hoàn thành...`.
+- **Hủy hoàn thành (Bỏ tích - Uncheck)**:
+  - Khi Expert click hủy chọn (bỏ tích square):
+    - Giao diện checkbox và nền thẻ nhiệm vụ quay về trạng thái bình thường.
+    - Tự động ghi nhận hoạt động (Activity Logs) bắt đầu bằng cụm từ **đã thay đổi** để làm rõ hành động sửa đổi (ví dụ: `[Expert] đã thay đổi trạng thái nhiệm vụ: hủy hoàn thành...` hoặc `[Expert] đã thay đổi milestone: hủy hoàn thành...`).
+- **Thay đổi tiêu đề (Rename Task)**:
+  - Khi Expert đổi tên Task hoặc Milestone, hệ thống lưu hoạt động mô tả chi tiết: `[Expert] đã thay đổi tiêu đề... từ "[Tên cũ]" thành "[Tên mới]"`.
 
-### 4.1 Phía Client (Khách hàng)
-- **Tối giản hóa giao diện**: Xóa bỏ hoàn toàn nút "View Detail" tại danh sách quản lý dự án (`ClientDashboard`, `MyProjectsPage.jsx`). Client không cần thao tác qua nhiều tầng giao diện.
-- **Bỏ cơ chế duyệt thủ công từng mốc nhỏ lẻ**: Xóa bỏ nút "Accept" độc lập cho từng Task lớn. Quy trình duyệt sản phẩm bàn giao được tập trung vào luồng nghiệm thu Milestone.
-- **Thanh điều khiển tinh gọn (Chỉ hiển thị khi Task ở trạng thái Chờ phê duyệt - `Waiting For Approval`)**:
-  - **Nút "Xem sản phẩm" (View Product)**: Mở modal hiển thị trực tiếp nội dung File hoặc Link sản phẩm do Expert nộp cho Task đó (không chứa danh sách MiniTasks để tránh rối mắt).
-  - **Nút "Decline" (Từ chối)**: Đưa ra ngoài cạnh nút xem sản phẩm.
-- **Cơ chế khóa và mở khóa nút động**:
-  - Nếu Expert **đã nộp** sản phẩm: Nút "Decline" ngoài giao diện mặc định bị khóa (`disabled`). Client buộc phải nhấn "Xem sản phẩm" để xem chi tiết sản phẩm. Trong modal xem sản phẩm có 2 nút: **Accept** (duyệt hoàn thành Task) và **Decline** (từ chối). Khi Client click "Decline" trong modal, modal đóng lại, đồng thời nút "Decline" bên ngoài sẽ được mở khóa và hiển thị khung nhập lý do từ chối (feedback textarea) phía dưới để Client gửi phản hồi.
-  - Nếu Expert **chưa nộp** sản phẩm: Nút "Xem sản phẩm" bị khóa, nút "Decline" bên ngoài mở trực tiếp cho phép Client từ chối và ghi phản hồi ngay lập tức.
-  - Nếu Task **chưa hoàn thành** (tiến độ dưới 100% hoặc chưa gửi duyệt): Cả hai nút "Xem sản phẩm" và "Decline" đều ẩn.
-
-### 4.2 Phía Expert (Chuyên gia)
-- **Cơ chế khóa nút chống spam**: Khi Task ở trạng thái Chờ phê duyệt (`pending_review`), cả hai nút "Submit for Review" và "Submit Product" đều bị làm mờ (`disabled`) nhằm ngăn Expert bấm gửi liên tiếp.
-- **Chỉnh sửa trực quan (Inline Edit) cho MiniTask**: Khi Task bị Client từ chối (Decline), Expert thực hiện chỉnh sửa nội dung/sửa lỗi trực tiếp trên từng dòng check-list MiniTask con (Tiêu đề, Mô tả, Link sản phẩm, Tên file) thay vì chỉnh sửa ở mức Task lớn.
-- **Khung phản hồi từ chối (Decline Feedbacks Panel)**: Hiển thị ngay trung tâm giao diện quản lý để Expert dễ dàng theo dõi lý do Client yêu cầu chỉnh sửa.
-
-### 4.3 Đồng bộ Tiến độ Dashboard & Giải ngân Escrow
-- **Đồng bộ tiến độ thẻ dự án**: Chỉ số "Milestone Progress" hiển thị trên Dashboard của cả Client và Expert được tính toán trực tiếp từ cơ sở dữ liệu `tasks` hoạt động thực tế, khớp hoàn toàn 100% với tiến độ chi tiết hiển thị bên trong dự án.
-- **Quy trình Giải ngân tự động (Release Payment)**:
-  - Khi tiến độ dự án đạt **đúng 100%** (tất cả các Task đều ở trạng thái Done), Client sẽ thấy nút "Release Payment" xuất hiện.
-  - Bấm nút này sẽ mở popup xác nhận giải ngân. Khi đồng ý, hệ thống tự động giải phóng toàn bộ số dư ký quỹ (`escrowBalance`) của dự án, chuyển trực tiếp vào số dư khả dụng (`balance`) và tổng thu nhập (`totalEarned`) của Expert, đồng thời đưa dự án về trạng thái hoàn thành (`completed`) và đồng bộ real-time giao diện qua Event Bus.
-
-
+### 2. Cơ chế đồng bộ hai chiều Mock DB & Tự động phục hồi (Self-Healing Sync)
+- **Đồng bộ hai chiều (Bi-directional Sync)**: Mọi thay đổi dữ liệu từ đầu việc (như bảng `tasks`) được tự động đồng bộ sang mảng `tasks` nằm trong bảng `projects` để cả Client và Expert đều có chung một nguồn dữ liệu duy nhất khi theo dõi tiến độ.
+- **Tự động phục hồi (Self-healing)**: 
+  - Hệ thống tự động kiểm tra và sinh định danh độc nhất `UseCase_ID` (dạng `uc-index-projectId-date`) cho tất cả các Use Case trong bảng `projects` và `jobPosts` để đảm bảo liên kết dữ liệu luôn chuẩn xác.
+  - Hàm `_getById("tasks", id)` tự động kéo dữ liệu từ mảng `project.tasks` ra bảng `tasks` nếu chưa tồn tại, loại bỏ tình trạng rỗng danh sách nhiệm vụ trên giao diện cập nhật tiến độ của Expert.
+  - Bộ lọc tasks tự động liên kết bằng `useCaseId` thay vì index, có cơ chế dự phòng ngược (fallback) về index đối với các dữ liệu cũ để tránh lỗi giao diện.

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
-import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info } from "lucide-react";
+import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info, Paperclip, Download } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -802,30 +802,34 @@ export default function ExpertProjectDetail() {
                 </button>
               )}
 
-              {cancelLocked && (
-                <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                  🔒 Cancel Locked
-                </span>
-              )}
+              {!["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase()) && (
+                <>
+                  {cancelLocked && (
+                    <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
+                      🔒 Cancel Locked
+                    </span>
+                  )}
 
-              {report && (report?.status === "Awaiting Expert" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundExpertSubmitted)) && (
-                <button
-                  type="button"
-                  onClick={() => setShowExplanationModal(true)}
-                  className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
-                >
-                  <AlertTriangle className="w-4 h-4" /> Submit Explanation
-                </button>
+                  {report && (report?.status === "Awaiting Expert" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundExpertSubmitted)) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowExplanationModal(true)}
+                      className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                    >
+                      <AlertTriangle className="w-4 h-4" /> Submit Explanation
+                    </button>
+                  )}
+                  {report && (
+                    (report?.reporterRole === "expert" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
+                    report?.status === "Awaiting Client" ||
+                    ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundExpertSubmitted)
+                  ) && (
+                      <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                        <AlertTriangle className="w-4 h-4" /> Awaiting review...
+                      </div>
+                    )}
+                </>
               )}
-              {report && (
-                (report?.reporterRole === "expert" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
-                report?.status === "Awaiting Client" ||
-                ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundExpertSubmitted)
-              ) && (
-                  <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
-                    <AlertTriangle className="w-4 h-4" /> Awaiting review...
-                  </div>
-                )}
               {project.status === "completed" && (
                 <button
                   disabled
@@ -900,48 +904,41 @@ export default function ExpertProjectDetail() {
                         }
                         if (!fileInfo) return null;
                         return (
-                          <div className="flex items-center justify-between gap-2 mt-1">
-                            <span><strong>Project File:</strong> <span className="font-semibold text-foreground/80">{fileInfo.name}</span></span>
-                            <div className="flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    const token = sessionStorage.getItem("token") || sessionStorage.getItem("authToken") || sessionStorage.getItem("jwt");
-                                    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                                    const response = await fetch(fileInfo.url, { headers });
-                                    const blob = await response.blob();
-                                    const type = response.headers.get("content-type") || blob.type || "application/octet-stream";
-                                    const viewUrl = URL.createObjectURL(new Blob([blob], { type }));
-                                    window.open(viewUrl, "_blank");
-                                    setTimeout(() => URL.revokeObjectURL(viewUrl), 30000);
-                                  } catch { window.open(fileInfo.url, "_blank"); }
-                                }}
-                                className="p-1 text-brand-primary hover:opacity-70 transition cursor-pointer"
-                                title="View file"
-                              >
-                                🔍
-                              </button>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  try {
-                                    const token = sessionStorage.getItem("token") || sessionStorage.getItem("authToken") || sessionStorage.getItem("jwt");
-                                    const headers = token ? { Authorization: `Bearer ${token}` } : {};
-                                    const response = await fetch(fileInfo.url, { headers });
-                                    const blob = await response.blob();
-                                    const dlUrl = URL.createObjectURL(blob);
-                                    const a = document.createElement("a");
-                                    a.href = dlUrl; a.download = fileInfo.name;
-                                    document.body.appendChild(a); a.click(); a.remove();
-                                    URL.revokeObjectURL(dlUrl);
-                                  } catch { window.open(fileInfo.url, "_blank"); }
-                                }}
-                                className="p-1 text-brand-primary hover:opacity-70 transition cursor-pointer"
-                                title="Download file"
-                              >
-                                ⬇️
-                              </button>
+                          <div className="flex items-center gap-2 mt-2">
+                            <strong className="text-foreground font-semibold">Project File:</strong>
+                            <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-secondary border border-border rounded-md text-foreground">
+                              <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <span className="font-semibold truncate max-w-[240px]" title={fileInfo.name}>
+                                {fileInfo.name}
+                              </span>
+                              {fileInfo.url && (
+                                <div className="flex items-center gap-1 ml-1 border-l border-border pl-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      try {
+                                        const response = await fetch(fileInfo.url);
+                                        const blob = await response.blob();
+                                        const dlUrl = URL.createObjectURL(blob);
+                                        const a = document.createElement("a");
+                                        a.href = dlUrl;
+                                        a.download = fileInfo.name;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                        URL.revokeObjectURL(dlUrl);
+                                      } catch {
+                                        window.open(fileInfo.url, "_blank");
+                                      }
+                                    }}
+                                    className="inline-flex items-center gap-1 p-1 px-1.5 hover:bg-card rounded text-primary hover:text-primary-hover font-medium transition-colors text-[11px] cursor-pointer"
+                                    title="Download original file"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                    <span>Download</span>
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         );

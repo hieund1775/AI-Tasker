@@ -552,11 +552,12 @@ export function ClientDashboard() {
                       <div className="flex items-center justify-end pt-1 gap-3">
                         {(() => {
                           const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
-                          if (!isDisputed) {
+                          const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
+                          if (!isDisputed && !isCompleted) {
                             // Anti-spam: check if the project already has a pending report
                             const existingActiveReport = activeReports.find(r =>
                               (r.projectId === p.projectId || r.projectId === p.id) &&
-                              !["Rejected", "Resolved"].includes(r.status)
+                              !["Rejected", "Resolved", "Accepted", "Completed", "cancel_done"].includes(r.status)
                             );
                             if (existingActiveReport) {
                               return (

@@ -1240,30 +1240,34 @@ export default function ClientProjectDetail() {
                 </button>
               )}
 
-              {cancelLocked && (
-                <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                  🔒 Cancel Locked
-                </span>
-              )}
+              {!["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase()) && (
+                <>
+                  {cancelLocked && (
+                    <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
+                      🔒 Cancel Locked
+                    </span>
+                  )}
 
-              {report && (report?.status === "Awaiting Client" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundClientSubmitted)) && (
-                <button
-                  type="button"
-                  onClick={() => setShowExplanationModal(true)}
-                  className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
-                >
-                  <AlertTriangle className="w-4 h-4" /> Submit Explanation
-                </button>
+                  {report && (report?.status === "Awaiting Client" || ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && !report?.currentRoundClientSubmitted)) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowExplanationModal(true)}
+                      className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                    >
+                      <AlertTriangle className="w-4 h-4" /> Submit Explanation
+                    </button>
+                  )}
+                  {report && (
+                    (report?.reporterRole === "client" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
+                    report?.status === "Awaiting Expert" ||
+                    ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundClientSubmitted)
+                  ) && (
+                      <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                        <AlertTriangle className="w-4 h-4" /> Awaiting review...
+                      </div>
+                    )}
+                </>
               )}
-              {report && (
-                (report?.reporterRole === "client" && (report?.status === "Pending" || report?.status === "Pending Admin")) ||
-                report?.status === "Awaiting Expert" ||
-                ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundClientSubmitted)
-              ) && (
-                  <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
-                    <AlertTriangle className="w-4 h-4" /> Awaiting review...
-                  </div>
-                )}
               {allTasksApproved && (
                 <>
                   {/* View Final Work Button — always visible once final product submitted or accepted */}

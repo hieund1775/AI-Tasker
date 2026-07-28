@@ -59,7 +59,7 @@ export function getNormalizedStatus(project, activeReports = []) {
     badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+    badgeClass = "bg-red-500/10 text-red-500 border border-red-500/20 font-semibold";
   } else {
     const hasProjectRecord = !!project.projectId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -1588,28 +1588,17 @@ export function MyProjectsList() {
             return (
               <div
                 key={project.id}
-                className={cn(
-                  "bg-card rounded-xl border p-6 hover:shadow-md transition-all duration-200",
-                  displayStatus === "Disputed"
-                    ? "border-red-800 bg-gradient-to-r from-red-950 to-red-900 shadow-lg shadow-red-900/30"
-                    : "border-border hover:border-border/80"
-                )}
+                className="bg-card rounded-xl border border-border hover:border-border/80 p-6 hover:shadow-md transition-all duration-200"
               >
                 {/* ── Top row: title + status badge ── */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h3 className={cn(
-                        "font-semibold text-lg leading-snug",
-                        displayStatus === "Disputed" ? "text-red-100" : "text-foreground"
-                      )}>
+                      <h3 className="font-semibold text-lg leading-snug text-foreground">
                         {project.title}
                       </h3>
                     </div>
-                    <p className={cn(
-                      "text-sm",
-                      displayStatus === "Disputed" ? "text-red-200/70" : "text-muted-foreground"
-                    )}>
+                    <p className="text-sm text-muted-foreground">
                       {project.domain?.name || "Artificial Intelligence"}
                     </p>
                   </div>

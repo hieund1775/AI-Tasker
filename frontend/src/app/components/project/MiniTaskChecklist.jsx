@@ -1,10 +1,100 @@
-import { CheckSquare, Square, Loader2, AlertCircle, Edit3 } from "lucide-react";
+import { useState, useRef } from "react";
+import {
+  CheckSquare,
+  Square,
+  Loader2,
+  AlertCircle,
+  Edit3,
+  Paperclip,
+  Upload,
+  X,
+  ExternalLink,
+  Download,
+  FileText,
+} from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { cn } from "../../lib/utils.js";
 import { safeDateTimeFormat } from "../../lib/safety.js";
-import { useState } from "react";
 import { toast } from "sonner";
+import { api, enrichFileUrl } from "../../../services/api.js";
+
+// ── Helpers for mini-task file resolution and blob downloads ──
+function resolveMiniTaskFile(productFile) {
+  if (!productFile) return null;
+  let parsed = null;
+  if (typeof productFile === "object" && productFile !== null) {
+    parsed = productFile;
+  } else if (typeof productFile === "string") {
+    try {
+      parsed = JSON.parse(productFile);
+    } catch {
+      // Legacy or plain text string
+    }
+  }
+
+  if (parsed && typeof parsed === "object" && (parsed.url || parsed.path || parsed.fileUrl)) {
+    const rawUrl = parsed.url || parsed.path || parsed.fileUrl;
+    const cleanUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+    const name = parsed.name || parsed.originalName || rawUrl.split("/").pop().split("\\").pop();
+    return {
+      url: cleanUrl,
+      rawUrl: rawUrl,
+      name: name,
+      size: parsed.size || null,
+      type: parsed.type || "",
+    };
+  }
+
+  const str = String(productFile).trim();
+  if (!str) return null;
+  const isUrl = str.startsWith("http") || str.startsWith("/") || str.includes("/");
+  if (isUrl) {
+    const cleanUrl = str.startsWith("http") ? str : enrichFileUrl(str);
+    const name = str.split("/").pop().split("\\").pop();
+    return {
+      url: cleanUrl,
+      rawUrl: str,
+      name: name,
+      size: null,
+      type: "",
+    };
+  }
+
+  return {
+    url: null,
+    rawUrl: null,
+    name: str,
+    size: null,
+    type: "",
+  };
+}
+
+async function downloadFileBlob(rawUrl, fileName) {
+  if (!rawUrl || rawUrl === "#") return;
+  const enriched = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+  try {
+    const response = await fetch(enriched);
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = fileName || enriched.split("/").pop() || "downloaded-file";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  } catch (err) {
+    window.open(enriched, "_blank");
+  }
+}
+
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 // =============================================================================
 // MiniTaskChecklist — reusable mini-task checklist with role-based permissions.
@@ -22,17 +112,21 @@ import { toast } from "sonner";
 export function MiniTaskChecklist({
   miniTasks = [],
   editable = false,
+  isClosed = false,
   onToggle,
   onUpdate,
   compact = true,
   emptyMessage,
   loading = false,
 }) {
+  const isActuallyEditable = editable && !isClosed;
   const [editingId, setEditingId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
-  const [editDesc, setEditDesc] = useState("");
   const [editLink, setEditLink] = useState("");
-  const [editFile, setEditFile] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [existingFileObj, setExistingFileObj] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef(null);
 
   if (loading) {
     return (
@@ -52,8 +146,7 @@ export function MiniTaskChecklist({
 
   if (!miniTasks || miniTasks.length === 0) {
     const defaultMessages = {
-      expert:
-        "Create mini tasks to start tracking your work.",
+      expert: "Create mini tasks to start tracking your work.",
       client: "Expert has not created mini tasks yet.",
     };
     return (
@@ -75,9 +168,10 @@ export function MiniTaskChecklist({
   const startEditing = (mini) => {
     setEditingId(mini.id);
     setEditTitle(mini.title || "");
-    setEditDesc(mini.description || "");
     setEditLink(mini.productLink || "");
-    setEditFile(mini.productFile || "");
+    const resolved = resolveMiniTaskFile(mini.productFile);
+    setExistingFileObj(resolved);
+    setSelectedFile(null);
   };
 
   const handleSave = async (miniId) => {
@@ -85,17 +179,53 @@ export function MiniTaskChecklist({
       toast.error("Title cannot be empty!");
       return;
     }
+
+    setUploadingFile(true);
     try {
+      let finalProductFile = null;
+
+      if (selectedFile) {
+        // Upload real file to backend storage
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+        if (result?.url) {
+          finalProductFile = JSON.stringify({
+            url: result.url,
+            name: selectedFile.name,
+            size: selectedFile.size,
+            type: selectedFile.type,
+          });
+        } else {
+          toast.error("File upload failed.");
+          setUploadingFile(false);
+          return;
+        }
+      } else if (existingFileObj) {
+        finalProductFile = JSON.stringify({
+          url: existingFileObj.rawUrl || existingFileObj.url,
+          name: existingFileObj.name,
+          size: existingFileObj.size,
+          type: existingFileObj.type,
+        });
+      }
+
       await onUpdate?.(miniId, {
         title: editTitle.trim(),
         productLink: editLink.trim() || null,
-        productFile: editFile.trim() || null,
+        productFile: finalProductFile,
       });
+
       toast.success("MiniTask updated successfully!");
       setEditingId(null);
+      setSelectedFile(null);
+      setExistingFileObj(null);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
+      console.error(err);
       toast.error("Failed to update MiniTask.");
+    } finally {
+      setUploadingFile(false);
     }
   };
 
@@ -126,8 +256,8 @@ export function MiniTaskChecklist({
             )}
           >
             {/* Checkbox (only show when not editing) */}
-            {!isEditingThis && (
-              editable ? (
+            {!isEditingThis &&
+              (isActuallyEditable ? (
                 <button
                   type="button"
                   onClick={() => onToggle?.(mini.id)}
@@ -180,14 +310,15 @@ export function MiniTaskChecklist({
                     </svg>
                   )}
                 </div>
-              )
-            )}
+              ))}
 
             {/* Content / Edit Form */}
             {isEditingThis ? (
               <div className="flex-1 min-w-0 space-y-3 p-3 bg-secondary rounded-lg border border-border text-left">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">MiniTask Title</label>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
+                    MiniTask Title
+                  </label>
                   <input
                     type="text"
                     value={editTitle}
@@ -198,7 +329,9 @@ export function MiniTaskChecklist({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Product Link</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
+                      Product Link
+                    </label>
                     <input
                       type="text"
                       value={editLink}
@@ -207,31 +340,101 @@ export function MiniTaskChecklist({
                       className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring bg-input-background"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">Attached File Name</label>
+                    <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
+                      Attached File
+                    </label>
+
+                    {/* Hidden file input */}
                     <input
-                      type="text"
-                      value={editFile}
-                      onChange={(e) => setEditFile(e.target.value)}
-                      placeholder="artifact_v1.zip"
-                      className="w-full px-3 py-1.5 text-sm border border-input rounded-lg focus:outline-none focus:ring-1 focus:ring-ring bg-input-background"
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setSelectedFile(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
                     />
+
+                    {selectedFile ? (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-primary/40 text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <Paperclip className="w-4 h-4 text-primary shrink-0" />
+                          <span className="font-semibold text-foreground truncate block">
+                            {selectedFile.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedFile(null)}
+                          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
+                          title="Remove file"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : existingFileObj ? (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-card border border-border text-xs">
+                        <div className="flex items-center gap-2 truncate">
+                          <Paperclip className="w-4 h-4 text-accent shrink-0" />
+                          <span className="font-semibold text-foreground truncate block">
+                            {existingFileObj.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-[11px] px-2 py-0.5 border border-border rounded hover:bg-secondary font-medium"
+                          >
+                            Change File
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExistingFileObj(null)}
+                            className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
+                            title="Remove attachment"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-full flex items-center justify-center gap-2 p-2 border border-dashed border-border hover:border-primary/50 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground transition-colors bg-card/50"
+                      >
+                        <Upload className="w-4 h-4 text-primary" />
+                        <span>Upload file from computer...</span>
+                      </button>
+                    )}
                   </div>
                 </div>
+
                 <div className="flex justify-end gap-2 text-xs pt-2 border-t border-border">
                   <button
                     type="button"
-                    onClick={() => setEditingId(null)}
+                    disabled={uploadingFile}
+                    onClick={() => {
+                      setEditingId(null);
+                      setSelectedFile(null);
+                      setExistingFileObj(null);
+                    }}
                     className="px-2.5 py-1.5 border border-border text-foreground rounded-md hover:bg-secondary font-semibold"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
+                    disabled={uploadingFile}
                     onClick={() => handleSave(mini.id)}
-                    className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary-hover font-semibold"
+                    className="px-2.5 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary-hover font-semibold flex items-center gap-1.5 disabled:opacity-50"
                   >
-                    Save
+                    {uploadingFile && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    <span>{uploadingFile ? "Uploading..." : "Save"}</span>
                   </button>
                 </div>
               </div>
@@ -255,25 +458,46 @@ export function MiniTaskChecklist({
                 )}
 
                 {/* Deliverables details */}
-                {(mini.productLink || mini.productFile) && (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs bg-secondary p-2 rounded-lg border border-border w-fit">
-                    {mini.productLink && (
-                      <a
-                        href={mini.productLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:underline font-semibold flex items-center gap-0.5"
-                      >
-                        Product Link
-                      </a>
-                    )}
-                    {mini.productFile && (
-                      <span className="text-muted-foreground font-medium bg-muted px-1.5 py-0.5 rounded border border-border">
-                        File: {mini.productFile}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {(mini.productLink || mini.productFile) && (() => {
+                  const fileInfo = resolveMiniTaskFile(mini.productFile);
+                  return (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                      {mini.productLink && (
+                        <a
+                          href={mini.productLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-semibold transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>Product Link</span>
+                        </a>
+                      )}
+
+                      {fileInfo && (fileInfo.url || fileInfo.name) && (
+                        <div className="inline-flex items-center gap-2 px-2.5 py-1 bg-secondary border border-border rounded-md text-foreground">
+                          <Paperclip className="w-3.5 h-3.5 text-primary shrink-0" />
+                          <span className="font-semibold truncate max-w-[200px]" title={fileInfo.name}>
+                            {fileInfo.name}
+                          </span>
+                          {fileInfo.url && (
+                            <div className="flex items-center gap-1 ml-1 border-l border-border pl-1.5">
+                              <button
+                                type="button"
+                                onClick={() => downloadFileBlob(fileInfo.url, fileInfo.name)}
+                                className="inline-flex items-center gap-1 p-1 px-1.5 hover:bg-card rounded text-primary hover:text-primary-hover font-medium transition-colors text-[11px]"
+                                title="Download original file"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>Download</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Revision info */}
                 {needsRevision && (
@@ -330,13 +554,14 @@ export function MiniTaskChecklist({
             {/* Action buttons (Edit / Done tag) */}
             {!isEditingThis && (
               <div className="flex-shrink-0 flex items-center gap-2">
-                {editable && !isDone && (
+                {isActuallyEditable && (
                   <button
                     type="button"
                     onClick={() => startEditing(mini)}
-                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer"
+                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer flex items-center gap-1"
                   >
-                    Edit
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit</span>
                   </button>
                 )}
                 {compact && isDone && (
@@ -352,3 +577,4 @@ export function MiniTaskChecklist({
     </div>
   );
 }
+
