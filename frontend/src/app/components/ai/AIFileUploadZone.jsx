@@ -1,7 +1,6 @@
 ﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon } from "lucide-react";
 
-// â”€â”€ Compact defaults for AI Planner panel â”€â”€
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
 function getFileIcon(file) {

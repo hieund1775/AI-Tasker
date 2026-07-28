@@ -895,7 +895,6 @@ Please use this background information to write a personalized and highly releva
                       const ucTasks = tasks.filter(t => t.useCaseId && t.useCaseId === uc.id);
                       return (
                         <div key={uc.id} className="overflow-hidden rounded-2xl border border-border/60 bg-background/60">
-                          {/* â”€â”€ Use Case Header (read-only) â”€â”€ */}
                           <div className="flex flex-col gap-1.5 border-b border-border/60 bg-accent-light/25 p-4 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
@@ -988,7 +987,6 @@ Please use this background information to write a personalized and highly releva
                             </div>
                           </div>
 
-                          {/* â”€â”€ Tasks â”€â”€ */}
                           <div className="p-4 space-y-4">
                             {ucTasks.length === 0 && (
                               <p className="text-xs text-muted-foreground text-center py-2.5">
@@ -1086,7 +1084,6 @@ Please use this background information to write a personalized and highly releva
                               );
                             })}
 
-                            {/* â”€â”€ Add Proposed Task (per use case) â”€â”€ */}
                             <button
                               type="button"
                               onClick={() =>
@@ -1117,7 +1114,6 @@ Please use this background information to write a personalized and highly releva
                     })}
                   </div>
                 ) : (
-                  /* â”€â”€ No use cases fallback â”€â”€ */
                   <div className="space-y-4">
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
@@ -1389,7 +1385,6 @@ Please use this background information to write a personalized and highly releva
           </form>
         </div>
 
-        {/* â”€â”€ AI Project Planner Panel (right side) â”€â”€ */}
         {showAIPlanner && (
           <aside className="lg:col-span-3">
             <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

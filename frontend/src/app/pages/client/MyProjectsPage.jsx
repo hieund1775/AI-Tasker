@@ -920,7 +920,6 @@ export function MyProjectsList() {
                           const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* â”€â”€ Use Case Header â”€â”€ */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
@@ -939,7 +938,6 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* â”€â”€ Tasks â”€â”€ */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -1297,7 +1295,6 @@ export function MyProjectsList() {
                           const ucTasks = viewedProposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* â”€â”€ Use Case Header â”€â”€ */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
@@ -1316,7 +1313,6 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* â”€â”€ Tasks â”€â”€ */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -1592,7 +1588,6 @@ export function MyProjectsList() {
                 key={project.id}
                 className="bg-card rounded-xl border border-border hover:border-border/80 p-6 hover:shadow-md transition-all duration-200"
               >
-                {/* â”€â”€ Top row: title + status badge â”€â”€ */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1614,7 +1609,6 @@ export function MyProjectsList() {
                 </div>
 
 
-                {/* â”€â”€ Metadata grid â”€â”€ */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-secondary/40 rounded-lg p-3 border border-border/60">
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Posted</span>
@@ -1642,7 +1636,6 @@ export function MyProjectsList() {
                   </div>
                 </div>
 
-                {/* â”€â”€ Bottom row: actions â”€â”€ */}
                 <div className="flex items-center justify-end pt-3 border-t border-border gap-3">
                   <button
                     onClick={() => {

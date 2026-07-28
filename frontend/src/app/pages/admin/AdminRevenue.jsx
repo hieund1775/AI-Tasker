@@ -271,9 +271,9 @@ export function AdminRevenue() {
         const parsed = parseDateAndTime(row.rawDate);
         if (!parsed) return <span className="text-muted-foreground">-</span>;
         return (
-          <div className="flex flex-col items-end">
-            <span className="font-medium text-foreground">{parsed.dateStr}</span>
-            <span className="text-xs text-muted-foreground">{parsed.timeStr}</span>
+          <div className="flex flex-col items-end gap-1 leading-none">
+            <span className="text-sm font-semibold text-foreground">{parsed.dateStr}</span>
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground">{parsed.timeStr}</span>
           </div>
         );
       },

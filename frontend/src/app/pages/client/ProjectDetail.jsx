@@ -1,7 +1,6 @@
 ﻿// =============================================================================
 // ClientProjectDetail - Project detail page for Client role.
 //
-// âš ï¸  DEPRECATED - NOT in active routing.
 //     routes.jsx imports ProjectDetail from ClientProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/client/ClientProjectManagement.jsx

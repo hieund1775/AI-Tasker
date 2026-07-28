@@ -174,7 +174,7 @@ export function ClientProfile() {
           <ArrowLeft className="w-4 h-4" /> {backLink.label}
         </Link>
       )}
-      {/* â”€â”€ Profile header card â”€â”€ */}
+      {/* Profile header */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
@@ -201,7 +201,7 @@ export function ClientProfile() {
           )}
         </div>
 
-        {/* â”€â”€ Profile Information â”€â”€ */}
+        {/* Profile information */}
         <div className="mt-8 pt-8 border-t border-border-light space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Starred Fields */}
@@ -261,7 +261,7 @@ export function ClientProfile() {
         </div>
       </div>
 
-      {/* â”€â”€ Statistics cards â”€â”€ */}
+      {/* Statistics cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[

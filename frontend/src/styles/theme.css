@@ -1,12 +1,11 @@
 ﻿@custom-variant dark (&:is(.dark *));
 
 /* =============================================================================
-   AI-Tasker Design System v2 â€” Modern SaaS Palette
+   AI-Tasker Design System v2 - Modern SaaS Palette
    Inspired by Linear, Vercel, Stripe Dashboard
    ============================================================================= */
 
 :root {
-  /* â”€â”€ Typography â”€â”€ */
   --font-size: 16px;
   --font-sans: "Outfit", "Noto Sans", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -25,7 +24,6 @@
   --panel-gap: 1.5rem;
   --control-gap: 0.75rem;
 
-  /* â”€â”€ Background & Surfaces â”€â”€ */
   --background: #f7f3ec;
   --foreground: #171512;
   --card: #fffdf8;
@@ -33,19 +31,16 @@
   --popover: #fffdf8;
   --popover-foreground: #171512;
 
-  /* â”€â”€ Brand / Primary (Slate Charcoal â€” sophisticated, professional) â”€â”€ */
   --primary: #2e2b27;
   --primary-foreground: #ffffff;
   --primary-hover: #221f1b;
   --primary-light: color-mix(in srgb, #2e2b27 10%, transparent);
 
-  /* â”€â”€ Accent (Vibrant Blue â€” interactive elements, links) â”€â”€ */
   --accent: #9b5d3d;
   --accent-foreground: #ffffff;
   --accent-hover: #814a2f;
   --accent-light: color-mix(in srgb, #9b5d3d 12%, transparent);
 
-  /* â”€â”€ Semantic Colors â”€â”€ */
   --success: #4f7a68;
   --success-foreground: #ffffff;
   --success-light: color-mix(in srgb, #4f7a68 10%, transparent);
@@ -56,13 +51,11 @@
   --destructive-foreground: #ffffff;
   --destructive-light: color-mix(in srgb, #a24c43 10%, transparent);
 
-  /* â”€â”€ Secondary & Muted â”€â”€ */
   --secondary: #ebe3d6;
   --secondary-foreground: #332f2a;
   --muted: #eee7dc;
   --muted-foreground: #6f675e;
 
-  /* â”€â”€ Borders & Inputs â”€â”€ */
   --border: #d9ccbb;
   --border-light: #ebe3d6;
   --input: #cbc0b2;
@@ -70,14 +63,12 @@
   --switch-background: #cbc0b2;
   --ring: #9b5d3d;
 
-  /* â”€â”€ Charts â”€â”€ */
   --chart-1: #2e2b27;
   --chart-2: #a96745;
   --chart-3: #4f7a68;
   --chart-4: #ad8032;
   --chart-5: #656360;
 
-  /* â”€â”€ Legacy brand tokens (keep for existing code compatibility) â”€â”€ */
   --brand-primary: #2e2b27;
   --brand-primary-hover: #221f1b;
   --brand-primary-light: color-mix(in srgb, #2e2b27 10%, transparent);
@@ -85,7 +76,6 @@
   --brand-green: #4f7a68;
   --brand-green-foreground: #ffffff;
 
-  /* â”€â”€ Radius Scale â”€â”€ */
   --radius: 0.625rem;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -93,7 +83,6 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
 
-  /* â”€â”€ Sidebar â”€â”€ */
   --sidebar: #fffaf2;
   --sidebar-foreground: #2e2b27;
   --sidebar-primary: #2e2b27;
@@ -104,7 +93,6 @@
   --sidebar-ring: #a96745;
 }
 
-/* â”€â”€ Dark Mode â”€â”€ */
 .dark {
   --background: #171512;
   --foreground: #f4f1ea;
@@ -168,9 +156,7 @@
   --sidebar-ring: #d0916d;
 }
 
-/* â”€â”€ Dark mode body background enhancement â”€â”€ */
 .dark body::before {
-  /* Subtle neutral ambient depth â€” no blue tint */
   background:
     radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, #fafafa 3%, transparent), transparent),
     radial-gradient(ellipse 60% 80% at 80% 70%, color-mix(in srgb, #fafafa 1.5%, transparent), transparent),
@@ -178,7 +164,6 @@
   opacity: 0.6;
 }
 
-/* â”€â”€ Tailwind v4 Theme Mapping â”€â”€ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -244,7 +229,6 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* â”€â”€ Base Layer â”€â”€ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -256,14 +240,12 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* â”€â”€ Premium Ambient Background (subtle mesh + noise) â”€â”€ */
 body::before {
     content: '';
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    /* Subtle radial gradient "light spots" â€” neutral, no blue tint */
     background:
       radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--foreground) 2%, transparent), transparent),
       radial-gradient(ellipse 60% 80% at 80% 70%, color-mix(in srgb, var(--foreground) 1.5%, transparent), transparent),
@@ -283,7 +265,6 @@ body::before {
     text-rendering: optimizeLegibility;
   }
 
-  /* â”€â”€ Typography Scale (refined hierarchy) â”€â”€ */
   h1 {
     font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-bold);
@@ -333,7 +314,6 @@ body::before {
     line-height: 1.5;
   }
 
-  /* â”€â”€ Page Title Standard â”€â”€ */
   .page-title {
     font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-semibold);
@@ -351,7 +331,6 @@ body::before {
     text-wrap: pretty;
   }
 
-  /* â”€â”€ Page Filter / Toolbar Rhythm â”€â”€ */
   .page-filter-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -430,7 +409,6 @@ body::before {
     }
   }
 
-  /* â”€â”€ Section Header Standard â”€â”€ */
   .section-header {
     font-size: 0.75rem;
     font-weight: var(--font-weight-semibold);
@@ -439,7 +417,6 @@ body::before {
     letter-spacing: 0.05em;
   }
 
-  /* â”€â”€ Animations â”€â”€ */
   @keyframes float {
     0%,
     100% {
@@ -499,7 +476,6 @@ body::before {
     animation: scale-in 0.2s ease-out;
   }
 
-  /* â”€â”€ Scrollbar Styling â”€â”€ */
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
@@ -522,12 +498,10 @@ body::before {
     background-color: var(--muted-foreground);
   }
 
-  /* â”€â”€ Focus Ring Refinement â”€â”€ */
   .focus-ring {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
   }
 
-  /* â”€â”€ Micro-Interaction Utilities â”€â”€ */
   .card-hover {
     @apply transition-all duration-200 ease-out;
   }
@@ -564,7 +538,6 @@ body::before {
     width: 100%;
   }
 
-  /* â”€â”€ Gradient Section Divider â”€â”€ */
   .gradient-divider {
     height: 1px;
     background: linear-gradient(
@@ -576,7 +549,6 @@ body::before {
     );
   }
 
-  /* â”€â”€ Shimmer Loading Animation â”€â”€ */
   @keyframes shimmer-slide {
     0% {
       transform: translateX(-100%);
@@ -608,7 +580,6 @@ body::before {
     animation: shimmer 2s ease-in-out infinite;
   }
 
-  /* â”€â”€ Brand Section Header â”€â”€ */
   .brand-section-header {
     font-size: var(--text-xs);
     font-weight: var(--font-weight-semibold);
@@ -619,7 +590,6 @@ body::before {
     border-left: 2px solid var(--accent);
   }
 
-  /* â”€â”€ Brand Decorative Shapes â”€â”€ */
   .brand-blob-accent {
     border-radius: 60% 40% 50% 45% / 55% 45% 55% 45%;
     background: color-mix(in srgb, var(--accent) 6%, transparent);
@@ -632,13 +602,11 @@ body::before {
     filter: blur(50px);
   }
 
-  /* â”€â”€ Brand Dot Pattern â”€â”€ */
   .brand-dots {
     background-image: radial-gradient(currentColor 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
-  /* â”€â”€ Neural Line Pattern (AI motif) â”€â”€ */
   .brand-neural {
     background-image:
       linear-gradient(60deg, color-mix(in srgb, var(--accent) 3%, transparent) 1px, transparent 1px),
@@ -660,9 +628,7 @@ html.transition-colors * {
               box-shadow 0.2s ease !important;
 }
 
-/* â”€â”€ Brand Animation Keyframes â”€â”€ */
 
-/* Sparkle pulse â€” subtle glow on AI indicators */
 @keyframes sparkle-pulse {
   0%, 100% {
     opacity: 0.7;
@@ -678,7 +644,6 @@ html.transition-colors * {
   animation: sparkle-pulse 2s ease-in-out infinite;
 }
 
-/* Draw line â€” SVG stroke animation */
 @keyframes draw-line {
   from {
     stroke-dashoffset: 100;
@@ -688,7 +653,6 @@ html.transition-colors * {
   }
 }
 
-/* Milestone glow â€” soft pulse on active milestones */
 @keyframes milestone-glow {
   0%, 100% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
@@ -702,7 +666,6 @@ html.transition-colors * {
   animation: milestone-glow 2.5s ease-in-out infinite;
 }
 
-/* â”€â”€ Utility: smooth page transitions â”€â”€ */
 @keyframes page-enter {
   from {
     opacity: 0;
@@ -718,7 +681,6 @@ html.transition-colors * {
   animation: page-enter 0.25s ease-out;
 }
 
-/* â”€â”€ Animated Progress Bar â”€â”€ */
 @keyframes progress-pulse {
   0%, 100% {
     filter: brightness(1);
@@ -736,7 +698,6 @@ html.transition-colors * {
   animation: progress-pulse 3s ease-in-out infinite;
 }
 
-/* â”€â”€ Enhanced Background: subtle animated grid overlay â”€â”€ */
 .bg-grid-subtle {
   background-image:
     linear-gradient(var(--border) 0.5px, transparent 0.5px),
@@ -758,7 +719,6 @@ html.transition-colors * {
   animation: bg-drift 20s ease-in-out infinite;
 }
 
-/* â”€â”€ Scroll Reveal Utility â”€â”€ */
 .reveal-hidden {
   opacity: 0;
   transform: translateY(12px);
@@ -770,7 +730,6 @@ html.transition-colors * {
   transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* â”€â”€ Count-up Number Animation â”€â”€ */
 @keyframes count-in {
   from {
     opacity: 0;
@@ -786,7 +745,6 @@ html.transition-colors * {
   animation: count-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
-/* â”€â”€ Homepage premium motion/background utilities â”€â”€ */
 .ai-homepage-aurora {
   background:
     radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 32%),
@@ -826,7 +784,6 @@ html.transition-colors * {
   }
 }
 
-/* â”€â”€ Stagger Card Reveal â”€â”€ */
 @keyframes card-reveal {
   from {
     opacity: 0;
@@ -856,7 +813,6 @@ html.transition-colors * {
 .card-reveal-11 { animation-delay: 0.44s; }
 .card-reveal-12 { animation-delay: 0.48s; }
 
-/* â”€â”€ Premium Glass Card Surface â”€â”€ */
 .glass-card {
   background: linear-gradient(
     135deg,
@@ -903,7 +859,6 @@ html.transition-colors * {
     linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, var(--background)), var(--card));
 }
 
-/* â”€â”€ Section Action Bar â”€â”€ */
 .action-bar {
   display: flex;
   align-items: center;

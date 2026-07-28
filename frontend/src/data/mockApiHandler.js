@@ -361,12 +361,10 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
   const currentUser = token ? extractUserFromToken(token) : null;
 
   try {
-    // â”€â”€ AUTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/users/login" && method === "POST") return handleLogin(body);
     if (path === "/users/register" && method === "POST") return handleRegister(body);
     if (path === "/users/logout" && method === "POST") return handleLogout();
 
-    // â”€â”€ USERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/Users" && method === "GET") {
       let users = listUsers();
       // Apply query filters
@@ -441,7 +439,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { hasProfile: currentUser?.expertProfile ? true : false };
     }
 
-    // â”€â”€ JOB POSTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/JobPosts" && method === "GET") {
       let jobs = listJobPosts();
       if (query.clientId) jobs = jobs.filter((j) => j.clientId === query.clientId);
@@ -526,7 +523,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ PROJECTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/Projects" && method === "GET") {
       let projects = listProjects();
       if (query.clientId) projects = projects.filter((p) => p.clientId === query.clientId);
@@ -611,7 +607,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ PROPOSALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (method === "GET") {
       const expertId = matchProposalExpert(path);
       if (expertId) return listProposals((p) => p.expertId === expertId);
@@ -933,7 +928,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ CATEGORY TAGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/category-tags/skills" && method === "GET") return listSkills();
     if (path === "/category-tags/skills" && method === "POST") return createSkill(body);
     if (path === "/category-tags/categories" && method === "GET") return listCategories();
@@ -953,7 +947,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ TRANSACTIONS / INTERACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/interactions" && method === "GET") {
       let txns = listTransactions();
       if (query.projectId) txns = txns.filter((t) => t.projectId === query.projectId);
@@ -1060,7 +1053,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, transactionId: txn.id, ...txn };
     }
 
-    // â”€â”€ NOTIFICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/notifications" && method === "GET") {
       let notifs = listNotifications();
       if (currentUser) notifs = notifs.filter((n) => n.userId === currentUser.id);
@@ -1097,7 +1089,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ MESSAGES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/messages" && method === "GET") {
       let msgs = listMessages();
       if (currentUser) msgs = msgs.filter((m) => m.senderId === currentUser.id || m.receiverId === currentUser.id);
@@ -1116,7 +1107,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return msg;
     }
 
-    // â”€â”€ REVIEWS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/reviews" && method === "GET") {
       let revs = listReviews();
       if (query.targetUserId) revs = revs.filter((r) => r.targetUserId === query.targetUserId);
@@ -1150,7 +1140,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // â”€â”€ REPORTS / DISPUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/reports" && method === "GET") {
       let reports = listReports();
       if (query.status) reports = reports.filter((r) => r.status === query.status);
@@ -1488,7 +1477,6 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, reportId: report.id };
     }
 
-    // â”€â”€ TASKS / TIMELINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/tasks" && method === "GET") {
       let tasks = listTasks();
       if (query.projectId) tasks = tasks.filter((t) => t.projectId === query.projectId);
@@ -1502,18 +1490,15 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, task };
     }
 
-    // â”€â”€ DASHBOARD STATS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/dashboard/stats" && method === "GET") {
       return getDashboardStats();
     }
 
-    // â”€â”€ WALLET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/wallet" && method === "GET") {
       if (currentUser) return getUserWallet(currentUser.id);
       return { balance: 0, pendingBalance: 0, totalEarned: 0 };
     }
 
-    // â”€â”€ FALLBACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // For any unrecognized endpoint, return an empty result rather than error
     // to keep pages from crashing on unimplemented endpoints
     console.warn(`[MockAPI] Unrecognized endpoint: ${method} ${path} - returning empty/null`);

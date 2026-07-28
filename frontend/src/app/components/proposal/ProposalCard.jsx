@@ -47,7 +47,6 @@ export function ProposalCard({
       }`}
     >
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        {/* â”€â”€ Expert info â”€â”€ */}
         <div className="flex items-start gap-4 flex-1">
           {/* Avatar initials */}
           <div className="w-12 h-12 bg-accent-light rounded-xl flex items-center justify-center flex-shrink-0">
@@ -184,7 +183,6 @@ export function ProposalCard({
               </div>
             )}
 
-            {/* â”€â”€ Use Case & Task Breakdown â”€â”€ */}
             {false && (
               <div className="mb-3 p-3 bg-secondary/30 rounded-xl border border-border/60 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -192,7 +190,6 @@ export function ProposalCard({
                 </div>
 
                 {hasUseCaseBreakdown ? (
-                  /* â”€â”€ Grouped by use case â”€â”€ */
                   proposal.useCaseBreakdown.map((uc) => (
                     <div key={uc.useCaseId} className="space-y-1.5">
                       <div className="flex items-center gap-2 pt-1">
@@ -242,7 +239,6 @@ export function ProposalCard({
                     </div>
                   ))
                 ) : (
-                  /* â”€â”€ Flat fallback â”€â”€ */
                   <>
                     {proposal.tasks.filter(t => t.source !== "expert" || t.approvalStatus !== "pending_client_approval").map((task, i) => (
                       <div key={task.id || i} className="pl-2 border-l-2 border-accent/25 space-y-0.5">
@@ -257,7 +253,6 @@ export function ProposalCard({
                       </div>
                     ))}
 
-                    {/* â”€â”€ Expert-Proposed Tasks â”€â”€ */}
                     {(proposal.proposedTasks?.length > 0 || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")).length > 0) && (
                       <div className="pt-2 border-t border-warning/20">
                         <div className="flex items-center gap-1.5 mb-1.5">
@@ -311,7 +306,6 @@ export function ProposalCard({
           </div>
         </div>
 
-        {/* â”€â”€ Right: bid amount + actions â”€â”€ */}
         <div className="flex flex-col items-start md:items-end gap-3 md:min-w-[180px] flex-shrink-0">
           {/* Bid amount */}
           <div className="text-right">

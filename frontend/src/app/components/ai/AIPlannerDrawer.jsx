@@ -171,7 +171,6 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedPlan]);
 
-  // â”€â”€ Send message â”€â”€
   const handleSend = useCallback(async (customText) => {
     const textToSend = typeof customText === "string" ? customText : input;
     const trimmed = textToSend.trim();
@@ -262,7 +261,6 @@ Description: ${autoPrompt.description}`;
     }
   }, [autoPrompt, handleSend, clearAutoPrompt]);
 
-  // â”€â”€ Apply plan â”€â”€
   const handleApply = useCallback(() => {
     if (generatedPlan?.useCases) {
       const result = onApplyTasks({ useCases: generatedPlan.useCases });
@@ -272,7 +270,6 @@ Description: ${autoPrompt.description}`;
     }
   }, [generatedPlan, onApplyTasks]);
 
-  // â”€â”€ Regenerate â”€â”€
   const handleRegenerate = useCallback(async () => {
     const userMsgs = messages.filter(m => m.role === "user");
     const lastUserMsg = userMsgs[userMsgs.length - 1];
@@ -346,7 +343,6 @@ Description: ${autoPrompt.description}`;
 
   return (
     <div className="h-full flex flex-col">
-      {/* â”€â”€ Header â”€â”€ */}
       <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">AI MiniTask Planner</h2>
@@ -363,7 +359,6 @@ Description: ${autoPrompt.description}`;
         </button>
       </div>
 
-      {/* â”€â”€ Chat / Messages â”€â”€ */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2.5 space-y-4">
         {/* Divider */}
         <div className="flex items-center gap-2">
@@ -475,7 +470,6 @@ Description: ${autoPrompt.description}`;
         )}
       </div>
 
-      {/* â”€â”€ Chat input â”€â”€ */}
       <div className="shrink-0 border-t border-border px-4 py-2.5">
         <form
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}

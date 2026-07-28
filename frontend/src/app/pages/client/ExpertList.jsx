@@ -493,7 +493,6 @@ export function ExpertList() {
               className="bg-card border border-border rounded-xl p-5 hover:border-border/80 transition-colors shadow-sm flex flex-col justify-between"
             >
               <div>
-                {/* â”€â”€ Top: name + rating badge â”€â”€ */}
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-semibold text-foreground text-[15px] leading-snug">
                     {expert.name}
@@ -510,7 +509,6 @@ export function ExpertList() {
                   )}
                 </div>
 
-                {/* â”€â”€ Title + location â”€â”€ */}
                 <p className="text-sm text-muted-foreground mb-2.5">
                   {expert.title}
                   {expert.location ? (
@@ -523,14 +521,12 @@ export function ExpertList() {
                   ) : null}
                 </p>
 
-                {/* â”€â”€ Bio â”€â”€ */}
                 {expert.bio && (
                   <p className="text-sm text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                     {expert.bio}
                   </p>
                 )}
 
-                {/* â”€â”€ Skill tags â”€â”€ */}
                 {expert.skills?.length > 0 && (
                   <div className="mb-3">
                     <SkillTags
@@ -540,7 +536,6 @@ export function ExpertList() {
                   </div>
                 )}
 
-                {/* â”€â”€ Stats â”€â”€ */}
                 <div className="flex items-center gap-3 mb-3">
                   <span className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
@@ -558,7 +553,6 @@ export function ExpertList() {
                 </div>
               </div>
 
-              {/* â”€â”€ Action â”€â”€ */}
               <Button
                 variant="default"
                 size="default"

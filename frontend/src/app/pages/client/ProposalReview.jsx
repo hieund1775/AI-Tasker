@@ -192,7 +192,6 @@ export function ProposalReview() {
     setTimeout(() => setFeedback(null), 5000);
   };
 
-  // â”€â”€ Task-level accept/reject â”€â”€
   const handleAcceptProposedTask = async (proposalId, taskId, task) => {
     await updateTaskApproval(proposalId, taskId, "accepted");
   };
@@ -291,7 +290,6 @@ export function ProposalReview() {
         }
       />
 
-      {/* â”€â”€ Feedback banner â”€â”€ */}
       {feedback && (
         <div
           className={`mb-6 p-4 rounded-xl text-sm font-medium ${

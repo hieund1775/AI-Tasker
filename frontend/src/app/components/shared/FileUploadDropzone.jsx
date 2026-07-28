@@ -1,7 +1,6 @@
 ﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon, AlertCircle } from "lucide-react";
 
-// â”€â”€ Default accepted file types â”€â”€
 const DEFAULT_ACCEPT_MIME = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -16,7 +15,6 @@ const DEFAULT_ACCEPT_MIME = [
 
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
-// â”€â”€ Type icon helpers â”€â”€
 function getFileIcon(file) {
   if (!file) return FileText;
   const type = file.type || "";
@@ -97,7 +95,6 @@ export function FileUploadDropzone({
   const canAddMore =
     !maxFiles || files.length < maxFiles;
 
-  // â”€â”€ Drag handlers â”€â”€
   const handleDragEnter = useCallback(
     (e) => {
       e.preventDefault();
@@ -145,7 +142,6 @@ export function FileUploadDropzone({
     [disabled, canAddMore, files, multiple, maxFiles, onFilesChange],
   );
 
-  // â”€â”€ Browse â”€â”€
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -168,7 +164,6 @@ export function FileUploadDropzone({
     [files, multiple, maxFiles, onFilesChange],
   );
 
-  // â”€â”€ Remove â”€â”€
   const removeFile = useCallback(
     (index) => {
       onFilesChange(files.filter((_, i) => i !== index));
@@ -176,7 +171,6 @@ export function FileUploadDropzone({
     [files, onFilesChange],
   );
 
-  // â”€â”€ Render â”€â”€
   const FileIcon = ({ file }) => {
     const Icon = getFileIcon(file);
     return <Icon className={`w-4 h-4 flex-shrink-0 ${getFileColor(file)}`} />;

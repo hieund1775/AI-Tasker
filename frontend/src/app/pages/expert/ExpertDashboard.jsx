@@ -648,7 +648,6 @@ export function ExpertDashboard() {
                     key={p.id}
                     className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* ðŸ” Top row: title + status badge ðŸ” */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
                       <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
@@ -660,7 +659,6 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* ðŸ‘¤ Client name ðŸ‘¤ */}
                     <p className="text-base text-muted-foreground mb-3">
                       Client:{" "}
                       <span className="font-medium text-foreground">
@@ -668,7 +666,6 @@ export function ExpertDashboard() {
                       </span>
                     </p>
 
-                    {/* ðŸ·ï¸ Category & Skill tags ðŸ·ï¸ */}
                     <div className="mb-4">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
@@ -686,7 +683,6 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* â”€â”€ Progress bar â”€â”€ */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm font-medium text-muted-foreground">
@@ -704,7 +700,6 @@ export function ExpertDashboard() {
                       </div>
                     </div>
 
-                    {/* â”€â”€ Bottom row: due date, value, action â”€â”€ */}
                     <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
@@ -820,7 +815,6 @@ export function ExpertDashboard() {
                     key={p.id}
                     className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* ðŸ” Top: title + match badge ðŸ” */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
@@ -830,7 +824,6 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* â³ Posted by + time â³ */}
                     <p className="text-[13px] text-muted-foreground mb-2.5">
                       Posted by{" "}
                       <span className="font-medium text-muted-foreground">
@@ -840,12 +833,10 @@ export function ExpertDashboard() {
                       {timeAgo(p.createdAt)}
                     </p>
 
-                    {/* ðŸ“ Description ðŸ“ */}
                     <p className="text-base text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
-                    {/* ðŸ·ï¸ Category & Skill tags ðŸ·ï¸ */}
                     <div className="mb-3">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
@@ -858,7 +849,6 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* â”€â”€ Budget + Duration â”€â”€ */}
                     <div className="flex items-center gap-3 mb-4">
                       <span className="font-semibold text-foreground text-base">
                         <MoneyDisplay amount={p.budget} />
@@ -869,7 +859,6 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* â”€â”€ Action buttons â”€â”€ */}
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}

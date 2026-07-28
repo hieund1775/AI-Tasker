@@ -1169,9 +1169,9 @@ export function Billing() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right text-sm text-muted-foreground">
-                        <div className="flex flex-col items-end">
-                          <span className="font-semibold text-foreground text-sm">{dateStr}</span>
-                          <span className="text-xs text-muted-foreground mt-0.5 font-normal">{timeStr}</span>
+                        <div className="flex flex-col items-end gap-1 leading-none">
+                          <span className="text-sm font-semibold text-foreground">{dateStr}</span>
+                          <span className="text-[11px] font-medium tracking-wide text-muted-foreground">{timeStr}</span>
                         </div>
                       </td>
                     </tr>

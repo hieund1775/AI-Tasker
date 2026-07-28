@@ -47,7 +47,6 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 
-// â”€â”€ Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) â”€â”€
 function resolveProductFile(productFile) {
   if (!productFile) return null;
   if (typeof productFile === "object" && (productFile.url || productFile.path)) {
@@ -813,7 +812,6 @@ export default function TaskDetailPage() {
           </div>
         )}
 
-        {/* â”€â”€ Bottom action bar (Submit Product / Approve / Request Product / View Product) â”€â”€ */}
         {((isExpert && !isDone) || isClient) && (
           <div className="pt-4 border-t border-border">
             {/* Expert actions: Submit Evidence / Submit Product */}

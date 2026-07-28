@@ -1,7 +1,6 @@
 ﻿// =============================================================================
 // ExpertProjectDetail - Project detail page for Expert role.
 //
-// âš ï¸  DEPRECATED - NOT in active routing.
 //     routes.jsx imports ExpertProjectDetail from ExpertProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/expert/ExpertProjectManagement.jsx

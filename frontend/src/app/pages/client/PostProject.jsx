@@ -14,7 +14,6 @@ import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 
-// â”€â”€ Timeline unit conversion helpers â”€â”€
 const unitToDays = (value, unit) => {
   const n = Number(value) || 0;
   if (unit === "Months") return n * 30;
@@ -124,7 +123,6 @@ export function PostProject() {
     }
   }, []);
 
-  // â”€â”€ Auto-sync timeline with total use case duration â”€â”€
   const totalUseCaseDays = useMemo(() => {
     return useCases.reduce((sum, uc) => sum + (Number(uc.originalDurationDays) || 0), 0);
   }, [useCases]);
@@ -805,7 +803,6 @@ export function PostProject() {
                     className="bg-card border border-border rounded-xl p-4 hover:border-input transition-all shadow-sm flex flex-col justify-between"
                   >
                     <div>
-                      {/* â”€â”€ Top: name + rating badge â”€â”€ */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <h3 className="font-semibold text-foreground text-sm leading-snug truncate">
                           {expert.name}
@@ -816,20 +813,17 @@ export function PostProject() {
                         </span>
                       </div>
 
-                      {/* â”€â”€ Title + location â”€â”€ */}
                       <p className="text-[11px] text-muted-foreground mb-2 truncate">
                         {expert.title}
                         {expert.location ? ` - ${expert.location}` : ""}
                       </p>
 
-                      {/* â”€â”€ Bio â”€â”€ */}
                       {expert.bio && (
                         <p className="text-sm text-muted-foreground mb-2.5 line-clamp-2 leading-relaxed">
                           {expert.bio}
                         </p>
                       )}
 
-                      {/* â”€â”€ Skill tags â”€â”€ */}
                       {expert.skills?.length > 0 && (
                         <div className="mb-2">
                           <SkillTags
@@ -839,7 +833,6 @@ export function PostProject() {
                         </div>
                       )}
 
-                      {/* â”€â”€ Stats â”€â”€ */}
                       <div className="flex items-center gap-2 mb-3 text-[11px]">
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
@@ -857,7 +850,6 @@ export function PostProject() {
                       </div>
                     </div>
 
-                    {/* â”€â”€ Action â”€â”€ */}
                     <button
                       type="button"
                       onClick={() => setSelectedRecommendExpert(expert)}

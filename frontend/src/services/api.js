@@ -272,7 +272,6 @@ function del(endpoint, options = {}) {
   return request(endpoint, { ...options, method: "DELETE" });
 }
 
-// â”€â”€ Helpers to save/read use cases from localStorage (backup when BE has not serialized jobRequirements) â”€â”€
 export function saveJobUseCases(jobId, useCases) {
   try {
     localStorage.setItem(`aitasker_job_usecases_${jobId}`, JSON.stringify(useCases));
@@ -286,7 +285,6 @@ function loadJobUseCases(jobId) {
   } catch (e) { return null; }
 }
 
-// â”€â”€ Helpers to save/read job attachments from localStorage (backup when BE has not stored AttachmentUrl) â”€â”€
 export function saveJobAttachments(jobId, attachments) {
   try {
     localStorage.setItem(`aitasker_job_attachments_${jobId}`, JSON.stringify(attachments));

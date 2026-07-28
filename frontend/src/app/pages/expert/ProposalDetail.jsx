@@ -293,7 +293,6 @@ export function ProposalDetail() {
                         const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                         return (
                           <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                            {/* â”€â”€ Use Case Header â”€â”€ */}
                             <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                               <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                 <div className="flex items-center gap-2">
@@ -312,7 +311,6 @@ export function ProposalDetail() {
                               )}
                             </div>
 
-                            {/* â”€â”€ Tasks â”€â”€ */}
                             <div className="p-4 space-y-4">
                               {ucTasks.length === 0 ? (
                                 <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this user story.</p>

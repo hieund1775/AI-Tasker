@@ -361,7 +361,6 @@ export function ExpertProfile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* â”€â”€ Profile header card â”€â”€ */}
       <div className="bg-card rounded-xl border border-border p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
@@ -386,7 +385,6 @@ export function ExpertProfile() {
           </Link>
         </div>
 
-        {/* â”€â”€ Meta details â”€â”€ */}
         <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border">
           {expert.profile?.location && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -425,7 +423,6 @@ export function ExpertProfile() {
           )}
         </div>
 
-        {/* â”€â”€ Contact & Professional Info â”€â”€ */}
         <div className="mt-8 pt-8 border-t border-border space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -469,7 +466,6 @@ export function ExpertProfile() {
           </div>
         </div>
 
-        {/* â”€â”€ Skills Section â”€â”€ */}
         {expert.profile?.skills && expert.profile.skills.length > 0 && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Skills</h3>
@@ -486,7 +482,6 @@ export function ExpertProfile() {
           </div>
         )}
 
-        {/* â”€â”€ About / bio â”€â”€ */}
         {expert.profile?.bio && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">About / Bio</h3>
@@ -495,7 +490,6 @@ export function ExpertProfile() {
         )}
       </div>
 
-      {/* â”€â”€ Statistics cards â”€â”€ */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           {
@@ -546,7 +540,6 @@ export function ExpertProfile() {
         ))}
       </div>
 
-      {/* â”€â”€ Completed Projects Section â”€â”€ */}
       <div className="bg-card rounded-xl border border-border p-8 text-left space-y-6">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">

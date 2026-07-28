@@ -80,7 +80,6 @@ export function OwnerProfile() {
     <div className="max-w-4xl mx-auto w-full space-y-6">
       
 
-      {/* â”€â”€ Profile header card â”€â”€ */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
@@ -104,7 +103,6 @@ export function OwnerProfile() {
 
         </div>
 
-        {/* â”€â”€ Meta details â”€â”€ */}
         <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border/60">
           {owner.profile?.location && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -129,7 +127,6 @@ export function OwnerProfile() {
           )}
         </div>
 
-        {/* â”€â”€ About / bio â”€â”€ */}
         {owner.profile?.bio && (
           <div className="mt-5 pt-5 border-t border-border/60">
             <h3 className="text-sm font-semibold text-foreground/80 mb-2">About</h3>

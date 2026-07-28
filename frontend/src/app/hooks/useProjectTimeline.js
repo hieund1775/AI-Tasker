@@ -78,7 +78,6 @@ export function useProjectTimeline(role, projectId) {
     return () => { cancelled = true; };
   }, [projectId, activityVersion]);
 
-  // â”€â”€ Live countdown tick â”€â”€
   useEffect(() => {
     const isActive = project && ["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase());
     if (!isActive) return;
