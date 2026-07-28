@@ -937,7 +937,7 @@ export function ExpertWallet() {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right font-mono">
-                        <div className="flex flex-col items-end gap-1 leading-none">
+                        <div className="flex flex-col items-end leading-[0.95]">
                           <span className="text-sm font-semibold text-foreground">{dateStr}</span>
                           <span className="text-[11px] font-medium tracking-wide text-muted-foreground">{timeStr}</span>
                         </div>
