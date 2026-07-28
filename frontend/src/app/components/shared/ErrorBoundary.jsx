@@ -2,7 +2,7 @@
 import { AlertTriangle, RefreshCw, Home, LayoutDashboard } from "lucide-react";
 
 // =============================================================================
-// ErrorBoundary â€” global error boundary that catches render errors and shows
+// ErrorBoundary - global error boundary that catches render errors and shows
 // a professional fallback UI instead of a white screen or stack trace.
 //
 // In development mode (import.meta.env.DEV), the error message is shown.

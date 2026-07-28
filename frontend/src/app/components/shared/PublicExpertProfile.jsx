@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -22,16 +22,16 @@ import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 
 /**
- * PublicExpertProfile — unified expert profile component.
+ * PublicExpertProfile - unified expert profile component.
  *
  * Supports three viewer roles:
- *   "client"  — shows Hire/Invite + Send Message buttons
- *   "expert"  — shows Edit Profile button (own profile)
- *   "public"  — no private actions (read-only)
+ *   "client"  - shows Hire/Invite + Send Message buttons
+ *   "expert"  - shows Edit Profile button (own profile)
+ *   "public"  - no private actions (read-only)
  *
  * Props:
- *   viewerRole   — "client" | "expert" | "public"
- *   expertId     — optional expert ID (for client/public views)
+ *   viewerRole   - "client" | "expert" | "public"
+ *   expertId     - optional expert ID (for client/public views)
  */
 
 export function PublicExpertProfile({ viewerRole = "public", expertId }) {
@@ -730,11 +730,11 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                           <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
                             <div>
                               <span className="font-semibold text-foreground/80">Category:</span>{" "}
-                              <span>{proj.category || "—"}</span>
+                              <span>{proj.category || "-"}</span>
                             </div>
                             {proj.specialization && (
                               <>
-                                <span className="text-border">•</span>
+                                <span className="text-border">-</span>
                                 <div>
                                   <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
                                   <span>{proj.specialization}</span>
@@ -743,10 +743,10 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             )}
                             {(proj.startDate || proj.endDate) && (
                               <>
-                                <span className="text-border">•</span>
+                                <span className="text-border">-</span>
                                 <div>
                                   <span className="font-semibold text-foreground/80">Duration:</span>{" "}
-                                  <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
+                                  <span>{proj.startDate || "-"} to {proj.endDate || "-"}</span>
                                 </div>
                               </>
                             )}
@@ -768,7 +768,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
                         {proj.review?.comment && (
                           <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                            <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">“</span>
+                            <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">"</span>
                             {proj.review.comment}
                             {(proj.review.createdAt || proj.review.date) && (
                               <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
@@ -820,7 +820,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             </div>
                             {proj.editedReview.comment && (
                               <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                                <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                                <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">"</span>
                                 {proj.editedReview.comment}
                               </div>
                             )}

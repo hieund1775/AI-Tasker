@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+﻿import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -6,6 +6,7 @@ import api, { saveJobUseCases, saveJobAttachments } from "../../../services/api.
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePlanner.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
@@ -13,7 +14,7 @@ import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 
-// ── Timeline unit conversion helpers ──
+// â”€â”€ Timeline unit conversion helpers â”€â”€
 const unitToDays = (value, unit) => {
   const n = Number(value) || 0;
   if (unit === "Months") return n * 30;
@@ -57,7 +58,7 @@ export function PostProject() {
     specialization: "",
     title: "",
     description: "",
-    budget: 0,          // number — no $, no commas
+    budget: 0,          // number - no $, no commas
     durationValue: 1,   // number
     durationUnit: "Days", // "Days" | "Months" | "Years"
   });
@@ -123,7 +124,7 @@ export function PostProject() {
     }
   }, []);
 
-  // ── Auto-sync timeline with total use case duration ──
+  // â”€â”€ Auto-sync timeline with total use case duration â”€â”€
   const totalUseCaseDays = useMemo(() => {
     return useCases.reduce((sum, uc) => sum + (Number(uc.originalDurationDays) || 0), 0);
   }, [useCases]);
@@ -400,6 +401,9 @@ export function PostProject() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <BackButton fallback="/client/dashboard" className="mb-4">
+        Back to Dashboard
+      </BackButton>
       <PageHeader
         title="Post a New AI Project"
         subtitle="Define your user stories, timeline, and budget before matching with an expert."
@@ -801,7 +805,7 @@ export function PostProject() {
                     className="bg-card border border-border rounded-xl p-4 hover:border-input transition-all shadow-sm flex flex-col justify-between"
                   >
                     <div>
-                      {/* ── Top: name + rating badge ── */}
+                      {/* â”€â”€ Top: name + rating badge â”€â”€ */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <h3 className="font-semibold text-foreground text-sm leading-snug truncate">
                           {expert.name}
@@ -812,20 +816,20 @@ export function PostProject() {
                         </span>
                       </div>
 
-                      {/* ── Title + location ── */}
+                      {/* â”€â”€ Title + location â”€â”€ */}
                       <p className="text-[11px] text-muted-foreground mb-2 truncate">
                         {expert.title}
-                        {expert.location ? ` · ${expert.location}` : ""}
+                        {expert.location ? ` - ${expert.location}` : ""}
                       </p>
 
-                      {/* ── Bio ── */}
+                      {/* â”€â”€ Bio â”€â”€ */}
                       {expert.bio && (
                         <p className="text-sm text-muted-foreground mb-2.5 line-clamp-2 leading-relaxed">
                           {expert.bio}
                         </p>
                       )}
 
-                      {/* ── Skill tags ── */}
+                      {/* â”€â”€ Skill tags â”€â”€ */}
                       {expert.skills?.length > 0 && (
                         <div className="mb-2">
                           <SkillTags
@@ -835,7 +839,7 @@ export function PostProject() {
                         </div>
                       )}
 
-                      {/* ── Stats ── */}
+                      {/* â”€â”€ Stats â”€â”€ */}
                       <div className="flex items-center gap-2 mb-3 text-[11px]">
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
@@ -843,7 +847,7 @@ export function PostProject() {
                           </span>{" "}
                           projects
                         </span>
-                        <span className="text-muted-foreground/60">·</span>
+                        <span className="text-muted-foreground/60">-</span>
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
                             {expert.hourlyRate}
@@ -853,7 +857,7 @@ export function PostProject() {
                       </div>
                     </div>
 
-                    {/* ── Action ── */}
+                    {/* â”€â”€ Action â”€â”€ */}
                     <button
                       type="button"
                       onClick={() => setSelectedRecommendExpert(expert)}

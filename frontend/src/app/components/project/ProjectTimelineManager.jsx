@@ -17,7 +17,7 @@ import { ActivityLogPanel } from "./timeline/ActivityLogPanel.jsx";
 import { TaskCard } from "./timeline/TaskCard.jsx";
 
 // =============================================================================
-// ProjectTimelineManager â€” main container for project timeline view.
+// ProjectTimelineManager - main container for project timeline view.
 //
 // State, effects, derived values, and action handlers live in the
 // useProjectTimeline hook.  Rendering delegates to extracted sub-components:
@@ -173,7 +173,7 @@ export function ProjectTimelineManager({ role, projectId }) {
             </div>
           </div>
 
-          {/* Expert action buttons â€” right side */}
+          {/* Expert action buttons - right side */}
           {role === "expert" && (
             <div className="flex flex-row xl:flex-col gap-3 xl:flex-shrink-0">
               <Button
@@ -198,7 +198,7 @@ export function ProjectTimelineManager({ role, projectId }) {
           )}
         </div>
 
-        {/* Extension request panel â€” extracted component */}
+        {/* Extension request panel - extracted component */}
         <ExtensionRequestPanel
           role={role}
           extensionRequest={project?.extensionRequest}
@@ -237,7 +237,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         </div>
       </div>
 
-      {/* Task list â€” uses extracted TaskCard component */}
+      {/* Task list - uses extracted TaskCard component */}
       <div className="space-y-4 relative pl-4 border-l-2 border-border ml-2"
         style={{ borderImage: 'linear-gradient(to bottom, var(--accent), var(--border), var(--border)) 1' }}
       >
@@ -281,7 +281,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         })}
       </div>
 
-      {/* Activity log â€” extracted component */}
+      {/* Activity log - extracted component */}
       <ActivityLogPanel projectLogs={projectLogs} />
     </div>
   );

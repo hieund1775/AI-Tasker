@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon, AlertCircle } from "lucide-react";
 
-// ── Default accepted file types ──
+// â”€â”€ Default accepted file types â”€â”€
 const DEFAULT_ACCEPT_MIME = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -16,7 +16,7 @@ const DEFAULT_ACCEPT_MIME = [
 
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
-// ── Type icon helpers ──
+// â”€â”€ Type icon helpers â”€â”€
 function getFileIcon(file) {
   if (!file) return FileText;
   const type = file.type || "";
@@ -58,18 +58,18 @@ function formatFileSize(bytes) {
 }
 
 /**
- * FileUploadDropzone — Reusable drag & drop + browse file upload.
+ * FileUploadDropzone - Reusable drag & drop + browse file upload.
  *
  * Props:
- *   files       — array of File objects currently selected
- *   onFilesChange — callback(File[]) when files are added or removed
- *   disabled    — disable all interactions
- *   multiple    — allow multiple files (default true)
- *   accept      — accepted MIME types / extensions (default: PDF, DOCX, TXT, images, ZIP)
- *   maxFiles    — optional cap on total files
- *   error       — optional error message string (displays red border + text)
- *   label       — optional section label above the dropzone
- *   helperText  — optional description below the dropzone
+ *   files       - array of File objects currently selected
+ *   onFilesChange - callback(File[]) when files are added or removed
+ *   disabled    - disable all interactions
+ *   multiple    - allow multiple files (default true)
+ *   accept      - accepted MIME types / extensions (default: PDF, DOCX, TXT, images, ZIP)
+ *   maxFiles    - optional cap on total files
+ *   error       - optional error message string (displays red border + text)
+ *   label       - optional section label above the dropzone
+ *   helperText  - optional description below the dropzone
  */
 export function FileUploadDropzone({
   files = [],
@@ -97,7 +97,7 @@ export function FileUploadDropzone({
   const canAddMore =
     !maxFiles || files.length < maxFiles;
 
-  // ── Drag handlers ──
+  // â”€â”€ Drag handlers â”€â”€
   const handleDragEnter = useCallback(
     (e) => {
       e.preventDefault();
@@ -145,7 +145,7 @@ export function FileUploadDropzone({
     [disabled, canAddMore, files, multiple, maxFiles, onFilesChange],
   );
 
-  // ── Browse ──
+  // â”€â”€ Browse â”€â”€
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -168,7 +168,7 @@ export function FileUploadDropzone({
     [files, multiple, maxFiles, onFilesChange],
   );
 
-  // ── Remove ──
+  // â”€â”€ Remove â”€â”€
   const removeFile = useCallback(
     (index) => {
       onFilesChange(files.filter((_, i) => i !== index));
@@ -176,7 +176,7 @@ export function FileUploadDropzone({
     [files, onFilesChange],
   );
 
-  // ── Render ──
+  // â”€â”€ Render â”€â”€
   const FileIcon = ({ file }) => {
     const Icon = getFileIcon(file);
     return <Icon className={`w-4 h-4 flex-shrink-0 ${getFileColor(file)}`} />;
@@ -202,7 +202,7 @@ export function FileUploadDropzone({
         disabled={disabled || !canAddMore}
       />
 
-      {/* Drop zone — hidden when file exists and maxFiles === 1 or !canAddMore */}
+      {/* Drop zone - hidden when file exists and maxFiles === 1 or !canAddMore */}
       {(files.length === 0 || (canAddMore && maxFiles !== 1)) && (
         <div
           onDragEnter={handleDragEnter}

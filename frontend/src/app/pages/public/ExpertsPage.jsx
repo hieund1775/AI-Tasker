@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, ArrowRight } from "lucide-react";
 import api from "../../../services/api.js";
 
 /**
- * ExpertsPage — public expert discovery/browsing page.
+ * ExpertsPage - public expert discovery/browsing page.
  * Note: ExpertList (pages/client/) is the client-facing expert list.
  * ExpertsPage is a public-facing variant without client-specific actions.
  */

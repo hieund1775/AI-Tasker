@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Clock,
@@ -14,6 +14,7 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import api, { enrichFileUrl } from "../../../services/api.js";
@@ -159,7 +160,10 @@ export function JobDetail() {
   if (error || !job) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader title="Job Details" subtitle="—" divider={false} />
+        <BackButton fallback="/expert/find-jobs" className="mb-4">
+          Back to Jobs
+        </BackButton>
+        <PageHeader title="Job Details" subtitle="-" divider={false} className="mb-6" />
         <div className="bg-card rounded-2xl border border-destructive/20 p-12 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-destructive mb-2">{error || "Job not found"}</h3>
           <p className="text-sm text-muted-foreground">This job may have been removed or is no longer available.</p>
@@ -207,9 +211,12 @@ export function JobDetail() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <BackButton fallback="/expert/find-jobs" className="mb-4">
+        Back to Jobs
+      </BackButton>
       <PageHeader
         title={job.title}
-        subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` · ${job.client.company}` : ""}`}
+        subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` - ${job.client.company}` : ""}`}
         badge={
           <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary capitalize">
             {job.status || "Open"}
@@ -291,12 +298,12 @@ export function JobDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
-              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "—"}</p>
+              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "-"}</p>
             </div>
             {(job.specialization || job.specializationName) && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Specialization</p>
-                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "—"}</p>
+                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "-"}</p>
               </div>
             )}
           </div>
@@ -407,7 +414,7 @@ export function JobDetail() {
             </div>
             <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
-              <p className="font-semibold text-foreground text-sm">{deadlineText || "—"}</p>
+              <p className="font-semibold text-foreground text-sm">{deadlineText || "-"}</p>
             </div>
             <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Posted</p>

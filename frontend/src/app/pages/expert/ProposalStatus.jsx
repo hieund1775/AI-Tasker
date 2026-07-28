@@ -16,7 +16,7 @@ import api from "../../../services/api.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeDateFormat } from "../../lib/safety.js";
 
-// Status helpers â€” delegated to shared proposalStatusConfig.js
+// Status helpers - delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
 /**
@@ -60,7 +60,7 @@ function getProposalDeadlineText(proposal) {
       }, `${deadlineDays} days`);
     }
   }
-  return `${deadlineDays || "â€”"} days`;
+  return `${deadlineDays || "-"} days`;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,14 +166,12 @@ export function ProposalStatus() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <PageHeader
-          title="My Proposals"
-          subtitle="Track your submitted proposals and their status"
-          className="mb-0"
-        />
-        {proposals.length > 0 && (
-          <div className="flex items-center gap-2">
+      <PageHeader
+        title="My Proposals"
+        subtitle="Track your submitted proposals and their status"
+        className="mb-6"
+        actions={proposals.length > 0 ? (
+          <div className="page-filter-controls">
             <span className="text-sm font-semibold text-muted-foreground">Status:</span>
             <select
               value={statusFilter}
@@ -187,8 +185,8 @@ export function ProposalStatus() {
               ))}
             </select>
           </div>
-        )}
-      </div>
+        ) : null}
+      />
 
       {/* Empty state */}
       {proposals.length === 0 ? (
@@ -263,7 +261,7 @@ export function ProposalStatus() {
 
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
                         <span className="text-muted-foreground">
-                          Client: <span className="font-medium text-foreground">{proposal.clientName}{proposal.clientCompany ? ` Â· ${proposal.clientCompany}` : ""}</span>
+                          Client: <span className="font-medium text-foreground">{proposal.clientName}{proposal.clientCompany ? ` - ${proposal.clientCompany}` : ""}</span>
                         </span>
                         <span className="text-muted-foreground">
                           Bid: <span className="font-semibold text-success"><MoneyDisplay amount={proposal.bidAmount} /></span>
@@ -274,7 +272,7 @@ export function ProposalStatus() {
                       </div>
 
                       <p className="text-xs text-muted-foreground mt-2">
-                        Submitted {safeDateFormat(proposal.createdAt, { year: "numeric", month: "long", day: "numeric" }, "â€”")}
+                        Submitted {safeDateFormat(proposal.createdAt, { year: "numeric", month: "long", day: "numeric" }, "-")}
                       </p>
                     </div>
 

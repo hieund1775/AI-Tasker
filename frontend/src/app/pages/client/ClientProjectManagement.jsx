@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
@@ -31,7 +31,7 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 // =============================================================================
-// ClientProjectManagement — client-side project progress management page.
+// ClientProjectManagement - client-side project progress management page.
 // Route: /client/projects/:id
 // =============================================================================
 
@@ -92,7 +92,7 @@ export default function ClientProjectDetail() {
 
   const [showRejectedBanner, setShowRejectedBanner] = useState(true);
 
-  // ── Review & Evaluation states ──
+  // Review & Evaluation states
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
@@ -233,7 +233,7 @@ export default function ClientProjectDetail() {
     return rawStatus === "completed" || rawStatus === "done";
   });
 
-  // ── Cancel Contract availability ──
+  // Cancel Contract availability
   // Block ONLY when project is fully 100% completed and done (all tasks approved + status completed).
   // Always show for other states (including disputed, awaiting, etc.)
   const normalizedStatus = String(project?.status || "").toLowerCase();
@@ -584,7 +584,7 @@ export default function ClientProjectDetail() {
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
 
-      // KEEP cancel_attempt_count — do not reset to preserve escalation eligibility
+      // KEEP cancel_attempt_count - do not reset to preserve escalation eligibility
       // if Client cancels again after being declined, it enters Binding Dispute immediately.
       // Only clear count when the contract is actually terminated (partner accepts cancellation).
 
@@ -617,7 +617,7 @@ export default function ClientProjectDetail() {
       });
 
       if (newCount >= 1) {
-        toast.success("⚠️ Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
+        toast.success("Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
       } else {
         toast.success("Responded and submitted a new cancellation request to Admin.");
       }
@@ -862,8 +862,8 @@ export default function ClientProjectDetail() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{prog}%</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
                         <div className="flex justify-between font-semibold"><span className="text-foreground">You receive (Refund):</span><span className="text-success"><MoneyDisplay amount={clientRefund} /></span></div>
                         <div className="flex justify-between font-semibold"><span className="text-foreground">Payment to Expert:</span><span className="text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
@@ -994,7 +994,7 @@ export default function ClientProjectDetail() {
           <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" allTasksApproved={allTasksApproved} />
         </AnimatedReveal>
 
-        {/* ── Evaluation / Review Section ── */}
+        {/* Evaluation / Review Section */}
         {project?.status === "completed" && !isReviewDismissed && (
           <AnimatedReveal>
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6 relative text-left space-y-4 mb-6 mt-6">
@@ -1024,7 +1024,7 @@ export default function ClientProjectDetail() {
                   {originalReview && (
                     <div className="space-y-2 border-b border-border/40 pb-3 text-left">
                       <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-lg font-medium">
-                        <span>✓ Original Review</span>
+                        <span>Done Original Review</span>
                         <div className="flex items-center gap-0.5 ml-2">
                           {Array.from({ length: 5 }, (_, i) => (
                             <Star
@@ -1038,7 +1038,7 @@ export default function ClientProjectDetail() {
                       </div>
                       {originalReview.comment && (
                         <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-warning/70 font-semibold select-none leading-none">“</span>
+                          <span className="absolute left-2 text-sm text-warning/70 font-semibold select-none leading-none">"</span>
                           {originalReview.comment}
                         </div>
                       )}
@@ -1063,7 +1063,7 @@ export default function ClientProjectDetail() {
                   {editedReview && (
                     <div className="space-y-2 pt-3 border-t border-border/40 text-left">
                       <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-lg font-medium">
-                        <span>✓ Edited Review</span>
+                        <span>Done Edited Review</span>
                         <div className="flex items-center gap-0.5 ml-2">
                           {Array.from({ length: 5 }, (_, i) => (
                             <Star
@@ -1077,7 +1077,7 @@ export default function ClientProjectDetail() {
                       </div>
                       {editedReview.comment && (
                         <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">“</span>
+                          <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">"</span>
                           {editedReview.comment}
                         </div>
                       )}
@@ -1244,7 +1244,7 @@ export default function ClientProjectDetail() {
                 <>
                   {cancelLocked && (
                     <span className="h-10 px-4 border border-input text-muted-foreground bg-secondary rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                      🔒 Cancel Locked
+                      Cancel Locked
                     </span>
                   )}
 
@@ -1270,7 +1270,7 @@ export default function ClientProjectDetail() {
               )}
               {allTasksApproved && (
                 <>
-                  {/* View Final Work Button — always visible once final product submitted or accepted */}
+                  {/* View Final Work Button - always visible once final product submitted or accepted */}
                   {(project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" || project.status === "completed" || project.status === "payment_released") && (
                     <button
                       type="button"
@@ -1281,7 +1281,7 @@ export default function ClientProjectDetail() {
                     </button>
                   )}
 
-                  {/* Declined state — waiting resubmit */}
+                  {/* Declined state - waiting resubmit */}
                   {project.finalDeliveryStatus === "Declined" && project.status !== "completed" && (
                     <button
                       disabled
@@ -1301,7 +1301,7 @@ export default function ClientProjectDetail() {
                     </button>
                   )}
 
-                  {/* Release Payment Button — only before completed */}
+                  {/* Release Payment Button - only before completed */}
                   {project.status !== "completed" && project.status !== "payment_released" && (
                     project.finalDeliveryStatus === "Accepted" && !isLocked ? (
                       <button
@@ -1564,7 +1564,7 @@ export default function ClientProjectDetail() {
                         }}
                         className="px-5 py-2 bg-success hover:bg-success/85 text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                       >
-                        ✓ Accept Final Deliverables
+                        Done Accept Final Deliverables
                       </button>
                     </>
                   ) : (
@@ -1652,8 +1652,8 @@ export default function ClientProjectDetail() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Total Escrow:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                   <div className="border-t border-border my-2" />
                   <div className="flex justify-between text-base"><span className="font-semibold text-foreground">Payment to Expert:</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
                   <div className="flex justify-between text-base"><span className="font-semibold text-foreground">You receive (minus 15% fee):</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefund} /></span></div>
@@ -1818,7 +1818,7 @@ function DeliveryPaymentStepper({ project, overallProgress, role, allTasksApprov
                     : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
               <span
                 className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"

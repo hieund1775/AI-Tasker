@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   CheckCircle,
@@ -17,7 +17,7 @@ import api from "../../../services/api.js";
 import { toast } from "sonner";
 
 /**
- * ExpertContractView — Expert views a contract in read-only mode.
+ * ExpertContractView - Expert views a contract in read-only mode.
  * Can Accept or Reject the contract.
  *
  * Route: /expert/contracts/:contractId
@@ -232,7 +232,7 @@ export function ExpertContractView() {
           </div>
         </div>
 
-        {/* Contract Content — Read Only */}
+        {/* Contract Content - Read Only */}
         <div className="p-8 space-y-8">
           {/* Project Information */}
           <section>
@@ -243,7 +243,7 @@ export function ExpertContractView() {
               <div className="bg-secondary rounded-xl p-4">
                 <p className="text-xs text-muted-foreground mb-1">Project Name</p>
                 <p className="font-semibold text-foreground">
-                  {contract.projectTitle || project?.title || "—"}
+                  {contract.projectTitle || project?.title || "-"}
                 </p>
               </div>
               <div className="bg-secondary rounded-xl p-4">
@@ -344,7 +344,7 @@ export function ExpertContractView() {
           )}
         </div>
 
-        {/* Footer — Accept / Reject */}
+        {/* Footer - Accept / Reject */}
         {hasAction && (
           <div className="p-8 border-t border-border-light bg-secondary/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -376,7 +376,7 @@ export function ExpertContractView() {
           </div>
         )}
 
-        {/* Already acted — status message */}
+        {/* Already acted - status message */}
         {!hasAction && (
           <div className="p-8 border-t border-border-light bg-secondary/50">
             <div className="flex items-center gap-3">

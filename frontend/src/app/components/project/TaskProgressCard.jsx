@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+﻿import { useNavigate } from "react-router";
 import {
   CheckCircle2,
   Clock3,
@@ -77,16 +77,16 @@ import { notifyTaskRevisionRequested, notifyTaskApproved, notifyUrgentSubmission
 import { getTaskDeadlineInfo, isTaskOverdue, requestExtension, getExtensionRequest, clearExtensionRequest, extendAllDeadlines, storeExtensionApproval } from "../../lib/taskDeadlineUtils.js";
 
 // =============================================================================
-// TaskProgressCard — individual task/milestone card within the project progress view.
+// TaskProgressCard - individual task/milestone card within the project progress view.
 //
 // Displays high-level summary only (title, status, description, deadline, progress).
 // Mini tasks are shown exclusively in the TaskDetailPage via "View Details".
 //
 // Props:
-//   task              — task object with derived progress and status fields
-//   role              — "client" | "expert"
-//   projectId         — parent project ID (for navigation)
-//   loading           — boolean
+//   task              - task object with derived progress and status fields
+//   role              - "client" | "expert"
+//   projectId         - parent project ID (for navigation)
+//   loading           - boolean
 // =============================================================================
 
 export function TaskProgressCard({
@@ -367,15 +367,15 @@ export function TaskProgressCard({
 
 
             <div className="flex items-center gap-2">
-              {/* Expert: Evidence submitted → Checklist Completed static */}
+              {/* Expert: Evidence submitted -> Checklist Completed static */}
               {isChecklistCompleted && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-warning-light border border-warning/20 rounded-lg text-xs font-medium text-warning">
                   <CheckCircle2 className="w-4 h-4" />
-                  Evidence Submitted ✓
+                  Evidence Submitted Done
                 </div>
               )}
 
-              {/* Expert: Product requested → Submit Product */}
+              {/* Expert: Product requested -> Submit Product */}
               {productRequested && !isWaitingForApproval && !isDone && (
                 <Button
                   variant="default"
@@ -390,7 +390,7 @@ export function TaskProgressCard({
                 </Button>
               )}
 
-              {/* Expert: Rework → Resubmit Product */}
+              {/* Expert: Rework -> Resubmit Product */}
               {isRework && (
                 <Button
                   variant="default"
@@ -405,7 +405,7 @@ export function TaskProgressCard({
                 </Button>
               )}
 
-              {/* Expert: Waiting for Approval → static */}
+              {/* Expert: Waiting for Approval -> static */}
               {isWaitingForApproval && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-warning-light border border-warning/30 rounded-lg text-xs font-medium text-warning">
                   <Clock3 className="w-4 h-4" />
@@ -413,7 +413,7 @@ export function TaskProgressCard({
                 </div>
               )}
 
-              {/* Expert: Done → completed */}
+              {/* Expert: Done -> completed */}
               {isDone && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-success-light border border-success/20 rounded-lg text-xs font-medium text-success">
                   <CheckCircle2 className="w-4 h-4" />
@@ -424,7 +424,7 @@ export function TaskProgressCard({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Client: Checklist Completed or Pending Approval without product → Quick Accept + Request Product */}
+            {/* Client: Checklist Completed or Pending Approval without product -> Quick Accept + Request Product */}
             {(isChecklistCompleted || (isWaitingForApproval && !hasMainProduct)) && !productRequested && (
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -446,7 +446,7 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Checklist Completed & product requested → waiting */}
+            {/* Client: Checklist Completed & product requested -> waiting */}
             {isChecklistCompleted && productRequested && (
               <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
                 <Clock3 className="w-4 h-4 text-warning animate-pulse" />
@@ -454,7 +454,7 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Waiting for Expert Product → static message */}
+            {/* Client: Waiting for Expert Product -> static message */}
             {isWaitingForExpertProduct && (
               <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
                 <Clock3 className="w-4 h-4 text-warning animate-pulse" />
@@ -462,7 +462,7 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Waiting For Approval WITH deliverables → View Product */}
+            {/* Client: Waiting For Approval WITH deliverables -> View Product */}
             {isWaitingForApproval && hasMainProduct && (
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -476,7 +476,7 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Rework → static wait message */}
+            {/* Client: Rework -> static wait message */}
             {isRework && (
               <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
                 <RotateCcw className="w-4 h-4 text-warning" />
@@ -484,7 +484,7 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Done → completed */}
+            {/* Client: Done -> completed */}
             {isDone && (
               <div className="flex items-center justify-end p-3 bg-success-light border border-success/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
                 <CheckCircle2 className="w-4 h-4 text-success" />

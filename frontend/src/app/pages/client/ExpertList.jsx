@@ -1,12 +1,13 @@
 ﻿import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, SlidersHorizontal, X } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { Button } from "../../components/ui/button.jsx";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
-// Checkbox group â€” reusable inner component
+// Checkbox group - reusable inner component
 // ---------------------------------------------------------------------------
 
 function CheckboxGroup({ title, options, selected, onToggle }) {
@@ -321,13 +322,13 @@ export function ExpertList() {
       if (!e.skills.some((s) => selectedTech.has(s))) return false;
     }
 
-    // Rating filter (OR within group â€” highest selected tier wins)
+    // Rating filter (OR within group - highest selected tier wins)
     if (selectedRatings.size > 0) {
       const minRequired = Math.min(...[...selectedRatings].map(Number));
       if (e.rating < minRequired) return false;
     }
 
-    // Experience filter (OR within group â€” highest selected tier wins)
+    // Experience filter (OR within group - highest selected tier wins)
     if (selectedExperience.size > 0) {
       const minRequired = Math.min(...[...selectedExperience].map(Number));
       if (e.completedProjects < minRequired) return false;
@@ -344,42 +345,45 @@ export function ExpertList() {
   // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-foreground mb-2">Recommended Experts</h1>
-        <p className="text-muted-foreground">Browse and connect with skilled AI professionals</p>
-      </div>
+      <PageHeader
+        title="Recommended Experts"
+        subtitle="Browse and connect with skilled AI professionals"
+        className="mb-6"
+      />
 
       {/* Search + Filter toggle */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground/50" />
+      <div className="page-filter-toolbar">
+        <div className="page-filter-search">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
           <input
             type="text"
             placeholder="Search by name or specialization..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring bg-input-background"
+            className="h-10 w-full rounded-xl border border-input bg-input-background pl-10 pr-4 text-sm focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/50"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          className={`px-4 py-2.5 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${showFilters || hasActiveFilters
+        <div className="page-filter-controls">
+          <button
+            type="button"
+            onClick={() => setShowFilters(!showFilters)}
+            className={`h-10 px-4 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-colors ${showFilters || hasActiveFilters
               ? "border-primary bg-primary-light text-primary"
               : "border-border text-foreground hover:bg-secondary"
             }`}
-        >
-          <SlidersHorizontal className="w-4 h-4" />
-          Filters
-          {hasActiveFilters && (
-            <span className="w-2 h-2 bg-primary rounded-full" />
-          )}
-        </button>
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            Filters
+            {hasActiveFilters && (
+              <span className="w-2 h-2 bg-primary rounded-full" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Active filter chips */}
       {hasActiveFilters && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="page-filter-chips">
           {[...selectedCategories].map((v) => (
             <span key={v} className="px-3 py-1 bg-success-light text-success rounded-full text-xs font-medium inline-flex items-center gap-1">
               {v}
@@ -400,7 +404,7 @@ export function ExpertList() {
           ))}
           {[...selectedRatings].map((v) => (
             <span key={v} className="px-3 py-1 bg-warning-light text-warning rounded-full text-xs font-medium inline-flex items-center gap-1">
-              â˜… {v}+
+              Star {v}+
               <button onClick={() => toggleFilter(setSelectedRatings)(v)}><X className="w-3 h-3" /></button>
             </span>
           ))}
@@ -420,9 +424,9 @@ export function ExpertList() {
         </div>
       )}
 
-      {/* Filter panel â€” checkbox groups */}
+      {/* Filter panel - checkbox groups */}
       {showFilters && (
-        <div className="bg-card rounded-xl border border-border p-6 mb-6 shadow-sm">
+        <div className="page-filter-panel">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             <CheckboxGroup
               title="Select A category"
@@ -511,7 +515,7 @@ export function ExpertList() {
                   {expert.title}
                   {expert.location ? (
                     <>
-                      {" Â· "}
+                      {" - "}
                       <span className="font-medium text-foreground/70">
                         {expert.location}
                       </span>
@@ -544,7 +548,7 @@ export function ExpertList() {
                     </span>{" "}
                     completed projects
                   </span>
-                  <span className="text-muted-foreground/60">Â·</span>
+                  <span className="text-muted-foreground/60">-</span>
                   <span className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
                       {expert.hourlyRate}

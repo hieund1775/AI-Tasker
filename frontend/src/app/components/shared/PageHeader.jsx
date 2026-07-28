@@ -1,15 +1,15 @@
-// =============================================================================
-// PageHeader — consistent page header for all dashboard/detail pages.
+﻿// =============================================================================
+// PageHeader - consistent page header for all dashboard/detail pages.
 //
 // Props:
-//   title        — page title (string or ReactNode)
-//   subtitle     — short description below title
-//   badge        — optional badge element (StatusBadge, etc.)
-//   actions      — optional action area (buttons, links) — right-aligned on desktop
-//   illustration — optional decorative element (SVG, icon group, etc.)
-//   className    — additional classes for the outer wrapper
-//   compact      — reduce padding for dense layouts
-//   divider      — show a gradient divider below header (default true)
+//   title        - page title (string or ReactNode)
+//   subtitle     - short description below title
+//   badge        - optional badge element (StatusBadge, etc.)
+//   actions      - optional action area (buttons, links) - right-aligned on desktop
+//   illustration - optional decorative element (SVG, icon group, etc.)
+//   className    - additional classes for the outer wrapper
+//   compact      - reduce padding for dense layouts
+//   divider      - show a gradient divider below header (default true)
 // =============================================================================
 
 import { cn } from "../../lib/utils.js";

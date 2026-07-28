@@ -1,7 +1,7 @@
-import { formatCurrency } from "../../lib/formatCurrency.js";
+﻿import { formatCurrency } from "../../lib/formatCurrency.js";
 
 /**
- * MoneyDisplay — renders a formatted currency value for display only.
+ * MoneyDisplay - renders a formatted currency value for display only.
  *
  * NEVER use this inside a form input. Form state must store raw numbers.
  * This component is for displaying money in cards, tables, summaries, etc.
@@ -17,7 +17,7 @@ export function MoneyDisplay({ amount, currency = "USD", locale, className = "" 
         </span>
       );
     }
-    return <span className={`text-muted-foreground/50 italic ${className}`}>—</span>;
+    return <span className={`text-muted-foreground/50 italic ${className}`}>-</span>;
   }
 
   return <span className={className}>{formatted}</span>;

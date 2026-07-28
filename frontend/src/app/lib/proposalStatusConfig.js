@@ -1,5 +1,5 @@
-// =============================================================================
-// Proposal Status Configuration — single source of truth for proposal statuses.
+﻿// =============================================================================
+// Proposal Status Configuration - single source of truth for proposal statuses.
 //
 // Import from this file instead of defining local STATUS_CONFIG objects.
 // =============================================================================

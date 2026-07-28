@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
@@ -136,12 +137,16 @@ export function EditClientProfile() {
   // ---- Render ----
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-semibold text-foreground">Edit Profile</h1>
-      </div>
+      <PageHeader
+        title="Edit Profile"
+        subtitle="Update your client profile information."
+        className="mb-6"
+        actions={(
+          <Link to="/client/profile" className="text-muted-foreground hover:text-foreground" aria-label="Back to profile">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        )}
+      />
 
       <form
         onSubmit={handleSubmit}

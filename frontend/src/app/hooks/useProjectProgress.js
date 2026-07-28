@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+﻿import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "../../services/api.js";
 import { toast } from "sonner";
@@ -118,14 +118,14 @@ export function useProjectProgress(projectId, role) {
         return rawStatus === "completed" || rawStatus === "done";
       });
 
-      // Check localStorage override FIRST — this takes highest priority
+      // Check localStorage override FIRST - this takes highest priority
       const localStatusRaw = localStorage.getItem(`project_status_${projectId}`);
       const localStatusLower = localStatusRaw ? localStatusRaw.toLowerCase() : null;
 
       // Terminal cancelled states that should NEVER be overridden by backend "Completed"
       const cancelledTerminals = new Set(["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"]);
 
-      // If localStorage says cancelled — trust it unconditionally regardless of backend status
+      // If localStorage says cancelled - trust it unconditionally regardless of backend status
       if (localStatusLower && cancelledTerminals.has(localStatusLower)) {
         proj.status = localStatusLower;
       } else {
@@ -318,7 +318,7 @@ export function useProjectProgress(projectId, role) {
     setTasks(updatedTasks);
 
     try {
-      // 2. Background API Call — preserve existing title, productLink, and productFile
+      // 2. Background API Call - preserve existing title, productLink, and productFile
       await api.projects.updateMiniTask(miniTaskId, {
         title: miniTask.title || "",
         productLink: miniTask.productLink || null,

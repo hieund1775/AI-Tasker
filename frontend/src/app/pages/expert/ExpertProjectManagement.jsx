@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info, Paperclip, Download } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
@@ -27,7 +27,7 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 // =============================================================================
-// ExpertProjectManagement — expert-side project progress management page.
+// ExpertProjectManagement - expert-side project progress management page.
 // Route: /expert/projects/:id
 // =============================================================================
 
@@ -379,7 +379,7 @@ export default function ExpertProjectDetail() {
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
 
-      // KEEP cancel_attempt_count — do not reset to preserve escalation eligibility
+      // KEEP cancel_attempt_count - do not reset to preserve escalation eligibility
       // if Expert cancels again after being declined, it enters Binding Dispute immediately.
       // Only clear count when the contract is actually terminated (partner accepts cancellation).
 
@@ -410,7 +410,7 @@ export default function ExpertProjectDetail() {
           reason: `[ESCALATED BINDING DISPUTE] ${cancelReason}`,
           evidenceFileName: evidenceFileName || "",
         });
-        toast.success("⚠️ Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
+        toast.success("Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
       } else {
         await api.put(`/reports/${report.id}/initiator-respond-rejection`, {
           reason: cancelReason,
@@ -697,8 +697,8 @@ export default function ExpertProjectDetail() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{prog}%</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
                         <div className="flex justify-between font-semibold"><span className="text-foreground">You receive (Payout):</span><span className="text-success"><MoneyDisplay amount={expertPayout} /></span></div>
                         <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-warning"><MoneyDisplay amount={clientRefund} /></span></div>
@@ -806,7 +806,7 @@ export default function ExpertProjectDetail() {
                 <>
                   {cancelLocked && (
                     <span className="h-10 px-4 border border-input text-muted-foreground bg-secondary rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                      🔒 Cancel Locked
+                      Cancel Locked
                     </span>
                   )}
 
@@ -862,11 +862,11 @@ export default function ExpertProjectDetail() {
                   <p className="text-sm text-foreground/80">
                     {project.status === "completed" ? (
                       <span className="text-success font-semibold flex items-center gap-1.5">
-                        ✓ Project completed. Payment has been released.
+                        Done Project completed. Payment has been released.
                       </span>
                     ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
                       <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                        ✓ Submitted. Waiting for Client review.
+                        Done Submitted. Waiting for Client review.
                       </span>
                     ) : (
                       <span className="text-muted-foreground">
@@ -952,7 +952,7 @@ export default function ExpertProjectDetail() {
                     disabled
                     className="h-10 px-6 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
                   >
-                    ✓ Completed
+                    Done Completed
                   </button>
                 ) : project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
                   <button
@@ -967,7 +967,7 @@ export default function ExpertProjectDetail() {
                     disabled
                     className="h-10 px-6 bg-muted text-muted-foreground border border-input rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
                   >
-                    ✓ Submitted
+                    Done Submitted
                   </button>
                 )}
               </div>
@@ -975,7 +975,7 @@ export default function ExpertProjectDetail() {
           </AnimatedReveal>
         )}
 
-        {/* Project progress panel — expert can toggle mini tasks */}
+        {/* Project progress panel - expert can toggle mini tasks */}
         <AnimatedReveal delay={3}>
           <ProjectProgressPanel
             tasks={tasks}
@@ -1156,7 +1156,7 @@ export default function ExpertProjectDetail() {
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract (Expert)"}
                   </h3>
                   <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-warning/80" : "text-muted-foreground"}`}>
-                    {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract — 5% platform fee + 10% penalty will be applied"}
+                    {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract - 5% platform fee + 10% penalty will be applied"}
                   </p>
                 </div>
               </div>
@@ -1167,8 +1167,8 @@ export default function ExpertProjectDetail() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Total Escrow:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                   <div className="border-t border-border my-2" />
                   <div className="flex justify-between text-base"><span className="font-semibold text-foreground">You receive (Payout):</span><span className={`font-semibold ${expertPayout >= 0 ? 'text-success' : 'text-destructive'}`}><MoneyDisplay amount={expertPayout} /></span></div>
                   <div className="flex justify-between text-base"><span className="font-semibold text-foreground">Refund to Client:</span><span className="font-semibold text-warning"><MoneyDisplay amount={clientRefund} /></span></div>
@@ -1313,7 +1313,7 @@ function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved }) {
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-success text-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
               <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
                 {step.label}

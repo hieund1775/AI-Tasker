@@ -1,5 +1,5 @@
-// =============================================================================
-// ReportForm — dispute report submission form for Expert.
+﻿// =============================================================================
+// ReportForm - dispute report submission form for Expert.
 //
 // Automatically pulls data from the associated project:
 //   - Report name (defaults to project name)
@@ -107,7 +107,7 @@ export function ReportForm({
       try {
         await onSubmit?.({
           projectId: project?.projectId || project?.id,
-          reportName: projectTitle !== "—" ? projectTitle : (project?.title || ""),
+          reportName: projectTitle !== "-" ? projectTitle : (project?.title || ""),
           reason,
           description,
           disputeType,
@@ -149,11 +149,11 @@ export function ReportForm({
 
   // Pre-calculate display deadline and start date
   const rawStartDate = project.startDate || project.StartDate || project.createdAt || project.CreatedAt;
-  const displayStartDate = rawStartDate ? formatDateTime(rawStartDate) : "—";
+  const displayStartDate = rawStartDate ? formatDateTime(rawStartDate) : "-";
 
   const displayDeadline = (() => {
     const rawDeadline = project.endDate || project.EndDate || project.deadline || project.Deadline;
-    if (!rawDeadline) return "—";
+    if (!rawDeadline) return "-";
     const num = Number(rawDeadline);
     if (!Number.isNaN(num) && num < 1000) {
       const d = new Date(rawStartDate || new Date());
@@ -168,14 +168,14 @@ export function ReportForm({
     clientUser?.name ||
     project.clientName ||
     (typeof project.client === "string" ? project.client : project.client?.fullName || project.client?.name) ||
-    "—";
+    "-";
 
   const expertName =
     expertUser?.fullName ||
     expertUser?.name ||
     project.expertName ||
     (typeof project.expert === "string" ? project.expert : project.expert?.fullName || project.expert?.name) ||
-    "—";
+    "-";
 
   const projectTitle =
     project.title ||
@@ -188,7 +188,7 @@ export function ReportForm({
     project.Name ||
     project.reportName ||
     project.ReportName ||
-    "—";
+    "-";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -205,7 +205,7 @@ export function ReportForm({
             label="Funds in Escrow"
             value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
           />
-          <InfoRow label="Status" value={project.status || "—"} />
+          <InfoRow label="Status" value={project.status || "-"} />
           <InfoRow label="Start Date" value={displayStartDate} />
           <InfoRow label="Deadline" value={displayDeadline} />
         </div>
@@ -366,7 +366,7 @@ export function ReportForm({
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} •{" "}
+          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} -{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">

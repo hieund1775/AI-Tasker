@@ -7,16 +7,16 @@ import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTime
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// ProjectProgressPanel â€” overall project progress section with task cards.
+// ProjectProgressPanel - overall project progress section with task cards.
 //
 // Props:
-//   tasks              â€” array of tasks with progress and status
-//   overallProgress   â€” 0-100 number
-//   role               â€” "client" | "expert"
-//   projectId          â€” parent project ID
-//   onToggleMiniTask   â€” (taskId, miniTaskId) => void
-//   focusTaskId        â€” string|null, task to scroll to
-//   loading            â€” boolean
+//   tasks              - array of tasks with progress and status
+//   overallProgress   - 0-100 number
+//   role               - "client" | "expert"
+//   projectId          - parent project ID
+//   onToggleMiniTask   - (taskId, miniTaskId) => void
+//   focusTaskId        - string|null, task to scroll to
+//   loading            - boolean
 // =============================================================================
 
 export function ProjectProgressPanel({

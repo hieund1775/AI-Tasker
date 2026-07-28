@@ -1,15 +1,15 @@
-// =============================================================================
-// ClientProjectDetail — Project detail page for Client role.
+﻿// =============================================================================
+// ClientProjectDetail - Project detail page for Client role.
 //
-// ⚠️  DEPRECATED — NOT in active routing.
+// âš ï¸  DEPRECATED - NOT in active routing.
 //     routes.jsx imports ProjectDetail from ClientProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/client/ClientProjectManagement.jsx
 //
 // Features:
 //   - View project details
-//   - "Pay Project" button — pay full amount into escrow
-//   - "Complete & Accept" button — accept work, release payment to Expert
+//   - "Pay Project" button - pay full amount into escrow
+//   - "Complete & Accept" button - accept work, release payment to Expert
 //   - Dispute banner when project is Disputed
 //   - Read-only mode when project is Disputed
 // =============================================================================
@@ -36,7 +36,7 @@ export function ProjectDetail() {
   const { id } = useParams();
   const { user } = useAuth();
 
-  // Project data — loaded from API
+  // Project data - loaded from API
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -296,7 +296,7 @@ export function ProjectDetail() {
             </button>
           )}
 
-          {/* Already paid — disabled state */}
+          {/* Already paid - disabled state */}
           {escrowPaid && !paymentReleased && !isDisputed && (
             <button
               type="button"

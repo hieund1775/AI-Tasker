@@ -1,5 +1,5 @@
-// =============================================================================
-// EditOwnerProfile — Edit profile page for Owner role.
+﻿// =============================================================================
+// EditOwnerProfile - Edit profile page for Owner role.
 //
 // Allows the Owner to update their display name, email, title, phone,
 // location, and bio in the mock DB.
@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Save } from "lucide-react";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 // ---------------------------------------------------------------------------
@@ -104,7 +105,11 @@ export function EditOwnerProfile() {
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/owner/profile" className="mb-4">Back to Profile</BackButton>
 
-      <h1 className="text-2xl font-semibold text-foreground mb-6">Edit Owner Profile</h1>
+      <PageHeader
+        title="Edit Owner Profile"
+        subtitle="Update your owner profile information."
+        className="mb-6"
+      />
 
       <form
         onSubmit={handleSubmit}

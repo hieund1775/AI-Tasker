@@ -1,17 +1,17 @@
 ﻿import { Bot, Sparkles } from "lucide-react";
 
 /**
- * AIPlannerCard â€” Entry-point card for the AI Project Planner.
+ * AIPlannerCard - Entry-point card for the AI Project Planner.
  *
  * Appears between "Professional Introduction" and "Implementation Timeline &
  * Milestones" on the Send Proposal page.  Clicking "Generate With AI" opens
  * the AI planner drawer.  Manual timeline entry is always available by default.
  *
  * Props:
- *   onGenerateAI â€” callback when "Generate With AI" is clicked
- *   onCloseAI    â€” callback to close the AI drawer (shown as subtle link when active)
- *   aiMode       â€” whether the AI drawer is currently open
- *   disabled     â€” disable interactions (e.g. while submitting)
+ *   onGenerateAI - callback when "Generate With AI" is clicked
+ *   onCloseAI    - callback to close the AI drawer (shown as subtle link when active)
+ *   aiMode       - whether the AI drawer is currently open
+ *   disabled     - disable interactions (e.g. while submitting)
  */
 export function AIPlannerCard({
   onGenerateAI,
@@ -30,7 +30,7 @@ export function AIPlannerCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-foreground">
-            ðŸ¤– AI MiniTask Planner
+            AI MiniTask Planner
           </h3>
 
           {!aiMode ? (

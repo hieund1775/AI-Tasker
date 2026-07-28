@@ -1,7 +1,7 @@
-// =============================================================================
-// ExpertProjectDetail — Project detail page for Expert role.
+﻿// =============================================================================
+// ExpertProjectDetail - Project detail page for Expert role.
 //
-// ⚠️  DEPRECATED — NOT in active routing.
+// âš ï¸  DEPRECATED - NOT in active routing.
 //     routes.jsx imports ExpertProjectDetail from ExpertProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/expert/ExpertProjectManagement.jsx
@@ -45,7 +45,7 @@ export function ExpertProjectDetail() {
   const { id } = useParams();
   const { user } = useAuth();
 
-  // Project data — loaded from API
+  // Project data - loaded from API
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,7 +81,7 @@ export function ExpertProjectDetail() {
                   });
                 }
               } catch {
-                // Client info unavailable — client stays null
+                // Client info unavailable - client stays null
               }
             }
           } else {
@@ -136,7 +136,7 @@ export function ExpertProjectDetail() {
           setHasReported(found.reporterId === user.id);
         }
       } catch {
-        // Report unavailable — that's fine
+        // Report unavailable - that's fine
       }
     }
     loadReport();
@@ -281,7 +281,7 @@ export function ExpertProjectDetail() {
                     <p className="text-sm text-muted-foreground">
                       {client.profile.company}
                       {client.profile?.location
-                        ? ` · ${client.profile.location}`
+                        ? ` - ${client.profile.location}`
                         : ""}
                     </p>
                   )}

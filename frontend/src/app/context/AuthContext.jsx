@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useReducer,
   useEffect,
@@ -222,7 +222,7 @@ export function AuthProvider({ children }) {
     async (email, password) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       // -------------------------------------------------------------------
-      // REAL API MODE — call backend, no demo fallback
+      // REAL API MODE - call backend, no demo fallback
       // -------------------------------------------------------------------
       try {
         const response = await apiLogin(email, password);

@@ -1,21 +1,21 @@
-// =============================================================================
-// Project Status Configuration — single source of truth for all status display
+﻿// =============================================================================
+// Project Status Configuration - single source of truth for all status display
 // =============================================================================
 //
 // Every page that renders a project card, badge, or button should import from
 // this file instead of defining its own status labels, colours, or logic.
 //
 // Standardized status keys (the "source of truth" identifier):
-//   reviewing_proposals  — Project is open, client is reviewing incoming proposals
-//   in_progress           — Project has an assigned expert and is being worked on
-//   waiting_review        — Expert has submitted work, waiting for client review
-//   needs_revision        — Client requested changes on a submission
-//   completed             — Project is finished
-//   cancelled             — Project was cancelled
+//   reviewing_proposals  - Project is open, client is reviewing incoming proposals
+//   in_progress           - Project has an assigned expert and is being worked on
+//   waiting_review        - Expert has submitted work, waiting for client review
+//   needs_revision        - Client requested changes on a submission
+//   completed             - Project is finished
+//   cancelled             - Project was cancelled
 // =============================================================================
 
 // ---------------------------------------------------------------------------
-// 1. Status display labels — mapping from standardized key → human label
+// 1. Status display labels - mapping from standardized key -> human label
 // ---------------------------------------------------------------------------
 
 export const STATUS_LABELS = {
@@ -34,7 +34,7 @@ export const STATUS_LABELS = {
 };
 
 // ---------------------------------------------------------------------------
-// 2. Status badge colour classes — standardized key → Tailwind classes
+// 2. Status badge colour classes - standardized key -> Tailwind classes
 // ---------------------------------------------------------------------------
 
 export const STATUS_BADGE_CLASSES = {
@@ -70,7 +70,7 @@ export function getStatusLabel(key) {
 /**
  * Returns an object describing what to show about the assigned expert.
  * @param {{ assignedExpertId: string | null }} project
- * @param {function} getUserById — e.g. getMockUserById
+ * @param {function} getUserById - e.g. getMockUserById
  * @returns {{ text: string, isAssigned: boolean }}
  */
 export function getExpertDisplayInfo(project, getUserById) {
@@ -85,7 +85,7 @@ export function getExpertDisplayInfo(project, getUserById) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Client-side button config — based on project status
+// 4. Client-side button config - based on project status
 //    Returns { label: string, className: string, behavior: string }
 // ---------------------------------------------------------------------------
 
@@ -148,7 +148,7 @@ export function getClientButtonConfig(statusKey) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Expert-side button config — based on project status
+// 5. Expert-side button config - based on project status
 // ---------------------------------------------------------------------------
 
 const EXPERT_BUTTON_MAP = {
@@ -205,19 +205,19 @@ export function getExpertButtonConfig(statusKey) {
  * standardized keys (e.g., "in_progress") rather than a display label.
  *
  * Rules (first match wins):
- *   1. Raw status is "completed" | "cancelled" → pass through as-is
+ *   1. Raw status is "completed" | "cancelled" -> pass through as-is
  *   2. Raw status is "in_progress":
- *      - If ALL tasks are completed → "completed"
- *      - If ANY task is pending_review → "waiting_review"
- *      - If ANY task is needs_revision → "needs_revision"
- *      - Otherwise → "in_progress"
+ *      - If ALL tasks are completed -> "completed"
+ *      - If ANY task is pending_review -> "waiting_review"
+ *      - If ANY task is needs_revision -> "needs_revision"
+ *      - Otherwise -> "in_progress"
  *   3. Raw status is "open":
- *      - If has assigned expert → "in_progress" (project was just assigned)
- *      - If has proposals → "reviewing_proposals"
- *      - Otherwise → "reviewing_proposals" (shown as "Seeking Expert" in UI) — see
+ *      - If has assigned expert -> "in_progress" (project was just assigned)
+ *      - If has proposals -> "reviewing_proposals"
+ *      - Otherwise -> "reviewing_proposals" (shown as "Seeking Expert" in UI) - see
  *        `getStatusLabel` and the `proposalCount` param for finer display control.
  *
- * @param {object} project — raw project from mock DB
+ * @param {object} project - raw project from mock DB
  * @param {{ proposalCount?: number }} options
  * @returns {string} standardized status key
  */
@@ -236,10 +236,10 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   if (raw === "Awaiting_Cancellation" || raw === "awaiting_cancellation") return "awaiting_cancellation";
   if (raw === "cancel_done") return "cancel_done";
 
-  // in_progress or active → check task states for waiting_review / needs_revision
+  // in_progress or active -> check task states for waiting_review / needs_revision
   if (raw === "in_progress" || raw === "active") return "in_progress";
 
-  // open → determine based on assigned expert and proposals
+  // open -> determine based on assigned expert and proposals
   if (raw === "open") {
     // If an expert is assigned, treat as in_progress (assignment was likely
     // done in this session and the raw status hasn't been updated yet)
@@ -258,7 +258,7 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
 
 /**
  * @deprecated Use deriveProjectStatusKey + getStatusLabel instead.
- * Kept for backward compatibility — returns the human-readable label.
+ * Kept for backward compatibility - returns the human-readable label.
  */
 export function deriveProjectDisplayStatus(project, options) {
   const key = deriveProjectStatusKey(project, options);
@@ -266,7 +266,7 @@ export function deriveProjectDisplayStatus(project, options) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Task-level status config — used by ProjectTimelineManager
+// 8. Task-level status config - used by ProjectTimelineManager
 //    These are the statuses derived by deriveTaskStatus(), not project-level.
 // ---------------------------------------------------------------------------
 
@@ -297,7 +297,7 @@ export function getTaskStatusLabel(status) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. Deadline status config — used by TaskProgressCard and TaskDetailPage
+// 9. Deadline status config - used by TaskProgressCard and TaskDetailPage
 // ---------------------------------------------------------------------------
 
 export const DEADLINE_STATUS_CONFIG = {

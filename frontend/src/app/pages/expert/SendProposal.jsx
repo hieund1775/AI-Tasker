@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -27,7 +27,7 @@ import { notifyNewProposal, notifyUpdatedProposal } from "../../../services/noti
 import { toast } from "sonner";
 
 /**
- * SendProposal — Expert submits a comprehensive proposal to a client project.
+ * SendProposal - Expert submits a comprehensive proposal to a client project.
  */
 export function SendProposal() {
   const { id: projectId } = useParams();
@@ -105,7 +105,7 @@ Description: ${uc.description || ""}
   };
 
   // ---- Use case aware task initialization ----
-  // ponytail: flatMap ensures each use case only emits its own tasks — no cross-contamination
+  // ponytail: flatMap ensures each use case only emits its own tasks - no cross-contamination
   const [generatingIntro, setGeneratingIntro] = useState(false);
   const handleGenerateIntro = async (e) => {
     if (e) e.preventDefault();
@@ -157,7 +157,7 @@ Please use this background information to write a personalized and highly releva
       if (response?.generated_introduction) {
         let rawIntro = response.generated_introduction;
         try {
-          // Backend trả về chuỗi JSON stringified bên trong trường generated_introduction
+          // Backend returns a stringified JSON payload in generated_introduction.
           let parsed = JSON.parse(rawIntro);
           introText = parsed.generated_introduction || rawIntro;
         } catch (e) {
@@ -234,7 +234,7 @@ Please use this background information to write a personalized and highly releva
     return dedupeTasks(tasks);
   };
 
-  // ponytail: belt and suspenders — strip any identical-ID tasks before they hit state
+  // ponytail: belt and suspenders - strip any identical-ID tasks before they hit state
   const dedupeTasks = (arr) => {
     const seen = new Set();
     return arr.filter(t => {
@@ -381,7 +381,7 @@ Please use this background information to write a personalized and highly releva
         }
       })
       .catch((err) => {
-        // Job not found (404) is handled gracefully by the UI — don't alarm with console.error
+        // Job not found (404) is handled gracefully by the UI - don't alarm with console.error
         if (err?.status === 404) {
           console.warn("[SendProposal] Job post not found:", projectId);
         } else {
@@ -437,7 +437,7 @@ Please use this background information to write a personalized and highly releva
 
       return changed ? dedupeTasks(next) : prev;
     });
-    // ponytail: intentionally depends on [project?.useCases, tasks.length] —
+    // ponytail: intentionally depends on [project?.useCases, tasks.length] -
     // only re-heals when use cases or task count changes, not on every tasks mutation
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.useCases, tasks.length]);
@@ -464,7 +464,7 @@ Please use this background information to write a personalized and highly releva
 
     const normalize = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
-    // ponytail: pre-compute updatedCount from current tasks snapshot —
+    // ponytail: pre-compute updatedCount from current tasks snapshot -
     // the setTasks updater runs async in React 18 so closure-updatedCount is always 0 at return
     let updatedCount = 0;
     for (const ucBlock of aiPlan.useCases) {
@@ -519,7 +519,7 @@ Please use this background information to write a personalized and highly releva
                 : generatedMiniTasks,
             };
           } else {
-            // ponytail: no matching task exists — create fallback under the use case
+            // ponytail: no matching task exists - create fallback under the use case
             const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
             if (!uc) continue;
 
@@ -867,7 +867,7 @@ Please use this background information to write a personalized and highly releva
                     updateField("professionalIntro", e.target.value);
                   }}
                   rows={5}
-                  placeholder="Introduce yourself — your experience, background, relevant skills, and why you are the best fit for this project."
+                  placeholder="Introduce yourself - your experience, background, relevant skills, and why you are the best fit for this project."
                   className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-none overflow-hidden"
                   required
                 />
@@ -895,7 +895,7 @@ Please use this background information to write a personalized and highly releva
                       const ucTasks = tasks.filter(t => t.useCaseId && t.useCaseId === uc.id);
                       return (
                         <div key={uc.id} className="overflow-hidden rounded-2xl border border-border/60 bg-background/60">
-                          {/* ── Use Case Header (read-only) ── */}
+                          {/* â”€â”€ Use Case Header (read-only) â”€â”€ */}
                           <div className="flex flex-col gap-1.5 border-b border-border/60 bg-accent-light/25 p-4 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
@@ -988,7 +988,7 @@ Please use this background information to write a personalized and highly releva
                             </div>
                           </div>
 
-                          {/* ── Tasks ── */}
+                          {/* â”€â”€ Tasks â”€â”€ */}
                           <div className="p-4 space-y-4">
                             {ucTasks.length === 0 && (
                               <p className="text-xs text-muted-foreground text-center py-2.5">
@@ -1051,7 +1051,7 @@ Please use this background information to write a personalized and highly releva
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
                                       <div key={mini.id || mIdx} className="flex items-center gap-2">
-                                        <span className="text-muted-foreground font-mono text-xs">•</span>
+                                        <span className="text-muted-foreground font-mono text-xs">-</span>
                                         <textarea
                                           value={mini.title}
                                           onChange={(e) => {
@@ -1086,7 +1086,7 @@ Please use this background information to write a personalized and highly releva
                               );
                             })}
 
-                            {/* ── Add Proposed Task (per use case) ── */}
+                            {/* â”€â”€ Add Proposed Task (per use case) â”€â”€ */}
                             <button
                               type="button"
                               onClick={() =>
@@ -1117,7 +1117,7 @@ Please use this background information to write a personalized and highly releva
                     })}
                   </div>
                 ) : (
-                  /* ── No use cases fallback ── */
+                  /* â”€â”€ No use cases fallback â”€â”€ */
                   <div className="space-y-4">
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
@@ -1170,7 +1170,7 @@ Please use this background information to write a personalized and highly releva
                             </span>
                             {task.miniTasks.map((mini, mIdx) => (
                               <div key={mini.id || mIdx} className="flex items-center gap-2">
-                                <span className="text-muted-foreground font-mono text-xs">•</span>
+                                <span className="text-muted-foreground font-mono text-xs">-</span>
                                 <textarea
                                   value={mini.title}
                                   onChange={(e) => {
@@ -1389,7 +1389,7 @@ Please use this background information to write a personalized and highly releva
           </form>
         </div>
 
-        {/* ── AI Project Planner Panel (right side) ── */}
+        {/* â”€â”€ AI Project Planner Panel (right side) â”€â”€ */}
         {showAIPlanner && (
           <aside className="lg:col-span-3">
             <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

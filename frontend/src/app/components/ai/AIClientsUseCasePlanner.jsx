@@ -15,10 +15,10 @@ function parseUseCasesFromText(text) {
   const useCases = [];
   
   const regexPatterns = [
-    /^\s*[-*â€¢]?\s*\d+[\.\)]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
-    /^\s*[-*â€¢]?\s*\d+[\.\)]\s*([^:\-]+)[:\-]\s*(.*)$/,
-    /^\s*[-*â€¢]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
-    /^\s*[-*â€¢]\s*([^:\-]+)[:\-]\s*(.*)$/,
+    /^\s*[-*\u2022]?\s*\d+[\.\)]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*\u2022]?\s*\d+[\.\)]\s*([^:\-]+)[:\-]\s*(.*)$/,
+    /^\s*[-*\u2022]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*\u2022]\s*([^:\-]+)[:\-]\s*(.*)$/,
   ];
 
   for (const line of lines) {
@@ -47,8 +47,8 @@ function parseUseCasesFromText(text) {
       }
     }
     
-    if (!matched && (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("â€¢") || /^\d+[\.\)]/.test(trimmed))) {
-      const cleaned = trimmed.replace(/^[-*â€¢\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+    if (!matched && (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("\u2022") || /^\d+[\.\)]/.test(trimmed))) {
+      const cleaned = trimmed.replace(/^[-*\u2022\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
       if (cleaned.length > 10) {
         const parts = cleaned.split(/[:\-]/);
         const title = parts[0].trim();
@@ -234,7 +234,7 @@ export function AIClientsUseCasePlanner({
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-secondary/50">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">ðŸ¤– AI User Story Planner</h2>
+          <h2 className="text-sm font-semibold text-foreground">AI User Story Planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
             Plan User Stories from Document & Chat
           </p>
@@ -251,7 +251,7 @@ export function AIClientsUseCasePlanner({
       {/* Upload Requirements */}
       <div className="shrink-0 px-4 py-2.5 border-b border-border bg-card">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          ðŸ“Ž Upload BRD / SRS
+          Upload BRD / SRS
         </p>
         <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
@@ -333,7 +333,7 @@ export function AIClientsUseCasePlanner({
               }`}
           >
             <Sparkles className="w-4 h-4" />
-            {applied ? "âœ“ Applied Use Cases to Form" : "Apply these Use Cases"}
+            {applied ? "Applied Use Cases to Form" : "Apply these Use Cases"}
           </button>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router";
+﻿import { Outlet, useLocation, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AlertTriangle, LogOut } from "lucide-react";
@@ -7,7 +7,7 @@ import { Footer } from "./Footer.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 /**
- * RootLayout — shell that wraps authenticated routes with Header + Footer.
+ * RootLayout - shell that wraps authenticated routes with Header + Footer.
  *
  * Real-time Ban Event Engine (Lightweight & Event-Driven):
  *   - Listens to ban events via localStorage / custom window events (NO background polling).

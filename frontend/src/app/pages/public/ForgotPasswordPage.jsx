@@ -4,7 +4,7 @@ import { ArrowLeft, Mail, CheckCircle, X } from "lucide-react";
 import { forgotPassword } from "../../../services/authService";
 
 /**
- * ForgotPasswordPage â€” password reset request screen.
+ * ForgotPasswordPage - password reset request screen.
  */
 export function ForgotPasswordPage() {
   const navigate = useNavigate();

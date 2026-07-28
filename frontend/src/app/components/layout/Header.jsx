@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -12,7 +12,7 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Header — top navigation bar (modern SaaS style).
+ * Header - top navigation bar (modern SaaS style).
  *
  * Reads user & role from AuthContext (JWT), NOT from a prop or the URL.
  * Shows role-specific nav links, notification bell, profile link, and logout.
@@ -207,7 +207,7 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Navigation Link Items — desktop only */}
+          {/* Navigation Link Items - desktop only */}
           {isAuthenticated && role && (
             <nav className="hidden items-center gap-3 md:flex">
               {role !== "admin" && role !== "owner" && role !== "staff" && (

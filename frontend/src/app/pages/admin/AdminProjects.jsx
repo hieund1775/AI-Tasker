@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminProjects — Project list management for Admin/Owner.
+﻿// =============================================================================
+// AdminProjects - Project list management for Admin/Owner.
 //
 // Shows all platform projects with:
 //   - Search by title
@@ -13,6 +13,7 @@ import { Search, Eye, Filter, X, Briefcase, Calendar, User, DollarSign, FileText
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { STATUS_LABELS } from "../../lib/projectStatusConfig.js";
 import api, { enrichFileUrl, parseProposalWbs } from "../../../services/api.js";
@@ -211,7 +212,7 @@ export function AdminProjects() {
       label: "PROJECT",
       className: "w-[25%] max-w-[220px]",
       render: (val) => (
-        <span className="font-medium text-foreground text-sm truncate block" title={val}>{val || "—"}</span>
+        <span className="font-medium text-foreground text-sm truncate block" title={val}>{val || "-"}</span>
       ),
     },
     {
@@ -219,7 +220,7 @@ export function AdminProjects() {
       label: "CLIENT",
       className: "w-[15%] max-w-[140px]",
       render: (val, row) => {
-        const name = row.clientName || row.ClientName || row.clientId || "—";
+        const name = row.clientName || row.ClientName || row.clientId || "-";
         return (
           <span className="text-sm text-muted-foreground truncate block" title={name}>
             {name}
@@ -269,13 +270,13 @@ export function AdminProjects() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-foreground mb-2">Project Management</h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage all platform projects, requirements, and proposals.
-      </p>
+      <PageHeader
+        title="Project Management"
+        subtitle="View and manage all platform projects, requirements, and proposals."
+      />
 
       {error && (
-        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -600,7 +601,7 @@ export function AdminProjects() {
                                     <div className="pl-3 border-l-2 border-brand-primary/30 space-y-1 mt-1">
                                       {minis.map((m, mIdx) => (
                                         <div key={mIdx} className="text-muted-foreground flex items-center justify-between text-[11px]">
-                                          <span>• {m.title || m.Title}</span>
+                                          <span>- {m.title || m.Title}</span>
                                           <span>{m.durationDays || m.duration || 1} d</span>
                                         </div>
                                       ))}

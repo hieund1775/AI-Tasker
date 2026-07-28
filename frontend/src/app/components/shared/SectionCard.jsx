@@ -1,19 +1,19 @@
-// =============================================================================
-// SectionCard — consistent card section wrapper with optional header.
+﻿// =============================================================================
+// SectionCard - consistent card section wrapper with optional header.
 //
 // Props:
-//   title       — optional section title
-//   subtitle    — optional section subtitle
-//   badge       — optional badge next to title
-//   actions     — optional action area (right-aligned in header)
-//   icon        — optional Lucide icon before title
-//   iconColor   — Tailwind color for icon container (default: "text-accent bg-accent-light")
-//   children    — card body content
-//   className   — additional classes
-//   variant     — "default" | "glass" | "subtle" | "warning" | "branded"
-//   padding     — override default padding ("sm" | "md" | "lg")
-//   hover       — enable hover lift (default false)
-//   noBorder    — remove border for seamless layouts
+//   title       - optional section title
+//   subtitle    - optional section subtitle
+//   badge       - optional badge next to title
+//   actions     - optional action area (right-aligned in header)
+//   icon        - optional Lucide icon before title
+//   iconColor   - Tailwind color for icon container (default: "text-accent bg-accent-light")
+//   children    - card body content
+//   className   - additional classes
+//   variant     - "default" | "glass" | "subtle" | "warning" | "branded"
+//   padding     - override default padding ("sm" | "md" | "lg")
+//   hover       - enable hover lift (default false)
+//   noBorder    - remove border for seamless layouts
 // =============================================================================
 
 import { cn } from "../../lib/utils.js";

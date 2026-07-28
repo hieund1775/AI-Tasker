@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon } from "lucide-react";
 
-// ── Compact defaults for AI Planner panel ──
+// â”€â”€ Compact defaults for AI Planner panel â”€â”€
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
 function getFileIcon(file) {
@@ -43,12 +43,12 @@ function formatFileSize(bytes) {
 }
 
 /**
- * AIFileUploadZone — Compact file upload for the AI Planner side panel.
+ * AIFileUploadZone - Compact file upload for the AI Planner side panel.
  *
  * Props:
- *   files         — array of File objects
- *   onFilesChange — callback(File[]) when files are added/removed
- *   disabled      — disable interactions while AI is processing
+ *   files         - array of File objects
+ *   onFilesChange - callback(File[]) when files are added/removed
+ *   disabled      - disable interactions while AI is processing
  */
 export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -138,7 +138,7 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
         disabled={disabled}
       />
 
-      {/* Compact drop zone — hidden when files exist */}
+      {/* Compact drop zone - hidden when files exist */}
       {files.length === 0 && (
         <div
           onDragEnter={handleDragEnter}
@@ -172,12 +172,12 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
             Drop files or <span className="text-brand-primary">browse</span>
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            PDF, DOCX, TXT, Images • Requirements
+            PDF, DOCX, TXT, Images - Requirements
           </p>
         </div>
       )}
 
-      {/* File list — compact */}
+      {/* File list - compact */}
       {files.length > 0 && (
         <div className="space-y-1.5">
           {files.map((file, index) => (

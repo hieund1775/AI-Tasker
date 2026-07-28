@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminDisputes — Dispute report list page for Admin/Owner.
+﻿// =============================================================================
+// AdminDisputes - Dispute report list page for Admin/Owner.
 //
 // Shows all dispute reports with:
 //   - Status filter (Pending, Accepted, Rejected, Under Review, Resolved, Closed)
@@ -128,7 +128,7 @@ export function AdminDisputes() {
       key: "projectTitle",
       label: "Project Name",
       render: (val, row) => (
-        <span className="font-semibold text-foreground text-sm">{val || row.reportName || "—"}</span>
+        <span className="font-semibold text-foreground text-sm">{val || row.reportName || "-"}</span>
       ),
     },
     {
@@ -214,7 +214,7 @@ export function AdminDisputes() {
       label: "Report Time",
       render: (val) => (
         <span className="text-xs font-medium text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -229,14 +229,14 @@ export function AdminDisputes() {
 
       {/* Error state */}
       {error && (
-        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
 
       {/* Stats summary */}
       {!loading && !error && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-card rounded-xl border border-border p-4 text-center">
             <p className="text-2xl font-semibold text-foreground">{allReports.length}</p>
             <p className="text-xs text-muted-foreground mt-0.5">Total Reports</p>
@@ -263,30 +263,32 @@ export function AdminDisputes() {
       )}
 
       {/* Filter row */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="page-filter-toolbar">
+        <div className="page-filter-search">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search by report name, project..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
+            className="h-10 w-full rounded-xl border border-input bg-input-background pl-9 pr-4 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
           />
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="pl-9 pr-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm appearance-none bg-card"
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+        <div className="page-filter-controls">
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 rounded-xl border border-input bg-card pl-9 pr-4 text-sm appearance-none focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 

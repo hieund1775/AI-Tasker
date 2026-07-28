@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminUsers — User management page for Admin/Owner.
+﻿// =============================================================================
+// AdminUsers - User management page for Admin/Owner.
 //
 // Uses existing /api/users endpoint. Admin/Owner can:
 //   - View user list with search
@@ -12,6 +12,7 @@ import { Search, ShieldOff, Shield, Filter, Eye, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
@@ -58,7 +59,7 @@ export function AdminUsers({ excludeRoles = [] }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  // Frontend filtering — role exclusion
+  // Frontend filtering - role exclusion
   const filteredUsers = useMemo(() => {
     let result = users;
     // Exclude specified roles (e.g. Owner page excludes admins)
@@ -161,9 +162,9 @@ export function AdminUsers({ excludeRoles = [] }) {
       render: (val, row) => (
         <div>
           <p className="text-sm font-medium text-foreground">
-            {val || row.name || "—"}
+            {val || row.name || "-"}
           </p>
-          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "-"}</p>
         </div>
       ),
     },
@@ -176,7 +177,7 @@ export function AdminUsers({ excludeRoles = [] }) {
         { label: "Admin", value: "admin" },
       ],
       render: (val) => {
-        if (!val) return "—";
+        if (!val) return "-";
         const normalized = val.trim().toLowerCase();
         const displayLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
         return (
@@ -210,7 +211,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "Joined",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -223,21 +224,19 @@ export function AdminUsers({ excludeRoles = [] }) {
     <div className="space-y-6">
 
 
-      <h1 className="text-2xl font-semibold text-foreground mb-2">
-        User Management
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage platform users.
-      </p>
+      <PageHeader
+        title="User Management"
+        subtitle="View and manage platform users."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}

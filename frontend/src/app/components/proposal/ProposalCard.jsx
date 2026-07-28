@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import {
   MessageSquare,
   CheckCircle,
@@ -12,15 +12,15 @@ import {
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 
 // =============================================================================
-// ProposalCard — renders a single proposal for the client's proposal review.
+// ProposalCard - renders a single proposal for the client's proposal review.
 //
 // Props:
-//   proposal     — enriched proposal object (includes expert, matchPct, etc.)
-//   isAccepted   — whether this proposal has been accepted
-//   isDeclined   — whether this proposal has been declined
-//   hasBeenActed — whether any action (accept/decline) has been taken
-//   onAccept     — callback(proposalId, expertName)
-//   onDecline    — callback(proposalId, expertName)
+//   proposal     - enriched proposal object (includes expert, matchPct, etc.)
+//   isAccepted   - whether this proposal has been accepted
+//   isDeclined   - whether this proposal has been declined
+//   hasBeenActed - whether any action (accept/decline) has been taken
+//   onAccept     - callback(proposalId, expertName)
+//   onDecline    - callback(proposalId, expertName)
 // =============================================================================
 
 export function ProposalCard({
@@ -47,7 +47,7 @@ export function ProposalCard({
       }`}
     >
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        {/* ── Expert info ── */}
+        {/* â”€â”€ Expert info â”€â”€ */}
         <div className="flex items-start gap-4 flex-1">
           {/* Avatar initials */}
           <div className="w-12 h-12 bg-accent-light rounded-xl flex items-center justify-center flex-shrink-0">
@@ -184,7 +184,7 @@ export function ProposalCard({
               </div>
             )}
 
-            {/* ── Use Case & Task Breakdown ── */}
+            {/* â”€â”€ Use Case & Task Breakdown â”€â”€ */}
             {false && (
               <div className="mb-3 p-3 bg-secondary/30 rounded-xl border border-border/60 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -192,7 +192,7 @@ export function ProposalCard({
                 </div>
 
                 {hasUseCaseBreakdown ? (
-                  /* ── Grouped by use case ── */
+                  /* â”€â”€ Grouped by use case â”€â”€ */
                   proposal.useCaseBreakdown.map((uc) => (
                     <div key={uc.useCaseId} className="space-y-1.5">
                       <div className="flex items-center gap-2 pt-1">
@@ -223,7 +223,7 @@ export function ProposalCard({
                               {isTaskRejected && (
                                 <span className="px-1.5 py-0.5 bg-destructive-light text-destructive rounded text-[10px] font-semibold">Rejected</span>
                               )}
-                              <span className="text-xs text-muted-foreground">{task.price != null ? `${Number(task.price).toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${Number(task.price).toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                               {isProposed && !hasBeenActed && onAcceptTask && onRejectTask && (
                                 <div className="flex items-center gap-1 ml-auto">
                                   <button type="button" onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-success-light hover:bg-success-light text-success border border-success/20 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Accept proposed task">
@@ -242,7 +242,7 @@ export function ProposalCard({
                     </div>
                   ))
                 ) : (
-                  /* ── Flat fallback ── */
+                  /* â”€â”€ Flat fallback â”€â”€ */
                   <>
                     {proposal.tasks.filter(t => t.source !== "expert" || t.approvalStatus !== "pending_client_approval").map((task, i) => (
                       <div key={task.id || i} className="pl-2 border-l-2 border-accent/25 space-y-0.5">
@@ -251,13 +251,13 @@ export function ProposalCard({
                           {task.source === "client" || task.source === "client_use_case_fallback" ? (
                             <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client Task</span>
                           ) : null}
-                          <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                          <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                         </div>
 
                       </div>
                     ))}
 
-                    {/* ── Expert-Proposed Tasks ── */}
+                    {/* â”€â”€ Expert-Proposed Tasks â”€â”€ */}
                     {(proposal.proposedTasks?.length > 0 || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")).length > 0) && (
                       <div className="pt-2 border-t border-warning/20">
                         <div className="flex items-center gap-1.5 mb-1.5">
@@ -274,7 +274,7 @@ export function ProposalCard({
                           <div key={task.id || `prop-${i}`} className={`pl-2 border-l-2 space-y-0.5 ${isTaskAccepted ? "border-success/35" : isTaskRejected ? "border-destructive/20 opacity-60" : "border-warning/20"}`}>
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-foreground">{task.title || `Proposed Task #${i + 1}`}</span>
-                              <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                               {isTaskAccepted && <span className="px-1.5 py-0.5 bg-success-light text-success rounded text-[10px] font-semibold">Accepted</span>}
                               {isTaskRejected && <span className="px-1.5 py-0.5 bg-destructive-light text-destructive rounded text-[10px] font-semibold">Rejected</span>}
                               {isPending && !hasBeenActed && onAcceptTask && onRejectTask && (
@@ -311,7 +311,7 @@ export function ProposalCard({
           </div>
         </div>
 
-        {/* ── Right: bid amount + actions ── */}
+        {/* â”€â”€ Right: bid amount + actions â”€â”€ */}
         <div className="flex flex-col items-start md:items-end gap-3 md:min-w-[180px] flex-shrink-0">
           {/* Bid amount */}
           <div className="text-right">

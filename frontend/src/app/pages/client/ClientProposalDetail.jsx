@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -38,7 +38,7 @@ function DetailSection({ title, children, className = "" }) {
 }
 
 /**
- * ClientProposalDetail — Client views a single proposal in detail.
+ * ClientProposalDetail - Client views a single proposal in detail.
  * Includes "Generate Contract" button to initiate the contract flow.
  *
  * Route: /client/proposals/:id
@@ -236,7 +236,7 @@ export function ClientProposalDetail() {
                       day: "numeric",
                       year: "numeric",
                     })
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           </div>
@@ -264,7 +264,7 @@ export function ClientProposalDetail() {
                       day: "numeric",
                       year: "numeric",
                     })
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           </div>
@@ -364,7 +364,7 @@ export function ClientProposalDetail() {
                         </p>
                         <p className="text-xs text-muted-foreground/70">
                           {att.type || att.fileType || "file"}
-                          {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                          {att.size || att.fileSize ? ` - ${att.size || att.fileSize}` : ""}
                         </p>
                       </div>
                     </a>
@@ -375,7 +375,7 @@ export function ClientProposalDetail() {
           </DetailSection>
         </div>
 
-        {/* Footer — Actions */}
+        {/* Footer - Actions */}
         <div className="p-8 border-t border-border-light bg-secondary/50 flex flex-wrap items-center gap-3">
           <button
             type="button"

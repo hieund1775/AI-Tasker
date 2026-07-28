@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 import {
   CheckSquare,
   Square,
@@ -19,7 +19,7 @@ import { safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 import { api, enrichFileUrl } from "../../../services/api.js";
 
-// â”€â”€ Helpers for mini-task file resolution and blob downloads â”€â”€
+// Helpers for mini-task file resolution and blob downloads
 function resolveMiniTaskFile(productFile) {
   if (!productFile) return null;
   let parsed = null;
@@ -97,16 +97,16 @@ function formatFileSize(bytes) {
 }
 
 // =============================================================================
-// MiniTaskChecklist â€” reusable mini-task checklist with role-based permissions.
+// MiniTaskChecklist - reusable mini-task checklist with role-based permissions.
 //
 // Props:
-//   miniTasks     â€” array of mini task objects
-//   editable      â€” boolean (true for expert, false for client)
-//   onToggle      â€” (taskId, miniTaskId) => void  (only called when editable)
-//   onUpdate      â€” (miniTaskId, updates) => void (new prop for inline edit)
-//   compact       â€” boolean (true for inline card display, false for full detail)
-//   emptyMessage  â€” custom empty message (optional)
-//   loading       â€” boolean, shows skeleton rows
+//   miniTasks     - array of mini task objects
+//   editable      - boolean (true for expert, false for client)
+//   onToggle      - (taskId, miniTaskId) => void  (only called when editable)
+//   onUpdate      - (miniTaskId, updates) => void (new prop for inline edit)
+//   compact       - boolean (true for inline card display, false for full detail)
+//   emptyMessage  - custom empty message (optional)
+//   loading       - boolean, shows skeleton rows
 // =============================================================================
 
 export function MiniTaskChecklist({

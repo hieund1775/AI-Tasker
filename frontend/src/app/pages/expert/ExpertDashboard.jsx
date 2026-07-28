@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Briefcase,
@@ -18,6 +18,7 @@ import { createReport } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 
 import {
   getProjectProgress,
@@ -69,7 +70,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   let status = (localStatus || dbStatus).toLowerCase();
 
   // If status is awaiting_cancellation, check if it's still pending Admin approval
-  // Only match by projectId — no type filtering needed.
+  // Only match by projectId - no type filtering needed.
   if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
     const report = activeReports.find(r => {
       const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
@@ -563,19 +564,12 @@ export function ExpertDashboard() {
   // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* ================================================================== */}
-      {/* Header                                                             */}
-      {/* ================================================================== */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Expert Dashboard
-          </h1>
-          <p className="text-muted-foreground mt-0.5">
-            Manage your contracts and discover new opportunities
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="Expert Dashboard"
+        subtitle="Manage your contracts and discover new opportunities"
+        className="mb-6"
+        actions={
+          <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
             className="h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
@@ -583,7 +577,8 @@ export function ExpertDashboard() {
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
         </div>
-      </div>
+        }
+      />
 
       {/* ================================================================== */}
       {/* Stats Row                                                          */}
@@ -595,7 +590,7 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       <div className="expert-dashboard-grid grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] gap-6 items-stretch">
         {/* ================================================================ */}
-        {/* LEFT PANEL — MY ACTIVE CONTRACTS                                 */}
+        {/* LEFT PANEL - MY ACTIVE CONTRACTS                                 */}
         {/* ================================================================ */}
         <section
           className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
@@ -653,7 +648,7 @@ export function ExpertDashboard() {
                     key={p.id}
                     className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* 🔝 Top row: title + status badge 🔝 */}
+                    {/* ðŸ” Top row: title + status badge ðŸ” */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
                       <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
@@ -665,7 +660,7 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* 👤 Client name 👤 */}
+                    {/* ðŸ‘¤ Client name ðŸ‘¤ */}
                     <p className="text-base text-muted-foreground mb-3">
                       Client:{" "}
                       <span className="font-medium text-foreground">
@@ -673,7 +668,7 @@ export function ExpertDashboard() {
                       </span>
                     </p>
 
-                    {/* 🏷️ Category & Skill tags 🏷️ */}
+                    {/* ðŸ·ï¸ Category & Skill tags ðŸ·ï¸ */}
                     <div className="mb-4">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
@@ -691,7 +686,7 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* ── Progress bar ── */}
+                    {/* â”€â”€ Progress bar â”€â”€ */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-sm font-medium text-muted-foreground">
@@ -709,7 +704,7 @@ export function ExpertDashboard() {
                       </div>
                     </div>
 
-                    {/* ── Bottom row: due date, value, action ── */}
+                    {/* â”€â”€ Bottom row: due date, value, action â”€â”€ */}
                     <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
@@ -784,7 +779,7 @@ export function ExpertDashboard() {
         </section>
 
         {/* ================================================================ */}
-        {/* RIGHT PANEL — RECOMMENDED PROJECTS                               */}
+        {/* RIGHT PANEL - RECOMMENDED PROJECTS                               */}
         {/* ================================================================ */}
         <section
           className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
@@ -825,7 +820,7 @@ export function ExpertDashboard() {
                     key={p.id}
                     className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* 🔝 Top: title + match badge 🔝 */}
+                    {/* ðŸ” Top: title + match badge ðŸ” */}
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
@@ -835,22 +830,22 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* ⏳ Posted by + time ⏳ */}
+                    {/* â³ Posted by + time â³ */}
                     <p className="text-[13px] text-muted-foreground mb-2.5">
                       Posted by{" "}
                       <span className="font-medium text-muted-foreground">
                         {clientName}
                       </span>
-                      {" • "}
+                      {" - "}
                       {timeAgo(p.createdAt)}
                     </p>
 
-                    {/* 📝 Description 📝 */}
+                    {/* ðŸ“ Description ðŸ“ */}
                     <p className="text-base text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
-                    {/* 🏷️ Category & Skill tags 🏷️ */}
+                    {/* ðŸ·ï¸ Category & Skill tags ðŸ·ï¸ */}
                     <div className="mb-3">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
                         <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
@@ -863,18 +858,18 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* ── Budget + Duration ── */}
+                    {/* â”€â”€ Budget + Duration â”€â”€ */}
                     <div className="flex items-center gap-3 mb-4">
                       <span className="font-semibold text-foreground text-base">
                         <MoneyDisplay amount={p.budget} />
                       </span>
-                      <span className="text-muted-foreground/40">·</span>
+                      <span className="text-muted-foreground/40">-</span>
                       <span className="text-muted-foreground text-[13px]">
                         {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
 
-                    {/* ── Action buttons ── */}
+                    {/* â”€â”€ Action buttons â”€â”€ */}
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}

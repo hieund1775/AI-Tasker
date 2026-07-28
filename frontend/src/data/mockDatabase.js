@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Mock Database
 // =============================================================================
 // Complete in-memory mock database for frontend-only development.
@@ -12,11 +12,11 @@
 // =============================================================================
 
 // ---------------------------------------------------------------------------
-// 1. USERS — 20 records (1 owner, 3 admins, 8 experts, 8 clients)
+// 1. USERS - 20 records (1 owner, 3 admins, 8 experts, 8 clients)
 // ---------------------------------------------------------------------------
 
 const _baseUsers = [
-  // ── Owner ──
+  // â”€â”€ Owner â”€â”€
   {
     id: "user-001",
     email: "owner@aitasker.com",
@@ -33,7 +33,7 @@ const _baseUsers = [
     createdAt: "2024-01-15T08:00:00.000Z",
     updatedAt: "2026-06-01T10:30:00.000Z",
   },
-  // ── Admins ──
+  // â”€â”€ Admins â”€â”€
   {
     id: "user-002",
     email: "admin1@aitasker.com",
@@ -82,7 +82,7 @@ const _baseUsers = [
     createdAt: "2024-05-01T07:00:00.000Z",
     updatedAt: "2026-06-10T09:00:00.000Z",
   },
-  // ── Experts ──
+  // â”€â”€ Experts â”€â”€
   {
     id: "user-005",
     email: "alice.expert@example.com",
@@ -323,7 +323,7 @@ const _baseUsers = [
     createdAt: "2024-10-01T07:00:00.000Z",
     updatedAt: "2026-06-15T13:00:00.000Z",
   },
-  // ── Clients ──
+  // â”€â”€ Clients â”€â”€
   {
     id: "user-013",
     email: "john.client@example.com",
@@ -455,7 +455,7 @@ const _baseUsers = [
 ];
 
 // ---------------------------------------------------------------------------
-// 2. CATEGORIES — 10 categories + 12 skills = 22 total
+// 2. CATEGORIES - 10 categories + 12 skills = 22 total
 // ---------------------------------------------------------------------------
 
 const _baseCategories = [
@@ -486,7 +486,7 @@ const _baseCategories = [
 ];
 
 // ---------------------------------------------------------------------------
-// 3. JOB POSTS — 15 records across 6 clients
+// 3. JOB POSTS - 15 records across 6 clients
 // ---------------------------------------------------------------------------
 
 const _baseJobPosts = [
@@ -844,66 +844,66 @@ const _baseJobPosts = [
 ];
 
 // ---------------------------------------------------------------------------
-// 4. PROPOSALS — 25 records
+// 4. PROPOSALS - 25 records
 //    Experts propose on jobs that match their skills
 // ---------------------------------------------------------------------------
 
 const _baseProposals = [
-  // ── Proposals for job-001 (Chatbot) — Alice, Carol, Henry apply ──
+  // â”€â”€ Proposals for job-001 (Chatbot) - Alice, Carol, Henry apply â”€â”€
   { id: "proposal-001", jobPostId: "job-001", expertId: "user-005", coverLetter: "I've fine-tuned 10+ customer support chatbots using RAG architectures. My approach combines domain-adaptive pretraining with curated prompt engineering. I can deliver a prototype within 2 weeks.", bidAmount: 8000, estimatedDays: 28, status: "pending", createdAt: "2026-05-03T10:00:00.000Z" },
   { id: "proposal-002", jobPostId: "job-001", expertId: "user-007", coverLetter: "As an NLP research scientist, I specialize in exactly this type of project. I've built RAG systems handling 100K+ documents. My solution will include automated evaluation metrics and human-in-the-loop feedback collection.", bidAmount: 8500, estimatedDays: 30, status: "pending", createdAt: "2026-05-04T14:00:00.000Z" },
   { id: "proposal-003", jobPostId: "job-001", expertId: "user-012", coverLetter: "I've architected enterprise RAG systems for Fortune 500 companies. My proposal includes: (1) document chunking strategy, (2) hybrid search (vector + keyword), (3) guardrails for safe responses, and (4) analytics dashboard for bot performance.", bidAmount: 9000, estimatedDays: 25, status: "under_review", createdAt: "2026-05-05T09:00:00.000Z" },
 
-  // ── Proposals for job-002 (Medical imaging) — David, Alice, Henry apply ──
-  { id: "proposal-004", jobPostId: "job-002", expertId: "user-008", coverLetter: "I have direct experience building medical imaging systems — I developed a pneumonia detection model that achieved 94% sensitivity in clinical trials. I understand HIPAA compliance and medical AI validation requirements.", bidAmount: 14000, estimatedDays: 42, status: "pending", createdAt: "2026-05-17T11:00:00.000Z" },
+  // â”€â”€ Proposals for job-002 (Medical imaging) - David, Alice, Henry apply â”€â”€
+  { id: "proposal-004", jobPostId: "job-002", expertId: "user-008", coverLetter: "I have direct experience building medical imaging systems - I developed a pneumonia detection model that achieved 94% sensitivity in clinical trials. I understand HIPAA compliance and medical AI validation requirements.", bidAmount: 14000, estimatedDays: 42, status: "pending", createdAt: "2026-05-17T11:00:00.000Z" },
   { id: "proposal-005", jobPostId: "job-002", expertId: "user-005", coverLetter: "While my primary focus is NLP, I have strong PyTorch skills applicable to vision tasks. I'd partner with a radiologist advisor to ensure clinical validity. Budget-friendly option with high-quality engineering.", bidAmount: 12000, estimatedDays: 45, status: "pending", createdAt: "2026-05-18T08:00:00.000Z" },
-  { id: "proposal-006", jobPostId: "job-002", expertId: "user-012", coverLetter: "I can bring my generative AI expertise to medical imaging — my proposed architecture uses vision transformers with attention maps for model interpretability, which radiologists will appreciate. Full MLOps pipeline included.", bidAmount: 15500, estimatedDays: 40, status: "pending", createdAt: "2026-05-19T15:00:00.000Z" },
+  { id: "proposal-006", jobPostId: "job-002", expertId: "user-012", coverLetter: "I can bring my generative AI expertise to medical imaging - my proposed architecture uses vision transformers with attention maps for model interpretability, which radiologists will appreciate. Full MLOps pipeline included.", bidAmount: 15500, estimatedDays: 40, status: "pending", createdAt: "2026-05-19T15:00:00.000Z" },
 
-  // ── Proposals for job-003 (Fraud detection) — Alice, Bob, Frank apply ──
+  // â”€â”€ Proposals for job-003 (Fraud detection) - Alice, Bob, Frank apply â”€â”€
   { id: "proposal-007", jobPostId: "job-003", expertId: "user-005", coverLetter: "I've built real-time ML systems processing 50K+ events/second. My approach uses gradient-boosted trees for initial filtering and a deep learning model for complex pattern detection, all within your latency budget.", bidAmount: 21000, estimatedDays: 55, status: "pending", createdAt: "2026-05-22T09:00:00.000Z" },
   { id: "proposal-008", jobPostId: "job-003", expertId: "user-006", coverLetter: "Full-stack approach: I'll build both the ML models and the real-time serving infrastructure. My solution includes an explainable AI dashboard so your fraud analysts can understand every flagged transaction.", bidAmount: 20000, estimatedDays: 60, status: "pending", createdAt: "2026-05-23T11:00:00.000Z" },
   { id: "proposal-009", jobPostId: "job-003", expertId: "user-010", coverLetter: "Data engineering is the foundation of fraud detection. I'll design the feature store, real-time data pipeline, and model monitoring infrastructure. Partner with me for a production-grade system that won't fail under load.", bidAmount: 22000, estimatedDays: 60, status: "pending", createdAt: "2026-05-24T14:00:00.000Z" },
 
-  // ── Proposals for job-004 (Recommendation engine) — Alice, Bob, Grace apply ──
+  // â”€â”€ Proposals for job-004 (Recommendation engine) - Alice, Bob, Grace apply â”€â”€
   { id: "proposal-010", jobPostId: "job-004", expertId: "user-005", coverLetter: "I designed the recommendation system for a major streaming platform serving 10M+ users. My hybrid approach combines matrix factorization, two-tower neural models, and real-time feature serving via a feature store.", bidAmount: 11500, estimatedDays: 32, status: "pending", createdAt: "2026-05-27T10:00:00.000Z" },
   { id: "proposal-011", jobPostId: "job-004", expertId: "user-006", coverLetter: "I'll build both the ML models and the Node.js API integration your platform needs. My solution includes an A/B testing framework so you can measure the revenue impact of recommendations.", bidAmount: 12000, estimatedDays: 35, status: "pending", createdAt: "2026-05-28T08:00:00.000Z" },
   { id: "proposal-012", jobPostId: "job-004", expertId: "user-011", coverLetter: "Mobile-first recommendation: I'll optimize the models for low-latency inference on mobile devices as well as server-side. Cross-platform experience means your app users get the same great experience.", bidAmount: 10000, estimatedDays: 30, status: "pending", createdAt: "2026-05-29T13:00:00.000Z" },
 
-  // ── Proposals for job-005 (Adaptive learning) — Carol, Henry, Alice apply ──
+  // â”€â”€ Proposals for job-005 (Adaptive learning) - Carol, Henry, Alice apply â”€â”€
   { id: "proposal-013", jobPostId: "job-005", expertId: "user-007", coverLetter: "I built an automated essay scoring system that achieved 0.85 correlation with human graders. I understand both the NLP and pedagogical aspects of this project. My approach includes Bayesian Knowledge Tracing for student modeling.", bidAmount: 17500, estimatedDays: 55, status: "pending", createdAt: "2026-06-03T09:00:00.000Z" },
   { id: "proposal-014", jobPostId: "job-005", expertId: "user-012", coverLetter: "Gen AI meets education: I'll use LLMs for essay grading with rubric-based evaluation chains. My proposal includes a teacher review interface, fine-grained feedback generation, and curriculum gap analysis.", bidAmount: 18000, estimatedDays: 50, status: "pending", createdAt: "2026-06-04T11:00:00.000Z" },
   { id: "proposal-015", jobPostId: "job-005", expertId: "user-005", coverLetter: "I've built NLP grading systems for a university. My solution includes multi-task learning for simultaneous scoring and feedback generation. Deliverable includes a comprehensive evaluation report comparing model vs. human scores.", bidAmount: 16500, estimatedDays: 60, status: "pending", createdAt: "2026-06-05T14:00:00.000Z" },
 
-  // ── Proposals for job-009 (AWS Deploy) — Emma, Bob, Frank apply — CLOSED job ──
+  // â”€â”€ Proposals for job-009 (AWS Deploy) - Emma, Bob, Frank apply - CLOSED job â”€â”€
   { id: "proposal-016", jobPostId: "job-009", expertId: "user-009", coverLetter: "This is my core expertise. I've deployed 50+ ML models to production on AWS with Kubernetes. I'll set up KFServing, Istio for traffic splitting, Prometheus/Grafana for monitoring, and a GitOps CI/CD pipeline with ArgoCD.", bidAmount: 9500, estimatedDays: 28, status: "accepted", createdAt: "2026-03-12T10:00:00.000Z" },
   { id: "proposal-017", jobPostId: "job-009", expertId: "user-006", coverLetter: "Full-stack deployment: I'll handle both the AWS infrastructure and the Node.js API layer for model serving. My solution includes canary deployments for safe model updates.", bidAmount: 10000, estimatedDays: 30, status: "declined", createdAt: "2026-03-13T09:00:00.000Z" },
 
-  // ── Proposals for job-011 (Retail CV) — David, Grace, Bob apply — CLOSED job ──
+  // â”€â”€ Proposals for job-011 (Retail CV) - David, Grace, Bob apply - CLOSED job â”€â”€
   { id: "proposal-018", jobPostId: "job-011", expertId: "user-008", coverLetter: "I built a similar shelf-monitoring system for a major retailer with 200+ stores. My solution uses YOLOv8 for product detection and a custom classifier for SKU recognition. I'll reuse proven architectures to deliver faster.", bidAmount: 13000, estimatedDays: 45, status: "accepted", createdAt: "2026-04-03T11:00:00.000Z" },
   { id: "proposal-019", jobPostId: "job-011", expertId: "user-011", coverLetter: "Mobile integration specialist: I'll build both the CV models and the React Native store associate app with barcode scanning fallback. End-to-end solution from camera to dashboard.", bidAmount: 13500, estimatedDays: 50, status: "declined", createdAt: "2026-04-04T08:00:00.000Z" },
 
-  // ── Proposals for job-012 (AI Tutor) — Carol, Henry, Alice apply — CLOSED job ──
+  // â”€â”€ Proposals for job-012 (AI Tutor) - Carol, Henry, Alice apply - CLOSED job â”€â”€
   { id: "proposal-020", jobPostId: "job-012", expertId: "user-007", coverLetter: "I've published research on AI tutoring systems. My approach uses Socratic questioning patterns generated by LLMs, combined with knowledge tracing to adapt difficulty. I can integrate with your existing curriculum content seamlessly.", bidAmount: 7500, estimatedDays: 28, status: "accepted", createdAt: "2026-02-17T10:00:00.000Z" },
   { id: "proposal-021", jobPostId: "job-012", expertId: "user-012", coverLetter: "I'll build a state-of-the-art AI tutor using chain-of-thought prompting for step-by-step code explanations. Includes interactive coding exercises with real-time feedback and a student progress analytics dashboard.", bidAmount: 8000, estimatedDays: 25, status: "declined", createdAt: "2026-02-18T14:00:00.000Z" },
   { id: "proposal-022", jobPostId: "job-012", expertId: "user-005", coverLetter: "Combining my NLP expertise with educational technology experience. I'll use a RAG architecture with your curriculum as the knowledge base, ensuring accurate, curriculum-aligned responses every time.", bidAmount: 7000, estimatedDays: 30, status: "withdrawn", createdAt: "2026-02-19T09:00:00.000Z" },
 
-  // ── Proposals for job-013 (Cloud ML Infra) — Emma, Frank, Bob apply — CLOSED job ──
+  // â”€â”€ Proposals for job-013 (Cloud ML Infra) - Emma, Frank, Bob apply - CLOSED job â”€â”€
   { id: "proposal-023", jobPostId: "job-013", expertId: "user-009", coverLetter: "I'll design your ML infrastructure using Karpenter for intelligent spot instance management, MLflow for experiment tracking, and Feast for feature serving. Estimated cost savings: 45-50% based on similar projects I've done.", bidAmount: 11000, estimatedDays: 24, status: "accepted", createdAt: "2026-03-22T10:00:00.000Z" },
   { id: "proposal-024", jobPostId: "job-013", expertId: "user-010", coverLetter: "Data engineering meets cloud optimization. I'll set up your feature store, data lake, and ETL pipelines alongside the ML infrastructure. Data and models in one coherent architecture.", bidAmount: 11500, estimatedDays: 25, status: "declined", createdAt: "2026-03-23T08:00:00.000Z" },
 
-  // ── Proposals for job-006 (Game AI) — David, Grace, Henry apply ──
+  // â”€â”€ Proposals for job-006 (Game AI) - David, Grace, Henry apply â”€â”€
   { id: "proposal-025", jobPostId: "job-006", expertId: "user-008", coverLetter: "While CV is my specialty, the RL techniques for NPC behavior are closely related. I'll use multi-agent reinforcement learning with attention mechanisms for social dynamics between NPCs. Experience with UE5 integration via plugin development.", bidAmount: 24000, estimatedDays: 85, status: "pending", createdAt: "2026-05-12T09:00:00.000Z" },
-  // ── Proposal for job-016 (PCG for Noah) — David Park accepted ──
+  // â”€â”€ Proposal for job-016 (PCG for Noah) - David Park accepted â”€â”€
   { id: "proposal-026", jobPostId: "job-016", expertId: "user-008", coverLetter: "Procedural generation meets ML! I'll combine WaveFunctionCollapse for terrain with GAN-based detail generation for realistic biomes. My approach includes a UE5 plugin with real-time preview and artist parameter tuning. I have experience shipping PCG systems in 2 commercial titles.", bidAmount: 17500, estimatedDays: 55, status: "accepted", createdAt: "2026-05-17T10:00:00.000Z" },
 ];
 
 // ---------------------------------------------------------------------------
-// 5. PROJECTS — 12 records (from accepted proposals or direct creation)
+// 5. PROJECTS - 12 records (from accepted proposals or direct creation)
 //    Statuses: 6 in_progress, 4 completed, 2 cancelled
 // ---------------------------------------------------------------------------
 
 const _baseProjects = [
-  // ── in_progress ──
+  // â”€â”€ in_progress â”€â”€
   {
     id: "proj-001", jobPostId: "job-009", clientId: "user-014", assignedExpertId: "user-009",
     title: "Deploy ML model on AWS with auto-scaling and monitoring",
@@ -1007,7 +1007,7 @@ const _baseProjects = [
     createdAt: "2026-06-10T09:00:00.000Z",
     updatedAt: "2026-06-16T08:00:00.000Z",
   },
-  // ── completed ──
+  // â”€â”€ completed â”€â”€
   {
     id: "proj-007", jobPostId: "job-014", clientId: "user-018", assignedExpertId: "user-011",
     title: "Build a virtual staging AI for real estate photos",
@@ -1076,7 +1076,7 @@ const _baseProjects = [
     createdAt: "2026-02-01T09:00:00.000Z",
     updatedAt: "2026-05-10T12:00:00.000Z",
   },
-  // ── cancelled ──
+  // â”€â”€ cancelled â”€â”€
   {
     id: "proj-011", jobPostId: "job-007", clientId: "user-018", assignedExpertId: "user-006",
     title: "Build ML pipeline for automated property valuation",
@@ -1111,7 +1111,7 @@ const _baseProjects = [
     createdAt: "2026-05-10T11:00:00.000Z",
     updatedAt: "2026-06-15T09:00:00.000Z",
   },
-  // ── proj-013: PCG for Noah (in_progress) ──
+  // â”€â”€ proj-013: PCG for Noah (in_progress) â”€â”€
   {
     id: "proj-013", jobPostId: "job-016", clientId: "user-017", assignedExpertId: "user-008",
     title: "Procedural content generation for open world game using ML",
@@ -1131,56 +1131,56 @@ const _baseProjects = [
 ];
 
 // ---------------------------------------------------------------------------
-// 6. TRANSACTIONS — 21 records
+// 6. TRANSACTIONS - 21 records
 //    Tied to projects, users, and escrow flows
 // ---------------------------------------------------------------------------
 
 const _baseTransactions = [
-  // ── proj-001: AWS Deploy (Emma for Kate) ──
+  // â”€â”€ proj-001: AWS Deploy (Emma for Kate) â”€â”€
   { id: "txn-001", projectId: "proj-001", fromUserId: "user-014", toUserId: "user-009", amount: 10000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for AWS ML deployment", createdAt: "2026-03-24T10:30:00.000Z" },
-  // ── proj-002: Retail CV (David for Liam) ──
+  // â”€â”€ proj-002: Retail CV (David for Liam) â”€â”€
   { id: "txn-002", projectId: "proj-002", fromUserId: "user-015", toUserId: "user-008", amount: 13500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for retail inventory CV system", createdAt: "2026-04-05T10:00:00.000Z" },
-  // ── proj-003: AI Tutor (Carol for Mia) ──
+  // â”€â”€ proj-003: AI Tutor (Carol for Mia) â”€â”€
   { id: "txn-003", projectId: "proj-003", fromUserId: "user-016", toUserId: "user-007", amount: 7500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for AI tutor chatbot", createdAt: "2026-02-20T12:00:00.000Z" },
-  // ── proj-004: Cloud ML Infra (Emma for Kate) ──
+  // â”€â”€ proj-004: Cloud ML Infra (Emma for Kate) â”€â”€
   { id: "txn-004", projectId: "proj-004", fromUserId: "user-014", toUserId: "user-009", amount: 11500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for cloud ML infrastructure", createdAt: "2026-03-25T09:00:00.000Z" },
-  // ── proj-005: Support Chatbot (Henry for John) ──
+  // â”€â”€ proj-005: Support Chatbot (Henry for John) â”€â”€
   { id: "txn-005", projectId: "proj-005", fromUserId: "user-013", toUserId: "user-012", amount: 8500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for support chatbot fine-tuning", createdAt: "2026-06-05T14:30:00.000Z" },
-  // ── proj-006: Contract Analysis (Carol for Paul) ──
+  // â”€â”€ proj-006: Contract Analysis (Carol for Paul) â”€â”€
   { id: "txn-006", projectId: "proj-006", fromUserId: "user-019", toUserId: "user-007", amount: 20000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for AI contract analysis tool", createdAt: "2026-06-10T09:30:00.000Z" },
-  // ── proj-007: Virtual Staging (Grace for Olivia) — completed, released ──
+  // â”€â”€ proj-007: Virtual Staging (Grace for Olivia) - completed, released â”€â”€
   { id: "txn-007", projectId: "proj-007", fromUserId: "user-018", toUserId: "user-011", amount: 16000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for virtual staging AI", createdAt: "2025-12-01T10:00:00.000Z" },
   { id: "txn-008", projectId: "proj-007", fromUserId: "user-018", toUserId: "user-011", amount: 16000, type: "escrow_release", status: "completed", description: "Escrow released to expert upon project completion", createdAt: "2026-04-28T15:30:00.000Z" },
-  // ── proj-008: Sentiment Analysis (Alice for Quinn) — completed, released ──
+  // â”€â”€ proj-008: Sentiment Analysis (Alice for Quinn) - completed, released â”€â”€
   { id: "txn-009", projectId: "proj-008", fromUserId: "user-020", toUserId: "user-005", amount: 8500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for sentiment analysis pipeline", createdAt: "2026-01-15T11:00:00.000Z" },
   { id: "txn-010", projectId: "proj-008", fromUserId: "user-020", toUserId: "user-005", amount: 8500, type: "escrow_release", status: "completed", description: "Escrow released to expert upon project completion", createdAt: "2026-03-28T14:30:00.000Z" },
-  // ── proj-009: Fraud Detection Phase 1 (Frank for Kate) — completed, released ──
+  // â”€â”€ proj-009: Fraud Detection Phase 1 (Frank for Kate) - completed, released â”€â”€
   { id: "txn-011", projectId: "proj-009", fromUserId: "user-014", toUserId: "user-010", amount: 12000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for fraud detection system", createdAt: "2026-01-20T09:00:00.000Z" },
   { id: "txn-012", projectId: "proj-009", fromUserId: "user-014", toUserId: "user-010", amount: 12000, type: "escrow_release", status: "completed", description: "Escrow released to expert upon Phase 1 completion", createdAt: "2026-04-20T16:30:00.000Z" },
-  // ── proj-010: Adaptive Learning MVP (Henry for Mia) — completed, released ──
+  // â”€â”€ proj-010: Adaptive Learning MVP (Henry for Mia) - completed, released â”€â”€
   { id: "txn-013", projectId: "proj-010", fromUserId: "user-016", toUserId: "user-012", amount: 10000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for adaptive learning MVP", createdAt: "2026-02-01T10:00:00.000Z" },
   { id: "txn-014", projectId: "proj-010", fromUserId: "user-016", toUserId: "user-012", amount: 10000, type: "escrow_release", status: "completed", description: "Escrow released to expert upon MVP completion", createdAt: "2026-05-10T12:30:00.000Z" },
-  // ── proj-011: Property Valuation (Bob for Olivia) — cancelled, refunded ──
+  // â”€â”€ proj-011: Property Valuation (Bob for Olivia) - cancelled, refunded â”€â”€
   { id: "txn-015", projectId: "proj-011", fromUserId: "user-018", toUserId: "user-006", amount: 14000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for property valuation ML", createdAt: "2026-05-01T09:00:00.000Z" },
   { id: "txn-016", projectId: "proj-011", fromUserId: "user-018", toUserId: "user-006", amount: 14000, type: "dispute_refund", status: "completed", description: "Full refund to client due to project cancellation", createdAt: "2026-06-10T14:30:00.000Z" },
-  // ── proj-012: Marketing Content (Grace for Quinn) — cancelled, refunded ──
+  // â”€â”€ proj-012: Marketing Content (Grace for Quinn) - cancelled, refunded â”€â”€
   { id: "txn-017", projectId: "proj-012", fromUserId: "user-020", toUserId: "user-011", amount: 9500, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for marketing content generator", createdAt: "2026-05-10T12:00:00.000Z" },
   { id: "txn-018", projectId: "proj-012", fromUserId: "user-020", toUserId: "user-011", amount: 9500, type: "dispute_refund", status: "completed", description: "Full refund to client due to project cancellation", createdAt: "2026-06-15T09:30:00.000Z" },
-  // ── Expert withdrawals ──
+  // â”€â”€ Expert withdrawals â”€â”€
   { id: "txn-019", projectId: null, fromUserId: "user-005", toUserId: null, amount: 5000, type: "withdrawal", status: "completed", description: "Withdrawal to bank account", createdAt: "2026-05-01T10:00:00.000Z" },
   { id: "txn-020", projectId: null, fromUserId: "user-012", toUserId: null, amount: 8000, type: "withdrawal", status: "pending", description: "Withdrawal request to bank account", createdAt: "2026-06-14T08:00:00.000Z" },
-  // ── proj-013: PCG for Noah — escrow deposit ──
+  // â”€â”€ proj-013: PCG for Noah - escrow deposit â”€â”€
   { id: "txn-021", projectId: "proj-013", fromUserId: "user-017", toUserId: "user-008", amount: 18000, type: "escrow_deposit", status: "completed", description: "Full project escrow deposit for procedural content generation", createdAt: "2026-05-20T10:30:00.000Z" },
 ];
 
 // ---------------------------------------------------------------------------
-// 7. REPORTS / DISPUTES — 10 records
+// 7. REPORTS / DISPUTES - 10 records
 // ---------------------------------------------------------------------------
 
 const _baseReports = [
   {
     id: "report-001", projectId: "proj-011", reporterId: "user-006",
-    reportName: "Client unresponsive — project stalled",
+    reportName: "Client unresponsive - project stalled",
     reason: "Client has not responded to messages for 10 days while waiting for data access approval.",
     description: "I've been unable to proceed with the property valuation pipeline because the client needs to provide access to their historical sales database. I've sent 5 follow-up messages over 10 days with no response. I'm requesting admin intervention to either get the client to respond or allow me to withdraw without penalty.",
     disputeType: "communication",
@@ -1252,7 +1252,7 @@ const _baseReports = [
     id: "report-006", projectId: "proj-001", reporterId: "user-009",
     reportName: "Unexpected compliance requirements delaying deployment",
     reason: "Client's legal team added SOC2 compliance requirements mid-project not in original scope.",
-    description: "When I started the deployment, the client's security team flagged that the AWS architecture needs SOC2 compliance. This requires significant rearchitecture — adding WAF, CloudTrail, Config rules, and audit logging. This adds approximately 2 weeks of work beyond the original timeline.",
+    description: "When I started the deployment, the client's security team flagged that the AWS architecture needs SOC2 compliance. This requires significant rearchitecture - adding WAF, CloudTrail, Config rules, and audit logging. This adds approximately 2 weeks of work beyond the original timeline.",
     disputeType: "deadline",
     desiredResolution: "2-week deadline extension and $2,000 additional budget for compliance work",
     evidence: [{ fileName: "compliance_checklist.pdf", note: "SOC2 requirements from security team" }],
@@ -1280,7 +1280,7 @@ const _baseReports = [
     id: "report-008", projectId: "proj-009", reporterId: "user-010",
     reportName: "Requested additional data engineering budget",
     reason: "Data cleaning took 3x estimated time due to poor data quality not disclosed upfront.",
-    description: "The client provided transaction data that was significantly dirtier than described — 40% missing values, inconsistent date formats, and duplicate records. I had to build extensive data cleaning pipelines that took 3 weeks instead of the estimated 1 week. Requesting $3,000 additional compensation.",
+    description: "The client provided transaction data that was significantly dirtier than described - 40% missing values, inconsistent date formats, and duplicate records. I had to build extensive data cleaning pipelines that took 3 weeks instead of the estimated 1 week. Requesting $3,000 additional compensation.",
     disputeType: "financial",
     desiredResolution: "$3,000 additional budget for data cleaning work",
     evidence: [{ fileName: "data_quality_report.pdf", note: "Initial data quality assessment vs. client description" }],
@@ -1335,7 +1335,7 @@ const _baseReports = [
 ];
 
 // ---------------------------------------------------------------------------
-// 8. REVIEWS — 12 records
+// 8. REVIEWS - 12 records
 // ---------------------------------------------------------------------------
 
 const _baseReviews = [
@@ -1343,193 +1343,193 @@ const _baseReviews = [
   { id: "review-002", projectId: "proj-008", reviewerId: "user-020", targetUserId: "user-005", rating: 4, comment: "Alice built a solid sentiment analysis pipeline. Accuracy is good at 92% and the dashboard is intuitive. Took a bit longer than expected but the quality justifies it. Would recommend for NLP projects.", createdAt: "2026-04-01T11:00:00.000Z" },
   { id: "review-003", projectId: "proj-009", reviewerId: "user-014", targetUserId: "user-010", rating: 4, comment: "Frank is an excellent data engineer. The fraud detection pipeline handles our transaction volume effortlessly. Communication could have been more frequent, but the technical quality more than makes up for it.", createdAt: "2026-04-25T09:00:00.000Z" },
   { id: "review-004", projectId: "proj-010", reviewerId: "user-016", targetUserId: "user-012", rating: 5, comment: "Henry is the best AI expert I've worked with. The adaptive learning MVP exceeded our expectations. He thought of edge cases we hadn't even considered. The pilot schools reported 30% better student engagement. Outstanding work!", createdAt: "2026-05-15T14:00:00.000Z" },
-  { id: "review-005", projectId: "proj-007", reviewerId: "user-018", targetUserId: "user-011", rating: 5, comment: "Second project with Grace — just as impressive as the first. She built mobile AI features flawlessly. Great at translating complex ML concepts into terms stakeholders understand.", createdAt: "2026-05-20T08:00:00.000Z" },
+  { id: "review-005", projectId: "proj-007", reviewerId: "user-018", targetUserId: "user-011", rating: 5, comment: "Second project with Grace - just as impressive as the first. She built mobile AI features flawlessly. Great at translating complex ML concepts into terms stakeholders understand.", createdAt: "2026-05-20T08:00:00.000Z" },
   { id: "review-006", projectId: "proj-008", reviewerId: "user-020", targetUserId: "user-005", rating: 3, comment: "The sentiment analysis works but struggles with industry-specific jargon from the marketing domain. We had to do significant post-processing. Alice was professional but the domain expertise wasn't quite there for marketing-specific language.", createdAt: "2026-04-05T13:00:00.000Z" },
   { id: "review-007", projectId: "proj-009", reviewerId: "user-014", targetUserId: "user-006", rating: 4, comment: "Bob came in as a substitute for a task mid-project and delivered solid work on the API integration layer. Good React skills and clean code. Would work with again for web development tasks.", createdAt: "2026-06-01T10:00:00.000Z" },
   { id: "review-008", projectId: "proj-010", reviewerId: "user-016", targetUserId: "user-012", rating: 5, comment: "Third project with Henry. He's become our go-to AI expert. Consistent quality, always thinks ahead about production concerns, and genuinely cares about the educational impact of his work.", createdAt: "2026-06-10T12:00:00.000Z" },
-  { id: "review-009", projectId: "proj-007", reviewerId: "user-011", targetUserId: "user-018", rating: 5, comment: "Olivia is a dream client — clear requirements, prompt feedback, and reasonable expectations. She provided excellent reference images for the virtual staging styles. A pleasure to work with.", createdAt: "2026-05-02T09:00:00.000Z" },
+  { id: "review-009", projectId: "proj-007", reviewerId: "user-011", targetUserId: "user-018", rating: 5, comment: "Olivia is a dream client - clear requirements, prompt feedback, and reasonable expectations. She provided excellent reference images for the virtual staging styles. A pleasure to work with.", createdAt: "2026-05-02T09:00:00.000Z" },
   { id: "review-010", projectId: "proj-010", reviewerId: "user-012", targetUserId: "user-016", rating: 4, comment: "Mia has a great vision for educational technology. Sometimes the feedback cycle was slow due to her busy schedule, but she was always fair about deadlines and scope. Would collaborate again.", createdAt: "2026-05-16T10:00:00.000Z" },
-  { id: "review-011", projectId: "proj-008", reviewerId: "user-005", targetUserId: "user-020", rating: 3, comment: "Quinn knows marketing well but had unrealistic expectations about sarcasm detection — that's still a research-level problem. Otherwise, the project went smoothly and requirements were clear.", createdAt: "2026-04-02T15:00:00.000Z" },
+  { id: "review-011", projectId: "proj-008", reviewerId: "user-005", targetUserId: "user-020", rating: 3, comment: "Quinn knows marketing well but had unrealistic expectations about sarcasm detection - that's still a research-level problem. Otherwise, the project went smoothly and requirements were clear.", createdAt: "2026-04-02T15:00:00.000Z" },
   { id: "review-012", projectId: "proj-009", reviewerId: "user-010", targetUserId: "user-014", rating: 4, comment: "Kate is a technical VP who understands the challenges. She provided clean data (mostly) and was responsive to questions. Good collaborative working relationship.", createdAt: "2026-04-26T11:00:00.000Z" },
-  // ── Noah's review for David on a prior completed game AI project ──
+  // â”€â”€ Noah's review for David on a prior completed game AI project â”€â”€
   { id: "review-013", projectId: "proj-013", reviewerId: "user-017", targetUserId: "user-008", rating: 5, comment: "David is a rare talent who understands both ML and game development. The procedural terrain generation exceeded our art director's expectations. He delivered working UE5 integration ahead of schedule. Already planning our next project together.", createdAt: "2026-06-15T14:00:00.000Z" },
 ];
 
 // ---------------------------------------------------------------------------
-// 9. NOTIFICATIONS — 30 records
+// 9. NOTIFICATIONS - 30 records
 // ---------------------------------------------------------------------------
 
 const _baseNotifications = [
-  // ── Alice (user-005) ──
+  // â”€â”€ Alice (user-005) â”€â”€
   { id: "notif-001", userId: "user-005", title: "Proposal Accepted!", message: "Your proposal for 'Deploy ML model on AWS' has been accepted. The client has funded escrow.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-016", createdAt: "2026-03-24T11:00:00.000Z" },
   { id: "notif-002", userId: "user-005", title: "Payment Released", message: "$8,500 has been released from escrow for 'Sentiment Analysis Pipeline'.", type: "payment", isRead: true, linkTo: "/expert/wallet", createdAt: "2026-03-28T15:00:00.000Z" },
   { id: "notif-003", userId: "user-005", title: "New Job Match", message: "A new job 'AI Tutor Chatbot' matches your NLP skills. 3 experts have already applied.", type: "system", isRead: false, linkTo: "/expert/jobs/job-012", createdAt: "2026-06-15T09:00:00.000Z" },
   { id: "notif-004", userId: "user-005", title: "Withdrawal Processed", message: "Your withdrawal of $5,000 has been processed and will arrive in 2-3 business days.", type: "payment", isRead: true, linkTo: "/expert/wallet", createdAt: "2026-05-02T10:00:00.000Z" },
-  // ── Bob (user-006) ──
+  // â”€â”€ Bob (user-006) â”€â”€
   { id: "notif-005", userId: "user-006", title: "Proposal Declined", message: "Your proposal for 'Deploy ML model on AWS' was declined. The client chose another expert.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-017", createdAt: "2026-03-24T14:00:00.000Z" },
   { id: "notif-006", userId: "user-006", title: "Project Cancelled", message: "Project 'Property Valuation ML Pipeline' has been cancelled. Escrow will be refunded to client.", type: "system", isRead: false, linkTo: "/expert/projects/proj-011", createdAt: "2026-06-10T15:00:00.000Z" },
   { id: "notif-007", userId: "user-006", title: "Dispute Report Filed", message: "Your report 'Client unresponsive' has been submitted. An admin will review it within 48 hours.", type: "dispute", isRead: true, linkTo: "/expert/proposals/proposal-017", createdAt: "2026-06-01T09:30:00.000Z" },
-  // ── Carol (user-007) ──
+  // â”€â”€ Carol (user-007) â”€â”€
   { id: "notif-008", userId: "user-007", title: "Proposal Accepted!", message: "Your proposal for 'AI Tutor Chatbot' has been accepted. Escrow funded.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-020", createdAt: "2026-02-20T13:00:00.000Z" },
   { id: "notif-009", userId: "user-007", title: "New Message", message: "Paul Anderson sent you a message about the contract analysis project.", type: "message", isRead: false, linkTo: "/messenger", createdAt: "2026-06-16T08:30:00.000Z" },
   { id: "notif-010", userId: "user-007", title: "Task Approved", message: "Client approved Task 2 of 'AI Tutor Chatbot'. Proceed to Task 3.", type: "task", isRead: true, linkTo: "/expert/projects/proj-003", createdAt: "2026-03-15T14:00:00.000Z" },
   { id: "notif-011", userId: "user-007", title: "Dispute Filed", message: "Your dispute 'Late milestone payment' has been registered. Admin will respond soon.", type: "dispute", isRead: false, linkTo: "/expert/proposals/proposal-020", createdAt: "2026-06-12T10:30:00.000Z" },
-  // ── David (user-008) ──
+  // â”€â”€ David (user-008) â”€â”€
   { id: "notif-012", userId: "user-008", title: "Proposal Accepted!", message: "Your proposal for 'Retail Inventory CV System' has been accepted.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-018", createdAt: "2026-04-05T11:00:00.000Z" },
   { id: "notif-013", userId: "user-008", title: "Dispute Resolved", message: "Your dispute 'Hardware data quality' was resolved in your favor. Client will upgrade cameras.", type: "dispute", isRead: true, linkTo: "/expert/projects/proj-002", createdAt: "2026-05-20T14:00:00.000Z" },
-  // ── Emma (user-009) ──
+  // â”€â”€ Emma (user-009) â”€â”€
   { id: "notif-014", userId: "user-009", title: "Proposal Accepted!", message: "Your proposal for 'Cloud ML Infrastructure' has been accepted.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-023", createdAt: "2026-03-25T10:00:00.000Z" },
   { id: "notif-015", userId: "user-009", title: "Extension Approved", message: "Client approved your 2-week extension for SOC2 compliance work on 'Deploy ML Model'.", type: "extension", isRead: true, linkTo: "/expert/projects/proj-001", createdAt: "2026-04-15T09:00:00.000Z" },
   { id: "notif-016", userId: "user-009", title: "Dispute Filed", message: "Your dispute 'AWS access revoked' has been submitted. Awaiting admin review.", type: "dispute", isRead: false, linkTo: "/expert/projects/proj-004", createdAt: "2026-06-14T08:30:00.000Z" },
-  // ── Frank (user-010) ──
+  // â”€â”€ Frank (user-010) â”€â”€
   { id: "notif-017", userId: "user-010", title: "Payment Released", message: "$12,000 has been released for 'Fraud Detection Phase 1'.", type: "payment", isRead: true, linkTo: "/expert/wallet", createdAt: "2026-04-20T17:00:00.000Z" },
   { id: "notif-018", userId: "user-010", title: "New Job Match", message: "A new 'Real-time Transaction Analytics' job matches your data engineering skills.", type: "system", isRead: false, linkTo: "/expert/jobs/job-003", createdAt: "2026-05-22T08:00:00.000Z" },
-  // ── Henry (user-012) ──
+  // â”€â”€ Henry (user-012) â”€â”€
   { id: "notif-019", userId: "user-012", title: "Proposal Accepted!", message: "Your proposal for 'Support Chatbot Fine-tuning' has been accepted.", type: "proposal", isRead: true, linkTo: "/expert/proposals/proposal-003", createdAt: "2026-06-05T15:00:00.000Z" },
   { id: "notif-020", userId: "user-012", title: "Payment Released", message: "$10,000 has been released for 'Adaptive Learning MVP'. Great work!", type: "payment", isRead: true, linkTo: "/expert/wallet", createdAt: "2026-05-10T13:00:00.000Z" },
   { id: "notif-021", userId: "user-012", title: "Withdrawal Pending", message: "Your withdrawal request of $8,000 is being processed.", type: "payment", isRead: false, linkTo: "/expert/wallet", createdAt: "2026-06-14T08:30:00.000Z" },
   { id: "notif-022", userId: "user-012", title: "Dispute Resolved", message: "Admin rejected your extension request for 'Support Chatbot'. Deadline remains unchanged.", type: "dispute", isRead: false, linkTo: "/expert/projects/proj-005", createdAt: "2026-06-12T10:00:00.000Z" },
-  // ── John (user-013, client) ──
+  // â”€â”€ John (user-013, client) â”€â”€
   { id: "notif-023", userId: "user-013", title: "New Proposal Received", message: "Henry Davis submitted a proposal for 'Support Chatbot Fine-tuning'.", type: "proposal", isRead: false, linkTo: "/client/projects/proj-005/proposals", createdAt: "2026-06-05T15:00:00.000Z" },
   { id: "notif-024", userId: "user-013", title: "Expert Started Working", message: "Henry Davis has started working on 'Support Chatbot Fine-tuning'.", type: "task", isRead: true, linkTo: "/client/projects/proj-005", createdAt: "2026-06-06T09:00:00.000Z" },
-  // ── Kate (user-014, client) ──
+  // â”€â”€ Kate (user-014, client) â”€â”€
   { id: "notif-025", userId: "user-014", title: "Project Completed", message: "Fraud Detection Phase 1 has been marked as complete. Please review and release payment.", type: "task", isRead: true, linkTo: "/client/projects/proj-009", createdAt: "2026-04-20T16:00:00.000Z" },
-  // ── Paul (user-019, client) ──
+  // â”€â”€ Paul (user-019, client) â”€â”€
   { id: "notif-026", userId: "user-019", title: "Expert Assigned", message: "Carol Zhang has been assigned to your 'AI Contract Analysis' project.", type: "system", isRead: true, linkTo: "/client/projects/proj-006", createdAt: "2026-06-10T10:00:00.000Z" },
-  // ── Admin notifications ──
-  { id: "notif-027", userId: "user-002", title: "New Dispute Filed", message: "Expert Bob Williams filed a dispute: 'Client unresponsive — project stalled'.", type: "dispute", isRead: true, linkTo: "/admin/disputes/report-001", createdAt: "2026-06-01T09:05:00.000Z" },
+  // â”€â”€ Admin notifications â”€â”€
+  { id: "notif-027", userId: "user-002", title: "New Dispute Filed", message: "Expert Bob Williams filed a dispute: 'Client unresponsive - project stalled'.", type: "dispute", isRead: true, linkTo: "/admin/disputes/report-001", createdAt: "2026-06-01T09:05:00.000Z" },
   { id: "notif-028", userId: "user-002", title: "New Dispute Filed", message: "Expert Grace Kim filed a dispute: 'Scope creep beyond original agreement'.", type: "dispute", isRead: false, linkTo: "/admin/disputes/report-002", createdAt: "2026-06-05T14:05:00.000Z" },
   { id: "notif-029", userId: "user-002", title: "New Dispute Filed", message: "Expert Carol Zhang filed a dispute: 'Late milestone payment affecting project timeline'.", type: "dispute", isRead: false, linkTo: "/admin/disputes/report-003", createdAt: "2026-06-12T10:05:00.000Z" },
   { id: "notif-030", userId: "user-002", title: "New Dispute Filed", message: "Expert Emma Brown filed a dispute: 'AWS access revoked mid-project'.", type: "dispute", isRead: false, linkTo: "/admin/disputes/report-004", createdAt: "2026-06-14T08:05:00.000Z" },
-  // ── Owner (user-001) ──
+  // â”€â”€ Owner (user-001) â”€â”€
   { id: "notif-031", userId: "user-001", title: "Platform Growth Milestone", message: "AI Tasker has reached 20 registered users and 12 active projects! Platform is growing steadily.", type: "system", isRead: false, linkTo: "/owner/dashboard", createdAt: "2026-06-15T08:00:00.000Z" },
   { id: "notif-032", userId: "user-001", title: "New Admin Account Created", message: "Admin 'Lisa Wang' has joined the platform. Review their activity in the admin management page.", type: "system", isRead: true, linkTo: "/owner/manage-admins", createdAt: "2024-05-01T07:30:00.000Z" },
   { id: "notif-033", userId: "user-001", title: "Revenue Report Ready", message: "Monthly revenue report for June 2026 is ready. Total platform revenue: $156,500 with 8 completed projects.", type: "system", isRead: false, linkTo: "/owner/dashboard", createdAt: "2026-06-16T09:00:00.000Z" },
-  // ── Admin2 (user-003) ──
+  // â”€â”€ Admin2 (user-003) â”€â”€
   { id: "notif-034", userId: "user-003", title: "Dispute Assigned to You", message: "Dispute 'Late milestone payment affecting project timeline' has been assigned to you for review.", type: "dispute", isRead: false, linkTo: "/admin/disputes/report-003", createdAt: "2026-06-12T10:10:00.000Z" },
   { id: "notif-035", userId: "user-003", title: "Review Moderation Queue", message: "There are 3 new reviews pending moderation. Please review them within 24 hours.", type: "system", isRead: true, linkTo: "/admin/reviews", createdAt: "2026-06-10T08:00:00.000Z" },
-  // ── Admin3 (user-004) ──
+  // â”€â”€ Admin3 (user-004) â”€â”€
   { id: "notif-036", userId: "user-004", title: "User Verification Needed", message: "2 new expert profiles need verification. Check their credentials and certifications.", type: "system", isRead: false, linkTo: "/admin/users", createdAt: "2026-06-14T10:00:00.000Z" },
   { id: "notif-037", userId: "user-004", title: "Category Update Request", message: "A user suggested adding 'Reinforcement Learning' as a new skill category. Review and approve.", type: "system", isRead: true, linkTo: "/admin/category-tags", createdAt: "2026-06-08T11:00:00.000Z" },
-  // ── Grace (user-011) ──
+  // â”€â”€ Grace (user-011) â”€â”€
   { id: "notif-038", userId: "user-011", title: "Payment Released", message: "$16,000 has been released from escrow for 'Virtual Staging AI'. Great work!", type: "payment", isRead: true, linkTo: "/expert/wallet", createdAt: "2026-04-28T15:30:00.000Z" },
   { id: "notif-039", userId: "user-011", title: "New Message", message: "Quinn Thomas sent you a message about a potential AI mobile app project.", type: "message", isRead: false, linkTo: "/messenger", createdAt: "2026-06-16T09:30:00.000Z" },
   { id: "notif-040", userId: "user-011", title: "New Job Match", message: "A new 'AI-powered mobile marketing app' job matches your skills perfectly.", type: "system", isRead: false, linkTo: "/expert/jobs/job-010", createdAt: "2026-06-12T08:00:00.000Z" },
-  // ── Liam (user-015) ──
+  // â”€â”€ Liam (user-015) â”€â”€
   { id: "notif-041", userId: "user-015", title: "Expert Started Working", message: "David Park has started working on 'Retail Inventory CV System'. Track progress in project dashboard.", type: "task", isRead: true, linkTo: "/client/projects/proj-002", createdAt: "2026-04-06T09:00:00.000Z" },
   { id: "notif-042", userId: "user-015", title: "Task Completed", message: "Task 'Camera integration and data pipeline' has been marked as complete. Review and approve.", type: "task", isRead: false, linkTo: "/client/projects/proj-002", createdAt: "2026-04-20T14:00:00.000Z" },
-  // ── Mia (user-016) ──
+  // â”€â”€ Mia (user-016) â”€â”€
   { id: "notif-043", userId: "user-016", title: "Project Completed", message: "Adaptive Learning MVP has been completed. Please review and release payment to Henry Davis.", type: "task", isRead: true, linkTo: "/client/projects/proj-010", createdAt: "2026-05-10T12:00:00.000Z" },
   { id: "notif-044", userId: "user-016", title: "Payment Released", message: "$10,000 escrow has been released to Henry Davis for 'Adaptive Learning MVP'.", type: "payment", isRead: true, linkTo: "/client/billing", createdAt: "2026-05-10T13:00:00.000Z" },
   { id: "notif-045", userId: "user-016", title: "New Expert Available", message: "Top-rated NLP expert Carol Zhang is now available for new projects. Her rate: $110/hr.", type: "system", isRead: false, linkTo: "/client/experts/user-007", createdAt: "2026-06-14T08:00:00.000Z" },
-  // ── Noah (user-017) ──
+  // â”€â”€ Noah (user-017) â”€â”€
   { id: "notif-046", userId: "user-017", title: "Proposals Received", message: "You have 3 new proposals for 'AI-driven NPC behavior system'. Review them now.", type: "proposal", isRead: false, linkTo: "/client/projects/proj-006/proposals", createdAt: "2026-05-15T09:00:00.000Z" },
   { id: "notif-047", userId: "user-017", title: "Project Started", message: "Your 'Procedural Content Generation' project has been assigned to David Park. Escrow funded.", type: "system", isRead: true, linkTo: "/client/projects/proj-013", createdAt: "2026-05-20T10:00:00.000Z" },
   { id: "notif-048", userId: "user-017", title: "Task Submitted for Review", message: "David Park submitted 'PCG algorithm development'. Please review the submission.", type: "task", isRead: false, linkTo: "/client/projects/proj-013", createdAt: "2026-06-15T14:00:00.000Z" },
-  // ── Olivia (user-018) ──
+  // â”€â”€ Olivia (user-018) â”€â”€
   { id: "notif-049", userId: "user-018", title: "Project Completed", message: "Virtual Staging AI has been completed by Grace Kim. Review the final delivery.", type: "task", isRead: true, linkTo: "/client/projects/proj-007", createdAt: "2026-04-28T14:00:00.000Z" },
   { id: "notif-050", userId: "user-018", title: "New Proposal Received", message: "Bob Williams submitted a proposal for 'ML Pipeline for Property Valuation'.", type: "proposal", isRead: true, linkTo: "/client/projects/proj-011/proposals", createdAt: "2026-05-02T09:00:00.000Z" },
   { id: "notif-051", userId: "user-018", title: "Refund Processed", message: "$14,000 has been refunded to your wallet from cancelled project 'Property Valuation ML'.", type: "payment", isRead: false, linkTo: "/client/billing", createdAt: "2026-06-10T14:45:00.000Z" },
-  // ── Quinn (user-020) ──
+  // â”€â”€ Quinn (user-020) â”€â”€
   { id: "notif-052", userId: "user-020", title: "Payment Released", message: "$8,500 escrow has been released to Alice Johnson for 'Sentiment Analysis Pipeline'.", type: "payment", isRead: true, linkTo: "/client/billing", createdAt: "2026-03-28T14:30:00.000Z" },
   { id: "notif-053", userId: "user-020", title: "New Expert Match", message: "Grace Kim is available for your 'AI Marketing Content Generator' project. 92% skill match.", type: "system", isRead: false, linkTo: "/client/experts/user-011", createdAt: "2026-06-13T10:00:00.000Z" },
   { id: "notif-054", userId: "user-020", title: "Refund Processed", message: "$9,500 has been refunded from cancelled project 'Marketing Content Generator'.", type: "payment", isRead: false, linkTo: "/client/billing", createdAt: "2026-06-15T09:45:00.000Z" },
 ];
 
 // ---------------------------------------------------------------------------
-// 10. MESSAGES — 20 records
+// 10. MESSAGES - 20 records
 // ---------------------------------------------------------------------------
 
 const _baseMessages = [
-  // ── Thread: proj-005, John (user-013) ↔ Henry (user-012) ──
+  // â”€â”€ Thread: proj-005, John (user-013) â†” Henry (user-012) â”€â”€
   { id: "msg-001", senderId: "user-013", receiverId: "user-012", projectId: "proj-005", content: "Hi Henry, excited to work with you! I've uploaded the knowledge base to the shared drive. Let me know if you have any questions about the ticket categorization system.", isRead: true, createdAt: "2026-06-06T09:00:00.000Z" },
-  { id: "msg-002", senderId: "user-012", receiverId: "user-013", projectId: "proj-005", content: "Thanks John! I've reviewed the knowledge base — very comprehensive. I notice the tickets use a custom CRM format. Do you have an API for extracting them or should I build a custom parser?", isRead: true, createdAt: "2026-06-06T10:30:00.000Z" },
-  { id: "msg-003", senderId: "user-013", receiverId: "user-012", projectId: "proj-005", content: "The CRM has a REST API — I'll send you the API keys. It should be straightforward to export in JSON format.", isRead: true, createdAt: "2026-06-06T11:00:00.000Z" },
+  { id: "msg-002", senderId: "user-012", receiverId: "user-013", projectId: "proj-005", content: "Thanks John! I've reviewed the knowledge base - very comprehensive. I notice the tickets use a custom CRM format. Do you have an API for extracting them or should I build a custom parser?", isRead: true, createdAt: "2026-06-06T10:30:00.000Z" },
+  { id: "msg-003", senderId: "user-013", receiverId: "user-012", projectId: "proj-005", content: "The CRM has a REST API - I'll send you the API keys. It should be straightforward to export in JSON format.", isRead: true, createdAt: "2026-06-06T11:00:00.000Z" },
   { id: "msg-004", senderId: "user-012", receiverId: "user-013", projectId: "proj-005", content: "The API's JSON output has a lot of embedded HTML in the ticket bodies. I'll need to build an HTML stripper as well. This adds some complexity but I'll handle it. ETA for prototype: end of this week.", isRead: true, createdAt: "2026-06-07T08:00:00.000Z" },
-  { id: "msg-005", senderId: "user-013", receiverId: "user-012", projectId: "proj-005", content: "Understandable. If you need an extra week for the parser, that's fine — let's keep quality as priority.", isRead: false, createdAt: "2026-06-07T14:00:00.000Z" },
-  // ── Thread: proj-006, Paul (user-019) ↔ Carol (user-007) ──
-  { id: "msg-006", senderId: "user-019", receiverId: "user-007", projectId: "proj-006", content: "Hi Carol, I've uploaded 50 sample contracts in the shared folder — these cover the main contract types we need analyzed.", isRead: true, createdAt: "2026-06-10T10:00:00.000Z" },
+  { id: "msg-005", senderId: "user-013", receiverId: "user-012", projectId: "proj-005", content: "Understandable. If you need an extra week for the parser, that's fine - let's keep quality as priority.", isRead: false, createdAt: "2026-06-07T14:00:00.000Z" },
+  // â”€â”€ Thread: proj-006, Paul (user-019) â†” Carol (user-007) â”€â”€
+  { id: "msg-006", senderId: "user-019", receiverId: "user-007", projectId: "proj-006", content: "Hi Carol, I've uploaded 50 sample contracts in the shared folder - these cover the main contract types we need analyzed.", isRead: true, createdAt: "2026-06-10T10:00:00.000Z" },
   { id: "msg-007", senderId: "user-007", receiverId: "user-019", projectId: "proj-006", content: "Thanks Paul! Quick question: should the tool handle scanned/image-based PDFs (requiring OCR) or just born-digital documents?", isRead: true, createdAt: "2026-06-10T14:00:00.000Z" },
   { id: "msg-008", senderId: "user-019", receiverId: "user-007", projectId: "proj-006", content: "About 30% of our contracts are scanned. If OCR adds too much time, we can handle those separately for now and focus on digital-first.", isRead: true, createdAt: "2026-06-11T09:00:00.000Z" },
   { id: "msg-009", senderId: "user-007", receiverId: "user-019", projectId: "proj-006", content: "I'd recommend Phase 1: digital documents only (faster delivery, higher accuracy). Phase 2: add OCR support for scanned docs.", isRead: false, createdAt: "2026-06-11T11:00:00.000Z" },
-  // ── Thread: proj-001, Kate (user-014) ↔ Emma (user-009) ──
+  // â”€â”€ Thread: proj-001, Kate (user-014) â†” Emma (user-009) â”€â”€
   { id: "msg-010", senderId: "user-009", receiverId: "user-014", projectId: "proj-001", content: "Kate, the Kubernetes cluster is set up and auto-scaling is configured. I'm starting on the model serving layer now. Quick demo available if you want to see progress.", isRead: true, createdAt: "2026-04-01T10:00:00.000Z" },
-  { id: "msg-011", senderId: "user-014", receiverId: "user-009", projectId: "proj-001", content: "Great progress, Emma! Yes, I'd love a quick demo. Also, our security team just flagged SOC2 requirements — can we discuss the implications tomorrow?", isRead: true, createdAt: "2026-04-01T15:00:00.000Z" },
-  { id: "msg-012", senderId: "user-009", receiverId: "user-014", projectId: "proj-001", content: "SOC2 compliance will require additional architecture work — WAF, CloudTrail, audit logging. I've prepared a scope document.", isRead: true, createdAt: "2026-04-02T08:00:00.000Z" },
-  // ── Thread: proj-002, Liam (user-015) ↔ David (user-008) ──
+  { id: "msg-011", senderId: "user-014", receiverId: "user-009", projectId: "proj-001", content: "Great progress, Emma! Yes, I'd love a quick demo. Also, our security team just flagged SOC2 requirements - can we discuss the implications tomorrow?", isRead: true, createdAt: "2026-04-01T15:00:00.000Z" },
+  { id: "msg-012", senderId: "user-009", receiverId: "user-014", projectId: "proj-001", content: "SOC2 compliance will require additional architecture work - WAF, CloudTrail, audit logging. I've prepared a scope document.", isRead: true, createdAt: "2026-04-02T08:00:00.000Z" },
+  // â”€â”€ Thread: proj-002, Liam (user-015) â†” David (user-008) â”€â”€
   { id: "msg-013", senderId: "user-008", receiverId: "user-015", projectId: "proj-002", content: "Liam, I've set up the first store's camera feeds and the object detection is working. However, the image quality from your cameras is lower than expected. Can we discuss?", isRead: true, createdAt: "2026-05-01T09:00:00.000Z" },
   { id: "msg-014", senderId: "user-015", receiverId: "user-008", projectId: "proj-002", content: "What quality are you getting? We installed these cameras last year specifically for this kind of application. They should be 1080p.", isRead: true, createdAt: "2026-05-01T11:00:00.000Z" },
   { id: "msg-015", senderId: "user-008", receiverId: "user-015", projectId: "proj-002", content: "The feeds are actually 720p with significant compression artifacts. I've attached comparisons. At 720p, SKU recognition drops to ~82% vs 94% at 1080p.", isRead: true, createdAt: "2026-05-01T14:00:00.000Z" },
-  // ── General thread (no project) — Grace (user-011) ↔ Quinn (user-020) ──
-  { id: "msg-016", senderId: "user-020", receiverId: "user-011", projectId: null, content: "Hi Grace, I saw your portfolio — your mobile AI work is impressive. We might have a project coming up for an AI-powered mobile marketing app. Would you be interested?", isRead: true, createdAt: "2026-06-15T10:00:00.000Z" },
+  // â”€â”€ General thread (no project) - Grace (user-011) â†” Quinn (user-020) â”€â”€
+  { id: "msg-016", senderId: "user-020", receiverId: "user-011", projectId: null, content: "Hi Grace, I saw your portfolio - your mobile AI work is impressive. We might have a project coming up for an AI-powered mobile marketing app. Would you be interested?", isRead: true, createdAt: "2026-06-15T10:00:00.000Z" },
   { id: "msg-017", senderId: "user-011", receiverId: "user-020", projectId: null, content: "Hi Quinn, definitely interested! I love combining mobile dev with AI. Could you share more about the project scope? I'd be happy to put together an initial proposal.", isRead: true, createdAt: "2026-06-15T14:00:00.000Z" },
-  { id: "msg-018", senderId: "user-020", receiverId: "user-011", projectId: null, content: "We're looking at an AI content assistant for our mobile app — personalized push notifications, in-app content recommendations, and visual search. Budget around $12-15K.", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
-  // ── Admin communication ──
+  { id: "msg-018", senderId: "user-020", receiverId: "user-011", projectId: null, content: "We're looking at an AI content assistant for our mobile app - personalized push notifications, in-app content recommendations, and visual search. Budget around $12-15K.", isRead: false, createdAt: "2026-06-16T09:00:00.000Z" },
+  // â”€â”€ Admin communication â”€â”€
   { id: "msg-019", senderId: "user-002", receiverId: "user-006", projectId: "proj-011", content: "Hi Bob, I'm reviewing your dispute about client unresponsiveness. I've sent a notice to Olivia. Please give her 48 more hours to respond before we take further action.", isRead: true, createdAt: "2026-06-02T10:00:00.000Z" },
   { id: "msg-020", senderId: "user-006", receiverId: "user-002", projectId: "proj-011", content: "Thank you Sarah, I appreciate the quick response. I'll wait for the 48-hour window.", isRead: true, createdAt: "2026-06-02T11:00:00.000Z" },
-  // ── Thread: proj-010, Mia (user-016) ↔ Henry (user-012) ──
+  // â”€â”€ Thread: proj-010, Mia (user-016) â†” Henry (user-012) â”€â”€
   { id: "msg-021", senderId: "user-016", receiverId: "user-012", projectId: "proj-010", content: "Henry, the pilot schools are reporting great results! Student engagement is up 30%. Can we discuss Phase 2 features?", isRead: true, createdAt: "2026-05-20T09:00:00.000Z" },
   { id: "msg-022", senderId: "user-012", receiverId: "user-016", projectId: "proj-010", content: "That's wonderful to hear Mia! I'd love to discuss Phase 2. I've prepared a scope document with multi-language support and mobile apps as we discussed.", isRead: true, createdAt: "2026-05-20T10:30:00.000Z" },
   { id: "msg-023", senderId: "user-016", receiverId: "user-012", projectId: "proj-010", content: "Perfect! Let's schedule a call next week to go through the scope. Budget for Phase 2 is approved at $25K.", isRead: false, createdAt: "2026-05-21T14:00:00.000Z" },
-  // ── Thread: proj-011, Olivia (user-018) ↔ Bob (user-006) ──
+  // â”€â”€ Thread: proj-011, Olivia (user-018) â†” Bob (user-006) â”€â”€
   { id: "msg-024", senderId: "user-018", receiverId: "user-006", projectId: "proj-011", content: "Bob, I've requested database access from our IT team. They said it should be ready by end of week. Apologies for the delay.", isRead: true, createdAt: "2026-05-15T09:00:00.000Z" },
   { id: "msg-025", senderId: "user-006", receiverId: "user-018", projectId: "proj-011", content: "Thanks Olivia. I'll start on the ETL pipeline design in the meantime. Can you share the database schema documentation so I can prepare?", isRead: true, createdAt: "2026-05-15T11:00:00.000Z" },
   { id: "msg-026", senderId: "user-018", receiverId: "user-006", projectId: "proj-011", content: "I've uploaded the schema docs to the shared drive. Let me know if you need anything else to get started.", isRead: false, createdAt: "2026-05-16T08:00:00.000Z" },
-  // ── Thread: proj-013, Noah (user-017) ↔ David (user-008) ──
-  { id: "msg-027", senderId: "user-017", receiverId: "user-008", projectId: "proj-013", content: "David, excited to have you on the procedural content generation project! I've shared our game design doc — it outlines the terrain types and biome rules.", isRead: true, createdAt: "2026-05-21T10:00:00.000Z" },
+  // â”€â”€ Thread: proj-013, Noah (user-017) â†” David (user-008) â”€â”€
+  { id: "msg-027", senderId: "user-017", receiverId: "user-008", projectId: "proj-013", content: "David, excited to have you on the procedural content generation project! I've shared our game design doc - it outlines the terrain types and biome rules.", isRead: true, createdAt: "2026-05-21T10:00:00.000Z" },
   { id: "msg-028", senderId: "user-008", receiverId: "user-017", projectId: "proj-013", content: "Thanks Noah! The design doc is really detailed. I'm thinking a WaveFunctionCollapse algorithm for terrain and L-systems for vegetation. Does that align with your engine?", isRead: true, createdAt: "2026-05-21T14:00:00.000Z" },
-  { id: "msg-029", senderId: "user-017", receiverId: "user-008", projectId: "proj-013", content: "WFC is perfect — we already have tile sets ready. For L-systems, our engine supports them natively. Can't wait to see the first terrain prototypes!", isRead: false, createdAt: "2026-05-22T09:00:00.000Z" },
+  { id: "msg-029", senderId: "user-017", receiverId: "user-008", projectId: "proj-013", content: "WFC is perfect - we already have tile sets ready. For L-systems, our engine supports them natively. Can't wait to see the first terrain prototypes!", isRead: false, createdAt: "2026-05-22T09:00:00.000Z" },
 ];
 
 // ---------------------------------------------------------------------------
-// 11. TASKS / TIMELINE — 30 records
+// 11. TASKS / TIMELINE - 30 records
 // ---------------------------------------------------------------------------
 
 const _baseTasks = [
-  // ── proj-001: AWS Deploy (4 tasks) ──
+  // â”€â”€ proj-001: AWS Deploy (4 tasks) â”€â”€
   { id: "task-001", projectId: "proj-001", title: "Kubernetes cluster setup", description: "Set up EKS cluster with node groups, networking, and IAM roles", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-01T00:00:00.000Z", createdAt: "2026-03-24T10:00:00.000Z", miniTasks: [{ id: "mt-001", title: "Provision EKS cluster", description: "Create EKS cluster with appropriate instance types", status: "done", order: 1 }, { id: "mt-002", title: "Configure VPC networking", description: "Set up VPC, subnets, and security groups", status: "done", order: 2 }, { id: "mt-003", title: "Set up IAM roles", description: "Create service accounts and IAM roles for pods", status: "done", order: 3 }] },
   { id: "task-002", projectId: "proj-001", title: "Model serving infrastructure", description: "Deploy KFServing with model versioning and traffic splitting", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-15T00:00:00.000Z", createdAt: "2026-04-02T09:00:00.000Z", miniTasks: [{ id: "mt-004", title: "Install KFServing", description: "Deploy KFServing on EKS cluster", status: "done", order: 1 }, { id: "mt-005", title: "Configure model registry", description: "Set up model versioning in S3", status: "done", order: 2 }, { id: "mt-006", title: "Set up traffic splitting", description: "Configure Istio for A/B testing", status: "done", order: 3 }, { id: "mt-007", title: "Deploy first model version", description: "Deploy v1 of the PyTorch model", status: "done", order: 4 }] },
   { id: "task-003", projectId: "proj-001", title: "Monitoring and alerting", description: "Set up Prometheus, Grafana, and CloudWatch dashboards", status: "in_progress", assignedTo: "user-009", approval: null, deadline: "2026-05-01T00:00:00.000Z", createdAt: "2026-04-16T10:00:00.000Z", miniTasks: [{ id: "mt-008", title: "Deploy Prometheus", description: "Install Prometheus for metrics collection", status: "done", order: 1 }, { id: "mt-009", title: "Create Grafana dashboards", description: "Design monitoring dashboards", status: "in_progress", order: 2 }, { id: "mt-010", title: "Configure alerts", description: "Set up alert rules for latency and errors", status: "pending", order: 3 }] },
   { id: "task-004", projectId: "proj-001", title: "CI/CD pipeline", description: "Build GitOps pipeline with ArgoCD for model updates", status: "pending", assignedTo: "user-009", approval: null, deadline: "2026-05-15T00:00:00.000Z", createdAt: "2026-04-20T08:00:00.000Z", miniTasks: [{ id: "mt-011", title: "Set up GitHub Actions", description: "Create CI workflow for testing", status: "pending", order: 1 }, { id: "mt-012", title: "Install ArgoCD", description: "Deploy ArgoCD for GitOps", status: "pending", order: 2 }, { id: "mt-013", title: "Create deployment pipeline", description: "End-to-end pipeline from commit to deploy", status: "pending", order: 3 }] },
-  // ── proj-002: Retail CV (3 tasks) ──
+  // â”€â”€ proj-002: Retail CV (3 tasks) â”€â”€
   { id: "task-005", projectId: "proj-002", title: "Camera integration and data pipeline", description: "Set up camera feeds and image preprocessing pipeline", status: "completed", assignedTo: "user-008", approval: "Approved", deadline: "2026-04-20T00:00:00.000Z", createdAt: "2026-04-05T10:00:00.000Z", miniTasks: [{ id: "mt-014", title: "Camera API integration", description: "Connect to store camera systems", status: "done", order: 1 }, { id: "mt-015", title: "Image preprocessing", description: "Build normalization and augmentation pipeline", status: "done", order: 2 }, { id: "mt-016", title: "Data validation", description: "Validate image quality and format", status: "done", order: 3 }] },
   { id: "task-006", projectId: "proj-002", title: "Object detection model", description: "Train and evaluate YOLOv8 for product detection", status: "in_progress", assignedTo: "user-008", approval: null, deadline: "2026-05-15T00:00:00.000Z", createdAt: "2026-04-21T09:00:00.000Z", miniTasks: [{ id: "mt-017", title: "Data annotation", description: "Label 5000 product images", status: "done", order: 1 }, { id: "mt-018", title: "Model training", description: "Train YOLOv8 on labeled data", status: "done", order: 2 }, { id: "mt-019", title: "Model evaluation", description: "Evaluate mAP and precision/recall", status: "in_progress", order: 3 }, { id: "mt-020", title: "Model optimization", description: "Optimize for edge deployment", status: "pending", order: 4 }] },
   { id: "task-007", projectId: "proj-002", title: "Dashboard and alerting", description: "Build store manager dashboard with inventory alerts", status: "pending", assignedTo: "user-008", approval: null, deadline: "2026-06-15T00:00:00.000Z", createdAt: "2026-05-10T08:00:00.000Z", miniTasks: [{ id: "mt-021", title: "React dashboard", description: "Build inventory monitoring UI", status: "pending", order: 1 }, { id: "mt-022", title: "Alert system", description: "Low stock and misplaced item alerts", status: "pending", order: 2 }] },
-  // ── proj-003: AI Tutor (3 tasks) ──
+  // â”€â”€ proj-003: AI Tutor (3 tasks) â”€â”€
   { id: "task-008", projectId: "proj-003", title: "Curriculum integration", description: "Ingest and structure curriculum content for RAG", status: "completed", assignedTo: "user-007", approval: "Approved", deadline: "2026-03-01T00:00:00.000Z", createdAt: "2026-02-20T12:00:00.000Z", miniTasks: [{ id: "mt-023", title: "Content parsing", description: "Parse curriculum PDFs and docs", status: "done", order: 1 }, { id: "mt-024", title: "Chunking strategy", description: "Design document chunking for RAG", status: "done", order: 2 }, { id: "mt-025", title: "Vector embedding", description: "Generate and store embeddings", status: "done", order: 3 }] },
   { id: "task-009", projectId: "proj-003", title: "Conversational AI engine", description: "Build RAG-based tutoring conversation system", status: "completed", assignedTo: "user-007", approval: "Approved", deadline: "2026-03-20T00:00:00.000Z", createdAt: "2026-03-02T09:00:00.000Z", miniTasks: [{ id: "mt-026", title: "LLM integration", description: "Set up LLM with RAG pipeline", status: "done", order: 1 }, { id: "mt-027", title: "Socratic questioning", description: "Implement guided questioning patterns", status: "done", order: 2 }, { id: "mt-028", title: "Code review system", description: "Build code analysis and feedback", status: "done", order: 3 }, { id: "mt-029", title: "Exercise generator", description: "Auto-generate practice problems", status: "done", order: 4 }] },
   { id: "task-010", projectId: "proj-003", title: "Student progress tracking", description: "Build knowledge tracing and analytics", status: "in_progress", assignedTo: "user-007", approval: null, deadline: "2026-04-10T00:00:00.000Z", createdAt: "2026-03-21T10:00:00.000Z", miniTasks: [{ id: "mt-030", title: "Knowledge tracing model", description: "Implement BKT model", status: "done", order: 1 }, { id: "mt-031", title: "Progress dashboard", description: "Student and teacher analytics", status: "in_progress", order: 2 }, { id: "mt-032", title: "Adaptive difficulty", description: "Adjust content based on performance", status: "pending", order: 3 }] },
-  // ── proj-004: Cloud ML Infra (4 tasks) ──
+  // â”€â”€ proj-004: Cloud ML Infra (4 tasks) â”€â”€
   { id: "task-011", projectId: "proj-004", title: "Cost analysis and architecture design", description: "Analyze current costs and design target architecture", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-05T00:00:00.000Z", createdAt: "2026-03-25T09:00:00.000Z", miniTasks: [{ id: "mt-033", title: "Current cost audit", description: "Analyze existing AWS spend", status: "done", order: 1 }, { id: "mt-034", title: "Architecture design", description: "Design optimized architecture", status: "done", order: 2 }, { id: "mt-035", title: "Cost projection", description: "Project savings with new architecture", status: "done", order: 3 }] },
   { id: "task-012", projectId: "proj-004", title: "Spot instance strategy", description: "Implement Karpenter for intelligent spot management", status: "completed", assignedTo: "user-009", approval: "Approved", deadline: "2026-04-20T00:00:00.000Z", createdAt: "2026-04-06T10:00:00.000Z", miniTasks: [{ id: "mt-036", title: "Karpenter deployment", description: "Install and configure Karpenter", status: "done", order: 1 }, { id: "mt-037", title: "Spot instance policies", description: "Define spot fallback policies", status: "done", order: 2 }, { id: "mt-038", title: "Testing and validation", description: "Validate spot instance handling", status: "done", order: 3 }] },
   { id: "task-013", projectId: "proj-004", title: "Feature store and model registry", description: "Set up Feast feature store and MLflow registry", status: "in_progress", assignedTo: "user-009", approval: null, deadline: "2026-05-10T00:00:00.000Z", createdAt: "2026-04-21T08:00:00.000Z", miniTasks: [{ id: "mt-039", title: "Feast deployment", description: "Deploy Feast on EKS", status: "done", order: 1 }, { id: "mt-040", title: "MLflow setup", description: "Set up MLflow tracking server", status: "in_progress", order: 2 }, { id: "mt-041", title: "Integration testing", description: "Test feature serving latency", status: "pending", order: 3 }, { id: "mt-042", title: "Documentation", description: "Write setup and usage docs", status: "pending", order: 4 }] },
-  // ── proj-005: Support Chatbot (3 tasks) ──
+  // â”€â”€ proj-005: Support Chatbot (3 tasks) â”€â”€
   { id: "task-014", projectId: "proj-005", title: "Knowledge base processing", useCaseIndex: 0, description: "Extract and structure support ticket knowledge base", status: "in_progress", assignedTo: "user-012", approval: null, deadline: "2026-06-20T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-043", title: "CRM API extraction", description: "Pull data from CRM API", status: "done", order: 1 }, { id: "mt-044", title: "HTML stripping", description: "Clean embedded HTML from tickets", status: "done", order: 2 }, { id: "mt-045", title: "Content chunking", description: "Chunk tickets for RAG retrieval", status: "in_progress", order: 3 }, { id: "mt-046", title: "Vector embedding", description: "Generate embeddings for search", status: "pending", order: 4 }] },
   { id: "task-015", projectId: "proj-005", title: "Model fine-tuning", useCaseIndex: 1, description: "Fine-tune LLM on support domain data", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-047", title: "Base model selection", description: "Evaluate and select base LLM", status: "pending", order: 1 }, { id: "mt-048", title: "Fine-tuning run", description: "Fine-tune on domain data", status: "pending", order: 2 }, { id: "mt-049", title: "Evaluation", description: "Measure accuracy on test queries", status: "pending", order: 3 }] },
   { id: "task-016", projectId: "proj-005", title: "Chat interface and deployment", useCaseIndex: 2, description: "Build chat widget and deploy to production", status: "pending", assignedTo: "user-012", approval: null, deadline: "2026-07-10T00:00:00.000Z", createdAt: "2026-06-05T15:00:00.000Z", miniTasks: [{ id: "mt-050", title: "Chat UI", description: "Build customer-facing chat widget", status: "pending", order: 1 }, { id: "mt-051", title: "Escalation logic", description: "Implement human escalation flow", status: "pending", order: 2 }, { id: "mt-052", title: "Deployment", description: "Deploy to production environment", status: "pending", order: 3 }] },
-  // ── proj-006: Contract Analysis (3 tasks) ──
+  // â”€â”€ proj-006: Contract Analysis (3 tasks) â”€â”€
   { id: "task-017", projectId: "proj-006", title: "Document processing pipeline", description: "Build PDF parsing and text extraction pipeline", status: "in_progress", assignedTo: "user-007", approval: null, deadline: "2026-06-25T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-053", title: "PDF parser", description: "Build digital PDF text extraction", status: "done", order: 1 }, { id: "mt-054", title: "Document structure analysis", description: "Identify sections and clauses", status: "in_progress", order: 2 }, { id: "mt-055", title: "Entity extraction", description: "Extract parties, dates, amounts", status: "pending", order: 3 }] },
   { id: "task-018", projectId: "proj-006", title: "Clause classification model", description: "Train NLP model to classify contract clauses", status: "pending", assignedTo: "user-007", approval: null, deadline: "2026-07-15T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-056", title: "Annotation guidelines", description: "Create clause annotation schema", status: "pending", order: 1 }, { id: "mt-057", title: "Model training", description: "Fine-tune legal BERT model", status: "pending", order: 2 }, { id: "mt-058", title: "Evaluation", description: "Evaluate on test set (target 95%)", status: "pending", order: 3 }] },
   { id: "task-019", projectId: "proj-006", title: "Risk analysis and reporting", description: "Build risk scoring and summary generation", status: "pending", assignedTo: "user-007", approval: null, deadline: "2026-08-01T00:00:00.000Z", createdAt: "2026-06-10T10:00:00.000Z", miniTasks: [{ id: "mt-059", title: "Risk scoring model", description: "Define and implement risk metrics", status: "pending", order: 1 }, { id: "mt-060", title: "Summary generation", description: "Generate risk summary reports", status: "pending", order: 2 }] },
-  // ── proj-007: Virtual Staging (completed, 2 tasks) ──
+  // â”€â”€ proj-007: Virtual Staging (completed, 2 tasks) â”€â”€
   { id: "task-020", projectId: "proj-007", title: "Generative model development", description: "Build GAN-based virtual staging model", status: "completed", assignedTo: "user-011", approval: "Approved", deadline: "2026-02-01T00:00:00.000Z", createdAt: "2025-12-01T10:00:00.000Z", miniTasks: [{ id: "mt-061", title: "Data collection", description: "Gather room and furniture datasets", status: "done", order: 1 }, { id: "mt-062", title: "Model architecture", description: "Design GAN architecture", status: "done", order: 2 }, { id: "mt-063", title: "Training", description: "Train on 50K room images", status: "done", order: 3 }, { id: "mt-064", title: "Style control", description: "Add style conditioning", status: "done", order: 4 }] },
   { id: "task-021", projectId: "proj-007", title: "Web application", description: "Build agent-facing web interface", status: "completed", assignedTo: "user-011", approval: "Approved", deadline: "2026-03-15T00:00:00.000Z", createdAt: "2026-02-02T09:00:00.000Z", miniTasks: [{ id: "mt-065", title: "React frontend", description: "Build upload and preview UI", status: "done", order: 1 }, { id: "mt-066", title: "API integration", description: "Connect frontend to model API", status: "done", order: 2 }, { id: "mt-067", title: "Image processing", description: "Add result download and sharing", status: "done", order: 3 }] },
-  // ── proj-008: Sentiment Analysis (completed, 2 tasks) ──
+  // â”€â”€ proj-008: Sentiment Analysis (completed, 2 tasks) â”€â”€
   { id: "task-022", projectId: "proj-008", title: "Data collection and annotation", description: "Gather social media data and annotate sentiment", status: "completed", assignedTo: "user-005", approval: "Approved", deadline: "2026-02-01T00:00:00.000Z", createdAt: "2026-01-15T11:00:00.000Z", miniTasks: [{ id: "mt-068", title: "API integration", description: "Connect to Twitter/Reddit APIs", status: "done", order: 1 }, { id: "mt-069", title: "Data labeling", description: "Annotate 20K posts for sentiment", status: "done", order: 2 }, { id: "mt-070", title: "Data validation", description: "Validate annotation quality", status: "done", order: 3 }] },
   { id: "task-023", projectId: "proj-008", title: "Model training and deployment", description: "Train sentiment model and deploy dashboard", status: "completed", assignedTo: "user-005", approval: "Approved", deadline: "2026-03-15T00:00:00.000Z", createdAt: "2026-02-02T10:00:00.000Z", miniTasks: [{ id: "mt-071", title: "Model training", description: "Fine-tune BERT for sentiment", status: "done", order: 1 }, { id: "mt-072", title: "Trend detection", description: "Add emerging trend identification", status: "done", order: 2 }, { id: "mt-073", title: "Dashboard", description: "Build analytics dashboard", status: "done", order: 3 }, { id: "mt-074", title: "Deployment", description: "Deploy to production", status: "done", order: 4 }] },
-  // ── proj-009: Fraud Detection (completed, 2 tasks) ──
+  // â”€â”€ proj-009: Fraud Detection (completed, 2 tasks) â”€â”€
   { id: "task-024", projectId: "proj-009", title: "Data pipeline engineering", description: "Build streaming data pipeline for transactions", status: "completed", assignedTo: "user-010", approval: "Approved", deadline: "2026-02-15T00:00:00.000Z", createdAt: "2026-01-20T09:00:00.000Z", miniTasks: [{ id: "mt-075", title: "Data cleaning", description: "Handle missing values and duplicates", status: "done", order: 1 }, { id: "mt-076", title: "Feature engineering", description: "Create transaction features", status: "done", order: 2 }, { id: "mt-077", title: "Streaming pipeline", description: "Set up real-time data pipeline", status: "done", order: 3 }] },
   { id: "task-025", projectId: "proj-009", title: "Fraud detection models", description: "Train anomaly detection and classification models", status: "completed", assignedTo: "user-010", approval: "Approved", deadline: "2026-04-01T00:00:00.000Z", createdAt: "2026-02-16T08:00:00.000Z", miniTasks: [{ id: "mt-078", title: "Anomaly detection", description: "Build isolation forest model", status: "done", order: 1 }, { id: "mt-079", title: "Classification model", description: "Train fraud classifier", status: "done", order: 2 }, { id: "mt-080", title: "Model evaluation", description: "Evaluate on historical data", status: "done", order: 3 }, { id: "mt-081", title: "XAI dashboard", description: "Build explainability dashboard", status: "done", order: 4 }] },
-  // ── proj-010: Adaptive Learning (completed, 2 tasks) ──
+  // â”€â”€ proj-010: Adaptive Learning (completed, 2 tasks) â”€â”€
   { id: "task-026", projectId: "proj-010", title: "Knowledge tracing system", description: "Build Bayesian Knowledge Tracing for student modeling", status: "completed", assignedTo: "user-012", approval: "Approved", deadline: "2026-03-01T00:00:00.000Z", createdAt: "2026-02-01T10:00:00.000Z", miniTasks: [{ id: "mt-082", title: "BKT implementation", description: "Implement Bayesian Knowledge Tracing", status: "done", order: 1 }, { id: "mt-083", title: "Student modeling", description: "Build student skill profiles", status: "done", order: 2 }, { id: "mt-084", title: "Validation", description: "Validate against student data", status: "done", order: 3 }] },
   { id: "task-027", projectId: "proj-010", title: "NLP essay grading", description: "Build automated essay scoring system", status: "completed", assignedTo: "user-012", approval: "Approved", deadline: "2026-04-01T00:00:00.000Z", createdAt: "2026-03-02T09:00:00.000Z", miniTasks: [{ id: "mt-085", title: "Rubric design", description: "Define scoring rubrics", status: "done", order: 1 }, { id: "mt-086", title: "Grading model", description: "Fine-tune for essay scoring", status: "done", order: 2 }, { id: "mt-087", title: "Feedback generation", description: "Generate detailed feedback", status: "done", order: 3 }] },
-  // ── proj-011: Property Valuation (cancelled, 1 task) ──
+  // â”€â”€ proj-011: Property Valuation (cancelled, 1 task) â”€â”€
   { id: "task-028", projectId: "proj-011", title: "Data infrastructure setup", description: "Set up data pipeline and feature store", status: "cancelled", assignedTo: "user-006", approval: null, deadline: "2026-06-01T00:00:00.000Z", createdAt: "2026-05-01T09:00:00.000Z", miniTasks: [{ id: "mt-088", title: "Database access", description: "Get access to sales database", status: "cancelled", order: 1 }, { id: "mt-089", title: "ETL pipeline", description: "Build data extraction pipeline", status: "cancelled", order: 2 }] },
-  // ── proj-012: Marketing Content (cancelled, 1 task) ──
+  // â”€â”€ proj-012: Marketing Content (cancelled, 1 task) â”€â”€
   { id: "task-029", projectId: "proj-012", title: "Content generation model", description: "Fine-tune LLM for marketing copy", status: "cancelled", assignedTo: "user-011", approval: null, deadline: "2026-07-01T00:00:00.000Z", createdAt: "2026-05-10T12:00:00.000Z", miniTasks: [{ id: "mt-090", title: "Brand voice analysis", description: "Analyze brand voice from samples", status: "cancelled", order: 1 }, { id: "mt-091", title: "Model fine-tuning", description: "Fine-tune on marketing data", status: "cancelled", order: 2 }, { id: "mt-092", title: "Tone control", description: "Implement tone adjustment", status: "cancelled", order: 3 }] },
-  // ── Extra task for proj-004 ──
+  // â”€â”€ Extra task for proj-004 â”€â”€
   { id: "task-030", projectId: "proj-004", title: "Documentation and handover", description: "Create comprehensive documentation for the ML platform", status: "pending", assignedTo: "user-009", approval: null, deadline: "2026-05-20T00:00:00.000Z", createdAt: "2026-05-01T09:00:00.000Z", miniTasks: [{ id: "mt-093", title: "Architecture docs", description: "Document system architecture", status: "in_progress", order: 1 }, { id: "mt-094", title: "Runbooks", description: "Create operational runbooks", status: "pending", order: 2 }, { id: "mt-095", title: "Training session", description: "Conduct handover training", status: "pending", order: 3 }] },
-  // ── proj-013: PCG for Noah (2 tasks) ──
+  // â”€â”€ proj-013: PCG for Noah (2 tasks) â”€â”€
   { id: "task-031", projectId: "proj-013", title: "PCG algorithm development", description: "Implement WaveFunctionCollapse and GAN-based terrain generation", status: "in_progress", assignedTo: "user-008", approval: null, deadline: "2026-06-30T00:00:00.000Z", createdAt: "2026-05-20T10:00:00.000Z", miniTasks: [{ id: "mt-096", title: "WFC terrain generation", description: "Implement WaveFunctionCollapse for terrain tiles", status: "done", order: 1 }, { id: "mt-097", title: "GAN detail generation", description: "Train GAN for terrain detail enhancement", status: "in_progress", order: 2 }, { id: "mt-098", title: "Biome transitions", description: "Implement coherent biome blending", status: "pending", order: 3 }, { id: "mt-099", title: "Performance optimization", description: "Optimize for real-time generation", status: "pending", order: 4 }] },
   { id: "task-032", projectId: "proj-013", title: "UE5 plugin integration", description: "Build Unreal Engine 5 plugin with artist tuning UI", status: "pending", assignedTo: "user-008", approval: null, deadline: "2026-07-15T00:00:00.000Z", createdAt: "2026-05-20T10:00:00.000Z", miniTasks: [{ id: "mt-100", title: "UE5 plugin structure", description: "Create plugin skeleton and build system", status: "pending", order: 1 }, { id: "mt-101", title: "Real-time preview", description: "Implement real-time generation preview", status: "pending", order: 2 }, { id: "mt-102", title: "Artist tuning UI", description: "Build parameter tuning panel for artists", status: "pending", order: 3 }] },
 ];
@@ -2413,7 +2413,7 @@ export function markAllNotificationsRead(userId) { const all = _list("notificati
 
 /**
  * Create a new notification in the mock database.
- * Used by notificationHelper.js sendNotification → mockApiHandler POST /notifications.
+ * Used by notificationHelper.js sendNotification -> mockApiHandler POST /notifications.
  */
 export function createNotification(data) {
   const notif = {
@@ -2640,7 +2640,7 @@ export function unlockMiniTasksForTask(taskId, actorName) {
  * Toggle a mini task's completion state. Auto-saves immediately.
  * @param {string} taskId
  * @param {string} miniTaskId
- * @param {string} [actorName] — name of the expert toggling completion
+ * @param {string} [actorName] - name of the expert toggling completion
  */
 export function toggleMiniTaskCompletion(taskId, miniTaskId, actorName) {
   const task = _getById("tasks", taskId);
@@ -2714,7 +2714,7 @@ export function submitTaskForReview(taskId, actorName) {
 
 /**
  * @deprecated Use submitTaskForReview instead.
- * Kept for backward compatibility — delegates to submitTaskForReview.
+ * Kept for backward compatibility - delegates to submitTaskForReview.
  */
 export function submitTaskAsDone(taskId, actorName) {
   // Old behavior: directly set completed. Now routes through review workflow.
@@ -2831,7 +2831,7 @@ export function submitTaskProduct(taskId, actorName, productLink, productFile) {
 
 /**
  * Client requests urgent submission on an overdue/delayed task.
- * Does NOT change task status — only sets urgent flags and creates audit entry.
+ * Does NOT change task status - only sets urgent flags and creates audit entry.
  *
  * @param {string} taskId
  * @param {string} [actorName]
@@ -2895,12 +2895,12 @@ export function requestTaskReopen(taskId, actorName) {
 
 /**
  * Client requests revision on specific mini tasks only.
- * Only selected mini tasks are reopened — the rest stay as-is.
+ * Only selected mini tasks are reopened - the rest stay as-is.
  *
  * @param {string} taskId
- * @param {string[]} miniTaskIds — IDs of mini tasks to reopen for revision
- * @param {string} [actorName] — client name
- * @param {string} [feedback] — revision reason
+ * @param {string[]} miniTaskIds - IDs of mini tasks to reopen for revision
+ * @param {string} [actorName] - client name
+ * @param {string} [feedback] - revision reason
  */
 export function requestMiniTaskRevision(taskId, miniTaskIds, actorName, feedback) {
   const task = _getById("tasks", taskId);
@@ -2935,7 +2935,7 @@ export function requestMiniTaskRevision(taskId, miniTaskIds, actorName, feedback
     .filter((mt) => miniTaskIdsSet.has(mt.id))
     .map((mt) => mt.title);
   const details = feedback
-    ? `Revised: ${revisedTitles.join(", ")} — Reason: ${feedback}`
+    ? `Revised: ${revisedTitles.join(", ")} - Reason: ${feedback}`
     : `Revised: ${revisedTitles.join(", ")}`;
 
   addAuditEntry({

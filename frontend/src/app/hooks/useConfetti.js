@@ -2,7 +2,7 @@
 import confetti from "canvas-confetti";
 
 /**
- * useConfetti â€” fires a subtle confetti burst for celebrations.
+ * useConfetti - fires a subtle confetti burst for celebrations.
  *
  * Think Stripe dashboard's subtle confetti, not full-screen fireworks.
  * Call fire() on project completion, milestone achievement, etc.

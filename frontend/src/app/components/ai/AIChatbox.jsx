@@ -1,8 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Send, Bot, Lightbulb } from "lucide-react";
 
 /**
- * AIChatbox — contextual AI assistant for the project creation flow.
+ * AIChatbox - contextual AI assistant for the project creation flow.
  *
  * Helps clients describe their AI project requirements, suggest categories,
  * estimate budgets, and identify needed skills. Positioned as a helpful

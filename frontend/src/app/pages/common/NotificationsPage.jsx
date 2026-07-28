@@ -1,6 +1,8 @@
 ﻿import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
+import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { Button } from "../../components/ui/button.jsx";
 import api from "../../../services/api.js";
 import {
@@ -169,29 +171,32 @@ export function NotificationsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-4 -mt-8 mb-6 border-b border-border">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold text-foreground">Notifications</h1>
-            {unreadCount > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-semibold">
-                {unreadCount}
-              </span>
-            )}
-          </div>
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              icon={CheckCheck}
-              onClick={handleMarkAllRead}
-            >
-              Mark All Read
-            </Button>
-          )}
-        </div>
-      </div>
+      <BackButton
+        fallback={`/${role === "staff" ? "admin" : role || "client"}/dashboard`}
+        className="mb-4"
+      >
+        Back
+      </BackButton>
+      <PageHeader
+        title="Notifications"
+        subtitle="Review recent updates, payments, proposals, and system alerts."
+        className="mb-6"
+        badge={unreadCount > 0 ? (
+          <span className="inline-flex h-6 min-w-[24px] items-center justify-center rounded-full bg-accent px-1.5 text-xs font-semibold text-accent-foreground">
+            {unreadCount}
+          </span>
+        ) : null}
+        actions={unreadCount > 0 ? (
+          <Button
+            variant="outline"
+            size="sm"
+            icon={CheckCheck}
+            onClick={handleMarkAllRead}
+          >
+            Mark All Read
+          </Button>
+        ) : null}
+      />
 
       {/* Feedback */}
       {actionFeedback && (

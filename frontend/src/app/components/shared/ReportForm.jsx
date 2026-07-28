@@ -1,4 +1,4 @@
-          placeholder="Describe the issue in detail, timeline of events..."
+﻿          placeholder="Describe the issue in detail, timeline of events..."
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
             errors.description ? "border-destructive/35" : "border-input"
@@ -118,8 +118,8 @@
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> Expert •{" "}
-          <strong>Submitted by:</strong> {reporterRole === "client" ? "Client" : "Expert"} •{" "}
+          <strong>Submitted by:</strong> Expert -{" "}
+          <strong>Submitted by:</strong> {reporterRole === "client" ? "Client" : "Expert"} -{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">

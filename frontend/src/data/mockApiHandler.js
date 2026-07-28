@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Mock API Handler
 // =============================================================================
 // Intercepts API calls when VITE_USE_MOCK_DB=true and routes them to mock data.
@@ -346,11 +346,11 @@ async function handleLogout() {
 }
 
 // =============================================================================
-// MAIN ROUTER — exported handler called from api.js
+// MAIN ROUTER - exported handler called from api.js
 // =============================================================================
 
 export function setupMockMode() {
-  // For optional initialization — currently a no-op since all data is static
+  // For optional initialization - currently a no-op since all data is static
 }
 
 export async function handleMockRequest(endpoint, method, body, authenticated, token) {
@@ -361,12 +361,12 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
   const currentUser = token ? extractUserFromToken(token) : null;
 
   try {
-    // ── AUTH ────────────────────────────────────────────────────────────────
+    // â”€â”€ AUTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/users/login" && method === "POST") return handleLogin(body);
     if (path === "/users/register" && method === "POST") return handleRegister(body);
     if (path === "/users/logout" && method === "POST") return handleLogout();
 
-    // ── USERS ───────────────────────────────────────────────────────────────
+    // â”€â”€ USERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/Users" && method === "GET") {
       let users = listUsers();
       // Apply query filters
@@ -441,7 +441,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { hasProfile: currentUser?.expertProfile ? true : false };
     }
 
-    // ── JOB POSTS ───────────────────────────────────────────────────────────
+    // â”€â”€ JOB POSTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/JobPosts" && method === "GET") {
       let jobs = listJobPosts();
       if (query.clientId) jobs = jobs.filter((j) => j.clientId === query.clientId);
@@ -526,7 +526,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── PROJECTS ─────────────────────────────────────────────────────────────
+    // â”€â”€ PROJECTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/Projects" && method === "GET") {
       let projects = listProjects();
       if (query.clientId) projects = projects.filter((p) => p.clientId === query.clientId);
@@ -611,7 +611,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── PROPOSALS ────────────────────────────────────────────────────────────
+    // â”€â”€ PROPOSALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (method === "GET") {
       const expertId = matchProposalExpert(path);
       if (expertId) return listProposals((p) => p.expertId === expertId);
@@ -748,8 +748,8 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
                 console.log("[mockApiHandler] Parsed proposalTasks from JSON:", proposalTasks);
               }
             } catch (e) {
-              // coverLetter is plain text, not JSON — generate default tasks
-              console.log("[mockApiHandler] coverLetter is not JSON — generating default tasks");
+              // coverLetter is plain text, not JSON - generate default tasks
+              console.log("[mockApiHandler] coverLetter is not JSON - generating default tasks");
             }
 
             // Fallback: generate default tasks when coverLetter doesn't contain structured tasks
@@ -933,7 +933,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── CATEGORY TAGS ─────────────────────────────────────────────────────────
+    // â”€â”€ CATEGORY TAGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/category-tags/skills" && method === "GET") return listSkills();
     if (path === "/category-tags/skills" && method === "POST") return createSkill(body);
     if (path === "/category-tags/categories" && method === "GET") return listCategories();
@@ -953,7 +953,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── TRANSACTIONS / INTERACTIONS ──────────────────────────────────────────
+    // â”€â”€ TRANSACTIONS / INTERACTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/interactions" && method === "GET") {
       let txns = listTransactions();
       if (query.projectId) txns = txns.filter((t) => t.projectId === query.projectId);
@@ -1060,7 +1060,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, transactionId: txn.id, ...txn };
     }
 
-    // ── NOTIFICATIONS ────────────────────────────────────────────────────────
+    // â”€â”€ NOTIFICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/notifications" && method === "GET") {
       let notifs = listNotifications();
       if (currentUser) notifs = notifs.filter((n) => n.userId === currentUser.id);
@@ -1097,7 +1097,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── MESSAGES ─────────────────────────────────────────────────────────────
+    // â”€â”€ MESSAGES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/messages" && method === "GET") {
       let msgs = listMessages();
       if (currentUser) msgs = msgs.filter((m) => m.senderId === currentUser.id || m.receiverId === currentUser.id);
@@ -1116,7 +1116,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return msg;
     }
 
-    // ── REVIEWS ──────────────────────────────────────────────────────────────
+    // â”€â”€ REVIEWS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/reviews" && method === "GET") {
       let revs = listReviews();
       if (query.targetUserId) revs = revs.filter((r) => r.targetUserId === query.targetUserId);
@@ -1125,7 +1125,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return revs;
     }
 
-    // Review detail, hide, delete, restore — match /reviews/{id}
+    // Review detail, hide, delete, restore - match /reviews/{id}
     const reviewIdMatch = path.match(/^\/reviews\/(.+)$/);
     if (reviewIdMatch) {
       const reviewId = reviewIdMatch[1];
@@ -1150,7 +1150,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       }
     }
 
-    // ── REPORTS / DISPUTES ───────────────────────────────────────────────────
+    // â”€â”€ REPORTS / DISPUTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/reports" && method === "GET") {
       let reports = listReports();
       if (query.status) reports = reports.filter((r) => r.status === query.status);
@@ -1168,7 +1168,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return report;
     }
 
-    // Single report detail, accept, reject — match /reports/{id}
+    // Single report detail, accept, reject - match /reports/{id}
     const reportIdMatch = path.match(/^\/reports\/(.+)$/);
     if (reportIdMatch && method === "GET") {
       const report = getReportById(reportIdMatch[1]);
@@ -1488,7 +1488,7 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, reportId: report.id };
     }
 
-    // ── TASKS / TIMELINE ────────────────────────────────────────────────────
+    // â”€â”€ TASKS / TIMELINE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/tasks" && method === "GET") {
       let tasks = listTasks();
       if (query.projectId) tasks = tasks.filter((t) => t.projectId === query.projectId);
@@ -1502,23 +1502,23 @@ export async function handleMockRequest(endpoint, method, body, authenticated, t
       return { success: true, task };
     }
 
-    // ── DASHBOARD STATS ──────────────────────────────────────────────────────
+    // â”€â”€ DASHBOARD STATS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/dashboard/stats" && method === "GET") {
       return getDashboardStats();
     }
 
-    // ── WALLET ───────────────────────────────────────────────────────────────
+    // â”€â”€ WALLET â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (path === "/wallet" && method === "GET") {
       if (currentUser) return getUserWallet(currentUser.id);
       return { balance: 0, pendingBalance: 0, totalEarned: 0 };
     }
 
-    // ── FALLBACK ─────────────────────────────────────────────────────────────
+    // â”€â”€ FALLBACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // For any unrecognized endpoint, return an empty result rather than error
     // to keep pages from crashing on unimplemented endpoints
-    console.warn(`[MockAPI] Unrecognized endpoint: ${method} ${path} — returning empty/null`);
+    console.warn(`[MockAPI] Unrecognized endpoint: ${method} ${path} - returning empty/null`);
     if (method === "GET") return query.limit ? { data: [], total: 0, page: 1 } : [];
-    return { success: true, note: "Mock fallback — endpoint not implemented" };
+    return { success: true, note: "Mock fallback - endpoint not implemented" };
   } catch (err) {
     if (err instanceof ApiError) throw err;
     console.error(`[MockAPI] Error handling ${method} ${path}:`, err);

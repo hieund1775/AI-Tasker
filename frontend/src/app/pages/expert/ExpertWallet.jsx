@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   Wallet,
   TrendingUp,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
@@ -19,12 +20,12 @@ import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
 
 function resolveExpertId(user) {
-  // TODO: Replace with API call — api.users.getProfile()
+  // TODO: Replace with API call - api.users.getProfile()
   return user?.id || null;
 }
 
 function getExpertWalletData() {
-  // TODO: Replace with API call — api.payments.getWallet()
+  // TODO: Replace with API call - api.payments.getWallet()
   return {
     wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 },
     transactions: [],
@@ -315,7 +316,7 @@ export function ExpertWallet() {
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
 
-              // Skip ALL transactions for cancelled/reported projects — we'll insert clean rows instead
+              // Skip ALL transactions for cancelled/reported projects - we'll insert clean rows instead
               if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
                 cancelledProjIdsInDb.add(projIdLower);
                 return; // Skip all raw DB rows for cancelled projects
@@ -466,7 +467,7 @@ export function ExpertWallet() {
                 if (dv.expertReceives > 0) {
                   adjustedTotalEarned += (dv.expertReceives - dv.expertFee);
                 }
-                // expertReceives = 0 → expert lost → no adjustment
+                // expertReceives = 0 -> expert lost -> no adjustment
               } catch (e) {}
               return;
             }
@@ -718,14 +719,11 @@ export function ExpertWallet() {
       <BackButton fallback="/expert/dashboard" className="mb-4">
         Back to Dashboard
       </BackButton>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground mb-2">My Wallet</h1>
-          <p className="text-muted-foreground mb-8">
-            Manage your earnings and withdrawals.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="My Wallet"
+        subtitle="Manage your earnings and withdrawals."
+        className="mb-6"
+      />
 
       {/* Feedback banner */}
       {feedback && (

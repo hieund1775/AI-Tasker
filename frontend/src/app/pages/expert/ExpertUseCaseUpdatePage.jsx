@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, Check, Clock, Send, AlertTriangle, FileText, CheckSquare, Square, Info, Edit2, X } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
@@ -480,7 +480,7 @@ export function ExpertUseCaseUpdatePage() {
                         ) : (
                           <div className="p-3 bg-success-light border border-success/20 rounded-xl text-xs text-success flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                              <span className="font-semibold block">✓ Submitted handover evidence:</span>
+                              <span className="font-semibold block">Done Submitted handover evidence:</span>
                               <span className="font-mono text-[11px] block mt-0.5 break-all bg-card/50 px-2 py-1 rounded border border-success/20">{task.evidence}</span>
                             </div>
                             <button

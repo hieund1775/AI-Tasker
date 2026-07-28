@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 
 import {
@@ -25,6 +25,7 @@ import { safeNumberFormat, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 
@@ -65,7 +66,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   let status = (localStatus || dbStatus).toLowerCase();
 
   // If status is awaiting_cancellation, check if it's still pending Admin approval
-  // Only match by projectId — no type filtering needed since when a project is
+  // Only match by projectId - no type filtering needed since when a project is
   // Awaiting_Cancellation, a Pending Admin report always means the cancel is not yet approved.
   if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
     const report = activeReports.find(r => {
@@ -222,7 +223,7 @@ export function ClientDashboard() {
             );
 
             // Only include jobs that have a real Project record
-            // (i.e. went through: post → expert apply → accept proposal → create project)
+            // (i.e. went through: post -> expert apply -> accept proposal -> create project)
             if (!matchingProject) return null;
 
             let overallProgress = 0;
@@ -338,13 +339,12 @@ export function ClientDashboard() {
   // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="page-title">Client Dashboard</h1>
-          <p className="page-subtitle">Manage your AI projects and find experts</p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="Client Dashboard"
+        subtitle="Manage your AI projects and find experts"
+        className="mb-6"
+        actions={
+          <div className="flex flex-wrap items-center gap-3">
           <Link
             to="/client/my-projects"
             className="h-9 px-4 border border-border text-foreground rounded-lg hover:bg-secondary font-medium text-sm inline-flex items-center gap-2 transition-colors"
@@ -358,7 +358,8 @@ export function ClientDashboard() {
             <PlusCircle className="w-4 h-4" /> Post New Project
           </Link>
         </div>
-      </div>
+        }
+      />
 
       {/* Hero Welcome Banner */}
       <div className="relative bg-gradient-to-br from-accent/[0.06] via-accent/[0.02] to-warning/[0.04] rounded-2xl border border-border/50 shadow-sm p-6 mb-8 overflow-hidden group">

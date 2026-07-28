@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { MessageSquare, Calendar, Tag, Clock, User, Briefcase, ClipboardList } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
@@ -8,17 +8,17 @@ import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 
 // =============================================================================
-// ProjectHeaderCard — project info header with status, names, budget, dates, tags.
+// ProjectHeaderCard - project info header with status, names, budget, dates, tags.
 //
 // Props:
-//   project        — project object
-//   client         — client user object (optional)
-//   expert         — expert user object (optional)
-//   role           — "client" | "expert" (determines what info to show)
-//   overallProgress — 0-100 number
-//   loading        — boolean, shows skeleton
-//   onMessage      — () => void — navigate to messenger
-//   children       — slot for role-specific action buttons (escrow, submit, etc.)
+//   project        - project object
+//   client         - client user object (optional)
+//   expert         - expert user object (optional)
+//   role           - "client" | "expert" (determines what info to show)
+//   overallProgress - 0-100 number
+//   loading        - boolean, shows skeleton
+//   onMessage      - () => void - navigate to messenger
+//   children       - slot for role-specific action buttons (escrow, submit, etc.)
 // =============================================================================
 
 export function ProjectHeaderCard({
@@ -178,7 +178,7 @@ export function ProjectHeaderCard({
               <User className="w-4 h-4" />
               {otherRoleLabel}:{" "}
               <span className="text-foreground font-semibold">
-                {otherPerson.fullName || otherPerson.name || "—"}
+                {otherPerson.fullName || otherPerson.name || "-"}
               </span>
             </p>
           )}
@@ -386,7 +386,7 @@ function ProjectExtensionControl({ project, role }) {
       setExtensionData(approvedReq);
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      toast.success(`Project deadline extended by +${extraDays} days successfully!`);
+          <span>Project deadline extended by +{extensionData.requestedDays} days.</span>
     } catch (e) {
       toast.error("Failed to approve extension.");
     } finally {
@@ -541,7 +541,7 @@ function ProjectExtensionControl({ project, role }) {
 
       {isApproved && (
         <div className="p-3 bg-success/10 border border-success/20 rounded-xl flex items-center justify-between text-xs text-success font-medium">
-          <span>✅ Project deadline extended by +{extensionData.requestedDays} days.</span>
+          <span>Project deadline extended by +{extensionData.requestedDays} days.</span>
           <button
             type="button"
             onClick={() => {

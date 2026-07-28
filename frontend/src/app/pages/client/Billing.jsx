@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   Wallet,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notifyEscrowFunded } from "../../../services/notificationHelper.js";
@@ -834,8 +835,11 @@ export function Billing() {
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
-      <h1 className="text-2xl font-semibold text-foreground mb-2">Billing &amp; Payments</h1>
-      <p className="text-muted-foreground mb-8">Manage your wallet, escrow payments, and transaction history.</p>
+      <PageHeader
+        title="Billing & Payments"
+        subtitle="Manage your wallet, escrow payments, and transaction history."
+        className="mb-6"
+      />
 
       {/* Feedback banner */}
       {feedback && (

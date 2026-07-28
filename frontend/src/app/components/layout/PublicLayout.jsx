@@ -6,7 +6,7 @@ import { Footer } from "./Footer.jsx";
 import api from "../../../services/api.js";
 
 /**
- * PublicLayout â€” minimal shell for public-facing browse pages.
+ * PublicLayout - minimal shell for public-facing browse pages.
  *
  * Provides a simple navbar with links to Browse Experts and Browse Jobs,
  * a platform stats banner, plus the shared Footer. Used for routes that
@@ -21,7 +21,7 @@ export function PublicLayout() {
         const data = await api.get("/platform/stats", { authenticated: false });
         setStats(data);
       } catch {
-        // Graceful fallback â€” stats banner hidden if API unavailable
+        // Graceful fallback - stats banner hidden if API unavailable
       }
     }
     loadStats();

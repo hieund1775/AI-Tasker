@@ -21,7 +21,7 @@ import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 
 /**
- * ProposalReview â€” Client views all proposals for a specific project.
+ * ProposalReview - Client views all proposals for a specific project.
  *
  * Route: /client/projects/:projectId/proposals
  */

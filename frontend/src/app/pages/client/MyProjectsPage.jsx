@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   Briefcase,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { toast } from "sonner";
 import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
@@ -35,7 +36,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   let status = (localStatus || dbStatus).toLowerCase();
 
   // If status is awaiting_cancellation, check if it's still pending Admin approval
-  // Only match by projectId — no type filtering needed.
+  // Only match by projectId - no type filtering needed.
   if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
     const report = activeReports.find(r => {
       const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
@@ -875,7 +876,7 @@ export function MyProjectsList() {
                     {proposal.status === "pending_escrow" || proposal.status === "pending escrow" || proposal.status === "pending_pay" || proposal.status === "pending pay" ? "Pending Payment" : proposal.status}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Submitted {safeDateFormat(proposal.createdAt, { month: "short", day: "numeric", year: "numeric" }, "—")}
+                    Submitted {safeDateFormat(proposal.createdAt, { month: "short", day: "numeric", year: "numeric" }, "-")}
                   </p>
                 </div>
               </div>
@@ -919,7 +920,7 @@ export function MyProjectsList() {
                           const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* ── Use Case Header ── */}
+                              {/* â”€â”€ Use Case Header â”€â”€ */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
@@ -938,7 +939,7 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* ── Tasks ── */}
+                              {/* â”€â”€ Tasks â”€â”€ */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -956,7 +957,7 @@ export function MyProjectsList() {
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                           ))}
                                         </div>
                                       )}
@@ -983,7 +984,7 @@ export function MyProjectsList() {
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                 ))}
                               </div>
                             )}
@@ -1200,7 +1201,7 @@ export function MyProjectsList() {
                           </div>
                         )}
                         <p className="text-base font-semibold text-brand-primary mt-2">
-                          Bid: <MoneyDisplay amount={p.bidAmount} /> · {p.durationDays} days
+                          Bid: <MoneyDisplay amount={p.bidAmount} /> - {p.durationDays} days
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>
@@ -1252,7 +1253,7 @@ export function MyProjectsList() {
                     {viewedProposal.status}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Submitted {safeDateFormat(viewedProposal.createdAt, { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, "—")}
+                    Submitted {safeDateFormat(viewedProposal.createdAt, { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, "-")}
                   </p>
                 </div>
               </div>
@@ -1296,7 +1297,7 @@ export function MyProjectsList() {
                           const ucTasks = viewedProposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* ── Use Case Header ── */}
+                              {/* â”€â”€ Use Case Header â”€â”€ */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
@@ -1315,7 +1316,7 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* ── Tasks ── */}
+                              {/* â”€â”€ Tasks â”€â”€ */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -1333,7 +1334,7 @@ export function MyProjectsList() {
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                           ))}
                                         </div>
                                       )}
@@ -1360,7 +1361,7 @@ export function MyProjectsList() {
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                 ))}
                               </div>
                             )}
@@ -1487,37 +1488,38 @@ export function MyProjectsList() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">All Projects</h1>
-          <p className="text-muted-foreground mt-1">Manage your posted projects</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+      <PageHeader
+        title="All Projects"
+        subtitle="Manage your posted projects"
+        className="mb-6"
+        actions={(
+          <div className="page-filter-controls">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Link
+              to="/client/post-project"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
             >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <PlusCircle className="w-4 h-4" /> Post New Project
+            </Link>
           </div>
-          <Link
-            to="/client/post-project"
-            className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
-          >
-          <PlusCircle className="w-4 h-4" /> Post New Project
-        </Link>
-      </div>
-    </div>
+        )}
+      />
 
       {loading ? (
         <div className="py-8">
@@ -1590,7 +1592,7 @@ export function MyProjectsList() {
                 key={project.id}
                 className="bg-card rounded-xl border border-border hover:border-border/80 p-6 hover:shadow-md transition-all duration-200"
               >
-                {/* ── Top row: title + status badge ── */}
+                {/* â”€â”€ Top row: title + status badge â”€â”€ */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1612,7 +1614,7 @@ export function MyProjectsList() {
                 </div>
 
 
-                {/* ── Metadata grid ── */}
+                {/* â”€â”€ Metadata grid â”€â”€ */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-secondary/40 rounded-lg p-3 border border-border/60">
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Posted</span>
@@ -1640,7 +1642,7 @@ export function MyProjectsList() {
                   </div>
                 </div>
 
-                {/* ── Bottom row: actions ── */}
+                {/* â”€â”€ Bottom row: actions â”€â”€ */}
                 <div className="flex items-center justify-end pt-3 border-t border-border gap-3">
                   <button
                     onClick={() => {

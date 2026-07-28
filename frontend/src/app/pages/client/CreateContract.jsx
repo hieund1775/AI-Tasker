@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Send, FileText } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
@@ -8,7 +8,7 @@ import api from "../../../services/api.js";
 import { toast } from "sonner";
 
 /**
- * CreateContract — Client creates and sends a contract to an Expert.
+ * CreateContract - Client creates and sends a contract to an Expert.
  *
  * Route: /client/contracts/create?projectId=X&proposalId=Y&expertId=Z
  */
@@ -93,7 +93,7 @@ export function CreateContract() {
           targetUrl: `/expert/contracts/${contract?.id || "new"}`,
         })
         .catch(() => {
-          // Notification is best-effort — don't block the flow
+          // Notification is best-effort - don't block the flow
           console.warn("Failed to send contract notification (endpoint may not exist)");
         });
 
@@ -200,7 +200,7 @@ export function CreateContract() {
                 <p className="text-xs text-muted-foreground mb-1">Proposal Bid</p>
                 <p className="font-semibold text-foreground">
                   <MoneyDisplay amount={proposal.bidAmount} />
-                  {" · "}
+                  {" - "}
                   {proposal.durationDays} days
                 </p>
               </div>
@@ -349,7 +349,7 @@ export function CreateContract() {
           </section>
         </div>
 
-        {/* Footer — Send to Expert */}
+        {/* Footer - Send to Expert */}
         <div className="p-8 border-t border-border-light bg-secondary/50">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <p className="text-xs text-muted-foreground/70">

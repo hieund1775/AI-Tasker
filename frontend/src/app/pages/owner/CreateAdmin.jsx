@@ -1,5 +1,5 @@
-// =============================================================================
-// CreateAdmin — Owner-only page to create new Admin accounts.
+﻿// =============================================================================
+// CreateAdmin - Owner-only page to create new Admin accounts.
 //
 // Uses /api/users/register if backend supports passing role=admin,
 // otherwise falls back to ownerService.createAdminAccount() placeholder.
@@ -8,6 +8,7 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { Loader2, ArrowLeft, Shield, Eye, EyeOff } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { createAdminAccount } from "../../../services/ownerService.js";
 
@@ -110,26 +111,13 @@ export function CreateAdmin() {
         Back to Dashboard
       </button>
 
+      <PageHeader
+        title="Create Admin Account"
+        subtitle={`Create a new Admin account to manage disputes and users on the platform.${user?.email ? ` Owner only - ${user.email}` : ""}`}
+        illustration={<Shield className="h-28 w-28" />}
+      />
+
       <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sm:p-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-destructive-light rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-destructive" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Create Admin Account
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Owner only — {user?.email || ""}
-            </p>
-          </div>
-        </div>
-
-        <p className="text-sm text-muted-foreground mb-6">
-          Create a new Admin account to manage disputes and users on the platform.
-        </p>
-
         {/* Feedback */}
         {feedback && (
           <div

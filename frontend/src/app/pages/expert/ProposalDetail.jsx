@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -22,11 +22,11 @@ import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 
-// Status helpers — delegated to shared proposalStatusConfig.js
+// Status helpers - delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
 // ---------------------------------------------------------------------------
-// Section wrapper — keeps visual consistency
+// Section wrapper - keeps visual consistency
 // ---------------------------------------------------------------------------
 
 function DetailSection({ title, children, className = "" }) {
@@ -175,7 +175,7 @@ export function ProposalDetail() {
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* ================================================================ */}
-        {/* Header — Project + Status                                         */}
+        {/* Header - Project + Status                                         */}
         {/* ================================================================ */}
         <div className="p-8 border-b border-border/60 bg-secondary/50">
           <div className="flex items-start justify-between flex-wrap gap-4">
@@ -203,7 +203,7 @@ export function ProposalDetail() {
                     Client:{" "}
                     <span className="font-medium text-foreground/80">
                       {client.fullName}
-                      {client.profile?.company ? ` · ${client.profile.company}` : ""}
+                      {client.profile?.company ? ` - ${client.profile.company}` : ""}
                     </span>
                   </span>
                 )}
@@ -235,7 +235,7 @@ export function ProposalDetail() {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
-                }, "—")}
+                }, "-")}
               </p>
             </div>
           </div>
@@ -259,7 +259,7 @@ export function ProposalDetail() {
                   month: "short",
                   day: "numeric",
                   year: "numeric",
-                }, "—")}
+                }, "-")}
               </p>
             </div>
           </div>
@@ -293,7 +293,7 @@ export function ProposalDetail() {
                         const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                         return (
                           <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                            {/* ── Use Case Header ── */}
+                            {/* â”€â”€ Use Case Header â”€â”€ */}
                             <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                               <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                 <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ export function ProposalDetail() {
                               )}
                             </div>
 
-                            {/* ── Tasks ── */}
+                            {/* â”€â”€ Tasks â”€â”€ */}
                             <div className="p-4 space-y-4">
                               {ucTasks.length === 0 ? (
                                 <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this user story.</p>
@@ -330,7 +330,7 @@ export function ProposalDetail() {
                                       <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                         {task.miniTasks.map((mt, mtIdx) => (
-                                          <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                         ))}
                                       </div>
                                     )}
@@ -358,7 +358,7 @@ export function ProposalDetail() {
                             <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                               {task.miniTasks.map((mt, mtIdx) => (
-                                <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                               ))}
                             </div>
                           )}
@@ -451,7 +451,7 @@ export function ProposalDetail() {
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {att.type || att.fileType || "file"}
-                              {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                              {att.size || att.fileSize ? ` - ${att.size || att.fileSize}` : ""}
                             </p>
                           </div>
                         </a>
@@ -465,7 +465,7 @@ export function ProposalDetail() {
         </div>
 
         {/* ================================================================ */}
-        {/* Footer — Actions                                                  */}
+        {/* Footer - Actions                                                  */}
         {/* ================================================================ */}
         <div className="p-8 border-t border-border/60 bg-secondary/50 flex flex-wrap items-center gap-3">
           {convId ? (

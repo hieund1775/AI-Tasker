@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminReportDetail — Full dispute report detail & handling page.
+﻿// =============================================================================
+// AdminReportDetail - Full dispute report detail & handling page.
 //
 // Admin actions:
 //   1. View report details (project, client, expert, evidence, etc.)
@@ -255,7 +255,7 @@ export function AdminReportDetail() {
               if (rawRole === "client" || rawRole === "expert") {
                 data.reporterRole = rawRole;
               } else {
-                // reporterRole is empty/missing — determine by comparing reporterId
+                // reporterRole is empty/missing - determine by comparing reporterId
                 const repId = (data.reporterId || data.ReporterId || "").toString().toLowerCase();
                 if (repId && pClientId && repId === pClientId.toString().toLowerCase()) {
                   data.reporterRole = "client";
@@ -558,7 +558,7 @@ export function AdminReportDetail() {
       localStorage.setItem(`project_status_${report?.projectId}`, "cancelled");
       localStorage.setItem(`project_status_${forcePayoutProjId}`, "cancelled");
       localStorage.setItem(`report_status_${id}`, "Resolved");
-      // Store dispute verdict data dynamically (JSON — no hardcoded logic on display side)
+      // Store dispute verdict data dynamically (JSON - no hardcoded logic on display side)
       const fpEscrow = Number(report?.amount || report?.escrowAmount || 0);
       const fpFee = Math.round(fpEscrow * 0.05);
       localStorage.setItem(`dispute_verdict_${forcePayoutProjId}`, JSON.stringify({
@@ -1000,7 +1000,6 @@ export function AdminReportDetail() {
       const projectTitle = report?.projectTitle || report?.projectName || "Project";
 
       if (verdictType === "reject_lock") {
-        // Reject cancellation request and lock
         try {
           await api.put(`/reports/${id}/admin-reject-cancel`, {
             adminNote: "Admin rejected cancellation request and locked future requests.",
@@ -1025,15 +1024,12 @@ export function AdminReportDetail() {
         let clientRefund = 0;
 
         if (verdictType === "client_fault") {
-          // Client Fault: Client penalized 10% -> paid to Expert
           expertPayout = progressAmount + penaltyFee;
           clientRefund = escrowTotal - expertPayout - platformFee;
         } else if (verdictType === "expert_fault") {
-          // Expert Fault: Expert penalized 10% -> paid to Client
           expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
           clientRefund = escrowTotal - expertPayout - platformFee;
         } else if (verdictType === "split_fault") {
-          // Split Fault: No compensation
           expertPayout = progressAmount;
           clientRefund = escrowTotal - expertPayout - platformFee;
         }
@@ -1195,11 +1191,11 @@ export function AdminReportDetail() {
   const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
   const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
   const reporterName = isReporterClient
-    ? (report.clientName || report.clientId || "—")
-    : (report.expertName || report.expertId || "—");
+    ? (report.clientName || report.clientId || "-")
+    : (report.expertName || report.expertId || "-");
   const responderName = isReporterClient
-    ? (report.expertName || report.expertId || "—")
-    : (report.clientName || report.clientId || "—");
+    ? (report.expertName || report.expertId || "-")
+    : (report.clientName || report.clientId || "-");
   const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
   const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
 
@@ -1342,13 +1338,13 @@ export function AdminReportDetail() {
               value={
                 report.projectStartDate
                   ? formatDateTime(report.projectStartDate)
-                  : "—"
+                  : "-"
               }
             />
             <DetailItem
               label="Deadline"
               value={(() => {
-                if (!report.projectDeadline) return "—";
+                if (!report.projectDeadline) return "-";
                 const num = Number(report.projectDeadline);
                 if (!Number.isNaN(num) && num < 1000) {
                   const d = new Date(report.projectStartDate || new Date());
@@ -1424,8 +1420,8 @@ export function AdminReportDetail() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{progress}%</span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Requested By:</span><span className="font-semibold text-accent">{isClientReporter ? "Client" : "Expert"}</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
                         {isClientReporter ? (
                           <>
@@ -1443,19 +1439,19 @@ export function AdminReportDetail() {
                   }
 
                   // === ESCALATED SCENARIOS ===
-                  // Scenario 1: Client Fault
+                  // Client Fault (Client penalized 10% to Expert)
                   // Expert receives: progress + penalty
                   // Client receives: total - platform fee - expert payout
                   const expertPayoutClientFault = progressAmount + penaltyFee;
                   const clientRefundClientFault = escrowTotal - platformFee - expertPayoutClientFault;
 
-                  // Scenario 2: Expert Fault
+                  // Expert Fault (Expert penalized 10% to Client)
                   // Expert receives: progress - penalty - platform fee
                   // Client receives: total - expert payout - platform fee
                   const expertPayoutExpertFault = Math.max(0, progressAmount - penaltyFee - platformFee);
                   const clientRefundExpertFault = escrowTotal - expertPayoutExpertFault - platformFee;
 
-                  // Scenario 3: Split Fault (no penalties)
+                  // Split Fault (Each party penalized 5%)
                   // Expert receives progress payout, Client receives the rest (minus platform fee)
                   const expertPayoutSplitFault = progressAmount;
                   const clientRefundSplitFault = escrowTotal - platformFee - progressAmount;
@@ -1471,7 +1467,7 @@ export function AdminReportDetail() {
 
                       <div className="border-t border-border pt-3 space-y-3">
                         <div>
-                          <p className="font-semibold text-destructive mb-1">CASE 1: CLIENT FAULT</p>
+                            Client Fault (Client penalized 10% to Expert)
                           <div className="pl-2 border-l-2 border-destructive/20 space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress + penalty):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutClientFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundClientFault} /></span></div>
@@ -1479,7 +1475,7 @@ export function AdminReportDetail() {
                         </div>
 
                         <div>
-                          <p className="font-semibold text-destructive mb-1">CASE 2: EXPERT FAULT</p>
+                            Expert Fault (Expert penalized 10% to Client)
                           <div className="pl-2 border-l-2 border-warning/20 space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress - penalty - fee):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutExpertFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundExpertFault} /></span></div>
@@ -1487,7 +1483,7 @@ export function AdminReportDetail() {
                         </div>
 
                         <div>
-                          <p className="font-semibold text-foreground mb-1">CASE 3: SPLIT FAULT</p>
+                            Split Fault (Each party penalized 5%)
                           <div className="pl-2 border-l-2 border-border space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutSplitFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundSplitFault} /></span></div>
@@ -1535,9 +1531,9 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.client.reason || roundData.client.explanation || "—"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.client.explanation || "—"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.client.desiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.client.reason || roundData.client.explanation || "-"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.client.explanation || "-"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.client.desiredResolution || "-"}</p>
 
                           {normalizeEvidence(roundData.client.evidence).length > 0 && (
                             <div className="mt-3 pt-2 border-t border-accent/20">
@@ -1565,9 +1561,9 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.expert.reason || roundData.expert.explanation || "—"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.expert.explanation || "—"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.expert.desiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.expert.reason || roundData.expert.explanation || "-"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.expert.explanation || "-"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.expert.desiredResolution || "-"}</p>
 
                           {normalizeEvidence(roundData.expert.evidence).length > 0 && (
                             <div className="mt-3 pt-2 border-t border-warning/20">
@@ -1615,9 +1611,9 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation || "-"}</p>
                           <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation || "Client has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
 
                           {normalizeEvidence(report.clientExplanationEvidence).length > 0 && (
                             <div className="mt-3 pt-2 border-t border-accent/20">
@@ -1645,9 +1641,9 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation || "-"}</p>
                           <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation || "Expert has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
+                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
 
                           {normalizeEvidence(report.expertExplanationEvidence).length > 0 && (
                             <div className="mt-3 pt-2 border-t border-warning/20">
@@ -1737,7 +1733,7 @@ export function AdminReportDetail() {
                             <div className="space-y-4 text-left">
                               <div>
                                 <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-0.5">Client Name</p>
-                                <p className="text-base font-semibold text-foreground">{report.clientName || report.clientId || "—"}</p>
+                                <p className="text-base font-semibold text-foreground">{report.clientName || report.clientId || "-"}</p>
                                 {report.clientEmail && <p className="text-xs text-muted-foreground">{report.clientEmail}</p>}
                               </div>
 
@@ -1779,7 +1775,7 @@ export function AdminReportDetail() {
                                       <div className="space-y-2 break-words max-w-full">
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation}</p>
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation}</p>
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "—"}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
                                         {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).length > 0 && (
                                           <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
                                             <strong>Attached Documents:</strong>
@@ -1826,7 +1822,7 @@ export function AdminReportDetail() {
                             <div className="space-y-4 text-left">
                               <div>
                                 <p className="text-xs font-semibold text-warning uppercase tracking-wider mb-0.5">Expert Name</p>
-                                <p className="text-base font-semibold text-foreground">{report.expertName || report.expertId || "—"}</p>
+                                <p className="text-base font-semibold text-foreground">{report.expertName || report.expertId || "-"}</p>
                                 {report.expertEmail && <p className="text-xs text-muted-foreground">{report.expertEmail}</p>}
                               </div>
 
@@ -1868,7 +1864,7 @@ export function AdminReportDetail() {
                                       <div className="space-y-2 break-words max-w-full">
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation}</p>
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation}</p>
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "—"}</p>
+                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
                                         {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).length > 0 && (
                                           <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
                                             <strong>Attached Documents:</strong>
@@ -1928,9 +1924,9 @@ export function AdminReportDetail() {
                       </h5>
                       {round.clientExplanation ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-foreground"><strong>Reason:</strong> {round.clientExplanationReason || "—"}</p>
-                          <p className="text-foreground"><strong>Details:</strong> {round.clientExplanation || "—"}</p>
-                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.clientExplanationDesiredResolution || "—"}</p>
+                          <p className="text-foreground"><strong>Reason:</strong> {round.clientExplanationReason || "-"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {round.clientExplanation || "-"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.clientExplanationDesiredResolution || "-"}</p>
                           {normalizeEvidence(round.clientExplanationEvidence).length > 0 && (
                             <div className="pt-2 border-t border-accent/20 mt-2">
                               <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
@@ -1963,9 +1959,9 @@ export function AdminReportDetail() {
                       </h5>
                       {round.expertExplanation ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-foreground"><strong>Reason:</strong> {round.expertExplanationReason || "—"}</p>
-                          <p className="text-foreground"><strong>Details:</strong> {round.expertExplanation || "—"}</p>
-                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.expertExplanationDesiredResolution || "—"}</p>
+                          <p className="text-foreground"><strong>Reason:</strong> {round.expertExplanationReason || "-"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {round.expertExplanation || "-"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.expertExplanationDesiredResolution || "-"}</p>
                           {normalizeEvidence(round.expertExplanationEvidence).length > 0 && (
                             <div className="pt-2 border-t border-warning/20 mt-2">
                               <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
@@ -2007,7 +2003,7 @@ export function AdminReportDetail() {
                     {report.escalated || report.attemptRound >= 2 ? (
                       <div className="space-y-4 font-sans">
                         <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm leading-relaxed mb-3">
-                          <p className="font-semibold">🚨 Binding Dispute (Contract Cancellation Round {report.attemptRound || 2} — Binding Verdict)</p>
+                          <p className="font-semibold">Binding Dispute (Contract Cancellation Round {report.attemptRound || 2} - Binding Verdict)</p>
                           <p className="mt-1">Cancellation escalated after partner's rejection. Select the verdict to split Escrow automatically:</p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2017,7 +2013,7 @@ export function AdminReportDetail() {
                             disabled={actionLoading}
                             className="h-10 px-4 bg-destructive text-primary-foreground rounded-[12px] hover:bg-destructive font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            ⚖️ Client Fault (Client penalized 10% → Paid to Expert)
+                            Client Fault (Client penalized 10% to Expert)
                           </button>
                           <button
                             type="button"
@@ -2025,7 +2021,7 @@ export function AdminReportDetail() {
                             disabled={actionLoading}
                             className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            ⚖️ Expert Fault (Expert penalized 10% → Paid to Client)
+                            Expert Fault (Expert penalized 10% to Client)
                           </button>
                           <button
                             type="button"
@@ -2033,7 +2029,7 @@ export function AdminReportDetail() {
                             disabled={actionLoading}
                             className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            ⚖️ Split Fault (Each party penalized 5%)
+                            Split Fault (Each party penalized 5%)
                           </button>
                           <button
                             type="button"
@@ -2041,7 +2037,7 @@ export function AdminReportDetail() {
                             disabled={actionLoading}
                             className="h-10 px-4 bg-muted-foreground text-primary-foreground rounded-[12px] hover:bg-foreground/80 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
                           >
-                            🔒 Reject cancellation & Lock cancellation feature
+                            Reject cancellation and lock cancellation feature
                           </button>
                         </div>
                       </div>
@@ -2063,7 +2059,7 @@ export function AdminReportDetail() {
                           className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
-                          Reject cancellation request
+                            Reject cancellation and lock cancellation feature
                         </button>
                       </div>
                     )}
@@ -2166,11 +2162,11 @@ export function AdminReportDetail() {
                         </div>
                         {isEvidenceAwaiting ? (
                           <p className="text-[11px] text-destructive font-semibold bg-destructive-light border border-destructive/20 p-2.5 rounded-xl mt-3 text-left leading-normal">
-                            ⚠ Verdict buttons are locked until both parties submit additional evidence or the 48-hour deadline expires.
+                            Warning: Verdict buttons are locked until both parties submit additional evidence or the 48-hour deadline expires.
                           </p>
                         ) : report.status === "Awaiting Evidence" && isDeadlineExpired && (
                           <p className="text-[11px] text-success font-semibold bg-success-light border border-success/20 p-2.5 rounded-xl mt-3 text-left leading-normal">
-                            ✓ Evidence submission deadline expired. Arbitrator can now make a verdict based on available evidence.
+                            Done Evidence submission deadline expired. Arbitrator can now make a verdict based on available evidence.
                           </p>
                         )}
                       </div>
@@ -2185,7 +2181,7 @@ export function AdminReportDetail() {
               <div className="p-4 bg-secondary rounded-lg text-center border border-border-light">
                 <p className="text-sm font-semibold text-foreground">
                   {isResolved
-                    ? `Resolved — ${report.resolution === "force_payout"
+                    ? `Resolved - ${report.resolution === "force_payout"
                       ? "Forced Payout to Expert"
                       : report.resolution === "force_refund"
                         ? "Forced Refund to Client"
@@ -2226,7 +2222,7 @@ export function AdminReportDetail() {
       <ConfirmationModal
         open={showRejectModal}
         onOpenChange={setShowRejectModal}
-        title={report?.disputeType === "cancellation" ? "Reject cancellation request" : "Reject Report"}
+        title={report?.disputeType === "cancellation" ? "Reject cancellation and lock cancellation feature" : "Reject Report"}
         description={report?.disputeType === "cancellation" ? "Please enter the reason for rejecting this contract cancellation request." : "Please enter the rejection reason. A notification will be sent to the Expert."}
         confirmLabel={report?.disputeType === "cancellation" ? "Reject" : "Reject"}
         variant="danger"
@@ -2409,7 +2405,7 @@ export function AdminReportDetail() {
         onOpenChange={setShowForcePayoutModal}
         title="Force Payout"
         description="Decision to force release the entire escrow funds to the Expert. Project status will change to Completed."
-        confirmLabel="✓ Confirm Force Payout"
+        confirmLabel="Done Confirm Force Payout"
         variant="default"
         loading={actionLoading}
         onConfirm={handleForcePayout}
@@ -2437,7 +2433,7 @@ export function AdminReportDetail() {
         onOpenChange={setShowForceRefundModal}
         title="Force Refund"
         description="Decision to force refund the entire escrow funds to the Client. Project status will change to Cancelled."
-        confirmLabel="✗ Confirm Force Refund"
+        confirmLabel="Confirm Force Refund"
         variant="danger"
         loading={actionLoading}
         onConfirm={handleForceRefund}
@@ -2465,7 +2461,7 @@ export function AdminReportDetail() {
         onOpenChange={setShowRequestBothModal}
         title="Request Additional Explanation from Both Parties"
         description="Admin requests both Client and Expert to submit updated explanations and additional evidence. The response deadline for both will be extended by 48 hours."
-        confirmLabel="✓ Send Explanation Request"
+        confirmLabel="Done Send Explanation Request"
         variant="default"
         loading={actionLoading}
         onConfirm={handleRequestAdditionalBoth}

@@ -1,14 +1,14 @@
 ﻿// =============================================================================
-// TaskActionButtons â€” renders View/Submit/Review buttons for a task card.
+// TaskActionButtons - renders View/Submit/Review buttons for a task card.
 //
 // Props:
-//   task             â€” task object { id, title }
-//   derivedStatus    â€” display status string
-//   role             â€” "client" | "expert"
-//   canOpenSubmit    â€” whether the expert can submit
-//   isSubmitDisabled â€” whether the submit button is disabled
-//   submitButtonLabel â€” label for the submit button
-//   goToTaskAction   â€” (task, action) => void
+//   task             - task object { id, title }
+//   derivedStatus    - display status string
+//   role             - "client" | "expert"
+//   canOpenSubmit    - whether the expert can submit
+//   isSubmitDisabled - whether the submit button is disabled
+//   submitButtonLabel - label for the submit button
+//   goToTaskAction   - (task, action) => void
 // =============================================================================
 
 import { Link } from "react-router";

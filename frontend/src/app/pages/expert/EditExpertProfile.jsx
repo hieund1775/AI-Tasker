@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
@@ -127,7 +128,7 @@ export function EditExpertProfile() {
         industry: formData.industry || "",
       };
 
-      // Save profile to backend — category, specialization, skills are persisted in the DB
+      // Save profile to backend - category, specialization, skills are persisted in the DB
       await Promise.all([
         api.users.update(user.id, {
           fullName: formData.name.trim(),
@@ -176,22 +177,20 @@ export function EditExpertProfile() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        {user?.hasProfile !== false && (
+      <PageHeader
+        title={user?.hasProfile === false ? "Complete profile to start" : "Edit Expert Profile"}
+        subtitle="Update your expert profile, skills, and service information."
+        className="mb-6"
+        actions={user?.hasProfile !== false ? (
           <Link
             to="/expert/profile"
             className="text-muted-foreground hover:text-foreground"
+            aria-label="Back to profile"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-        )}
-
-        <h1 className="text-2xl font-semibold text-foreground">
-          {user?.hasProfile === false
-            ? "Complete profile to start"
-            : "Edit Expert Profile"}
-        </h1>
-      </div>
+        ) : null}
+      />
 
       <form
         onSubmit={handleSubmit}

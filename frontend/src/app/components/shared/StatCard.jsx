@@ -1,23 +1,23 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import { ArrowRight, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// StatCard — reusable single statistic card (premium modern SaaS style).
+// StatCard - reusable single statistic card (premium modern SaaS style).
 //
 // Props:
-//   icon        — Lucide icon component
-//   label       — stat label text (e.g. "Active Projects")
-//   value       — stat value (number, string, or ReactNode)
-//   description — optional supporting text below the value
-//   link        — optional route path (renders a "View →" link)
-//   linkLabel   — custom link text (default "View")
-//   color       — Tailwind classes for the icon container
+//   icon        - Lucide icon component
+//   label       - stat label text (e.g. "Active Projects")
+//   value       - stat value (number, string, or ReactNode)
+//   description - optional supporting text below the value
+//   link        - optional route path (renders a "View ->" link)
+//   linkLabel   - custom link text (default "View")
+//   color       - Tailwind classes for the icon container
 //                  (e.g. "text-accent bg-accent-light")
-//   trend       — { direction: "up" | "down", value: string } (e.g. "+12%")
-//   size        — "sm" | "md" (default "md")
-//   className   — additional classes for the card wrapper
-//   onClick     — optional click handler (ignored if `link` is set)
+//   trend       - { direction: "up" | "down", value: string } (e.g. "+12%")
+//   size        - "sm" | "md" (default "md")
+//   className   - additional classes for the card wrapper
+//   onClick     - optional click handler (ignored if `link` is set)
 // =============================================================================
 
 const SIZE_STYLES = {

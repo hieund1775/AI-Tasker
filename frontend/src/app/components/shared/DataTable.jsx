@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // DataTable - reusable admin table with search, external filters, pagination, and actions.
 //
 // Props:
@@ -144,31 +144,31 @@ export function DataTable({
     <div className="bg-card rounded-2xl border border-border flex flex-col shadow-sm overflow-hidden">
       {/* Header: search + filters */}
       {(onSearchChange || filters || !onSearchChange) && (
-        <div className="px-5 py-4 border-b border-border/70 bg-card/70 space-y-3">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchVal}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full h-10 pl-9 pr-8 text-sm border border-input rounded-xl bg-input-background outline-none focus:border-ring focus:ring-2 focus:ring-ring/20 placeholder:text-muted-foreground/50 transition-colors"
-            />
-            {searchVal && (
-              <button
-                onClick={() => handleSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-lg hover:bg-muted"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-            {filters && <div className="flex gap-2 flex-wrap items-center">{filters}</div>}
+        <div className="border-b border-border/70 bg-card/70 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-sm">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchVal}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="h-10 w-full rounded-xl border border-input bg-input-background pl-9 pr-8 text-sm outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ring focus:ring-2 focus:ring-ring/20"
+              />
+              {searchVal && (
+                <button
+                  onClick={() => handleSearch("")}
+                  className="absolute right-3 top-1/2 rounded-lg p-0.5 -translate-y-1/2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            {filters && <div className="page-filter-controls">{filters}</div>}
           </div>
 
           {filterableColumns.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border/50 pt-4">
               <span className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-secondary/60 px-3 text-xs font-semibold text-muted-foreground">
                 <Filter className="h-3.5 w-3.5" />
                 Filters

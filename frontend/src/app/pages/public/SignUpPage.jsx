@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Eye, EyeOff, X, Sun, Moon, Monitor } from "lucide-react";
 import { motion } from "motion/react";
@@ -298,7 +298,7 @@ export function SignUpPage() {
             </p>
           </div>
 
-          {/* Demo hint â€” remove in production */}
+          {/* Demo hint - remove in production */}
           <div className="mt-4 p-3 bg-secondary/30 border border-border rounded-lg">
             <p className="text-xs text-muted-foreground text-center">
               <span className="font-semibold">Demo:</span> Choose Client or Expert

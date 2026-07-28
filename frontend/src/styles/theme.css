@@ -1,12 +1,12 @@
-@custom-variant dark (&:is(.dark *));
+﻿@custom-variant dark (&:is(.dark *));
 
 /* =============================================================================
-   AI-Tasker Design System v2 — Modern SaaS Palette
+   AI-Tasker Design System v2 â€” Modern SaaS Palette
    Inspired by Linear, Vercel, Stripe Dashboard
    ============================================================================= */
 
 :root {
-  /* ── Typography ── */
+  /* â”€â”€ Typography â”€â”€ */
   --font-size: 16px;
   --font-sans: "Outfit", "Noto Sans", ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -25,7 +25,7 @@
   --panel-gap: 1.5rem;
   --control-gap: 0.75rem;
 
-  /* ── Background & Surfaces ── */
+  /* â”€â”€ Background & Surfaces â”€â”€ */
   --background: #f7f3ec;
   --foreground: #171512;
   --card: #fffdf8;
@@ -33,19 +33,19 @@
   --popover: #fffdf8;
   --popover-foreground: #171512;
 
-  /* ── Brand / Primary (Slate Charcoal — sophisticated, professional) ── */
+  /* â”€â”€ Brand / Primary (Slate Charcoal â€” sophisticated, professional) â”€â”€ */
   --primary: #2e2b27;
   --primary-foreground: #ffffff;
   --primary-hover: #221f1b;
   --primary-light: color-mix(in srgb, #2e2b27 10%, transparent);
 
-  /* ── Accent (Vibrant Blue — interactive elements, links) ── */
+  /* â”€â”€ Accent (Vibrant Blue â€” interactive elements, links) â”€â”€ */
   --accent: #9b5d3d;
   --accent-foreground: #ffffff;
   --accent-hover: #814a2f;
   --accent-light: color-mix(in srgb, #9b5d3d 12%, transparent);
 
-  /* ── Semantic Colors ── */
+  /* â”€â”€ Semantic Colors â”€â”€ */
   --success: #4f7a68;
   --success-foreground: #ffffff;
   --success-light: color-mix(in srgb, #4f7a68 10%, transparent);
@@ -56,13 +56,13 @@
   --destructive-foreground: #ffffff;
   --destructive-light: color-mix(in srgb, #a24c43 10%, transparent);
 
-  /* ── Secondary & Muted ── */
+  /* â”€â”€ Secondary & Muted â”€â”€ */
   --secondary: #ebe3d6;
   --secondary-foreground: #332f2a;
   --muted: #eee7dc;
   --muted-foreground: #6f675e;
 
-  /* ── Borders & Inputs ── */
+  /* â”€â”€ Borders & Inputs â”€â”€ */
   --border: #d9ccbb;
   --border-light: #ebe3d6;
   --input: #cbc0b2;
@@ -70,14 +70,14 @@
   --switch-background: #cbc0b2;
   --ring: #9b5d3d;
 
-  /* ── Charts ── */
+  /* â”€â”€ Charts â”€â”€ */
   --chart-1: #2e2b27;
   --chart-2: #a96745;
   --chart-3: #4f7a68;
   --chart-4: #ad8032;
   --chart-5: #656360;
 
-  /* ── Legacy brand tokens (keep for existing code compatibility) ── */
+  /* â”€â”€ Legacy brand tokens (keep for existing code compatibility) â”€â”€ */
   --brand-primary: #2e2b27;
   --brand-primary-hover: #221f1b;
   --brand-primary-light: color-mix(in srgb, #2e2b27 10%, transparent);
@@ -85,7 +85,7 @@
   --brand-green: #4f7a68;
   --brand-green-foreground: #ffffff;
 
-  /* ── Radius Scale ── */
+  /* â”€â”€ Radius Scale â”€â”€ */
   --radius: 0.625rem;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -93,7 +93,7 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
 
-  /* ── Sidebar ── */
+  /* â”€â”€ Sidebar â”€â”€ */
   --sidebar: #fffaf2;
   --sidebar-foreground: #2e2b27;
   --sidebar-primary: #2e2b27;
@@ -104,7 +104,7 @@
   --sidebar-ring: #a96745;
 }
 
-/* ── Dark Mode ── */
+/* â”€â”€ Dark Mode â”€â”€ */
 .dark {
   --background: #171512;
   --foreground: #f4f1ea;
@@ -168,9 +168,9 @@
   --sidebar-ring: #d0916d;
 }
 
-/* ── Dark mode body background enhancement ── */
+/* â”€â”€ Dark mode body background enhancement â”€â”€ */
 .dark body::before {
-  /* Subtle neutral ambient depth — no blue tint */
+  /* Subtle neutral ambient depth â€” no blue tint */
   background:
     radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, #fafafa 3%, transparent), transparent),
     radial-gradient(ellipse 60% 80% at 80% 70%, color-mix(in srgb, #fafafa 1.5%, transparent), transparent),
@@ -178,7 +178,7 @@
   opacity: 0.6;
 }
 
-/* ── Tailwind v4 Theme Mapping ── */
+/* â”€â”€ Tailwind v4 Theme Mapping â”€â”€ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -244,7 +244,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* ── Base Layer ── */
+/* â”€â”€ Base Layer â”€â”€ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -256,14 +256,14 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* ── Premium Ambient Background (subtle mesh + noise) ── */
+  /* â”€â”€ Premium Ambient Background (subtle mesh + noise) â”€â”€ */
 body::before {
     content: '';
     position: fixed;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    /* Subtle radial gradient "light spots" — neutral, no blue tint */
+    /* Subtle radial gradient "light spots" â€” neutral, no blue tint */
     background:
       radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--foreground) 2%, transparent), transparent),
       radial-gradient(ellipse 60% 80% at 80% 70%, color-mix(in srgb, var(--foreground) 1.5%, transparent), transparent),
@@ -283,7 +283,7 @@ body::before {
     text-rendering: optimizeLegibility;
   }
 
-  /* ── Typography Scale (refined hierarchy) ── */
+  /* â”€â”€ Typography Scale (refined hierarchy) â”€â”€ */
   h1 {
     font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-bold);
@@ -333,7 +333,7 @@ body::before {
     line-height: 1.5;
   }
 
-  /* ── Page Title Standard ── */
+  /* â”€â”€ Page Title Standard â”€â”€ */
   .page-title {
     font-size: clamp(1.375rem, 1.05rem + 0.9vw, 1.625rem);
     font-weight: var(--font-weight-semibold);
@@ -351,7 +351,86 @@ body::before {
     text-wrap: pretty;
   }
 
-  /* ── Section Header Standard ── */
+  /* â”€â”€ Page Filter / Toolbar Rhythm â”€â”€ */
+  .page-filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.875rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--card) 88%, transparent);
+    box-shadow: 0 10px 28px color-mix(in srgb, var(--foreground) 3%, transparent);
+  }
+
+  .space-y-6 > .page-filter-toolbar {
+    margin-bottom: 0;
+  }
+
+  .page-filter-toolbar--sticky {
+    position: sticky;
+    top: 5rem;
+    z-index: 20;
+    backdrop-filter: blur(12px);
+  }
+
+  .page-filter-search {
+    position: relative;
+    flex: 1 1 16rem;
+    min-width: min(100%, 14rem);
+  }
+
+  .page-filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .page-filter-count {
+    margin-left: auto;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .page-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .page-filter-panel {
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--card) 84%, transparent);
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--foreground) 2.5%, transparent);
+  }
+
+  @media (max-width: 640px) {
+    .page-filter-toolbar {
+      align-items: stretch;
+      gap: 0.75rem;
+      padding: 0.875rem;
+    }
+
+    .page-filter-controls {
+      width: 100%;
+    }
+
+    .page-filter-count {
+      width: 100%;
+      margin-left: 0;
+    }
+  }
+
+  /* â”€â”€ Section Header Standard â”€â”€ */
   .section-header {
     font-size: 0.75rem;
     font-weight: var(--font-weight-semibold);
@@ -360,7 +439,7 @@ body::before {
     letter-spacing: 0.05em;
   }
 
-  /* ── Animations ── */
+  /* â”€â”€ Animations â”€â”€ */
   @keyframes float {
     0%,
     100% {
@@ -420,7 +499,7 @@ body::before {
     animation: scale-in 0.2s ease-out;
   }
 
-  /* ── Scrollbar Styling ── */
+  /* â”€â”€ Scrollbar Styling â”€â”€ */
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
@@ -443,12 +522,12 @@ body::before {
     background-color: var(--muted-foreground);
   }
 
-  /* ── Focus Ring Refinement ── */
+  /* â”€â”€ Focus Ring Refinement â”€â”€ */
   .focus-ring {
     @apply outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
   }
 
-  /* ── Micro-Interaction Utilities ── */
+  /* â”€â”€ Micro-Interaction Utilities â”€â”€ */
   .card-hover {
     @apply transition-all duration-200 ease-out;
   }
@@ -485,7 +564,7 @@ body::before {
     width: 100%;
   }
 
-  /* ── Gradient Section Divider ── */
+  /* â”€â”€ Gradient Section Divider â”€â”€ */
   .gradient-divider {
     height: 1px;
     background: linear-gradient(
@@ -497,7 +576,7 @@ body::before {
     );
   }
 
-  /* ── Shimmer Loading Animation ── */
+  /* â”€â”€ Shimmer Loading Animation â”€â”€ */
   @keyframes shimmer-slide {
     0% {
       transform: translateX(-100%);
@@ -529,7 +608,7 @@ body::before {
     animation: shimmer 2s ease-in-out infinite;
   }
 
-  /* ── Brand Section Header ── */
+  /* â”€â”€ Brand Section Header â”€â”€ */
   .brand-section-header {
     font-size: var(--text-xs);
     font-weight: var(--font-weight-semibold);
@@ -540,7 +619,7 @@ body::before {
     border-left: 2px solid var(--accent);
   }
 
-  /* ── Brand Decorative Shapes ── */
+  /* â”€â”€ Brand Decorative Shapes â”€â”€ */
   .brand-blob-accent {
     border-radius: 60% 40% 50% 45% / 55% 45% 55% 45%;
     background: color-mix(in srgb, var(--accent) 6%, transparent);
@@ -553,13 +632,13 @@ body::before {
     filter: blur(50px);
   }
 
-  /* ── Brand Dot Pattern ── */
+  /* â”€â”€ Brand Dot Pattern â”€â”€ */
   .brand-dots {
     background-image: radial-gradient(currentColor 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
-  /* ── Neural Line Pattern (AI motif) ── */
+  /* â”€â”€ Neural Line Pattern (AI motif) â”€â”€ */
   .brand-neural {
     background-image:
       linear-gradient(60deg, color-mix(in srgb, var(--accent) 3%, transparent) 1px, transparent 1px),
@@ -581,9 +660,9 @@ html.transition-colors * {
               box-shadow 0.2s ease !important;
 }
 
-/* ── Brand Animation Keyframes ── */
+/* â”€â”€ Brand Animation Keyframes â”€â”€ */
 
-/* Sparkle pulse — subtle glow on AI indicators */
+/* Sparkle pulse â€” subtle glow on AI indicators */
 @keyframes sparkle-pulse {
   0%, 100% {
     opacity: 0.7;
@@ -599,7 +678,7 @@ html.transition-colors * {
   animation: sparkle-pulse 2s ease-in-out infinite;
 }
 
-/* Draw line — SVG stroke animation */
+/* Draw line â€” SVG stroke animation */
 @keyframes draw-line {
   from {
     stroke-dashoffset: 100;
@@ -609,7 +688,7 @@ html.transition-colors * {
   }
 }
 
-/* Milestone glow — soft pulse on active milestones */
+/* Milestone glow â€” soft pulse on active milestones */
 @keyframes milestone-glow {
   0%, 100% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 20%, transparent);
@@ -623,7 +702,7 @@ html.transition-colors * {
   animation: milestone-glow 2.5s ease-in-out infinite;
 }
 
-/* ── Utility: smooth page transitions ── */
+/* â”€â”€ Utility: smooth page transitions â”€â”€ */
 @keyframes page-enter {
   from {
     opacity: 0;
@@ -639,7 +718,7 @@ html.transition-colors * {
   animation: page-enter 0.25s ease-out;
 }
 
-/* ── Animated Progress Bar ── */
+/* â”€â”€ Animated Progress Bar â”€â”€ */
 @keyframes progress-pulse {
   0%, 100% {
     filter: brightness(1);
@@ -657,7 +736,7 @@ html.transition-colors * {
   animation: progress-pulse 3s ease-in-out infinite;
 }
 
-/* ── Enhanced Background: subtle animated grid overlay ── */
+/* â”€â”€ Enhanced Background: subtle animated grid overlay â”€â”€ */
 .bg-grid-subtle {
   background-image:
     linear-gradient(var(--border) 0.5px, transparent 0.5px),
@@ -679,7 +758,7 @@ html.transition-colors * {
   animation: bg-drift 20s ease-in-out infinite;
 }
 
-/* ── Scroll Reveal Utility ── */
+/* â”€â”€ Scroll Reveal Utility â”€â”€ */
 .reveal-hidden {
   opacity: 0;
   transform: translateY(12px);
@@ -691,7 +770,7 @@ html.transition-colors * {
   transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
-/* ── Count-up Number Animation ── */
+/* â”€â”€ Count-up Number Animation â”€â”€ */
 @keyframes count-in {
   from {
     opacity: 0;
@@ -707,7 +786,7 @@ html.transition-colors * {
   animation: count-in 0.4s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
-/* ── Homepage premium motion/background utilities ── */
+/* â”€â”€ Homepage premium motion/background utilities â”€â”€ */
 .ai-homepage-aurora {
   background:
     radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--accent) 13%, transparent), transparent 32%),
@@ -747,7 +826,7 @@ html.transition-colors * {
   }
 }
 
-/* ── Stagger Card Reveal ── */
+/* â”€â”€ Stagger Card Reveal â”€â”€ */
 @keyframes card-reveal {
   from {
     opacity: 0;
@@ -777,7 +856,7 @@ html.transition-colors * {
 .card-reveal-11 { animation-delay: 0.44s; }
 .card-reveal-12 { animation-delay: 0.48s; }
 
-/* ── Premium Glass Card Surface ── */
+/* â”€â”€ Premium Glass Card Surface â”€â”€ */
 .glass-card {
   background: linear-gradient(
     135deg,
@@ -790,8 +869,8 @@ html.transition-colors * {
 
 .auth-shell {
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 38%),
-    linear-gradient(315deg, color-mix(in srgb, var(--success) 6%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 5%, transparent), transparent 38%),
+    linear-gradient(315deg, color-mix(in srgb, var(--success) 4%, transparent), transparent 42%),
     repeating-linear-gradient(
       0deg,
       color-mix(in srgb, var(--foreground) 2.5%, transparent) 0,
@@ -808,12 +887,14 @@ html.transition-colors * {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 62%, transparent), transparent),
-    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--card) 76%, transparent), transparent 56%);
-  opacity: 0.78;
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 46%, transparent), transparent),
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--card) 58%, transparent), transparent 56%);
+  opacity: 0.6;
 }
 
 .auth-card {
+  position: relative;
+  z-index: 2;
   box-shadow:
     0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
     0 18px 44px color-mix(in srgb, var(--foreground) 10%, transparent);
@@ -822,7 +903,7 @@ html.transition-colors * {
     linear-gradient(135deg, color-mix(in srgb, var(--card) 96%, var(--background)), var(--card));
 }
 
-/* ── Section Action Bar ── */
+/* â”€â”€ Section Action Bar â”€â”€ */
 .action-bar {
   display: flex;
   align-items: center;
@@ -1064,7 +1145,272 @@ body::before {
 }
 
 .page-shell > * {
+  position: relative;
+  z-index: 2;
   animation: content-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.ai-decorative-rails {
+  position: fixed;
+  inset: 4rem 0 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ai-decorative-rail {
+  position: absolute;
+  top: clamp(5rem, 14vh, 9rem);
+  display: grid;
+  gap: clamp(1rem, 3vh, 1.65rem);
+}
+
+.ai-decorative-rail-left {
+  left: max(1rem, calc((100vw - var(--layout-max)) / 2 - 7.75rem));
+}
+
+.ai-decorative-rail-right {
+  right: max(1rem, calc((100vw - var(--layout-max)) / 2 - 7.75rem));
+  top: clamp(7rem, 18vh, 12rem);
+}
+
+.ai-rail-node {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--card) 82%, transparent), transparent 70%),
+    color-mix(in srgb, var(--card) 66%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: 1rem;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
+    0 16px 32px color-mix(in srgb, var(--foreground) 7%, transparent);
+  opacity: calc(0.76 - (var(--rail-index) * 0.04));
+}
+
+.ai-decorative-rail-left .ai-rail-node:nth-child(even) {
+  transform: translateX(1.1rem);
+}
+
+.ai-decorative-rail-right .ai-rail-node:nth-child(even) {
+  transform: translateX(-1.1rem);
+}
+
+.ai-business-visual {
+  position: absolute;
+  width: 12.5rem;
+  min-height: 9.25rem;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  border-radius: 1.5rem;
+  color: color-mix(in srgb, var(--foreground) 56%, transparent);
+  background:
+    radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card) 76%, transparent), color-mix(in srgb, var(--secondary) 58%, transparent));
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 7%, transparent) inset,
+    0 24px 58px color-mix(in srgb, var(--foreground) 9%, transparent);
+  opacity: 0.74;
+  backdrop-filter: blur(10px);
+}
+
+.ai-business-visual-left {
+  left: max(1.75rem, calc((100vw - var(--layout-max)) / 2 - 10.75rem));
+  bottom: clamp(4rem, 10vh, 7rem);
+  transform: rotate(-4deg);
+}
+
+.ai-business-visual-right {
+  right: max(1.75rem, calc((100vw - var(--layout-max)) / 2 - 10.75rem));
+  bottom: clamp(8rem, 18vh, 13rem);
+  transform: rotate(4deg);
+}
+
+.ai-visual-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ai-visual-header span {
+  width: 4.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
+.ai-visual-network {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin-top: 1.1rem;
+}
+
+.ai-visual-network::before {
+  content: "";
+  position: absolute;
+  inset: 0.75rem 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, transparent);
+  border-radius: 999px;
+  transform: rotate(-16deg);
+}
+
+.ai-visual-network span {
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--card) 84%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+
+.ai-visual-network span:nth-child(2),
+.ai-visual-network span:nth-child(4) {
+  justify-self: end;
+}
+
+.ai-visual-lines {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.ai-visual-lines span {
+  height: 0.46rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.ai-visual-lines span:nth-child(2) {
+  width: 72%;
+}
+
+.ai-visual-lines span:nth-child(3) {
+  width: 46%;
+}
+
+.ai-visual-chart {
+  display: flex;
+  align-items: end;
+  gap: 0.55rem;
+  height: 4.8rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--background) 62%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 64%, transparent);
+}
+
+.ai-visual-chart span {
+  flex: 1;
+  min-width: 0;
+  border-radius: 999px 999px 0.35rem 0.35rem;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 76%, transparent), color-mix(in srgb, var(--success) 44%, transparent));
+}
+
+.ai-visual-chart span:nth-child(1) { height: 42%; }
+.ai-visual-chart span:nth-child(2) { height: 72%; }
+.ai-visual-chart span:nth-child(3) { height: 56%; }
+.ai-visual-chart span:nth-child(4) { height: 88%; }
+
+.ai-visual-avatar-row {
+  display: flex;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.ai-visual-avatar-row span {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.75rem;
+  background:
+    radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--foreground) 32%, transparent) 0 22%, transparent 24%),
+    radial-gradient(circle at 50% 92%, color-mix(in srgb, var(--foreground) 22%, transparent) 0 34%, transparent 36%),
+    color-mix(in srgb, var(--card) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.ai-visual-avatar-row span:nth-child(2) {
+  opacity: 0.72;
+}
+
+.ai-visual-avatar-row span:nth-child(3) {
+  opacity: 0.48;
+}
+
+.ai-rail-orbit {
+  position: absolute;
+  top: 8rem;
+  width: 12rem;
+  height: 28rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 999px;
+  opacity: 0.42;
+}
+
+.ai-rail-orbit-left {
+  left: max(-6rem, calc((100vw - var(--layout-max)) / 2 - 12rem));
+  transform: rotate(-18deg);
+}
+
+.ai-rail-orbit-right {
+  right: max(-6rem, calc((100vw - var(--layout-max)) / 2 - 12rem));
+  transform: rotate(18deg);
+}
+
+.ai-rail-spark {
+  position: absolute;
+  color: color-mix(in srgb, var(--accent) 55%, transparent);
+  opacity: 0.62;
+}
+
+.ai-rail-spark-left {
+  top: 5.5rem;
+  left: max(2.5rem, calc((100vw - var(--layout-max)) / 2 - 4rem));
+}
+
+.ai-rail-spark-right {
+  top: 22rem;
+  right: max(2.5rem, calc((100vw - var(--layout-max)) / 2 - 4rem));
+}
+
+.dark .ai-rail-node {
+  color: color-mix(in srgb, var(--foreground) 46%, transparent);
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--card) 68%, transparent), transparent 70%),
+    color-mix(in srgb, var(--card) 48%, transparent);
+  border-color: color-mix(in srgb, var(--border) 62%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 5%, transparent) inset,
+    0 18px 34px color-mix(in srgb, #000000 18%, transparent);
+}
+
+.dark .ai-rail-orbit {
+  border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  opacity: 0.5;
+}
+
+.dark .ai-business-visual {
+  color: color-mix(in srgb, var(--foreground) 48%, transparent);
+  background:
+    radial-gradient(circle at 22% 12%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 42%),
+    linear-gradient(135deg, color-mix(in srgb, var(--card) 54%, transparent), color-mix(in srgb, var(--secondary) 34%, transparent));
+  border-color: color-mix(in srgb, var(--border) 58%, transparent);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent) inset,
+    0 28px 62px color-mix(in srgb, #000000 24%, transparent);
+  opacity: 0.72;
+}
+
+@media (max-width: 88rem) {
+  .ai-decorative-rails {
+    display: none;
+  }
 }
 
 @keyframes page-shell-enter {

@@ -1,19 +1,19 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Edit3, Check, X } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// MiniTaskCreateForm — expert-only form to create, edit, remove, and reorder
+// MiniTaskCreateForm - expert-only form to create, edit, remove, and reorder
 // mini tasks before confirmation.
 //
 // Props:
-//   miniTasks     — current mini tasks array (draft state)
-//   onAdd         — (data: {title, description, estimatedTime}) => void
-//   onRemove       — (miniTaskId) => void
-//   onReorder      — (orderedIds: string[]) => void
-//   onUpdate       — (miniTaskId, updates) => void
-//   onConfirm      — () => void — opens confirmation modal
-//   disabled       — boolean (true when confirmed/locked)
+//   miniTasks     - current mini tasks array (draft state)
+//   onAdd         - (data: {title, description, estimatedTime}) => void
+//   onRemove       - (miniTaskId) => void
+//   onReorder      - (orderedIds: string[]) => void
+//   onUpdate       - (miniTaskId, updates) => void
+//   onConfirm      - () => void - opens confirmation modal
+//   disabled       - boolean (true when confirmed/locked)
 // =============================================================================
 
 export function MiniTaskCreateForm({

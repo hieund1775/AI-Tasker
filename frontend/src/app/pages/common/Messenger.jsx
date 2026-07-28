@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateTimeFormat } from "../../lib/safety.js";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 import api from "../../../services/api.js";
 import {
   Send,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// In-memory session messages — appended when user sends a message in the UI
+// In-memory session messages - appended when user sends a message in the UI
 // ---------------------------------------------------------------------------
 const _sessionMessages = [];
 
@@ -284,6 +285,12 @@ export function Messenger() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <BackButton
+        fallback={`/${user?.role === "staff" ? "admin" : user?.role || "client"}/dashboard`}
+        className="mb-4"
+      >
+        Back
+      </BackButton>
       <div className="bg-card rounded-2xl border border-border shadow-sm flex h-[calc(100vh-10rem)]">
         {/* ================================================================ */}
         {/* Conversation List                                                   */}

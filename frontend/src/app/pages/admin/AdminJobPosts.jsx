@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminJobPosts — Job post / Service list management for Admin/Owner.
+﻿// =============================================================================
+// AdminJobPosts - Job post / Service list management for Admin/Owner.
 //
 // Uses existing /api/jobposts endpoint. Admin can:
 //   - View all job posts
@@ -13,6 +13,7 @@ import { Edit3, Trash2 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
 
@@ -144,7 +145,7 @@ export function AdminJobPosts() {
     async (jobPostId) => {
       setActionLoading(true);
       try {
-        // TODO: add DELETE endpoint — DELETE /jobposts/{id}
+        // TODO: add DELETE endpoint - DELETE /jobposts/{id}
         // Backend may not support DELETE yet; using placeholder
         setJobPosts((prev) => prev.filter((j) => j.id !== jobPostId));
         showToast("Job post has been deleted.");
@@ -164,7 +165,7 @@ export function AdminJobPosts() {
       label: "Title",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-foreground text-sm">{val || "—"}</p>
+          <p className="font-medium text-foreground text-sm">{val || "-"}</p>
           <p className="text-xs text-muted-foreground">
             {row.clientName || row.clientId
               ? `Posted by: ${row.clientName || row.clientId}`
@@ -178,7 +179,7 @@ export function AdminJobPosts() {
       label: "Budget",
       render: (val) => (
         <span className="text-sm font-medium">
-          {val != null ? <MoneyDisplay amount={val} /> : "—"}
+          {val != null ? <MoneyDisplay amount={val} /> : "-"}
         </span>
       ),
     },
@@ -186,7 +187,7 @@ export function AdminJobPosts() {
       key: "category",
       label: "Category",
       render: (val) => (
-        <span className="text-xs text-muted-foreground">{val || "—"}</span>
+        <span className="text-xs text-muted-foreground">{val || "-"}</span>
       ),
     },
     {
@@ -200,7 +201,7 @@ export function AdminJobPosts() {
       label: "Posted",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -210,21 +211,19 @@ export function AdminJobPosts() {
     <div className="space-y-6">
       
 
-      <h1 className="text-2xl font-semibold text-foreground mb-2">
-        Job Post / Service Management
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage violating job posts and services on the platform.
-      </p>
+      <PageHeader
+        title="Job Post / Service Management"
+        subtitle="View and manage violating job posts and services on the platform."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}

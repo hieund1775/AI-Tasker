@@ -15,12 +15,13 @@ import {
   Target,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import api from "../../../services/api.js";
 import { categoryTagService } from "../../../services/categoryTagService.js";
 import { safeNumberFormat } from "../../lib/safety.js";
 
 /**
- * Job Card â€” renders a scannable job listing card for the expert job board.
+ * Job Card - renders a scannable job listing card for the expert job board.
  */
 function ProjectCard({ job }) {
   const clientName = job.client || "Anonymous Client";
@@ -70,7 +71,7 @@ function ProjectCard({ job }) {
     }
   };
 
-  // Match score â€” simulated from skills count vs total skills
+  // Match score - simulated from skills count vs total skills
   const skillCount = skills.length;
   const matchScore = skillCount > 0 ? Math.min(95, 55 + skillCount * 8) : 60;
 
@@ -361,13 +362,11 @@ export function JobList() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="page-title">Find Jobs</h1>
-        <p className="page-subtitle">
-          Browse available AI projects that match your skills
-        </p>
-      </div>
+      <PageHeader
+        title="Find Jobs"
+        subtitle="Browse available AI projects that match your skills"
+        className="mb-6"
+      />
 
       {user?.role === "expert" && user?.hasProfile === false && (
         <div className="mb-6 p-4 bg-warning-light border border-warning/20 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -387,16 +386,15 @@ export function JobList() {
       )}
 
       {/* Sticky Search & Filters Bar */}
-      <div className="sticky top-20 z-20 mb-6 rounded-2xl border border-border/70 bg-card/90 p-3 shadow-sm shadow-foreground/[0.025] backdrop-blur">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
+      <div className="page-filter-toolbar page-filter-toolbar--sticky">
+        <div className="page-filter-search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
             <input
               type="text"
               placeholder="Search jobs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40 transition-shadow"
+              className="h-10 w-full rounded-xl border border-border bg-card pl-10 pr-9 text-sm transition-shadow placeholder:text-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/15"
             />
             {searchTerm && (
               <button
@@ -407,6 +405,7 @@ export function JobList() {
               </button>
             )}
           </div>
+        <div className="page-filter-controls">
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
@@ -431,17 +430,17 @@ export function JobList() {
             <option value="budget_low">Budget: Low to High</option>
             <option value="deadline">Deadline: Soonest</option>
           </select>
+        </div>
 
           {/* Results count */}
-          <span className="text-sm text-muted-foreground font-medium ml-auto">
+          <span className="page-filter-count">
             {filtered.length} job{filtered.length !== 1 ? "s" : ""}
           </span>
-        </div>
       </div>
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="mb-6 animate-fade-in rounded-2xl border border-border/70 bg-card/82 p-5 shadow-sm shadow-foreground/[0.02] sm:p-6">
+        <div className="page-filter-panel animate-fade-in">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">

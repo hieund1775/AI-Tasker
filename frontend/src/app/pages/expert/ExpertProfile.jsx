@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Briefcase,
@@ -361,7 +361,7 @@ export function ExpertProfile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* ── Profile header card ── */}
+      {/* â”€â”€ Profile header card â”€â”€ */}
       <div className="bg-card rounded-xl border border-border p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
@@ -386,7 +386,7 @@ export function ExpertProfile() {
           </Link>
         </div>
 
-        {/* ── Meta details ── */}
+        {/* â”€â”€ Meta details â”€â”€ */}
         <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border">
           {expert.profile?.location && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -425,7 +425,7 @@ export function ExpertProfile() {
           )}
         </div>
 
-        {/* ── Contact & Professional Info ── */}
+        {/* â”€â”€ Contact & Professional Info â”€â”€ */}
         <div className="mt-8 pt-8 border-t border-border space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -469,7 +469,7 @@ export function ExpertProfile() {
           </div>
         </div>
 
-        {/* ── Skills Section ── */}
+        {/* â”€â”€ Skills Section â”€â”€ */}
         {expert.profile?.skills && expert.profile.skills.length > 0 && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Skills</h3>
@@ -486,7 +486,7 @@ export function ExpertProfile() {
           </div>
         )}
 
-        {/* ── About / bio ── */}
+        {/* â”€â”€ About / bio â”€â”€ */}
         {expert.profile?.bio && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">About / Bio</h3>
@@ -495,7 +495,7 @@ export function ExpertProfile() {
         )}
       </div>
 
-      {/* ── Statistics cards ── */}
+      {/* â”€â”€ Statistics cards â”€â”€ */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           {
@@ -546,7 +546,7 @@ export function ExpertProfile() {
         ))}
       </div>
 
-      {/* ── Completed Projects Section ── */}
+      {/* â”€â”€ Completed Projects Section â”€â”€ */}
       <div className="bg-card rounded-xl border border-border p-8 text-left space-y-6">
         <div className="flex items-center justify-between border-b border-border pb-4">
           <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
@@ -597,11 +597,11 @@ export function ExpertProfile() {
                       <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
                         <div>
                           <span className="font-semibold text-foreground/80">Category:</span>{" "}
-                          <span>{proj.category || "—"}</span>
+                          <span>{proj.category || "-"}</span>
                         </div>
                         {proj.specialization && (
                           <>
-                            <span className="text-border">•</span>
+                            <span className="text-border">-</span>
                             <div>
                               <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
                               <span>{proj.specialization}</span>
@@ -610,10 +610,10 @@ export function ExpertProfile() {
                         )}
                         {(proj.startDate || proj.endDate) && (
                           <>
-                            <span className="text-border">•</span>
+                            <span className="text-border">-</span>
                             <div>
                               <span className="font-semibold text-foreground/80">Duration:</span>{" "}
-                              <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
+                              <span>{proj.startDate || "-"} to {proj.endDate || "-"}</span>
                             </div>
                           </>
                         )}
@@ -635,7 +635,7 @@ export function ExpertProfile() {
 
                     {proj.review?.comment && (
                       <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                        <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">“</span>
+                        <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">"</span>
                         {proj.review.comment}
                         {(proj.review.createdAt || proj.review.date) && (
                           <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
@@ -687,7 +687,7 @@ export function ExpertProfile() {
                         </div>
                         {proj.editedReview.comment && (
                           <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                            <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                            <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">"</span>
                             {proj.editedReview.comment}
                           </div>
                         )}

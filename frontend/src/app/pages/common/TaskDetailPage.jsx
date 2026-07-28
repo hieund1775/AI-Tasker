@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+﻿import { useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
@@ -47,7 +47,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 
-// ── Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) ──
+// â”€â”€ Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) â”€â”€
 function resolveProductFile(productFile) {
   if (!productFile) return null;
   if (typeof productFile === "object" && (productFile.url || productFile.path)) {
@@ -97,7 +97,7 @@ async function downloadFileBlob(rawUrl, fileName) {
 }
 
 // =============================================================================
-// TaskDetailPage — dedicated task detail page for both client and expert.
+// TaskDetailPage - dedicated task detail page for both client and expert.
 //
 // Route: /client/projects/:projectId/tasks/:taskId
 //        /expert/projects/:projectId/tasks/:taskId
@@ -176,7 +176,7 @@ export default function TaskDetailPage() {
   const safeTasks = safeArray(tasks);
   const task = safeTasks.find((t) => t.id === taskId);
 
-  // Derived miniTasks — declared early because handlers below reference it
+  // Derived miniTasks - declared early because handlers below reference it
   const miniTasks = safeArray(task?.miniTasks);
 
   // ---- Evidence submission handler ----
@@ -427,7 +427,7 @@ export default function TaskDetailPage() {
   const isDisputed = project?.status?.toLowerCase() === "disputed";
   const isProjectClosed = ["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase());
 
-  // Deadline info for badge — use computed deadline from taskDeadlineUtils
+  // Deadline info for badge - use computed deadline from taskDeadlineUtils
   const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, taskId, null) : null;
   const computedDeadline = taskDeadlineData?.deadline || task?.deadline;
   const deadlineInfo = computedDeadline ? getDeadlineInfo(computedDeadline) : null;
@@ -446,7 +446,7 @@ export default function TaskDetailPage() {
   // Client can request revision: task is waiting for approval
   const canRequestRevision = isClient && isWaitingForApproval && !isDisputed && !isProjectClosed;
 
-  // Client can request reopen when task is Done — DEPRECATED: completed tasks are now permanently locked
+  // Client can request reopen when task is Done - DEPRECATED: completed tasks are now permanently locked
   const canRequestReopen = false;
 
   // Client can request urgent submission: task is not Done, not waiting for approval, and overdue/close to deadline
@@ -454,7 +454,7 @@ export default function TaskDetailPage() {
   const canRequestUrgent = isClient && !isDone && !isWaitingForApproval && isOverdueOrClose && !isDisputed;
   const urgentAlreadySent = task?.urgentRequest === true;
 
-  // Task is locked (Done) — no modifications allowed
+  // Task is locked (Done) - no modifications allowed
   const isTaskLocked = isDone;
 
   // ---- Loading state ----
@@ -711,7 +711,7 @@ export default function TaskDetailPage() {
           <Lock className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-success">
-              Task Completed — Locked
+              Task Completed - Locked
             </p>
             <p className="text-xs text-success/80 mt-1">
               This task has been approved and is now locked. No further modifications can be made.
@@ -813,7 +813,7 @@ export default function TaskDetailPage() {
           </div>
         )}
 
-        {/* ── Bottom action bar (Submit Product / Approve / Request Product / View Product) ── */}
+        {/* â”€â”€ Bottom action bar (Submit Product / Approve / Request Product / View Product) â”€â”€ */}
         {((isExpert && !isDone) || isClient) && (
           <div className="pt-4 border-t border-border">
             {/* Expert actions: Submit Evidence / Submit Product */}
@@ -847,7 +847,7 @@ export default function TaskDetailPage() {
                       className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {allComplete && !task?.handoverEvidence ? "Submit Handover Evidence" : displayStatus === "Checklist Completed" ? "Evidence Submitted ✓" : "Complete Mini Tasks First"}
+                      {allComplete && !task?.handoverEvidence ? "Submit Handover Evidence" : displayStatus === "Checklist Completed" ? "Evidence Submitted Done" : "Complete Mini Tasks First"}
                     </Button>
                   )}
                 </div>
@@ -934,7 +934,7 @@ export default function TaskDetailPage() {
                 {task.displayStatus === "Waiting for Expert Product" && (
                   <div className="bg-warning-light border border-warning/20 rounded-lg p-4 text-center">
                     <p className="text-warning font-medium text-sm">
-                      ⏳ Waiting for Expert to submit product...
+                      Waiting for Expert to submit product...
                     </p>
                   </div>
                 )}
@@ -1343,7 +1343,7 @@ export default function TaskDetailPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Task Acceptance Stepper — visual progress row
+// Task Acceptance Stepper - visual progress row
 // ---------------------------------------------------------------------------
 
 function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, hasMainProduct, task }) {
@@ -1365,7 +1365,7 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-success text-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
               <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
                 {step.label}

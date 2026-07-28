@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Owner Service
 // =============================================================================
 // Owner-only operations (Owner is a higher-level role than Admin).
@@ -9,7 +9,7 @@
 //   - View Admin user list
 //   - View Owner statistics dashboard
 //
-// Backend endpoints are NOT yet implemented — each function uses an empty
+// Backend endpoints are NOT yet implemented - each function uses an empty
 // placeholder URL so the real API can be wired in later.
 // =============================================================================
 
@@ -38,7 +38,7 @@ const OWNER_ENDPOINTS = {
  * If the backend supports passing role through /api/users/register, use that.
  * Otherwise this function uses its own empty endpoint.
  *
- * @param {object} payload — { email, password, fullName }
+ * @param {object} payload - { email, password, fullName }
  * @returns {Promise<object>} created admin user
  */
 export async function createAdminAccount(payload) {

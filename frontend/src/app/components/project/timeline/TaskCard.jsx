@@ -1,20 +1,20 @@
 ﻿// =============================================================================
-// TaskCard â€” single task card with progress bar, status, and action buttons.
+// TaskCard - single task card with progress bar, status, and action buttons.
 //
 // Props:
-//   task              â€” task object
-//   derivedStatus     â€” display status string
-//   role              â€” "client" | "expert"
-//   completedMiniTasks â€” number
-//   totalMiniTasks    â€” number
-//   progress          â€” 0-100 number
-//   latestLog         â€” { message } | null
-//   canOpenSubmit     â€” boolean
-//   isSubmitDisabled  â€” boolean
-//   submitButtonLabel â€” string
-//   goToTaskAction    â€” (task, action) => void
-//   getTaskStatusClass â€” (status) => string
-//   getTaskStatusLabel â€” (status) => string
+//   task              - task object
+//   derivedStatus     - display status string
+//   role              - "client" | "expert"
+//   completedMiniTasks - number
+//   totalMiniTasks    - number
+//   progress          - 0-100 number
+//   latestLog         - { message } | null
+//   canOpenSubmit     - boolean
+//   isSubmitDisabled  - boolean
+//   submitButtonLabel - string
+//   goToTaskAction    - (task, action) => void
+//   getTaskStatusClass - (status) => string
+//   getTaskStatusLabel - (status) => string
 // =============================================================================
 
 import { CheckCircle2, Clock3 } from "lucide-react";
