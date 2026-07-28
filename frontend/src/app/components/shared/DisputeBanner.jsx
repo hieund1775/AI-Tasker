@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { AlertTriangle, Clock } from "lucide-react";
 
 export function DisputeBanner({ report, className = "" }) {
@@ -36,7 +36,7 @@ export function DisputeBanner({ report, className = "" }) {
     >
       <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5 animate-pulse" />
       <div className="flex-1 font-sans">
-        <h4 className="text-[15px] font-bold text-destructive uppercase tracking-wide">
+        <h4 className="text-[15px] font-semibold text-destructive uppercase tracking-wide">
           Project Under Dispute
         </h4>
         <p className="text-sm text-destructive/80 mt-1">
@@ -46,7 +46,7 @@ export function DisputeBanner({ report, className = "" }) {
         {showDeadline && (
           <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-destructive bg-destructive-light/60 px-3 py-2 rounded-lg border border-destructive/20 max-w-fit">
             <Clock className="w-4 h-4 text-destructive" />
-            <span>Response deadline ({awaitingWho === "Awaiting Expert" ? "Expert" : "Client"}): <strong className="text-destructive font-bold ml-1">{timeLeft || "48 hours"}</strong></span>
+            <span>Response deadline ({awaitingWho === "Awaiting Expert" ? "Expert" : "Client"}): <strong className="text-destructive font-semibold ml-1">{timeLeft || "48 hours"}</strong></span>
           </div>
         )}
 

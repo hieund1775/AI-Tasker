@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, BarChart3 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import api from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
@@ -96,7 +97,7 @@ export function AdminRevenue() {
           projectMap.set(projId, { clientName, expertName, title, budget });
         });
 
-        // 1. Escrow Held calculation (Quỹ ký quỹ của các dự án đang chạy)
+        // 1. Escrow held calculation for active projects.
         const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
         const transactionProjectIds = new Set(
           transactions
@@ -141,7 +142,7 @@ export function AdminRevenue() {
           Number(dashboardRes?.totalPlatformRevenue ?? dashboardRes?.TotalPlatformRevenue ?? 0)
         );
 
-        // 3. Projected 5% Fee Revenue from Active Projects (Dự kiến thu nhập 5% từ các dự án đang chạy)
+        // 3. Projected 5% fee revenue from active projects.
         const projectedRevenue = escrowHeld * 0.05;
 
         // 4. Build System Transaction Log List from SystemTransactionLogs (SystemWallets)
@@ -254,10 +255,10 @@ export function AdminRevenue() {
     {
       key: "amount",
       label: "System Revenue Amount",
-      className: "text-right font-semibold text-green-600",
+      className: "text-right font-semibold text-success",
       sortable: true,
       render: (val) => (
-        <span className="text-green-600 font-semibold">
+        <span className="text-success font-semibold">
           +<MoneyDisplay amount={Math.abs(val)} />
         </span>
       ),
@@ -268,11 +269,11 @@ export function AdminRevenue() {
       className: "text-right whitespace-nowrap",
       render: (_, row) => {
         const parsed = parseDateAndTime(row.rawDate);
-        if (!parsed) return <span className="text-muted-foreground">—</span>;
+        if (!parsed) return <span className="text-muted-foreground">-</span>;
         return (
           <div className="flex flex-col items-end">
-            <span className="font-medium text-foreground">{parsed.dateStr}</span>
-            <span className="text-xs text-muted-foreground">{parsed.timeStr}</span>
+            <span className="text-sm font-semibold leading-none text-foreground">{parsed.dateStr}</span>
+            <span className="-mt-px text-[11px] font-medium leading-none tracking-wide text-muted-foreground">{parsed.timeStr}</span>
           </div>
         );
       },
@@ -281,8 +282,10 @@ export function AdminRevenue() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Revenue &amp; Transactions</h1>
-      <p className="text-muted-foreground mb-8">Platform system wallet revenue summary and transaction audit log.</p>
+      <PageHeader
+        title="Revenue & Transactions"
+        subtitle="Platform system wallet revenue summary and transaction audit log."
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -291,7 +294,7 @@ export function AdminRevenue() {
             label: "Total Realized Revenue (SystemWallet)",
             value: <MoneyDisplay amount={Math.abs(s.totalRevenue)} />,
             icon: TrendingUp,
-            color: "text-green-600 bg-green-100",
+            color: "text-success bg-success-light",
             desc: "Realized revenue credited to system wallet",
           },
           {
@@ -305,7 +308,7 @@ export function AdminRevenue() {
             label: "In Escrow (Active Projects)",
             value: <MoneyDisplay amount={Math.abs(s.escrowHeld)} />,
             icon: DollarSign,
-            color: "text-purple-600 bg-purple-100",
+            color: "text-warning bg-warning-light",
             desc: "Total escrow funds locked in active projects",
           },
         ].map((card, i) => (
@@ -316,7 +319,7 @@ export function AdminRevenue() {
               </div>
             </div>
             <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
-            <p className="text-xl font-bold text-foreground mt-0.5">{card.value}</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5">{card.value}</p>
             <p className="text-xs text-muted-foreground/70 mt-1">{card.desc}</p>
           </div>
         ))}

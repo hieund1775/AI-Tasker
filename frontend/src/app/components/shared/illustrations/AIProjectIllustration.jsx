@@ -1,7 +1,7 @@
-// =============================================================================
-// AIProjectIllustration — AI project planning visual.
+﻿// =============================================================================
+// AIProjectIllustration - AI project planning visual.
 // Shows central AI-node with task cards connected by lines.
-// Props: size — "sm" (200x120) | "md" (320x180)
+// Props: size - "sm" (200x120) | "md" (320x180)
 // =============================================================================
 
 const SIZES = {
@@ -66,7 +66,7 @@ export function AIProjectIllustration({ size = "md", className = "" }) {
         </g>
       ))}
 
-      {/* Central AI node — hexagon */}
+      {/* Central AI node - hexagon */}
       <g transform={`translate(${cx}, ${cy})`}>
         <polygon
           points={hexPoints(s.nodeR)}
@@ -83,7 +83,7 @@ export function AIProjectIllustration({ size = "md", className = "" }) {
           fontSize={s.nodeR * 0.8}
           fill="var(--accent)"
         >
-          ✦
+          *
         </text>
       </g>
     </svg>

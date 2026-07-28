@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info, Paperclip, Download } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
@@ -27,7 +27,7 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 // =============================================================================
-// ExpertProjectManagement — expert-side project progress management page.
+// ExpertProjectManagement - expert-side project progress management page.
 // Route: /expert/projects/:id
 // =============================================================================
 
@@ -379,7 +379,7 @@ export default function ExpertProjectDetail() {
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
 
-      // KEEP cancel_attempt_count — do not reset to preserve escalation eligibility
+      // KEEP cancel_attempt_count - do not reset to preserve escalation eligibility
       // if Expert cancels again after being declined, it enters Binding Dispute immediately.
       // Only clear count when the contract is actually terminated (partner accepts cancellation).
 
@@ -410,7 +410,7 @@ export default function ExpertProjectDetail() {
           reason: `[ESCALATED BINDING DISPUTE] ${cancelReason}`,
           evidenceFileName: evidenceFileName || "",
         });
-        toast.success("⚠️ Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
+        toast.success("Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
       } else {
         await api.put(`/reports/${report.id}/initiator-respond-rejection`, {
           reason: cancelReason,
@@ -451,7 +451,7 @@ export default function ExpertProjectDetail() {
           action={
             <button
               onClick={retry}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               Retry
             </button>
@@ -472,7 +472,7 @@ export default function ExpertProjectDetail() {
           action={
             <button
               onClick={() => navigate("/expert/dashboard")}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               Go to Dashboard
             </button>
@@ -542,9 +542,9 @@ export default function ExpertProjectDetail() {
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
         {report?.status === "Rejected" && report?.reporterRole === "expert" && showRejectedBanner && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
+          <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-foreground">Violation report declined by Admin</p>
                 {(() => {
@@ -561,18 +561,18 @@ export default function ExpertProjectDetail() {
                 setShowRejectedBanner(false);
                 localStorage.setItem(`dismissed_rejection_report_${report.id}`, "true");
               }} 
-              className="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded-lg hover:bg-amber-100"
+              className="text-warning hover:text-warning transition-colors p-1 rounded-lg hover:bg-warning-light"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
         {report?.status === "Resolved" && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-sans flex items-start gap-2.5 shadow-sm animate-fade-in">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="p-4 bg-success-light border border-success/20 rounded-xl text-success text-sm font-sans flex items-start gap-2.5 shadow-sm animate-fade-in">
+            <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-emerald-950">Dispute resolved successfully</p>
-              <p className="mt-1 text-emerald-800/90">
+              <p className="font-semibold text-success">Dispute resolved successfully</p>
+              <p className="mt-1 text-success/90">
                 {report.moneyAction === "refund" || project?.status?.toLowerCase() === "cancelled" ? (
                   "The project has ended (Cancelled). All escrow funds have been refunded to Client's wallet by Admin."
                 ) : (
@@ -583,32 +583,32 @@ export default function ExpertProjectDetail() {
           </div>
         )}
         {isLocked && project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
-          <div className="p-6 bg-card border border-amber-300 rounded-2xl shadow-sm text-sm font-sans space-y-4">
+          <div className="p-6 bg-card border border-warning/35 rounded-2xl shadow-sm text-sm font-sans space-y-4">
             {report.reporterRole === "expert" ? (
               report.status === "Pending Admin" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Your cancellation request is awaiting review</h4>
+                    <h4 className="font-semibold text-foreground text-base">Your cancellation request is awaiting review</h4>
                     <p className="text-muted-foreground mt-1">The cancellation request has been submitted. Admin is reviewing your request before forwarding it to the partner.</p>
                   </div>
                 </div>
               ) : report.status === "Awaiting Partner" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Cancellation request sent to partner (Client)</h4>
+                    <h4 className="font-semibold text-foreground text-base">Cancellation request sent to partner (Client)</h4>
                     <p className="text-muted-foreground mt-1">Admin has approved your cancellation request. Awaiting Client's review (Accept or Decline).</p>
                   </div>
                 </div>
               ) : report.status === "Returned" ? (
                 <div className="space-y-4 text-left">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-foreground text-base text-red-600">Cancellation request declined by partner</h4>
+                      <h4 className="font-semibold text-foreground text-base text-destructive">Cancellation request declined by partner</h4>
                       <p className="text-muted-foreground mt-1">Client does not agree to cancel the contract for the following reasons:</p>
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl mt-2 font-medium text-red-800">
+                      <div className="p-3 bg-destructive-light border border-destructive/20 rounded-xl mt-2 font-medium text-destructive">
                         &quot;{report.partnerRejectionReason}&quot;
                       </div>
                     </div>
@@ -628,7 +628,7 @@ export default function ExpertProjectDetail() {
                         setCancelReason(report.reason || "");
                         setShowCancelModal(true);
                       }}
-                      className="px-4 py-2 bg-brand-primary text-white rounded-xl font-bold text-sm hover:bg-brand-primary-hover transition-all cursor-pointer"
+                      className="px-4 py-2 bg-brand-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-brand-primary-hover transition-all cursor-pointer"
                     >
                       Respond (Submit New Cancellation)
                     </button>
@@ -638,18 +638,18 @@ export default function ExpertProjectDetail() {
             ) : (
               report.status === "Pending Admin" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Client requested contract cancellation</h4>
+                    <h4 className="font-semibold text-foreground text-base">Client requested contract cancellation</h4>
                     <p className="text-muted-foreground mt-1">Client has submitted a contract cancellation request to Admin. Project is locked awaiting Admin review.</p>
                   </div>
                 </div>
               ) : report.status === "Awaiting Partner" ? (
                 <div className="space-y-4 text-left">
                   <div className="flex items-start gap-3 border-b border-border pb-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-foreground text-base">Client requested contract cancellation</h4>
+                      <h4 className="font-semibold text-foreground text-base">Client requested contract cancellation</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">Please see cancellation reason and escrow split details below.</p>
                     </div>
                   </div>
@@ -697,11 +697,11 @@ export default function ExpertProjectDetail() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{prog}%</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-orange-500">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-red-500">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between font-bold"><span className="text-foreground">You receive (Payout):</span><span className="text-green-600"><MoneyDisplay amount={expertPayout} /></span></div>
-                        <div className="flex justify-between font-bold"><span className="text-foreground">Refund to Client:</span><span className="text-amber-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                        <div className="flex justify-between font-semibold"><span className="text-foreground">You receive (Payout):</span><span className="text-success"><MoneyDisplay amount={expertPayout} /></span></div>
+                        <div className="flex justify-between font-semibold"><span className="text-foreground">Refund to Client:</span><span className="text-warning"><MoneyDisplay amount={clientRefund} /></span></div>
                       </div>
                     );
                   })()}
@@ -712,7 +712,7 @@ export default function ExpertProjectDetail() {
                         type="button"
                         onClick={handlePartnerAcceptCancel}
                         disabled={partnerActionLoading}
-                        className="px-5 py-2 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all cursor-pointer shadow-sm"
+                        className="px-5 py-2 bg-success text-primary-foreground rounded-lg font-medium text-sm hover:bg-success/85 transition-all cursor-pointer shadow-sm"
                       >
                         Accept (Agree to cancel & Receive funds)
                       </button>
@@ -720,27 +720,27 @@ export default function ExpertProjectDetail() {
                         type="button"
                         onClick={() => setShowPartnerRejectForm(true)}
                         disabled={partnerActionLoading}
-                        className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
+                        className="px-4 py-2 bg-destructive-light text-destructive border border-destructive/20 rounded-lg font-medium text-sm hover:bg-destructive-light transition-all cursor-pointer"
                       >
                         Reject (Decline cancellation)
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-3 pt-2 animate-slide-up">
-                      <label className="block text-xs font-bold text-foreground/80 uppercase">Reason for declining cancellation <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-foreground/80 uppercase">Reason for declining cancellation <span className="text-destructive">*</span></label>
                       <textarea
                         rows={2}
                         placeholder="Please provide the reason why you decline this cancellation request..."
                         value={partnerRejectReason}
                         onChange={(e) => setPartnerRejectReason(e.target.value)}
-                        className="w-full max-w-lg p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                        className="w-full max-w-lg p-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive/35 text-foreground text-sm"
                       />
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handlePartnerRejectCancel}
                           disabled={partnerActionLoading}
-                          className="px-4 py-1.5 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 transition-all cursor-pointer"
+                          className="px-4 py-1.5 bg-destructive text-primary-foreground rounded-lg font-medium text-xs hover:bg-destructive transition-all cursor-pointer"
                         >
                           Submit Decline Reason
                         </button>
@@ -760,9 +760,9 @@ export default function ExpertProjectDetail() {
                 </div>
               ) : report.status === "Returned" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Contract cancellation declined</h4>
+                    <h4 className="font-semibold text-foreground text-base">Contract cancellation declined</h4>
                     <p className="text-muted-foreground mt-1">You declined the partner's cancellation request. Awaiting partner's response or request withdrawal.</p>
                   </div>
                 </div>
@@ -771,7 +771,7 @@ export default function ExpertProjectDetail() {
           </div>
         )}
         {project?.status === "cancel_done" && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium text-left">
+          <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-sm font-medium text-left">
             The project contract was successfully cancelled. Escrow funds split based on project progress ({project?.contractCancellation?.progressPercent || 0}%). Project is now read-only.
           </div>
         )}
@@ -796,7 +796,7 @@ export default function ExpertProjectDetail() {
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(true)}
-                  className="h-11 px-4 border border-red-300 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
+                  className="h-10 px-4 border border-destructive/35 text-destructive bg-destructive-light hover:bg-destructive-light rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm"
                 >
                   <Ban className="w-4 h-4" /> Cancel Contract
                 </button>
@@ -805,8 +805,8 @@ export default function ExpertProjectDetail() {
               {!["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase()) && (
                 <>
                   {cancelLocked && (
-                    <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                      🔒 Cancel Locked
+                    <span className="h-10 px-4 border border-input text-muted-foreground bg-secondary rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
+                      Cancel Locked
                     </span>
                   )}
 
@@ -814,7 +814,7 @@ export default function ExpertProjectDetail() {
                     <button
                       type="button"
                       onClick={() => setShowExplanationModal(true)}
-                      className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                      className="h-10 px-4 border border-destructive text-primary-foreground bg-destructive hover:bg-destructive rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
                     >
                       <AlertTriangle className="w-4 h-4" /> Submit Explanation
                     </button>
@@ -824,7 +824,7 @@ export default function ExpertProjectDetail() {
                     report?.status === "Awaiting Client" ||
                     ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundExpertSubmitted)
                   ) && (
-                      <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                      <div className="h-10 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
                         <AlertTriangle className="w-4 h-4" /> Awaiting review...
                       </div>
                     )}
@@ -833,7 +833,7 @@ export default function ExpertProjectDetail() {
               {project.status === "completed" && (
                 <button
                   disabled
-                  className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                  className="h-10 px-4 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Project Complete
                 </button>
@@ -846,12 +846,12 @@ export default function ExpertProjectDetail() {
         {allTasksApproved && !isDisputed && (
           <AnimatedReveal delay={2}>
             <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
-              <h2 className="text-xl font-bold text-foreground flex items-center gap-2 font-sans">
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2 font-sans">
                 <Send className="w-5 h-5 text-brand-primary" /> Final Project Handover
               </h2>
 
               {project.finalWorkDeclineReason && project.status !== "completed" && (
-                <div className="p-4 bg-red-50 text-red-800 rounded-xl border border-red-100 text-sm font-sans">
+                <div className="p-4 bg-destructive-light text-destructive rounded-xl border border-destructive/20 text-sm font-sans">
                   <strong className="block font-semibold mb-1">Revision Requested:</strong>
                   {project.finalWorkDeclineReason}
                 </div>
@@ -862,11 +862,11 @@ export default function ExpertProjectDetail() {
                   <p className="text-sm text-foreground/80">
                     {project.status === "completed" ? (
                       <span className="text-success font-semibold flex items-center gap-1.5">
-                        ✓ Project completed. Payment has been released.
+                        Done Project completed. Payment has been released.
                       </span>
                     ) : project.finalDeliveryStatus === "Final Product Submitted" ? (
                       <span className="text-brand-primary font-semibold flex items-center gap-1.5">
-                        ✓ Submitted. Waiting for Client review.
+                        Done Submitted. Waiting for Client review.
                       </span>
                     ) : (
                       <span className="text-muted-foreground">
@@ -950,24 +950,24 @@ export default function ExpertProjectDetail() {
                 {project.status === "completed" ? (
                   <button
                     disabled
-                    className="h-11 px-6 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                    className="h-10 px-6 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
                   >
-                    ✓ Completed
+                    Done Completed
                   </button>
                 ) : project.finalDeliveryStatus !== "Final Product Submitted" && project.finalDeliveryStatus !== "Accepted" ? (
                   <button
                     type="button"
                     onClick={() => setShowSubmitModal(true)}
-                    className="h-11 px-6 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
+                    className="h-10 px-6 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors cursor-pointer shrink-0"
                   >
                     <Send className="w-4 h-4" /> Submit Final Work
                   </button>
                 ) : (
                   <button
                     disabled
-                    className="h-11 px-6 bg-muted text-muted-foreground border border-input rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                    className="h-10 px-6 bg-muted text-muted-foreground border border-input rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
                   >
-                    ✓ Submitted
+                    Done Submitted
                   </button>
                 )}
               </div>
@@ -975,7 +975,7 @@ export default function ExpertProjectDetail() {
           </AnimatedReveal>
         )}
 
-        {/* Project progress panel — expert can toggle mini tasks */}
+        {/* Project progress panel - expert can toggle mini tasks */}
         <AnimatedReveal delay={3}>
           <ProjectProgressPanel
             tasks={tasks}
@@ -993,7 +993,7 @@ export default function ExpertProjectDetail() {
 
       {/* Submit Final Work Modal */}
       {showSubmitModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden text-left animate-zoom-in">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
@@ -1001,14 +1001,14 @@ export default function ExpertProjectDetail() {
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Submit Final Deliverables</h3>
+                <h3 className="text-lg font-semibold text-foreground font-sans">Submit Final Deliverables</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-sans">Provide project file (required) and optional product link for final delivery</p>
               </div>
             </div>
 
             {/* Info notice banner */}
-            <div className="mx-6 mt-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-start gap-2.5 text-xs text-blue-600 dark:text-blue-400 font-sans">
-              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+            <div className="mx-6 mt-4 p-3 bg-accent-light border border-accent/25 rounded-xl flex items-start gap-2.5 text-xs text-accent dark:text-accent font-sans">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-accent" />
               <span><strong>Project file</strong> is required for final delivery handover. <strong>Project link</strong> is optional and can be provided if available.</span>
             </div>
 
@@ -1066,13 +1066,13 @@ export default function ExpertProjectDetail() {
                   placeholder="e.g. https://github.com/username/project"
                   value={projectLink}
                   onChange={(e) => setProjectLink(e.target.value)}
-                  className="w-full h-11 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
+                  className="w-full h-10 px-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground"
                 />
               </div>
 
               <div>
                 <label className="block text-foreground/80 font-semibold mb-1">
-                  Project Files <span className="text-red-500">*</span>
+                  Project Files <span className="text-destructive">*</span>
                 </label>
                 <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-input rounded-[10px] cursor-pointer hover:border-brand-primary/50 hover:bg-secondary/60 transition-colors">
                   <Upload className="w-4 h-4 text-muted-foreground" />
@@ -1092,7 +1092,7 @@ export default function ExpertProjectDetail() {
                   <button
                     type="button"
                     onClick={() => setProjectFileObject(null)}
-                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                    className="mt-1 text-xs text-destructive hover:text-destructive font-medium"
                   >
                     Remove file
                   </button>
@@ -1115,7 +1115,7 @@ export default function ExpertProjectDetail() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? "Submitting..." : "Submit Handover"}
                 </button>
@@ -1144,19 +1144,19 @@ export default function ExpertProjectDetail() {
         const expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
         const clientRefund = contractAmount - expertPayout - platformFee;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
             <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
               {/* Header */}
               <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
-                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+                <div className="p-2 bg-destructive-light text-destructive rounded-lg">
                   <Ban className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className={`text-lg font-bold font-sans ${cancelAttemptCount >= 1 ? "text-orange-700" : "text-foreground"}`}>
+                  <h3 className={`text-lg font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract (Expert)"}
                   </h3>
-                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-orange-600/80" : "text-muted-foreground"}`}>
-                    {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract — 5% platform fee + 10% penalty will be applied"}
+                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-warning/80" : "text-muted-foreground"}`}>
+                    {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract - 5% platform fee + 10% penalty will be applied"}
                   </p>
                 </div>
               </div>
@@ -1167,27 +1167,27 @@ export default function ExpertProjectDetail() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Total Escrow:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-orange-500">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-red-500">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">You receive (Payout):</span><span className={`font-bold ${expertPayout >= 0 ? 'text-green-600' : 'text-red-600'}`}><MoneyDisplay amount={expertPayout} /></span></div>
-                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">Refund to Client:</span><span className="font-bold text-amber-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">You receive (Payout):</span><span className={`font-semibold ${expertPayout >= 0 ? 'text-success' : 'text-destructive'}`}><MoneyDisplay amount={expertPayout} /></span></div>
+                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">Refund to Client:</span><span className="font-semibold text-warning"><MoneyDisplay amount={clientRefund} /></span></div>
                 </div>
 
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                <div className="p-3 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-xs">
                   As an expert, cancelling the contract requires you to compensate the client by 10% of the budget and cover the 5% platform service fee. This action is irreversible.
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-foreground/80 font-semibold text-sm">
-                    Cancellation Reason <span className="text-red-500">*</span>
+                    Cancellation Reason <span className="text-destructive">*</span>
                   </label>
                   <textarea
                     rows={3}
                     placeholder="Why do you want to cancel this contract?"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive/35 text-foreground text-sm"
                   />
                 </div>
 
@@ -1223,7 +1223,7 @@ export default function ExpertProjectDetail() {
                   type="button"
                   disabled={cancelLoading}
                   onClick={report?.status === "Returned" ? handleInitiatorRespondRejection : handleCancelContractInit}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  className="px-5 py-2 bg-destructive hover:bg-destructive disabled:bg-destructive/45 text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {cancelLoading ? "Processing..." : "Confirm Cancellation"}
                 </button>
@@ -1231,9 +1231,9 @@ export default function ExpertProjectDetail() {
 
               {/* Send Confirmation Dialog */}
               {showSendConfirmDialog && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
+                <div data-modal-overlay className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
                   <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
-                    <h4 className="text-base font-bold text-foreground">Confirm Submission</h4>
+                    <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
                     <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
                     <div className="flex justify-end gap-3 mt-4">
                       <button
@@ -1246,7 +1246,7 @@ export default function ExpertProjectDetail() {
                       <button
                         type="button"
                         onClick={handleConfirmCancellationSend}
-                        className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
                       >
                         Agree (Accept)
                       </button>
@@ -1265,7 +1265,7 @@ export default function ExpertProjectDetail() {
       <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-red-950">
+            <DialogTitle className="text-xl font-semibold text-destructive">
               Submit Response to Report
             </DialogTitle>
           </DialogHeader>
@@ -1310,10 +1310,10 @@ function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved }) {
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-success text-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
               <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
                 {step.label}
@@ -1326,5 +1326,3 @@ function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved }) {
     </div>
   );
 }
-
-

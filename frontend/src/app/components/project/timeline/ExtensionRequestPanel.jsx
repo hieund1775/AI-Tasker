@@ -1,22 +1,22 @@
-// =============================================================================
-// ExtensionRequestPanel — extension request form + status banner.
+﻿// =============================================================================
+// ExtensionRequestPanel - extension request form + status banner.
 //
-// Props (all optional — only relevant sections render):
-//   role                  — "client" | "expert"
-//   extensionRequest      — { status, requestedDays, reason, responseNote }
-//   showExtensionForm     — boolean
-//   extensionDays         — string
-//   extensionReason       — string
-//   rejectReason          — string
-//   submitting            — boolean
-//   hasPendingExtension   — boolean
-//   onToggleForm          — () => void
-//   onExtensionDaysChange — (value: string) => void
-//   onExtensionReasonChange — (value: string) => void
-//   onRejectReasonChange  — (value: string) => void
-//   onSubmitRequest       — () => void
-//   onApproveExtension    — () => void
-//   onRejectExtension     — () => void
+// Props (all optional - only relevant sections render):
+//   role                  - "client" | "expert"
+//   extensionRequest      - { status, requestedDays, reason, responseNote }
+//   showExtensionForm     - boolean
+//   extensionDays         - string
+//   extensionReason       - string
+//   rejectReason          - string
+//   submitting            - boolean
+//   hasPendingExtension   - boolean
+//   onToggleForm          - () => void
+//   onExtensionDaysChange - (value: string) => void
+//   onExtensionReasonChange - (value: string) => void
+//   onRejectReasonChange  - (value: string) => void
+//   onSubmitRequest       - () => void
+//   onApproveExtension    - () => void
+//   onRejectExtension     - () => void
 // =============================================================================
 
 export function ExtensionRequestPanel({

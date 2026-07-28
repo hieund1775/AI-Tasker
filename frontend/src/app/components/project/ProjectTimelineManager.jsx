@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import { Bot, MessageSquare } from "lucide-react";
 
 import {
@@ -17,7 +17,7 @@ import { ActivityLogPanel } from "./timeline/ActivityLogPanel.jsx";
 import { TaskCard } from "./timeline/TaskCard.jsx";
 
 // =============================================================================
-// ProjectTimelineManager — main container for project timeline view.
+// ProjectTimelineManager - main container for project timeline view.
 //
 // State, effects, derived values, and action handlers live in the
 // useProjectTimeline hook.  Rendering delegates to extracted sub-components:
@@ -124,7 +124,7 @@ export function ProjectTimelineManager({ role, projectId }) {
               AI Project Timeline Manager
             </div>
 
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-3xl font-semibold text-foreground">
               {project.projectTitle || "Project"}
             </h1>
 
@@ -137,7 +137,7 @@ export function ProjectTimelineManager({ role, projectId }) {
             <div className="flex flex-wrap gap-4 mt-6">
               {deadlineInfo && (
                 <>
-                  <div className="bg-secondary rounded-xl px-4 py-3">
+                  <div className="bg-secondary rounded-xl px-4 py-2.5">
                     <p className="text-xs text-muted-foreground mb-1">Project Deadline</p>
                     <p className="font-semibold text-foreground">
                       {deadlineInfo.formattedDate || "N/A"}
@@ -145,7 +145,7 @@ export function ProjectTimelineManager({ role, projectId }) {
                   </div>
 
                   <div
-                    className={`rounded-xl px-4 py-3 ${deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
+                    className={`rounded-xl px-4 py-2.5 ${deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
                       }`}
                   >
                     <p
@@ -164,7 +164,7 @@ export function ProjectTimelineManager({ role, projectId }) {
                 </>
               )}
 
-              <div className="bg-success-light rounded-xl px-4 py-3">
+              <div className="bg-success-light rounded-xl px-4 py-2.5">
                 <p className="text-xs text-success mb-1">Completed Tasks</p>
                 <p className="font-semibold text-success">
                   {completedTasks}/{tasks.length}
@@ -173,7 +173,7 @@ export function ProjectTimelineManager({ role, projectId }) {
             </div>
           </div>
 
-          {/* Expert action buttons — right side */}
+          {/* Expert action buttons - right side */}
           {role === "expert" && (
             <div className="flex flex-row xl:flex-col gap-3 xl:flex-shrink-0">
               <Button
@@ -198,7 +198,7 @@ export function ProjectTimelineManager({ role, projectId }) {
           )}
         </div>
 
-        {/* Extension request panel — extracted component */}
+        {/* Extension request panel - extracted component */}
         <ExtensionRequestPanel
           role={role}
           extensionRequest={project?.extensionRequest}
@@ -237,7 +237,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         </div>
       </div>
 
-      {/* Task list — uses extracted TaskCard component */}
+      {/* Task list - uses extracted TaskCard component */}
       <div className="space-y-4 relative pl-4 border-l-2 border-border ml-2"
         style={{ borderImage: 'linear-gradient(to bottom, var(--accent), var(--border), var(--border)) 1' }}
       >
@@ -281,7 +281,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         })}
       </div>
 
-      {/* Activity log — extracted component */}
+      {/* Activity log - extracted component */}
       <ActivityLogPanel projectLogs={projectLogs} />
     </div>
   );

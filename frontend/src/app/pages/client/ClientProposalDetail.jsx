@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -27,9 +27,9 @@ function getStatusConfig(status) {
 function DetailSection({ title, children, className = "" }) {
   return (
     <div
-      className={`border-b border-gray-100 last:border-b-0 py-6 first:pt-0 ${className}`}
+      className={`border-b border-border-light last:border-b-0 py-6 first:pt-0 ${className}`}
     >
-      <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">
+      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
         {title}
       </h3>
       {children}
@@ -38,7 +38,7 @@ function DetailSection({ title, children, className = "" }) {
 }
 
 /**
- * ClientProposalDetail — Client views a single proposal in detail.
+ * ClientProposalDetail - Client views a single proposal in detail.
  * Includes "Generate Contract" button to initiate the contract flow.
  *
  * Route: /client/proposals/:id
@@ -125,10 +125,10 @@ export function ClientProposalDetail() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 shadow-sm text-center">
+        <div className="bg-card rounded-2xl border border-border p-12 shadow-sm text-center">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mx-auto" />
-            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+            <div className="h-6 bg-border rounded w-1/3 mx-auto" />
+            <div className="h-4 bg-border rounded w-1/2 mx-auto" />
           </div>
         </div>
       </div>
@@ -142,12 +142,12 @@ export function ClientProposalDetail() {
         <BackButton fallback="/client/my-projects" className="mb-6">
           Back to My Projects
         </BackButton>
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
+          <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-muted-foreground mb-2">
             Proposal not found
           </h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground/70">
             This proposal may have been removed or is no longer available.
           </p>
         </div>
@@ -175,44 +175,44 @@ export function ClientProposalDetail() {
         Back to My Projects
       </BackButton>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="p-8 border-b border-gray-100 bg-gray-50/50">
+        <div className="p-8 border-b border-border-light bg-secondary/50">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-light text-accent rounded-full text-sm font-medium mb-3">
                 <FileText className="w-4 h-4" />
                 Proposal Details
               </div>
 
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {proposal.proposalTitle || project?.title || "Proposal"}
               </h1>
 
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 text-sm text-gray-500">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mt-3 text-sm text-muted-foreground">
                 {project && (
                   <span className="inline-flex items-center gap-1.5">
-                    <Briefcase className="w-4 h-4 text-gray-400" />
+                    <Briefcase className="w-4 h-4 text-muted-foreground/70" />
                     Project:{" "}
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-foreground">
                       {project.title}
                     </span>
                   </span>
                 )}
                 {expert && (
                   <span className="inline-flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-gray-400" />
+                    <User className="w-4 h-4 text-muted-foreground/70" />
                     Expert:{" "}
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-foreground">
                       {expert.fullName}
                     </span>
                   </span>
                 )}
                 {project?.budget != null && (
                   <span className="inline-flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-gray-400" />
+                    <DollarSign className="w-4 h-4 text-muted-foreground/70" />
                     Budget:{" "}
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-foreground">
                       <MoneyDisplay amount={project.budget} />
                     </span>
                   </span>
@@ -228,7 +228,7 @@ export function ClientProposalDetail() {
                 <StatusIcon className="w-4 h-4" />
                 {statusCfg.label}
               </span>
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-muted-foreground/70 mt-2">
                 Submitted{" "}
                 {proposal.createdAt
                   ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
@@ -236,35 +236,35 @@ export function ClientProposalDetail() {
                       day: "numeric",
                       year: "numeric",
                     })
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           </div>
 
           {/* Quick stats */}
           <div className="flex flex-wrap gap-4 mt-5">
-            <div className="bg-white rounded-xl px-4 py-3 border border-gray-200">
-              <p className="text-xs text-gray-500 mb-0.5">Bid Amount</p>
-              <p className="font-semibold text-gray-900">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+              <p className="text-xs text-muted-foreground mb-0.5">Bid Amount</p>
+              <p className="font-semibold text-foreground">
                 <MoneyDisplay amount={proposal.bidAmount} />
               </p>
             </div>
-            <div className="bg-white rounded-xl px-4 py-3 border border-gray-200">
-              <p className="text-xs text-gray-500 mb-0.5">Duration</p>
-              <p className="font-semibold text-gray-900">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+              <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
+              <p className="font-semibold text-foreground">
                 {proposal.durationDays} days
               </p>
             </div>
-            <div className="bg-white rounded-xl px-4 py-3 border border-gray-200">
-              <p className="text-xs text-gray-500 mb-0.5">Submitted</p>
-              <p className="font-semibold text-gray-900">
+            <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+              <p className="text-xs text-muted-foreground mb-0.5">Submitted</p>
+              <p className="font-semibold text-foreground">
                 {proposal.createdAt
                   ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                       year: "numeric",
                     })
-                  : "—"}
+                  : "-"}
               </p>
             </div>
           </div>
@@ -273,7 +273,7 @@ export function ClientProposalDetail() {
         {/* Detail Sections */}
         <div className="p-8">
           <DetailSection title="Professional Introduction">
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <p className="text-foreground leading-relaxed whitespace-pre-wrap">
               {proposal.professionalIntro ||
                 proposal.coverLetter ||
                 "No introduction provided."}
@@ -282,7 +282,7 @@ export function ClientProposalDetail() {
 
           {proposal.technicalApproach && (
             <DetailSection title="Technical Approach & Methodology">
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
                 {proposal.technicalApproach}
               </p>
             </DetailSection>
@@ -290,7 +290,7 @@ export function ClientProposalDetail() {
 
           {proposal.timelineMilestones && (
             <DetailSection title="Implementation Timeline & Milestones">
-              <pre className="text-gray-700 leading-relaxed whitespace-pre-wrap font-sans">
+              <pre className="text-foreground leading-relaxed whitespace-pre-wrap font-sans">
                 {proposal.timelineMilestones}
               </pre>
             </DetailSection>
@@ -298,7 +298,7 @@ export function ClientProposalDetail() {
 
           {proposal.dependencies && (
             <DetailSection title="Dependencies & Client Requirements">
-              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
                 {proposal.dependencies}
               </p>
             </DetailSection>
@@ -310,7 +310,7 @@ export function ClientProposalDetail() {
             className={attachments.length === 0 ? "last:border-b-0" : ""}
           >
             {attachments.length === 0 ? (
-              <p className="text-sm text-gray-400">No attachments included.</p>
+              <p className="text-sm text-muted-foreground/70">No attachments included.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {attachments.map((att, idx) => {
@@ -348,23 +348,23 @@ export function ClientProposalDetail() {
                       href={fileUrl}
                       onClick={handleDownloadFile}
                       download={finalName}
-                      className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-4 py-3 cursor-pointer transition-colors"
+                      className="flex items-center gap-3 bg-secondary hover:bg-muted border border-border rounded-xl px-4 py-2.5 cursor-pointer transition-colors"
                       title={`Download ${finalName}`}
                     >
                       {att.type === "image/png" || att.fileType === "image/png" ? (
-                        <Image className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                        <Image className="w-5 h-5 text-accent flex-shrink-0" />
                       ) : att.type === "folder" ? (
-                        <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                        <FolderOpen className="w-5 h-5 text-warning flex-shrink-0" />
                       ) : (
-                        <FileIcon className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                        <FileIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-700 truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
+                        <p className="text-sm font-medium text-foreground truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
                           {finalName}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className="text-xs text-muted-foreground/70">
                           {att.type || att.fileType || "file"}
-                          {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                          {att.size || att.fileSize ? ` - ${att.size || att.fileSize}` : ""}
                         </p>
                       </div>
                     </a>
@@ -375,12 +375,12 @@ export function ClientProposalDetail() {
           </DetailSection>
         </div>
 
-        {/* Footer — Actions */}
-        <div className="p-8 border-t border-gray-100 bg-gray-50/50 flex flex-wrap items-center gap-3">
+        {/* Footer - Actions */}
+        <div className="p-8 border-t border-border-light bg-secondary/50 flex flex-wrap items-center gap-3">
           <button
             type="button"
             onClick={handleGenerateContract}
-            className="px-5 py-2.5 bg-blue-900 text-white rounded-xl hover:bg-blue-800 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+            className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-medium inline-flex items-center gap-2 transition-colors"
           >
             <PenLine className="w-4 h-4" />
             Generate Contract
@@ -388,7 +388,7 @@ export function ClientProposalDetail() {
 
           <Link
             to={`/messenger?expertId=${proposal.expertId}`}
-            className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+            className="px-5 py-2.5 border border-input text-foreground rounded-xl hover:bg-secondary text-sm font-medium inline-flex items-center gap-2 transition-colors"
           >
             <MessageSquare className="w-4 h-4" />
             Contact Expert
@@ -396,7 +396,7 @@ export function ClientProposalDetail() {
 
           <Link
             to={`/client/projects/${proposal.jobPostId || project?.id}/proposals`}
-            className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2 transition-colors"
+            className="px-5 py-2.5 border border-input text-foreground rounded-xl hover:bg-secondary text-sm font-medium inline-flex items-center gap-2 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Proposals

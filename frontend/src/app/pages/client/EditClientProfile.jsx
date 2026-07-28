@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Helper: localStorage key for client profile (avoids clashing with BE Status column)
@@ -110,7 +112,7 @@ export function EditClientProfile() {
       navigate("/client/profile");
     } catch (err) {
       console.error("Failed to update profile:", err);
-      alert(err.message || "Failed to update profile. Please try again.");
+      toast.error(err.message || "Failed to update profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -135,12 +137,16 @@ export function EditClientProfile() {
   // ---- Render ----
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-bold text-foreground">Edit Profile</h1>
-      </div>
+      <PageHeader
+        title="Edit Profile"
+        subtitle="Update your client profile information."
+        className="mb-6"
+        actions={(
+          <Link to="/client/profile" className="text-muted-foreground hover:text-foreground" aria-label="Back to profile">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        )}
+      />
 
       <form
         onSubmit={handleSubmit}
@@ -156,7 +162,7 @@ export function EditClientProfile() {
         ].map(({ key, label, type, required }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              {label} {required && <span className="text-red-500">*</span>}
+              {label} {required && <span className="text-destructive">*</span>}
             </label>
             <input
               type={type}
@@ -184,13 +190,13 @@ export function EditClientProfile() {
           <button
             type="submit"
             disabled={saving}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="h-10 px-4 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Changes"}
           </button>
           <Link
             to="/client/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+            className="h-10 px-4 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

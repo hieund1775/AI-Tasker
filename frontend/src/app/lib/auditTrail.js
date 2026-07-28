@@ -1,5 +1,5 @@
-// =============================================================================
-// Audit Trail — centralized audit log management for task and project activity.
+﻿// =============================================================================
+// Audit Trail - centralized audit log management for task and project activity.
 //
 // All functions now mock or delegate to C# backend
 // the runtime overlay (survives soft page refreshes during a session).
@@ -42,11 +42,11 @@ const addAuditEntry = (entry) => {
  * @param {string} params.projectId
  * @param {string} params.taskId
  * @param {string} [params.miniTaskId]
- * @param {string} params.action — one of: mini_task_created, mini_task_completed,
+ * @param {string} params.action - one of: mini_task_created, mini_task_completed,
  *        mini_tasks_confirmed, mini_tasks_unlocked, task_submitted_for_review,
  *        task_approved, task_revision_requested, task_reopened,
  *        mini_task_revision_requested, urgent_submission_requested
- * @param {string} params.actor — "Expert" | "Client"
+ * @param {string} params.actor - "Expert" | "Client"
  * @param {string} [params.actorName]
  * @param {string} [params.details]
  * @returns the created audit entry
@@ -87,7 +87,7 @@ export function getProjectAuditLogs(projectId) {
 /**
  * Format an audit log action into a human-readable message.
  *
- * @param {object} entry — audit log entry
+ * @param {object} entry - audit log entry
  * @returns {string} human-readable description
  */
 export function formatAuditMessage(entry) {
@@ -104,6 +104,6 @@ export function formatAuditMessage(entry) {
     urgent_submission_requested: `Requested urgent submission for this task`,
   };
   const base = actionMessages[entry.action] || entry.action;
-  if (entry.details) return `${base} — ${entry.details}`;
+  if (entry.details) return `${base} - ${entry.details}`;
   return base;
 }

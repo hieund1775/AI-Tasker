@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -24,9 +24,10 @@ import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import api from "../../../services/api.js";
 import { notifyNewProposal, notifyUpdatedProposal } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 /**
- * SendProposal — Expert submits a comprehensive proposal to a client project.
+ * SendProposal - Expert submits a comprehensive proposal to a client project.
  */
 export function SendProposal() {
   const { id: projectId } = useParams();
@@ -104,7 +105,7 @@ Description: ${uc.description || ""}
   };
 
   // ---- Use case aware task initialization ----
-  // ponytail: flatMap ensures each use case only emits its own tasks — no cross-contamination
+  // ponytail: flatMap ensures each use case only emits its own tasks - no cross-contamination
   const [generatingIntro, setGeneratingIntro] = useState(false);
   const handleGenerateIntro = async (e) => {
     if (e) e.preventDefault();
@@ -156,7 +157,7 @@ Please use this background information to write a personalized and highly releva
       if (response?.generated_introduction) {
         let rawIntro = response.generated_introduction;
         try {
-          // Backend trả về chuỗi JSON stringified bên trong trường generated_introduction
+          // Backend returns a stringified JSON payload in generated_introduction.
           let parsed = JSON.parse(rawIntro);
           introText = parsed.generated_introduction || rawIntro;
         } catch (e) {
@@ -169,11 +170,12 @@ Please use this background information to write a personalized and highly releva
       if (introText) {
         updateField("professionalIntro", introText);
       } else {
-        alert("AI generation returned this raw data: " + JSON.stringify(response));
+        console.info("AI generation raw data:", response);
+        toast.info("AI generation returned raw data. Check console for details.");
       }
     } catch (err) {
       console.error("Generate Intro failed:", err);
-      alert("Failed to generate intro. Please check your connection or try again later. (Error: " + err.message + ")");
+      toast.error("Failed to generate intro. Please check your connection or try again later.");
     } finally {
       setGeneratingIntro(false);
     }
@@ -232,7 +234,7 @@ Please use this background information to write a personalized and highly releva
     return dedupeTasks(tasks);
   };
 
-  // ponytail: belt and suspenders — strip any identical-ID tasks before they hit state
+  // ponytail: belt and suspenders - strip any identical-ID tasks before they hit state
   const dedupeTasks = (arr) => {
     const seen = new Set();
     return arr.filter(t => {
@@ -379,7 +381,7 @@ Please use this background information to write a personalized and highly releva
         }
       })
       .catch((err) => {
-        // Job not found (404) is handled gracefully by the UI — don't alarm with console.error
+        // Job not found (404) is handled gracefully by the UI - don't alarm with console.error
         if (err?.status === 404) {
           console.warn("[SendProposal] Job post not found:", projectId);
         } else {
@@ -435,7 +437,7 @@ Please use this background information to write a personalized and highly releva
 
       return changed ? dedupeTasks(next) : prev;
     });
-    // ponytail: intentionally depends on [project?.useCases, tasks.length] —
+    // ponytail: intentionally depends on [project?.useCases, tasks.length] -
     // only re-heals when use cases or task count changes, not on every tasks mutation
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.useCases, tasks.length]);
@@ -462,7 +464,7 @@ Please use this background information to write a personalized and highly releva
 
     const normalize = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 
-    // ponytail: pre-compute updatedCount from current tasks snapshot —
+    // ponytail: pre-compute updatedCount from current tasks snapshot -
     // the setTasks updater runs async in React 18 so closure-updatedCount is always 0 at return
     let updatedCount = 0;
     for (const ucBlock of aiPlan.useCases) {
@@ -517,7 +519,7 @@ Please use this background information to write a personalized and highly releva
                 : generatedMiniTasks,
             };
           } else {
-            // ponytail: no matching task exists — create fallback under the use case
+            // ponytail: no matching task exists - create fallback under the use case
             const uc = project?.useCases?.find(u => u.id === ucBlock.useCaseId);
             if (!uc) continue;
 
@@ -563,7 +565,7 @@ Please use this background information to write a personalized and highly releva
 
       // Check acknowledgement if exceeding targets
       if (exceedsTargets && !form.acknowledged) {
-        alert("Please check the acknowledgement checkbox to confirm you understand your proposal exceeds the Client's targets.");
+        toast.error("Please check the acknowledgement checkbox before submitting.");
         setSubmitting(false);
         return;
       }
@@ -741,7 +743,7 @@ Please use this background information to write a personalized and highly releva
       }
     } catch (err) {
       console.error("Failed to submit proposal:", err);
-      alert(err.message || "Failed to submit proposal. Please try again.");
+      toast.error(err.message || "Failed to submit proposal. Please try again.");
       setSubmitting(false);
     }
   };
@@ -790,7 +792,7 @@ Please use this background information to write a personalized and highly releva
   const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         title="Build Your Proposal"
         subtitle="Break down the client's user stories into tasks, mini tasks, timeline, and pricing."
@@ -823,9 +825,9 @@ Please use this background information to write a personalized and highly releva
         }
       />
 
-      <div className={`grid grid-cols-1 ${showAIPlanner ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-4xl mx-auto"}`}>
+      <div className={`mt-6 grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
             <AnimatedReveal>
               <SectionCard 
                 title="Professional Introduction" 
@@ -865,7 +867,7 @@ Please use this background information to write a personalized and highly releva
                     updateField("professionalIntro", e.target.value);
                   }}
                   rows={5}
-                  placeholder="Introduce yourself — your experience, background, relevant skills, and why you are the best fit for this project."
+                  placeholder="Introduce yourself - your experience, background, relevant skills, and why you are the best fit for this project."
                   className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm resize-none overflow-hidden"
                   required
                 />
@@ -892,12 +894,11 @@ Please use this background information to write a personalized and highly releva
                     {project.useCases.map((uc) => {
                       const ucTasks = tasks.filter(t => t.useCaseId && t.useCaseId === uc.id);
                       return (
-                        <div key={uc.id} className="border border-border rounded-xl overflow-hidden">
-                          {/* ── Use Case Header (read-only) ── */}
-                          <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left">
+                        <div key={uc.id} className="overflow-hidden rounded-2xl border border-border/60 bg-background/60">
+                          <div className="flex flex-col gap-1.5 border-b border-border/60 bg-accent-light/25 p-4 text-left">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-foreground text-sm">
+                                <span className="font-semibold text-foreground text-sm">
                                   UserStory: {uc.title || uc.nameAndDeadline}
                                 </span>
                               </div>
@@ -947,7 +948,7 @@ Please use this background information to write a personalized and highly releva
                                     <button
                                       type="button"
                                       disabled
-                                      className="h-8 px-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold flex items-center gap-1.5"
+                                      className="h-8 px-3 bg-destructive-light text-destructive border border-destructive/20 rounded-lg text-xs font-semibold flex items-center gap-1.5"
                                     >
                                       Failed
                                     </button>
@@ -986,10 +987,9 @@ Please use this background information to write a personalized and highly releva
                             </div>
                           </div>
 
-                          {/* ── Tasks ── */}
                           <div className="p-4 space-y-4">
                             {ucTasks.length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center py-3">
+                              <p className="text-xs text-muted-foreground text-center py-2.5">
                                 No tasks yet. Add a proposed task below.
                               </p>
                             )}
@@ -999,11 +999,11 @@ Please use this background information to write a personalized and highly releva
                               const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
 
                               return (
-                                <div key={task.id} className="p-4 border rounded-xl space-y-3 bg-secondary/40 border-border">
+                                <div key={task.id} className="space-y-3 rounded-2xl border border-border/55 bg-secondary/30 p-4">
                                   
                                   {/* Task Title Row with Remove Button */}
                                   <div className="flex items-center gap-3">
-                                    <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Task Title</span>
                                     <textarea
                                       value={task.title}
                                       onChange={(e) => {
@@ -1020,7 +1020,7 @@ Please use this background information to write a personalized and highly releva
                                       <button 
                                         type="button" 
                                         onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
-                                        className="h-8 px-3 text-sm font-semibold text-red-650 hover:text-red-750 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center flex-shrink-0"
+                                        className="h-8 px-3 text-sm font-semibold text-destructive hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center flex-shrink-0"
                                       >
                                         Remove
                                       </button>
@@ -1029,7 +1029,7 @@ Please use this background information to write a personalized and highly releva
 
                                   {/* Days Input */}
                                   <div className="w-24">
-                                    <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                                       Days
                                     </label>
                                     <input 
@@ -1044,12 +1044,12 @@ Please use this background information to write a personalized and highly releva
 
                                   {/* Mini Tasks (Child Tasks) Checklist */}
                                   <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
-                                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                                       Minitask
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
                                       <div key={mini.id || mIdx} className="flex items-center gap-2">
-                                        <span className="text-muted-foreground font-mono text-xs">•</span>
+                                        <span className="text-muted-foreground font-mono text-xs">-</span>
                                         <textarea
                                           value={mini.title}
                                           onChange={(e) => {
@@ -1065,7 +1065,7 @@ Please use this background information to write a personalized and highly releva
                                           <button
                                             type="button"
                                             onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
-                                            className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                           >
                                             <X className="w-3.5 h-3.5" />
                                           </button>
@@ -1084,7 +1084,6 @@ Please use this background information to write a personalized and highly releva
                               );
                             })}
 
-                            {/* ── Add Proposed Task (per use case) ── */}
                             <button
                               type="button"
                               onClick={() =>
@@ -1105,7 +1104,7 @@ Please use this background information to write a personalized and highly releva
                                   },
                                 ])
                               }
-                              className="h-10 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                              className="h-10 px-4 bg-warning-light hover:bg-warning-light text-warning border border-warning/20 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-warning-light dark:hover:bg-warning-light dark:border-warning/30 dark:text-warning"
                             >
                               + Add Proposed Task
                             </button>
@@ -1115,16 +1114,15 @@ Please use this background information to write a personalized and highly releva
                     })}
                   </div>
                 ) : (
-                  /* ── No use cases fallback ── */
                   <div className="space-y-4">
                     {tasks.map((task, tIdx) => {
                       const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
                       return (
-                        <div key={task.id || tIdx} className={`p-5 border rounded-2xl space-y-4 ${isProposed ? "bg-amber-50/40 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800" : "bg-secondary/40 border-border"}`}>
+                        <div key={task.id || tIdx} className={`space-y-4 rounded-2xl border p-5 ${isProposed ? "border-warning/20 bg-warning-light/65 dark:border-warning/30 dark:bg-warning-light" : "border-border/55 bg-secondary/30"}`}>
                           
                           {/* Task Title Row with Remove Button */}
                           <div className="flex items-center gap-3">
-                            <span className="text-xs font-bold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Task Title #{tIdx + 1}</span>
                             <textarea
                               value={task.title}
                               onChange={(e) => {
@@ -1139,7 +1137,7 @@ Please use this background information to write a personalized and highly releva
                               <button 
                                 type="button" 
                                 onClick={() => setTasks(tasks.filter(t => t.id !== task.id))} 
-                                className="h-10 px-4 text-sm font-semibold text-red-655 hover:text-red-755 hover:bg-red-55 rounded-xl transition-colors inline-flex items-center flex-shrink-0"
+                                className="h-10 px-4 text-sm font-semibold text-destructive hover:text-destructive hover:bg-destructive-light rounded-xl transition-colors inline-flex items-center flex-shrink-0"
                               >
                                 Remove
                               </button>
@@ -1148,7 +1146,7 @@ Please use this background information to write a personalized and highly releva
 
                           {/* Days Input */}
                           <div className="w-24">
-                            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
+                            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                               Days
                             </label>
                             <input 
@@ -1163,12 +1161,12 @@ Please use this background information to write a personalized and highly releva
 
                           {/* Mini Tasks (Child Tasks) Checklist */}
                           <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
-                            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
                               Minitask
                             </span>
                             {task.miniTasks.map((mini, mIdx) => (
                               <div key={mini.id || mIdx} className="flex items-center gap-2">
-                                <span className="text-muted-foreground font-mono text-xs">•</span>
+                                <span className="text-muted-foreground font-mono text-xs">-</span>
                                 <textarea
                                   value={mini.title}
                                   onChange={(e) => {
@@ -1183,7 +1181,7 @@ Please use this background information to write a personalized and highly releva
                                   <button
                                     type="button"
                                     onClick={() => { const nt = [...tasks]; nt[tIdx].miniTasks = task.miniTasks.filter(m => m.id !== mini.id); setTasks(nt); }}
-                                    className="h-7 w-7 text-muted-foreground hover:text-red-500 hover:bg-red-55 rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
+                                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-lg transition-colors inline-flex items-center justify-center flex-shrink-0"
                                   >
                                     <X className="w-3.5 h-3.5" />
                                   </button>
@@ -1222,7 +1220,7 @@ Please use this background information to write a personalized and highly releva
                           },
                         ])
                       }
-                      className="h-12 px-5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-amber-950/30 dark:hover:bg-amber-950/50 dark:border-amber-800 dark:text-amber-300"
+                      className="h-12 px-5 bg-warning-light hover:bg-warning-light text-warning border border-warning/20 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-warning-light dark:hover:bg-warning-light dark:border-warning/30 dark:text-warning"
                     >
                       + Add Proposed Task
                     </button>
@@ -1262,7 +1260,7 @@ Please use this background information to write a personalized and highly releva
               <SectionCard title="Budget & Timeline Summary" icon={BarChart3} padding="lg">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount ($) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Bid Amount ($) <span className="text-destructive">*</span></label>
                     <div className="text-xs text-muted-foreground mb-1">
                       Auto-computed from tasks: {tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0).toLocaleString()}
                     </div>
@@ -1277,7 +1275,7 @@ Please use this background information to write a personalized and highly releva
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration (Days) <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-semibold text-foreground mb-2">Total Estimated Duration (Days) <span className="text-destructive">*</span></label>
                     <div className="text-xs text-muted-foreground mb-1">
                       Auto-computed from tasks: {totalDays} days
                     </div>
@@ -1316,22 +1314,22 @@ Please use this background information to write a personalized and highly releva
                 return (
                   <div className="space-y-3">
                     {exceedsTime && (
-                      <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-start gap-3 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="p-4 bg-warning-light border border-warning/20 text-warning rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-warning mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Proposed duration exceeds requirement</p>
-                          <p className="text-xs text-amber-700 mt-0.5">
+                          <p className="text-sm font-semibold">Proposed duration exceeds requirement</p>
+                          <p className="text-xs text-warning mt-0.5">
                             Your duration ({totalDays} days) exceeds the client's baseline ({clientDuration} days) by {Math.abs(timeDeviation)} days.
                           </p>
                         </div>
                       </div>
                     )}
                     {exceedsBudget && (
-                      <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-3 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5 flex-shrink-0" />
+                      <div className="p-4 bg-destructive-light border border-destructive/20 text-destructive rounded-xl flex items-start gap-3 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-sm font-bold">Proposed budget exceeds baseline</p>
-                          <p className="text-xs text-rose-700 mt-0.5">
+                          <p className="text-sm font-semibold">Proposed budget exceeds baseline</p>
+                          <p className="text-xs text-destructive mt-0.5">
                             Your bid amount ({finalBid.toLocaleString()} USD) exceeds the client's budget ({clientBudget.toLocaleString()} USD) by {Math.abs(budgetDeviation).toLocaleString()} USD.
                           </p>
                         </div>
@@ -1344,7 +1342,7 @@ Please use this background information to write a personalized and highly releva
             })()}
 
             {/* Submit */}
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 space-y-4">
+            <div className="space-y-4 rounded-2xl border border-border/70 bg-card/85 p-4 shadow-sm shadow-foreground/[0.025] sm:p-5">
               {(() => {
                 const totalBid = tasks.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
                 const totalDays = tasks.reduce((sum, t) => sum + (Number(t.completionDays) || 0), 0);
@@ -1387,7 +1385,6 @@ Please use this background information to write a personalized and highly releva
           </form>
         </div>
 
-        {/* ── AI Project Planner Panel (right side) ── */}
         {showAIPlanner && (
           <aside className="lg:col-span-3">
             <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

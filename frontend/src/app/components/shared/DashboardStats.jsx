@@ -1,16 +1,16 @@
-import { StatCard } from "./StatCard.jsx";
+﻿import { StatCard } from "./StatCard.jsx";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// DashboardStats — responsive stat card grid for dashboards.
+// DashboardStats - responsive stat card grid for dashboards.
 //
 // Props:
-//   stats        — array of stat objects:
+//   stats        - array of stat objects:
 //                    { label, value, icon, description?, link?, linkLabel?, color? }
-//   columns      — grid columns override (default responsive: 2 on mobile, 4 on lg)
-//   size         — forwarded to each StatCard ("sm" | "md", default "md")
-//   className    — additional classes for the grid wrapper
-//   cardClassName — additional classes passed to each StatCard
+//   columns      - grid columns override (default responsive: 2 on mobile, 4 on lg)
+//   size         - forwarded to each StatCard ("sm" | "md", default "md")
+//   className    - additional classes for the grid wrapper
+//   cardClassName - additional classes passed to each StatCard
 // =============================================================================
 
 export function DashboardStats({

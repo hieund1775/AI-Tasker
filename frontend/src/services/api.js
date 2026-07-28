@@ -1,4 +1,4 @@
-const API_BASE_URL =
+﻿const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "https://aitaskerbe-production.up.railway.app/api";
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
@@ -15,6 +15,73 @@ function clearToken() {
   try {
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
   } catch { }
+}
+
+function looksMojibake(value) {
+  return /(?:\u00c3|\u00c2|\u00e2|\ufffd|\u00c4|\u00e1\u00ba|\u00e1\u00bb|\u00f0\u0178)/.test(value);
+}
+
+const WINDOWS_1252_BYTES = {
+  "\u20ac": 0x80,
+  "\u201a": 0x82,
+  "\u0192": 0x83,
+  "\u201e": 0x84,
+  "\u2026": 0x85,
+  "\u2020": 0x86,
+  "\u2021": 0x87,
+  "\u02c6": 0x88,
+  "\u2030": 0x89,
+  "\u0160": 0x8a,
+  "\u2039": 0x8b,
+  "\u0152": 0x8c,
+  "\u017d": 0x8e,
+  "\u2018": 0x91,
+  "\u2019": 0x92,
+  "\u201c": 0x93,
+  "\u201d": 0x94,
+  "\u2022": 0x95,
+  "\u2013": 0x96,
+  "\u2014": 0x97,
+  "\u02dc": 0x98,
+  "\u2122": 0x99,
+  "\u0161": 0x9a,
+  "\u203a": 0x9b,
+  "\u0153": 0x9c,
+  "\u017e": 0x9e,
+  "\u0178": 0x9f,
+};
+
+function mojibakeByteForChar(char) {
+  return WINDOWS_1252_BYTES[char] ?? (char.charCodeAt(0) & 0xff);
+}
+
+function repairMojibakeString(value) {
+  if (typeof value !== "string" || !looksMojibake(value)) return value;
+
+  try {
+    const bytes = Uint8Array.from(value, mojibakeByteForChar);
+    const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    return looksMojibake(repaired) ? value : repaired;
+  } catch {
+    return value;
+  }
+}
+
+function normalizeResponseText(value, seen = new WeakSet()) {
+  if (typeof value === "string") return repairMojibakeString(value);
+  if (!value || typeof value !== "object") return value;
+
+  if (seen.has(value)) return value;
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeResponseText(item, seen));
+  }
+
+  Object.keys(value).forEach((key) => {
+    value[key] = normalizeResponseText(value[key], seen);
+  });
+  return value;
 }
 
 async function request(endpoint, options = {}) {
@@ -37,7 +104,7 @@ async function request(endpoint, options = {}) {
     body,
     method,
     headers: extraHeaders = {},
-    timeout = 15000, // 15 s — Railway backend needs extra time on cold starts
+    timeout = 15000, // 15s - Railway backend needs extra time on cold starts
     ...rest
   } = options;
 
@@ -82,13 +149,13 @@ async function request(endpoint, options = {}) {
     clearTimeout(timer);
     if (networkError.name === "AbortError") {
       throw new ApiError(
-        "Request timed out — the server did not respond in time.",
+        "Request timed out - the server did not respond in time.",
         0,
         networkError,
       );
     }
     throw new ApiError(
-      "Network error — please check your connection and try again.",
+      "Network error - please check your connection and try again.",
       0,
       networkError,
     );
@@ -118,6 +185,8 @@ async function request(endpoint, options = {}) {
   } else {
     data = await response.text();
   }
+
+  data = normalizeResponseText(data);
 
   if (!response.ok) {
     const message =
@@ -203,7 +272,6 @@ function del(endpoint, options = {}) {
   return request(endpoint, { ...options, method: "DELETE" });
 }
 
-// ── Helpers to save/read use cases from localStorage (backup when BE has not serialized jobRequirements) ──
 export function saveJobUseCases(jobId, useCases) {
   try {
     localStorage.setItem(`aitasker_job_usecases_${jobId}`, JSON.stringify(useCases));
@@ -217,7 +285,6 @@ function loadJobUseCases(jobId) {
   } catch (e) { return null; }
 }
 
-// ── Helpers to save/read job attachments from localStorage (backup when BE has not stored AttachmentUrl) ──
 export function saveJobAttachments(jobId, attachments) {
   try {
     localStorage.setItem(`aitasker_job_attachments_${jobId}`, JSON.stringify(attachments));
@@ -427,7 +494,7 @@ export const api = {
     // Retrieve expert profile info
     getProfile: (id) => get(`/Users/${id}/expert-profile`),
 
-    // TODO: Backend endpoint not yet confirmed — placeholder
+    // TODO: Backend endpoint not yet confirmed - placeholder
     getById: (id) => {
       // TODO: Replace with real endpoint e.g. get(`/experts/${id}`) or get(`/Users/${id}`)
       return get(`/Users/${id}`).catch(() => null);
@@ -569,7 +636,7 @@ export const api = {
   },
 
   // ===========================================================================
-  // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
+  // PLACEHOLDER API GROUPS - backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.
   // TODO: Connect each function to its real backend endpoint when available.
   // ===========================================================================

@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminJobPosts — Job post / Service list management for Admin/Owner.
+﻿// =============================================================================
+// AdminJobPosts - Job post / Service list management for Admin/Owner.
 //
 // Uses existing /api/jobposts endpoint. Admin can:
 //   - View all job posts
@@ -8,12 +8,12 @@
 //   - Delete job posts (placeholder if DELETE API unavailable)
 // =============================================================================
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Edit3, Trash2, Filter } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Edit3, Trash2 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
-import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
 
@@ -22,19 +22,60 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const JOB_POST_STATUS_CONFIG = {
-  Active: { color: "bg-green-100 text-green-700", label: "Active" },
+  Open: { color: "bg-brand-primary-light text-brand-primary", label: "Open" },
+  Active: { color: "bg-success-light text-success", label: "Active" },
   Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
-  Closed: { color: "bg-red-100 text-red-700", label: "Closed" },
-  Draft: { color: "bg-yellow-100 text-yellow-700", label: "Draft" },
+  Closed: { color: "bg-destructive-light text-destructive", label: "Closed" },
+  Draft: { color: "bg-warning-light text-warning", label: "Draft" },
+  Accepted: { color: "bg-success-light text-success", label: "Accepted" },
+  "Pending Payment": { color: "bg-warning-light text-warning", label: "Pending Payment" },
+  "In Progress": { color: "bg-brand-primary-light text-brand-primary", label: "In Progress" },
+  Completed: { color: "bg-success-light text-success", label: "Completed" },
+  Cancelled: { color: "bg-destructive-light text-destructive", label: "Cancelled" },
 };
 
 const JOB_POST_STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "Active", label: "Active" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Closed", label: "Closed" },
+  { value: "Open", label: "Open", values: ["Open", "Active"] },
   { value: "Draft", label: "Draft" },
+  { value: "Inactive", label: "Inactive" },
+  { value: "Accepted", label: "Accepted" },
+  { value: "Pending Payment", label: "Pending Payment" },
+  { value: "In Progress", label: "In Progress" },
+  { value: "Completed", label: "Completed" },
+  { value: "Cancelled", label: "Cancelled", values: ["Cancelled", "Closed"] },
 ];
+
+const normalizeJobPostStatus = (rawStatus) => {
+  const key = String(rawStatus || "open").trim().toLowerCase().replace(/[\s_]+/g, "");
+
+  if (key === "open") return "Open";
+  if (key === "active") return "Active";
+  if (key === "inactive") return "Inactive";
+  if (key === "draft") return "Draft";
+  if (key === "closed") return "Closed";
+  if (key === "accepted") return "Accepted";
+  if (key === "pendingescrow" || key === "pendingpay" || key === "pendingpayment") return "Pending Payment";
+  if (key === "inprogress") return "In Progress";
+  if (key === "completed" || key === "complete") return "Completed";
+  if (key === "cancelled" || key === "canceled" || key === "stopped") return "Cancelled";
+
+  return rawStatus || "Open";
+};
+
+const renderJobPostStatus = (status) => {
+  const normalized = normalizeJobPostStatus(status);
+  const cfg = JOB_POST_STATUS_CONFIG[normalized] || {
+    color: "bg-secondary text-foreground/80",
+    label: normalized,
+  };
+
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
+      {cfg.label}
+    </span>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Component
@@ -56,7 +97,11 @@ export function AdminJobPosts() {
     setError(null);
     try {
       const result = await api.get("/jobposts");
-      setJobPosts(Array.isArray(result) ? result : result?.data || []);
+      const rows = Array.isArray(result) ? result : result?.data || [];
+      setJobPosts(rows.map((job) => ({
+        ...job,
+        status: normalizeJobPostStatus(job.status || job.Status),
+      })));
     } catch (err) {
       setError(err.message || "Unable to load job posts.");
       setJobPosts([]);
@@ -100,7 +145,7 @@ export function AdminJobPosts() {
     async (jobPostId) => {
       setActionLoading(true);
       try {
-        // TODO: add DELETE endpoint — DELETE /jobposts/{id}
+        // TODO: add DELETE endpoint - DELETE /jobposts/{id}
         // Backend may not support DELETE yet; using placeholder
         setJobPosts((prev) => prev.filter((j) => j.id !== jobPostId));
         showToast("Job post has been deleted.");
@@ -120,7 +165,7 @@ export function AdminJobPosts() {
       label: "Title",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-foreground text-sm">{val || "—"}</p>
+          <p className="font-medium text-foreground text-sm">{val || "-"}</p>
           <p className="text-xs text-muted-foreground">
             {row.clientName || row.clientId
               ? `Posted by: ${row.clientName || row.clientId}`
@@ -134,7 +179,7 @@ export function AdminJobPosts() {
       label: "Budget",
       render: (val) => (
         <span className="text-sm font-medium">
-          {val != null ? <MoneyDisplay amount={val} /> : "—"}
+          {val != null ? <MoneyDisplay amount={val} /> : "-"}
         </span>
       ),
     },
@@ -142,31 +187,21 @@ export function AdminJobPosts() {
       key: "category",
       label: "Category",
       render: (val) => (
-        <span className="text-xs text-muted-foreground">{val || "—"}</span>
+        <span className="text-xs text-muted-foreground">{val || "-"}</span>
       ),
     },
     {
       key: "status",
       label: "Status",
-      filterOptions: [
-        { value: "Active", label: "Active" },
-        { value: "Inactive", label: "Inactive" },
-        { value: "Closed", label: "Closed" },
-        { value: "Draft", label: "Draft" },
-      ],
-      render: (val) => (
-        <StatusBadge
-          status={val || "Active"}
-          config={JOB_POST_STATUS_CONFIG}
-        />
-      ),
+      filterOptions: JOB_POST_STATUS_OPTIONS,
+      render: (val) => renderJobPostStatus(val),
     },
     {
       key: "createdAt",
       label: "Posted",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -176,21 +211,19 @@ export function AdminJobPosts() {
     <div className="space-y-6">
       
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
-        Job Post / Service Management
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage violating job posts and services on the platform.
-      </p>
+      <PageHeader
+        title="Job Post / Service Management"
+        subtitle="View and manage violating job posts and services on the platform."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -202,29 +235,29 @@ export function AdminJobPosts() {
         emptyMessage="No job posts found."
         actions={(row) => (
           <div className="flex gap-1.5">
-            {row.status !== "Closed" && (
+            {normalizeJobPostStatus(row.status) !== "Closed" && (
               <button
                 type="button"
                 onClick={() =>
                   setStatusModal({
                     id: row.id,
                     newStatus:
-                      row.status === "Active" ? "Inactive" : "Active",
+                      ["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Inactive" : "Active",
                   })
                 }
                 disabled={actionLoading}
-                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-warning-light text-warning hover:bg-warning-light border-warning/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Change status"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                {row.status === "Active" ? "Deactivate" : "Activate"}
+                {["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Deactivate" : "Activate"}
               </button>
             )}
             <button
               type="button"
               onClick={() => setDeleteModal(row.id)}
               disabled={actionLoading}
-              className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-red-50 text-red-700 hover:bg-red-100 border-red-200 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-destructive-light text-destructive hover:bg-destructive-light border-destructive/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Delete job post"
             >
               <Trash2 className="w-3.5 h-3.5" />

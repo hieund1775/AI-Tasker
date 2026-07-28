@@ -206,12 +206,12 @@ export function getStatusLabel(statusKey) {
 
 export function getStatusBadgeClass(statusKey) {
   const map = {
-    "open": "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-    "in_progress": "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    "completed": "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    "cancelled": "bg-red-500/10 text-red-500 border-red-500/20"
+    "open": "bg-warning-light/10 text-warning border-warning/20",
+    "in_progress": "bg-accent-light text-accent border-accent/25",
+    "completed": "bg-success-light0/10 text-success border-success/20",
+    "cancelled": "bg-destructive-light0/10 text-destructive border-destructive/20"
   };
-  return map[statusKey] || "bg-gray-500/10 text-gray-500 border-gray-500/20";
+  return map[statusKey] || "bg-secondary/60 text-muted-foreground border-border";
 }
 
 export function getClientButtonConfig(statusKey) {

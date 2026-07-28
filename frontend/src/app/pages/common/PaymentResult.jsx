@@ -72,14 +72,14 @@ export default function PaymentResult() {
       <div className="bg-background p-8 rounded-xl shadow-lg max-w-md w-full text-center border">
         {isSuccess ? (
           <>
-            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-green-600 mb-2">Transaction Successful!</h2>
+            <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-success mb-2">Transaction Successful!</h2>
             <p className="text-muted-foreground mb-6">You have successfully deposited {Number(amount).toLocaleString()} VND into the system.</p>
           </>
         ) : (
           <>
-            <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-red-600 mb-2">Transaction Unsuccessful</h2>
+            <XCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+            <h2 className="text-2xl font-semibold text-destructive mb-2">Transaction Unsuccessful</h2>
             <p className="text-muted-foreground mb-6">ZaloPay payment was cancelled or an error occurred.</p>
           </>
         )}
@@ -91,4 +91,3 @@ export default function PaymentResult() {
     </div>
   );
 };
-

@@ -1,13 +1,13 @@
-import { getStatusBadgeClass, getStatusLabel, getTaskStatusClass, getTaskStatusLabel } from "../../lib/projectStatusConfig.js";
+﻿import { getStatusBadgeClass, getStatusLabel, getTaskStatusClass, getTaskStatusLabel } from "../../lib/projectStatusConfig.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 // =============================================================================
-// StatusBadge — unified status badge for all entity types (modern pill style).
+// StatusBadge - unified status badge for all entity types (modern pill style).
 //
 // Props:
-//   status    — internal status key (e.g. "in_progress", "accepted", "active")
-//   entity    — "project" | "proposal" | "task" | "user" | "transaction" | "extension"
-//   className — additional CSS classes
+//   status    - internal status key (e.g. "in_progress", "accepted", "active")
+//   entity    - "project" | "proposal" | "task" | "user" | "transaction" | "extension"
+//   className - additional CSS classes
 // =============================================================================
 
 const ENTITY_CONFIG = {

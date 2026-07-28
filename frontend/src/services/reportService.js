@@ -1,9 +1,9 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Report Service
 // =============================================================================
 // Handles all dispute report operations between Expert and Admin/Owner.
 //
-// Backend endpoints are NOT yet implemented — each function uses an empty
+// Backend endpoints are NOT yet implemented - each function uses an empty
 // placeholder URL so the real API can be wired in later without changing
 // the component code.
 // =============================================================================
@@ -11,7 +11,7 @@
 import api from "./api.js";
 
 // ---------------------------------------------------------------------------
-// API endpoint paths — wired to mock API handler for frontend development.
+// API endpoint paths - wired to mock API handler for frontend development.
 // Replace with real backend endpoints when available.
 // ---------------------------------------------------------------------------
 
@@ -118,7 +118,7 @@ export async function createReport(payload) {
 /**
  * Fetch report list for Admin/Owner with optional filters.
  *
- * @param {object} params — { status?, projectId?, search?, page?, limit? }
+ * @param {object} params - { status?, projectId?, search?, page?, limit? }
  * @returns {Promise<object>} { data: Report[], total: number, page: number }
  */
 export async function getReports(params = {}) {
@@ -272,7 +272,7 @@ export async function getReportDetail(reportId) {
  * After acceptance the project status changes to "Disputed".
  *
  * @param {string} reportId
- * @param {object} payload — { adminNote?: string, reportType?: string }
+ * @param {object} payload - { adminNote?: string, reportType?: string }
  * @returns {Promise<object>}
  */
 export async function acceptReport(reportId, payload = {}) {
@@ -294,7 +294,7 @@ export async function acceptReport(reportId, payload = {}) {
  * Rejection reason is REQUIRED. A notification is sent to the Expert.
  *
  * @param {string} reportId
- * @param {object} payload — { reason: string (required), reportType?: string }
+ * @param {object} payload - { reason: string (required), reportType?: string }
  * @returns {Promise<object>}
  */
 export async function rejectReport(reportId, payload) {

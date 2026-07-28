@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useParams } from "react-router";
 import {
   Tag,
@@ -21,7 +21,7 @@ import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 
 /**
- * ProposalReview — Client views all proposals for a specific project.
+ * ProposalReview - Client views all proposals for a specific project.
  *
  * Route: /client/projects/:projectId/proposals
  */
@@ -192,7 +192,6 @@ export function ProposalReview() {
     setTimeout(() => setFeedback(null), 5000);
   };
 
-  // ── Task-level accept/reject ──
   const handleAcceptProposedTask = async (proposalId, taskId, task) => {
     await updateTaskApproval(proposalId, taskId, "accepted");
   };
@@ -291,7 +290,6 @@ export function ProposalReview() {
         }
       />
 
-      {/* ── Feedback banner ── */}
       {feedback && (
         <div
           className={`mb-6 p-4 rounded-xl text-sm font-medium ${
@@ -371,7 +369,7 @@ export function ProposalReview() {
       {/* Proposals section */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground">Proposals Received</h2>
+          <h2 className="text-lg font-semibold text-foreground">Proposals Received</h2>
         </div>
 
         {visibleProposals.length === 0 ? (
