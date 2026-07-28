@@ -25,7 +25,7 @@
 
 /* ── Smooth page transitions ── */
 main {
-  animation: page-enter 0.25s ease-out;
+  animation: page-enter 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ── Expert Dashboard — responsive panel heights ── */
