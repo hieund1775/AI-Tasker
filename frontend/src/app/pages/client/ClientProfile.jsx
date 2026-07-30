@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { Link, useParams } from "react-router";
 import {
   User,
   MapPin,
@@ -10,6 +10,7 @@ import {
   Clock,
   BarChart3,
   FileText,
+  ArrowLeft,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -24,7 +25,12 @@ function resolveClient(userFromAuth) {
 }
 
 export function ClientProfile() {
+  const { id: paramId } = useParams();
   const { user: authUser } = useAuth();
+  
+  const targetId = paramId || authUser?.id;
+  const isOwnProfile = !paramId || paramId === authUser?.id;
+
   const [client, setClient] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,12 +39,12 @@ export function ClientProfile() {
     let cancelled = false;
 
     async function fetchProfile() {
-      if (!authUser?.id) return;
+      if (!targetId) return;
       try {
         const [apiUser, allJobPosts, clientProjects] = await Promise.all([
-          api.users.getById(authUser.id),
+          api.users.getById(targetId),
           api.jobPosts.list().catch(() => []),
-          api.projects.getByClient(authUser.id).catch(() => []),
+          api.projects.getByClient(targetId).catch(() => []),
         ]);
 
         if (!cancelled && apiUser) {
@@ -51,7 +57,7 @@ export function ClientProfile() {
             };
           }
 
-          const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === authUser.id) : [];
+          const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === targetId) : [];
           
           let proposalsCount = 0;
           try {
@@ -94,7 +100,7 @@ export function ClientProfile() {
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [authUser]);
+  }, [targetId]);
 
   // ---- Loading state ----
   if (loading) {
@@ -126,12 +132,14 @@ export function ClientProfile() {
           <User className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-muted-foreground mb-2">Profile not available</h2>
           <p className="text-base text-muted-foreground mb-4">Complete your profile to get started.</p>
-          <Link
-            to="/client/profile/edit"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
-          >
-            <Edit className="w-4 h-4" /> Edit Profile
-          </Link>
+          {isOwnProfile && (
+            <Link
+              to="/client/profile/edit"
+              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
+            >
+              <Edit className="w-4 h-4" /> Edit Profile
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -147,8 +155,25 @@ export function ClientProfile() {
         .toUpperCase()
     : "?";
 
+  const getBackLink = () => {
+    const r = authUser?.role?.toLowerCase();
+    if (r === "admin" || r === "owner" || r === "staff") {
+      return { to: `/${r === "staff" ? "admin" : r}/users`, label: "Back to Users" };
+    }
+    return { to: "/", label: "Back" };
+  };
+  const backLink = getBackLink();
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {!isOwnProfile && (
+        <Link
+          to={backLink.to}
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 mb-2"
+        >
+          <ArrowLeft className="w-4 h-4" /> {backLink.label}
+        </Link>
+      )}
       {/* ── Profile header card ── */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
@@ -166,12 +191,14 @@ export function ClientProfile() {
             </div>
           </div>
 
-          <Link
-            to="/client/profile/edit"
-            className="h-11 px-5 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
-          >
-            <Edit className="w-4 h-4" /> Edit Profile
-          </Link>
+          {isOwnProfile && (
+            <Link
+              to="/client/profile/edit"
+              className="h-11 px-5 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+            >
+              <Edit className="w-4 h-4" /> Edit Profile
+            </Link>
+          )}
         </div>
 
         {/* ── Profile Information ── */}

@@ -95,15 +95,13 @@ async function request(endpoint, options = {}) {
   }
   clearTimeout(timer);
 
-  // NOTE: We do NOT auto-clear the token on 401 here.
-  // Many admin/owner dashboard APIs may return 401 if the backend endpoints
-  // are not yet implemented or the user lacks permission for individual
-  // resources. Only the auth-specific flows should trigger a session clear.
-  // Dashboard & resource pages handle 401s gracefully via .catch().
+  // NOTE: We do NOT auto-clear the token on 401 here to prevent random logouts.
+  // Many dashboard APIs may return 401 if the user lacks permission or the endpoint is unimplemented.
+  // The UI will handle the error gracefully via .catch() or ErrorBoundaries.
   if (response.status === 401) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-    }
+    // if (typeof window !== "undefined") {
+    //   window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+    // }
     throw new ApiError("Authentication required for this resource.", 401);
   }
 
@@ -125,6 +123,21 @@ async function request(endpoint, options = {}) {
     const message =
       (data && (data.message || data.title || data.error)) ||
       `Request failed with status ${response.status}`;
+
+    const msgLower = String(message || "").toLowerCase();
+    if (
+      response.status === 401 ||
+      response.status === 403 ||
+      msgLower.includes("inactive") ||
+      msgLower.includes("locked") ||
+      msgLower.includes("suspended") ||
+      msgLower.includes("banned")
+    ) {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+      }
+    }
+
     throw new ApiError(message, response.status, data);
   }
 
@@ -200,6 +213,20 @@ export function saveJobUseCases(jobId, useCases) {
 function loadJobUseCases(jobId) {
   try {
     const raw = localStorage.getItem(`aitasker_job_usecases_${jobId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+// ── Helpers to save/read job attachments from localStorage (backup when BE has not stored AttachmentUrl) ──
+export function saveJobAttachments(jobId, attachments) {
+  try {
+    localStorage.setItem(`aitasker_job_attachments_${jobId}`, JSON.stringify(attachments));
+  } catch (e) { }
+}
+
+function loadJobAttachments(jobId) {
+  try {
+    const raw = localStorage.getItem(`aitasker_job_attachments_${jobId}`);
     return raw ? JSON.parse(raw) : null;
   } catch (e) { return null; }
 }
@@ -286,6 +313,16 @@ function mapJobPost(jp) {
     // 3. Fallback: localStorage (saved during post on this machine)
     jp.useCases = cachedUseCases;
   }
+
+  // Inject attachments from localStorage fallback
+  if (!jp._attachments) {
+    const id = jp.id || jp.Id;
+    if (id) {
+      const cached = loadJobAttachments(id);
+      if (cached) jp._attachments = cached;
+    }
+  }
+
   return jp;
 }
 
@@ -324,6 +361,10 @@ export const api = {
       post("/auth/forgot-password", { email }, { authenticated: false }),
     resetPassword: (token, newPassword) =>
       post("/auth/reset-password", { resetToken: token, newPassword }, { authenticated: false }),
+    verifyEmail: (data) => 
+      post("/users/verify-email", data, { authenticated: false }),
+    resendVerification: (data) =>
+      post("/users/resend-verification", data, { authenticated: false }),
     refreshToken: () => {
       let userId = null;
       try {
@@ -364,10 +405,7 @@ export const api = {
     getClientProjects: (id) => get(`/Projects/client/${id}`).catch(() => []),
     getExpertProjects: (id) => get(`/Projects/expert/${id}`).catch(() => []),
 
-    // Resolved from auth user profile on the frontend
-    getMe: () => {
-      return Promise.resolve(null);
-    },
+    getMe: () => get("/users/me"),
 
     systemDashboard: () => get("/Admin/owner/system-dashboard"),
     createStaff: (data) => post("/Admin/owner/create-staff", data),
@@ -375,28 +413,10 @@ export const api = {
   },
 
   transactions: {
-    getStats: (userId) => {
-      return Promise.all([
-        get(`/Projects/client/${userId}`).catch(() => []),
-        get("/JobPosts").catch(() => []),
-        get(`/Proposals/expert/${userId}`).catch(() => []),
-      ]).then(([clientProjects, allJobPosts, expertProposals]) => {
-        const clientJobs = Array.isArray(allJobPosts)
-          ? allJobPosts.filter((j) => j.clientId === userId)
-          : [];
-        return {
-          posted: clientJobs.length,
-          active: clientProjects.filter(
-            (p) => p.status?.toLowerCase() === "inprogress",
-          ).length,
-          completed: clientProjects.filter(
-            (p) => p.status?.toLowerCase() === "completed",
-          ).length,
-          proposals: expertProposals.length,
-          totalSpent: 0,
-        };
-      });
-    },
+    getStats: (userId) => 
+      get(`/users/${userId}/dashboard-stats`).catch(() => ({
+        posted: 0, active: 0, completed: 0, proposals: 0, totalSpent: 0
+      })),
   },
 
   // MODIFIED TO CALL /Users ENDPOINT INSTEAD OF /experts
@@ -424,6 +444,8 @@ export const api = {
     createReview: (data) => post("/Reviews", data),
     getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`),
     getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`),
+    updateReview: (reviewId, data) => put(`/Reviews/${reviewId}`, data),
+    replyReview: (reviewId, data) => post(`/Reviews/${reviewId}/reply`, data),
   },
 
   projects: {
@@ -434,7 +456,8 @@ export const api = {
     getById: (id) => get(`/Projects/${id}`),
     getByExpert: (expertId) => get(`/Projects/expert/${expertId}`).catch(() => []),
     getByClient: (clientId) => get(`/Projects/client/${clientId}`).catch(() => []),
-    updateStatus: (id, status) => put(`/Projects/${id}/status?status=${encodeURIComponent(status)}`),
+    updateStatus: (id, status) => put(`/Projects/${id}/status`, { status }),
+    updateMetadata: (id, metadata) => put(`/Projects/${id}/metadata`, { metadata }),
     submitWork: (id, data) => {
       const body = typeof data === "string" ? { projectLink: data, projectFile: "" } : {
         projectLink: data?.projectLink || "",
@@ -553,8 +576,8 @@ export const api = {
 
   timeline: {
     get: (projectId) => get(`/Projects/${projectId}/tasks`),
-    getActivityLogs: (_projectId) => Promise.resolve(null),
-    getProgress: (_projectId) => Promise.resolve(0),
+    getActivityLogs: (projectId) => get(`/Projects/${projectId}/activity-logs`),
+    getProgress: (_projectId) => Promise.resolve(0), // Handled by FE useProjectProgress
   },
 
   tasks: {
@@ -563,16 +586,14 @@ export const api = {
     update: (taskId, status) => put(`/Projects/tasks/${taskId}/status?status=${encodeURIComponent(status)}`),
     updateMiniTask: (miniTaskId, data) => put(`/Projects/minitasks/${miniTaskId}`, data),
     deleteMiniTask: (miniTaskId) => del(`/Projects/minitasks/${miniTaskId}`),
-    addLog: (_taskId, _log) => Promise.resolve(null),
-    addFeedback: (_taskId, _feedback) => Promise.resolve(null),
-    getProgress: (_taskId) => Promise.resolve(0),
+    addLog: (taskId, log) => post(`/Projects/tasks/${taskId}/logs`, log),
+    addFeedback: (taskId, feedback) => post(`/Projects/tasks/${taskId}/feedback`, feedback),
+    getProgress: (_taskId) => Promise.resolve(0), // Handled by FE useProjectProgress
   },
 
   extensions: {
-    // TODO: Connect to real API — post("/extensions", { projectId, ...data })
-    request: (_projectId, _data) => Promise.resolve(null),
-    // TODO: Connect to real API — put("/extensions/{extensionId}", data)
-    resolve: (_projectId, _extensionId, _data) => Promise.resolve(null),
+    request: (projectId, data) => post(`/Projects/${projectId}/extensions`, data),
+    resolve: (_projectId, extensionId, data) => put(`/Projects/extensions/${extensionId}/resolve`, data),
   },
 
   payments: {
@@ -683,6 +704,8 @@ export const api = {
   // Real AI backend endpoints
   ai: {
     sendSession: (data) => post("/AiChat/send-session", data, { timeout: 60000 }),
+    generateExpertIntroduction: (data) => post("/AiChat/generate-expert-introduction", data, { timeout: 60000 }),
+    analyzeMinitasks: (data) => post("/AiChat/analyze-minitasks", data, { timeout: 60000 }),
     uploadChatFile: (file) => {
       const fd = new FormData();
       fd.append("file", file);
@@ -704,11 +727,24 @@ export const api = {
 export function enrichFileUrl(url) {
   if (!url) return "";
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+
+  let cleanPath = url.trim();
+  if (!cleanPath.startsWith("/")) {
+    cleanPath = "/" + cleanPath;
+  }
+  if (
+    !cleanPath.startsWith("/uploads/") &&
+    !cleanPath.startsWith("/job_files/") &&
+    !cleanPath.startsWith("/api/")
+  ) {
+    cleanPath = "/uploads" + cleanPath;
+  }
+
   try {
     const parsed = new URL(API_BASE_URL);
-    return `${parsed.protocol}//${parsed.host}${url}`;
+    return `${parsed.origin}${cleanPath}`;
   } catch (e) {
-    return `https://aitaskerbe-production.up.railway.app${url}`;
+    return `https://aitaskerbe-production.up.railway.app${cleanPath}`;
   }
 }
 
@@ -766,6 +802,7 @@ export function parseProposalWbs(rawImplementation, proposal) {
     dependencies: parsed?.dependencies || "",
     durationDays: parsed?.durationDays || proposal?.estimatedDuration || 0,
     tasks: tasks,
+    attachments: parsed?.attachments || [],
     proposedTasks: parsed?.proposedTasks || [],
     useCaseBreakdown: parsed?.useCaseBreakdown || [],
     totalBidAmount: parsed?.totalBidAmount || proposal?.bidAmount || 0,

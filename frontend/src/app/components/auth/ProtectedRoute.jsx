@@ -49,9 +49,14 @@ export function ProtectedRoute({ role, roles, children }) {
     }
   }
 
-  // Role check — normalize to lowercase for case-insensitive comparison
-  if (allowedRoles && !allowedRoles.map(r => r.toLowerCase()).includes(userRole?.toLowerCase())) {
+  // EXCEPTION: Admin/Owner/Staff are authorized to inspect Client & Expert project and proposal routes
+  const normalizedUserRole = userRole?.toLowerCase();
+  if (["owner", "admin", "staff"].includes(normalizedUserRole)) {
+    return children ? children : <Outlet />;
+  }
 
+  // Role check — normalize to lowercase for case-insensitive comparison
+  if (allowedRoles && !allowedRoles.map(r => r.toLowerCase()).includes(normalizedUserRole)) {
     return <Navigate to="/unauthorized" replace />;
   }
 

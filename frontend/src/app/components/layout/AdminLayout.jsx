@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router";
-import { Users, Briefcase, FileText, Star, Tag, DollarSign, LayoutDashboard } from "lucide-react";
+import { Users, Briefcase, FileText, Tag, DollarSign, LayoutDashboard } from "lucide-react";
 
 export function AdminLayout() {
   const location = useLocation();
@@ -9,14 +9,13 @@ export function AdminLayout() {
     { label: "User Management", to: "/admin/users", icon: Users },
     { label: "Report Progress", to: "/admin/disputes", icon: FileText },
     { label: "Project Management", to: "/admin/projects", icon: Briefcase },
-    { label: "Review Management", to: "/admin/reviews", icon: Star },
     { label: "Job Post Management", to: "/admin/job-posts", icon: FileText },
     { label: "Skills & Categories", to: "/admin/category-tags", icon: Tag },
     { label: "Revenue Report", to: "/admin/revenue", icon: DollarSign },
   ];
 
   return (
-    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] w-full max-w-[100vw] overflow-x-hidden">
       {/* LEFT SIDEBAR MENU (VERTICAL NAVBAR) */}
       <aside className="hidden md:block w-64 border-r border-border bg-card/30 flex-shrink-0">
         <div className="sticky top-16 p-4 flex flex-col gap-1.5 overflow-y-auto h-[calc(100vh-4rem)]">
@@ -43,7 +42,7 @@ export function AdminLayout() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 min-w-0 p-6 lg:p-10 flex flex-col gap-8 bg-background">
+      <main className="flex-1 min-w-0 p-6 lg:p-10 flex flex-col gap-8 bg-background overflow-x-hidden">
         <Outlet />
       </main>
     </div>

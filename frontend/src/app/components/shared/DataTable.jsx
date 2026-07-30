@@ -15,7 +15,7 @@
 //   pageSize      — number of rows per page (default: 10)
 // =============================================================================
 
-import { Search, X, Database, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Search, X, Database, ChevronLeft, ChevronRight, Filter, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { Skeleton } from "../ui/skeleton.jsx";
 import { useState, useMemo, useRef, useEffect } from "react";
 
@@ -43,6 +43,18 @@ export function DataTable({
   const [colFilters, setColFilters] = useState({});
   const [openFilterMenu, setOpenFilterMenu] = useState(null); // column key that has filter menu open
   const menuRef = useRef(null);
+
+  // Sort state: { key: string, dir: 'asc' | 'desc' | null }
+  const [sortState, setSortState] = useState({ key: null, dir: null });
+
+  const handleSort = (colKey) => {
+    setSortState(prev => {
+      if (prev.key !== colKey) return { key: colKey, dir: 'desc' };
+      if (prev.dir === 'desc') return { key: colKey, dir: 'asc' };
+      return { key: null, dir: null };
+    });
+    setCurrentPage(1);
+  };
 
   // Close filter menu when clicking outside
   useEffect(() => {
@@ -98,8 +110,25 @@ export function DataTable({
       });
     });
 
+    // Apply sort
+    if (sortState.key && sortState.dir) {
+      result = [...result].sort((a, b) => {
+        const aVal = a[sortState.key];
+        const bVal = b[sortState.key];
+        const aNum = Number(aVal);
+        const bNum = Number(bVal);
+        const isNumeric = !isNaN(aNum) && !isNaN(bNum);
+        if (isNumeric) {
+          return sortState.dir === 'asc' ? aNum - bNum : bNum - aNum;
+        }
+        const aStr = String(aVal ?? '').toLowerCase();
+        const bStr = String(bVal ?? '').toLowerCase();
+        return sortState.dir === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+      });
+    }
+
     return result;
-  }, [data, localSearch, onSearchChange, colFilters]);
+  }, [data, localSearch, onSearchChange, colFilters, sortState]);
 
   // Pagination math
   const totalItems = processedData.length;
@@ -156,7 +185,23 @@ export function DataTable({
                   }`}
                 >
                   <div className="flex items-center gap-1.5">
-                    {col.label}
+                    {col.sortable ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer group"
+                        title={sortState.key === col.key ? (sortState.dir === 'desc' ? 'Sort ascending' : 'Clear sort') : 'Sort descending'}
+                      >
+                        {col.label}
+                        <span className="flex flex-col -space-y-1">
+                          {sortState.key === col.key && sortState.dir === 'asc'
+                            ? <ChevronUp className="w-3.5 h-3.5 text-brand-primary" />
+                            : sortState.key === col.key && sortState.dir === 'desc'
+                            ? <ChevronDown className="w-3.5 h-3.5 text-brand-primary" />
+                            : <ChevronsUpDown className="w-3.5 h-3.5 opacity-40 group-hover:opacity-70" />}
+                        </span>
+                      </button>
+                    ) : col.label}
                     
                     {/* Column Filter Dropdown */}
                     {col.filterOptions && (

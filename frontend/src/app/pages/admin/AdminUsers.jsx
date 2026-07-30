@@ -8,7 +8,8 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, ShieldOff, Shield, Filter } from "lucide-react";
+import { Search, ShieldOff, Shield, Filter, Eye, X } from "lucide-react";
+import { useNavigate } from "react-router";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
@@ -29,9 +30,10 @@ const ROLE_COLORS = {
 
 const STATUS_CONFIG = {
   active: { color: "bg-green-100 text-green-700", label: "Active" },
-  suspended: { color: "bg-red-100 text-red-700", label: "Locked" },
-  locked: { color: "bg-red-100 text-red-700", label: "Locked" },
-  banned: { color: "bg-red-100 text-red-700", label: "Locked" },
+  inactive: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  suspended: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  locked: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  banned: { color: "bg-red-100 text-red-700", label: "Inactive" },
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -45,6 +47,7 @@ const ROLE_FILTER_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export function AdminUsers({ excludeRoles = [] }) {
+  const navigate = useNavigate();
   const { role: userRole } = useAuth();
   const rawRole = (userRole || "").toLowerCase();
   const currentUserRole = rawRole === "staff" ? "admin" : rawRole;
@@ -73,7 +76,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     return result;
   }, [users, excludeRoles, currentUserRole]);
 
-  // Modal state
+  // Modal states
   const [lockModal, setLockModal] = useState(null); // { userId, userName, currentStatus }
 
   // -----------------------------------------------------------------------
@@ -116,8 +119,8 @@ export function AdminUsers({ excludeRoles = [] }) {
   const handleToggleLock = useCallback(
     async (userId, currentStatus) => {
       setActionLoading(true);
-      const isActive = currentStatus === "active";
-      const newStatus = isActive ? "suspended" : "active";
+      const isActive = (currentStatus || "").toLowerCase() === "active";
+      const newStatus = isActive ? "Inactive" : "Active";
       try {
         await api.put(`/users/${userId}/set-active`, {
           isActive: !isActive,
@@ -127,6 +130,12 @@ export function AdminUsers({ excludeRoles = [] }) {
             u.id === userId ? { ...u, status: newStatus } : u,
           ),
         );
+        if (isActive) {
+          localStorage.setItem("aitasker_user_banned", JSON.stringify({ userId, timestamp: Date.now() }));
+        } else {
+          localStorage.removeItem("aitasker_user_banned");
+        }
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
         showToast(
           isActive
             ? "User has been locked."
@@ -186,7 +195,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "Status",
       filterOptions: [
         { label: "Active", value: "active" },
-        { label: "Locked", value: "suspended" }, // maps to suspended/locked
+        { label: "Inactive", value: "inactive" },
       ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
@@ -242,12 +251,27 @@ export function AdminUsers({ excludeRoles = [] }) {
           if (currentUserRole === "admin" && rowRole === "admin") {
             return null;
           }
+          const statusLower = (row.status || "").toLowerCase();
           const isLocked =
-            row.status === "suspended" ||
-            row.status === "locked" ||
-            row.status === "banned";
+            statusLower === "inactive" ||
+            statusLower === "suspended" ||
+            statusLower === "locked" ||
+            statusLower === "banned";
           return (
             <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const basePath = currentUserRole === "owner" ? "/owner" : "/admin";
+                  const profileType = rowRole === "expert" ? "profile-expert" : "profile-client";
+                  const url = `${basePath}/${profileType}/${row.id}`;
+                  navigate(url);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                View
+              </button>
               <button
                 type="button"
                 onClick={() =>

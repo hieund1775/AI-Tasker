@@ -3,23 +3,25 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils.js";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-150 select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-1 aria-invalid:ring-destructive/20 aria-invalid:border-destructive active:scale-[0.98] hover:scale-[1.02]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-1 aria-invalid:ring-destructive/20 aria-invalid:border-destructive active:scale-95",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-none",
+          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm hover:shadow-md",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/85 shadow-none",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/85 shadow-sm",
         outline:
-          "border border-border bg-transparent text-foreground hover:bg-secondary",
+          "border border-border bg-background text-foreground hover:bg-secondary hover:text-foreground hover:border-accent/30",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-muted",
+          "bg-secondary text-secondary-foreground hover:bg-muted/80",
         success:
-          "bg-success text-success-foreground hover:bg-success/85 shadow-none",
+          "bg-success text-success-foreground hover:bg-success/85 shadow-sm",
         ghost:
           "text-muted-foreground hover:text-foreground hover:bg-secondary",
         link: "text-accent underline-offset-4 hover:underline",
+        ai:
+          "bg-accent-gradient text-white shadow-sm hover:shadow-lg hover:shadow-accent/20 hover:brightness-110",
       },
       size: {
         sm: "h-8 rounded-lg gap-1.5 px-3 text-xs",

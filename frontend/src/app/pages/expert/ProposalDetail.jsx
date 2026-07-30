@@ -10,7 +10,7 @@ import {
   Briefcase,
   Paperclip,
   Image,
-  File,
+  File as FileIcon,
   FolderOpen,
   MessageSquare,
 } from "lucide-react";
@@ -320,23 +320,9 @@ export function ProposalDetail() {
                                 ucTasks.map((task, idx) => (
                                   <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
                                     {/* Task Title Row */}
-                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        {task.completionDays && (
-                                          <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                            {task.completionDays} days
-                                          </span>
-                                        )}
-                                        {task.price != null && (
-                                          <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                            <MoneyDisplay amount={task.price} />
-                                          </span>
-                                        )}
-                                      </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                      <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                     </div>
 
                                     {/* Minitasks */}
@@ -362,23 +348,9 @@ export function ProposalDetail() {
                       {proposal.tasks.map((task, idx) => (
                         <div key={task.id || idx} className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
                           {/* Task Title Row */}
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {task.completionDays && (
-                                <span className="text-xs px-2 py-0.5 bg-accent/10 text-accent rounded-full font-medium">
-                                  {task.completionDays} days
-                                </span>
-                              )}
-                              {task.price != null && (
-                                <span className="text-xs px-2 py-0.5 bg-success/10 text-success rounded-full font-medium">
-                                  <MoneyDisplay amount={task.price} />
-                                </span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                            <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                           </div>
 
                           {/* Minitasks */}
@@ -430,25 +402,52 @@ export function ProposalDetail() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {attachments.map((att, idx) => {
-                      const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
+                      const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
+                      let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                      if (!rawName && typeof rawUrl === "string") {
+                        rawName = rawUrl.split("/").pop() || "Attachment";
+                      }
+                      const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                      const finalName = cleanName || rawName;
+
+                      const handleDownloadFile = async (e) => {
+                        e.preventDefault();
+                        if (!rawUrl || rawUrl === "#") return;
+                        try {
+                          const res = await fetch(rawUrl);
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = blobUrl;
+                          a.download = finalName;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(blobUrl);
+                        } catch (err) {
+                          window.open(rawUrl, "_blank");
+                        }
+                      };
+
                       return (
                         <a
                           key={att.id || idx}
-                          href={fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href={rawUrl}
+                          onClick={handleDownloadFile}
+                          download={finalName}
                           className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3 hover:bg-secondary transition-colors cursor-pointer text-left"
+                          title={`Download ${finalName}`}
                         >
                           {att.type === "image/png" || att.fileType === "image/png" ? (
                             <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
                           ) : att.type === "folder" ? (
                             <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
                           ) : (
-                            <File className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                            <FileIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           )}
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground/80 truncate">
-                              {att.name || att.fileName || "Attachment"}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground/80 truncate max-w-[240px] sm:max-w-[340px] block" title={finalName}>
+                              {finalName}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {att.type || att.fileType || "file"}

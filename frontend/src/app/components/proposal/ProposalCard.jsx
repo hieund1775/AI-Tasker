@@ -6,7 +6,7 @@ import {
   Clock,
   GitBranch,
   Paperclip,
-  File,
+  File as FileIcon,
   Download,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
@@ -123,27 +123,56 @@ export function ProposalCard({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {proposal.attachments.map((att, idx) => {
-                    const fileUrl = att.url ? (att.url.startsWith("http") ? att.url : `https://aitaskerbe-production.up.railway.app${att.url}`) : "#";
-                    const fileName = att.name || "Attached File";
+                    const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
+                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl ? `http://localhost:5186${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}` : "#");
+
+                    let fileName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
+                    if (!fileName && typeof rawUrl === "string") {
+                      const baseName = rawUrl.split("/").pop() || "Attachment";
+                      fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                      if (!fileName) fileName = baseName;
+                    }
+
+                    const handleDownloadFile = async (e) => {
+                      e.preventDefault();
+                      if (!fileUrl || fileUrl === "#") return;
+                      try {
+                        const res = await fetch(fileUrl);
+                        const blob = await res.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = blobUrl;
+                        a.download = fileName || "Proposal_Attachment";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                      } catch (err) {
+                        console.warn("Direct blob download failed, falling back to window.open:", err);
+                        window.open(fileUrl, "_blank");
+                      }
+                    };
+
                     return (
                       <div key={att.id || idx} className="inline-flex items-center gap-0 rounded-lg border border-border overflow-hidden">
-                        {/* Xem file */}
+                        {/* View file */}
                         <a
                           href={fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-2 px-3 py-1.5 bg-secondary/80 hover:bg-secondary text-xs font-medium text-foreground/80 hover:text-foreground transition-colors"
-                          title="Xem file"
+                          title={`View ${fileName}`}
                         >
-                          <File className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="max-w-[160px] truncate">{fileName}</span>
+                          <FileIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="max-w-[160px] truncate">{fileName || "Attached File"}</span>
                         </a>
                         {/* Download button */}
                         <a
                           href={fileUrl}
-                          download={fileName}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-semibold transition-colors"
-                          title="Download"
+                          onClick={handleDownloadFile}
+                          download={fileName || true}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-semibold transition-colors cursor-pointer"
+                          title={`Download ${fileName}`}
                         >
                           <Download className="w-3.5 h-3.5" />
                           Download
@@ -156,7 +185,7 @@ export function ProposalCard({
             )}
 
             {/* ── Use Case & Task Breakdown ── */}
-            {(hasUseCaseBreakdown || proposal.tasks?.length > 0) && (
+            {false && (
               <div className="mb-3 p-3 bg-secondary/30 rounded-xl border border-border/60 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wide">
                   <GitBranch className="w-3.5 h-3.5" /> Use Case & Task Breakdown

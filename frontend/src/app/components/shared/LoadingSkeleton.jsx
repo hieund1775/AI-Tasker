@@ -6,8 +6,7 @@ import { cn } from "../../lib/utils.js";
 //
 // Props:
 //   variant  — "card" | "list" | "dashboard" | "detail"
-//   count    — number of skeleton items to render (default 1 for card/detail,
-//              default 4 for dashboard, default 3 for list)
+//   count    — number of skeleton items to render
 //   className — additional classes for the outer wrapper
 // =============================================================================
 
@@ -44,18 +43,15 @@ function ListSkeleton() {
 function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="space-y-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-72" />
       </div>
-      {/* Stat cards grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <CardSkeleton key={i} />
         ))}
       </div>
-      {/* Content area */}
       <div className="bg-card rounded-xl border border-border p-6 space-y-4">
         <Skeleton className="h-6 w-40" />
         <div className="space-y-3">
@@ -71,7 +67,6 @@ function DashboardSkeleton() {
 function DetailSkeleton() {
   return (
     <div className="bg-card rounded-xl border border-border p-8 space-y-6">
-      {/* Avatar + name */}
       <div className="flex items-center gap-4">
         <Skeleton className="w-16 h-16 rounded-xl" />
         <div className="space-y-2">
@@ -79,7 +74,6 @@ function DetailSkeleton() {
           <Skeleton className="h-4 w-32" />
         </div>
       </div>
-      {/* Detail rows */}
       <div className="space-y-3 pt-4 border-t border-border">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-5 w-full max-w-md" />

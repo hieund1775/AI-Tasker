@@ -28,6 +28,7 @@ const DISPUTE_TYPES = [
   { value: "quality", label: "Work Quality Dispute" },
   { value: "deadline", label: "Deadline Dispute" },
   { value: "scope", label: "Scope of Work Dispute" },
+  { value: "overdue", label: "OverDue" },
   { value: "other", label: "Other" },
 ];
 
@@ -106,7 +107,7 @@ export function ReportForm({
       try {
         await onSubmit?.({
           projectId: project?.projectId || project?.id,
-          reportName: project?.title || "",
+          reportName: projectTitle !== "—" ? projectTitle : (project?.title || ""),
           reason,
           description,
           disputeType,
@@ -122,10 +123,10 @@ export function ReportForm({
   );
 
   const addEvidence = useCallback(() => {
-    setEvidence((prev) => [
-      ...prev,
-      { id: Date.now().toString(), name: "", note: "", file: null },
-    ]);
+    setEvidence((prev) => {
+      if (prev.length >= 1) return prev;
+      return [{ id: Date.now().toString(), name: "", note: "", file: null }];
+    });
   }, []);
 
   const removeEvidence = useCallback((id) => {
@@ -176,6 +177,19 @@ export function ReportForm({
     (typeof project.expert === "string" ? project.expert : project.expert?.fullName || project.expert?.name) ||
     "—";
 
+  const projectTitle =
+    project.title ||
+    project.Title ||
+    project.projectTitle ||
+    project.ProjectTitle ||
+    project.projectName ||
+    project.ProjectName ||
+    project.name ||
+    project.Name ||
+    project.reportName ||
+    project.ReportName ||
+    "—";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* ---- Auto-filled project info ---- */}
@@ -184,7 +198,7 @@ export function ReportForm({
           Project Information
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <InfoRow label="Project Name" value={project.title || "—"} />
+          <InfoRow label="Project Name" value={projectTitle} />
           <InfoRow label="Client" value={clientName} />
           <InfoRow label="Expert" value={expertName} />
           <InfoRow
@@ -279,17 +293,19 @@ export function ReportForm({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-foreground/80">
-            {isResponse ? "Documents / Evidence (Optional)" : "Evidence (Optional)"}
+            {isResponse ? "Documents / Evidence (Max 1 file - Optional)" : "Evidence (Max 1 file - Optional)"}
           </label>
-          <button
-            type="button"
-            onClick={addEvidence}
-            disabled={isLoading}
-            className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium inline-flex items-center gap-1"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Add Evidence
-          </button>
+          {evidence.length < 1 && (
+            <button
+              type="button"
+              onClick={addEvidence}
+              disabled={isLoading}
+              className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium inline-flex items-center gap-1 cursor-pointer"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Add Evidence
+            </button>
+          )}
         </div>
         {errors.evidence && (
           <p className="mb-2 text-xs text-red-500">{errors.evidence}</p>
@@ -299,8 +315,7 @@ export function ReportForm({
           <div className="border-2 border-dashed border-input rounded-xl p-6 text-center">
             <Upload className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
             <p className="text-sm text-muted-foreground">
-              No evidence added yet. Click &quot;Add Evidence&quot; to upload
-              images, documents, or screenshots.
+              No evidence added yet. Click &quot;Add Evidence&quot; to upload 1 screenshot or document.
             </p>
           </div>
         )}
@@ -311,48 +326,37 @@ export function ReportForm({
               key={item.id}
               className="p-3 border border-border rounded-lg bg-secondary/50 space-y-3"
             >
-              <div className="flex items-start justify-between">
-                <FileText className="w-5 h-5 text-muted-foreground mt-0.5" />
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-muted-foreground" />
+                  Evidence Attachment
+                </span>
                 <button
                   type="button"
                   onClick={() => removeEvidence(item.id)}
-                  className="p-1 text-muted-foreground hover:text-red-500 transition"
+                  className="p-1 text-muted-foreground hover:text-red-500 transition cursor-pointer"
                   disabled={isLoading}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <input
-                type="text"
-                value={item.name}
-                onChange={(e) =>
-                  updateEvidence(item.id, "name", e.target.value)
-                }
-                placeholder="Evidence name (e.g. Chat screenshot)"
-                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
-                disabled={isLoading}
-              />
-
               <FileUploadDropzone
                 files={item.file ? [item.file] : []}
-                onFilesChange={(newFiles) =>
-                  updateEvidence(item.id, "file", newFiles[0] || null)
-                }
+                onFilesChange={(newFiles) => {
+                  const f = newFiles[0] || null;
+                  setEvidence((prev) =>
+                    prev.map((e) =>
+                      e.id === item.id
+                        ? { ...e, file: f, name: f ? f.name : "" }
+                        : e
+                    )
+                  );
+                }}
                 multiple={false}
+                maxFiles={1}
                 disabled={isLoading}
-                helperText="Upload image, PDF, DOCX, or TXT"
-              />
-
-              <input
-                type="text"
-                value={item.note}
-                onChange={(e) =>
-                  updateEvidence(item.id, "note", e.target.value)
-                }
-                placeholder="Note for this evidence (optional)"
-                className="w-full px-3 py-1.5 border border-input rounded text-sm focus:outline-none focus:border-brand-primary"
-                disabled={isLoading}
+                helperText="Upload 1 image, PDF, DOCX, or TXT"
               />
             </div>
           ))}

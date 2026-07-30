@@ -61,7 +61,11 @@ export function safeNum(val, fallback = 0) {
 export function safeDateFormat(value, options, fallback = "N/A") {
   if (!value) return fallback;
   try {
-    const date = new Date(value);
+    let dVal = value;
+    if (typeof dVal === "string" && dVal.includes("T") && !dVal.endsWith("Z") && !dVal.match(/[+-]\d{2}:\d{2}$/)) {
+      dVal += "Z";
+    }
+    const date = new Date(dVal);
     if (Number.isNaN(date.getTime())) return fallback;
     return date.toLocaleDateString("en-US", options);
   } catch {
@@ -80,7 +84,11 @@ export function safeDateFormat(value, options, fallback = "N/A") {
 export function safeDateTimeFormat(value, options, fallback = "N/A") {
   if (!value) return fallback;
   try {
-    const date = new Date(value);
+    let dVal = value;
+    if (typeof dVal === "string" && dVal.includes("T") && !dVal.endsWith("Z") && !dVal.match(/[+-]\d{2}:\d{2}$/)) {
+      dVal += "Z";
+    }
+    const date = new Date(dVal);
     if (Number.isNaN(date.getTime())) return fallback;
     return date.toLocaleString("en-US", options);
   } catch {

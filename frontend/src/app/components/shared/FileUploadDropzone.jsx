@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, FileText, Image, File, AlertCircle } from "lucide-react";
+import { Upload, X, FileText, Image, File as LucideFileIcon, AlertCircle } from "lucide-react";
 
 // ── Default accepted file types ──
 const DEFAULT_ACCEPT_MIME = [
@@ -30,8 +30,8 @@ function getFileIcon(file) {
     /\.(pdf|docx?)$/.test(name)
   )
     return FileText;
-  if (/\.zip$/.test(name) || type.includes("zip")) return File;
-  return File;
+  if (/\.zip$/.test(name) || type.includes("zip")) return LucideFileIcon;
+  return LucideFileIcon;
 }
 
 function getFileColor(file) {
@@ -185,71 +185,73 @@ export function FileUploadDropzone({
   return (
     <div className="space-y-3">
       {/* Label */}
-      {label && (
+      {label && (files.length === 0 || (canAddMore && maxFiles !== 1)) && (
         <label className="block text-sm font-semibold text-foreground">
           {label}
         </label>
       )}
 
-      {/* Drop zone */}
-      <div
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-        onClick={disabled || !canAddMore ? undefined : handleBrowse}
-        role="button"
-        tabIndex={disabled || !canAddMore ? -1 : 0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            handleBrowse();
-          }
-        }}
-        className={`
-          relative border-2 border-dashed rounded-xl p-6 text-center transition-colors
-          ${disabled || !canAddMore ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-          ${isDragging
-            ? "border-brand-primary bg-brand-primary-light/30"
-            : error
-              ? "border-red-300 bg-red-50/20"
-              : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
-          }
-        `}
-      >
-        <Upload
-          className={`w-8 h-8 mx-auto mb-2 ${
-            isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-muted-foreground/60"
-          }`}
-        />
-        <p className="text-sm font-semibold text-foreground/80">
-          Drag &amp; Drop files here
-        </p>
-        <p className="text-xs text-muted-foreground mt-1">or</p>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleBrowse();
-          }}
-          disabled={disabled || !canAddMore}
-          className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-[14px] text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          Browse Files
-        </button>
+      {/* Hidden file input always available */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple={multiple}
+        accept={inputAccept}
+        onChange={handleFileInputChange}
+        className="hidden"
+        disabled={disabled || !canAddMore}
+      />
 
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple={multiple}
-          accept={inputAccept}
-          onChange={handleFileInputChange}
-          className="hidden"
-          disabled={disabled || !canAddMore}
-        />
-      </div>
+      {/* Drop zone — hidden when file exists and maxFiles === 1 or !canAddMore */}
+      {(files.length === 0 || (canAddMore && maxFiles !== 1)) && (
+        <div
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          onClick={disabled || !canAddMore ? undefined : handleBrowse}
+          role="button"
+          tabIndex={disabled || !canAddMore ? -1 : 0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleBrowse();
+            }
+          }}
+          className={`
+            relative border-2 border-dashed rounded-xl p-6 text-center transition-colors
+            ${disabled || !canAddMore ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
+            ${isDragging
+              ? "border-brand-primary bg-brand-primary-light/30"
+              : error
+                ? "border-red-300 bg-red-50/20"
+                : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
+            }
+          `}
+        >
+          <Upload
+            className={`w-8 h-8 mx-auto mb-2 ${
+              isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-muted-foreground/60"
+            }`}
+          />
+          <p className="text-sm font-semibold text-foreground/80">
+            Drag &amp; Drop files here
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">or</p>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleBrowse();
+            }}
+            disabled={disabled || !canAddMore}
+            className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-[14px] text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            Browse Files
+          </button>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -275,7 +277,7 @@ export function FileUploadDropzone({
               <div className="flex items-center gap-2.5 min-w-0">
                 <FileIcon file={file} />
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground/80 truncate">
+                  <p className="text-sm font-medium text-foreground/80 truncate max-w-[220px] sm:max-w-[360px] block" title={file.name || "Unknown file"}>
                     {file.name || "Unknown file"}
                   </p>
                   {file.size > 0 && (

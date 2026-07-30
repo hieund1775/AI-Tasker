@@ -84,13 +84,15 @@ export function OwnerDashboard() {
       getReports({ status: "Pending" }),
       api.payments.getTransactions().catch(() => []),
       api.jobPosts.list().catch(() => []),
+      api.users.systemDashboard().catch(() => null),
     ]);
 
     const [
       usersSettled,
       reportsSettled,
       transactionsSettled,
-      jobPostsSettled
+      jobPostsSettled,
+      systemDashboardSettled
     ] = results;
 
     // 1. Calculate Monthly Visits (Client / Expert) from localStorage logins
@@ -316,18 +318,25 @@ export function OwnerDashboard() {
       return 0;
     };
 
-    let calculatedRevenue = 0;
-    transactions.forEach(t => {
-      calculatedRevenue += getPlatformFee(t);
-    });
+    const systemDash = systemDashboardSettled?.status === "fulfilled" ? systemDashboardSettled.value : null;
+    let calculatedRevenue = Math.abs(Number(systemDash?.totalPlatformRevenue ?? systemDash?.TotalPlatformRevenue ?? 0));
 
-    localReleases.forEach(r => {
-      const releaseProjIdLower = String(r.projectId).toLowerCase();
-      const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
-      if (!hasDbTx) {
-        calculatedRevenue += Number(r.amount) * 0.05;
-      }
-    });
+    if (calculatedRevenue === 0) {
+      const systemHistories = systemDash?.transactionHistories || systemDash?.TransactionHistories || [];
+      systemHistories.forEach(item => {
+        calculatedRevenue += Math.abs(Number(item.fee ?? item.Fee ?? item.amount ?? item.Amount ?? 0));
+      });
+    }
+
+    if (calculatedRevenue === 0) {
+      transactions.forEach(t => {
+        const lType = (t.type || t.Type || "").toLowerCase();
+        const tPlatformFee = Math.abs(Number(t.platformFee || t.PlatformFee || 0));
+        if (lType === "platformfee" || lType === "platform_fee" || (tPlatformFee > 0 && lType !== "releasepayment" && lType !== "escrow_release")) {
+          calculatedRevenue += tPlatformFee > 0 ? tPlatformFee : Math.abs(Number(t.amount || t.Amount || 0));
+        }
+      });
+    }
 
     const openDisputesCount = (reportsSettled.status === "fulfilled" && reportsSettled.value)
       ? reportsSettled.value.data?.length || reportsSettled.value.total || 0
