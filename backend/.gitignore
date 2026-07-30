@@ -4,4 +4,4 @@ obj/
 
 # Secrets - KHÔNG BAO GIờ push lên git
 appsettings.json
-appsettings.*.json
+appsettings.json.*
