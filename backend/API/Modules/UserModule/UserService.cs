@@ -7,6 +7,7 @@ using AITasker_Modular.Modules.ProjectModule;
 using AITasker_Modular.Modules.InteractionModule;
 using AITasker_Modular.Modules.CategoryTagModule;
 
+using Microsoft.Extensions.Configuration;
 using AITasker_Modular.Helpers;
 
 namespace AITasker_Modular.Modules.UserModule;
@@ -15,11 +16,13 @@ public class UserService : IUserService
 {
     private readonly DataContext _context;
     private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
 
-    public UserService(DataContext context, IEmailService emailService)
+    public UserService(DataContext context, IEmailService emailService, IConfiguration configuration)
     {
         _context = context;
         _emailService = emailService;
+        _configuration = configuration;
     }
 
     public async Task<(bool Success, string Message, string? VerificationToken)> RegisterAsync(string email, string password, string fullName, string role, string phoneNumber, string baseUrl)
@@ -110,7 +113,7 @@ public class UserService : IUserService
             PhoneNumber = user.PhoneNumber
         };
 
-        var token = $"mock-jwt-token-for-{user.Id}";
+        var token = JwtHelper.GenerateToken(user, _configuration);
 
         return (userDto, token, null);
     }
@@ -616,7 +619,7 @@ public class UserService : IUserService
             PhoneNumber = user.PhoneNumber
         };
 
-        var token = $"mock-jwt-token-for-{user.Id}";
+        var token = JwtHelper.GenerateToken(user, _configuration);
         return (userDto, token, null);
     }
 
