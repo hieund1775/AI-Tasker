@@ -1,5 +1,5 @@
-// =============================================================================
-// Shared demo IDs — single source of truth for demo user references.
+﻿// =============================================================================
+// Shared demo IDs - single source of truth for demo user references.
 // TODO: Replace with real auth (AuthContext) when backend is fully connected.
 // =============================================================================
 

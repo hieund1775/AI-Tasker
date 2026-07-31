@@ -41,7 +41,16 @@ export function deriveTaskDisplayStatus(task) {
 
 export function useProjectProgress(projectId, role) {
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (e) {
+    const rawUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    if (rawUser) {
+      try { user = JSON.parse(rawUser); } catch (err) {}
+    }
+  }
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [expert, setExpert] = useState(null);
@@ -118,14 +127,14 @@ export function useProjectProgress(projectId, role) {
         return rawStatus === "completed" || rawStatus === "done";
       });
 
-      // Check localStorage override FIRST — this takes highest priority
+      // Check localStorage override FIRST - this takes highest priority
       const localStatusRaw = localStorage.getItem(`project_status_${projectId}`);
       const localStatusLower = localStatusRaw ? localStatusRaw.toLowerCase() : null;
 
       // Terminal cancelled states that should NEVER be overridden by backend "Completed"
       const cancelledTerminals = new Set(["cancelled", "canceled", "cancel_done", "contract_cancelled", "stopped"]);
 
-      // If localStorage says cancelled — trust it unconditionally regardless of backend status
+      // If localStorage says cancelled - trust it unconditionally regardless of backend status
       if (localStatusLower && cancelledTerminals.has(localStatusLower)) {
         proj.status = localStatusLower;
       } else {
@@ -318,7 +327,7 @@ export function useProjectProgress(projectId, role) {
     setTasks(updatedTasks);
 
     try {
-      // 2. Background API Call — preserve existing title, productLink, and productFile
+      // 2. Background API Call - preserve existing title, productLink, and productFile
       await api.projects.updateMiniTask(miniTaskId, {
         title: miniTask.title || "",
         productLink: miniTask.productLink || null,
@@ -516,13 +525,21 @@ export function useProjectProgress(projectId, role) {
         explanation: "Product submitted by Expert."
       });
       await api.projects.submitTask(taskId, notesValue);
+      let cleanFileName = productFile || "N/A";
+      if (typeof productFile === "string" && productFile.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(productFile);
+          cleanFileName = parsed.name || parsed.originalName || parsed.url || productFile;
+        } catch {}
+      }
+
       addTaskAuditEntry({
         projectId,
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
         actorName: user?.fullName || "Expert",
-        details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${productFile || "N/A"}`
+        details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${cleanFileName}`
       });
       triggerUpdate();
       return true;

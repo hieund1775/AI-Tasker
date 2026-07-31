@@ -1,7 +1,6 @@
-// =============================================================================
-// ExpertProjectDetail — Project detail page for Expert role.
+﻿// =============================================================================
+// ExpertProjectDetail - Project detail page for Expert role.
 //
-// ⚠️  DEPRECATED — NOT in active routing.
 //     routes.jsx imports ExpertProjectDetail from ExpertProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/expert/ExpertProjectManagement.jsx
@@ -45,7 +44,7 @@ export function ExpertProjectDetail() {
   const { id } = useParams();
   const { user } = useAuth();
 
-  // Project data — loaded from API
+  // Project data - loaded from API
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -81,7 +80,7 @@ export function ExpertProjectDetail() {
                   });
                 }
               } catch {
-                // Client info unavailable — client stays null
+                // Client info unavailable - client stays null
               }
             }
           } else {
@@ -136,7 +135,7 @@ export function ExpertProjectDetail() {
           setHasReported(found.reporterId === user.id);
         }
       } catch {
-        // Report unavailable — that's fine
+        // Report unavailable - that's fine
       }
     }
     loadReport();
@@ -249,7 +248,7 @@ export function ExpertProjectDetail() {
       <div className="bg-card rounded-xl border border-border p-8 shadow-sm mb-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground mb-4">
+            <h1 className="text-2xl font-semibold text-foreground mb-4">
               {project.title}
             </h1>
             <p className="text-muted-foreground mb-4">{project.description}</p>
@@ -272,8 +271,8 @@ export function ExpertProjectDetail() {
             {/* Client info */}
             {client && (
               <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border/60">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <User className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
                   <p className="font-medium text-foreground">{client.fullName}</p>
@@ -281,7 +280,7 @@ export function ExpertProjectDetail() {
                     <p className="text-sm text-muted-foreground">
                       {client.profile.company}
                       {client.profile?.location
-                        ? ` · ${client.profile.location}`
+                        ? ` - ${client.profile.location}`
                         : ""}
                     </p>
                   )}
@@ -296,7 +295,7 @@ export function ExpertProjectDetail() {
             {client && !isDisputed && (
               <Link
                 to={`/messenger/${client.id || client.Id || ""}`}
-                className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+                className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
               >
                 <User className="w-4 h-4" /> Message Client
               </Link>
@@ -308,7 +307,7 @@ export function ExpertProjectDetail() {
       {/* ---- Timeline (read-only when disputed) ---- */}
       {isDisputed ? (
         <div className="bg-card rounded-xl border border-border p-8 shadow-sm text-center">
-          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <AlertTriangle className="w-10 h-10 text-warning mx-auto mb-3" />
           <p className="text-muted-foreground text-base">
             Project actions are temporarily locked during dispute resolution.
           </p>
@@ -323,7 +322,7 @@ export function ExpertProjectDetail() {
       <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">
+            <DialogTitle className="text-lg font-semibold">
               Submit Dispute Report
             </DialogTitle>
           </DialogHeader>

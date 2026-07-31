@@ -10,17 +10,19 @@ import {
   Download,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
+import { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 
 // =============================================================================
-// ProposalCard — renders a single proposal for the client's proposal review.
+// ProposalCard - renders a single proposal for the client's proposal review.
 //
 // Props:
-//   proposal     — enriched proposal object (includes expert, matchPct, etc.)
-//   isAccepted   — whether this proposal has been accepted
-//   isDeclined   — whether this proposal has been declined
-//   hasBeenActed — whether any action (accept/decline) has been taken
-//   onAccept     — callback(proposalId, expertName)
-//   onDecline    — callback(proposalId, expertName)
+//   proposal     - enriched proposal object (includes expert, matchPct, etc.)
+//   isAccepted   - whether this proposal has been accepted
+//   isDeclined   - whether this proposal has been declined
+//   hasBeenActed - whether any action (accept/decline) has been taken
+//   onAccept     - callback(proposalId, expertName)
+//   onDecline    - callback(proposalId, expertName)
 // =============================================================================
 
 export function ProposalCard({
@@ -47,11 +49,10 @@ export function ProposalCard({
       }`}
     >
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        {/* ── Expert info ── */}
         <div className="flex items-start gap-4 flex-1">
           {/* Avatar initials */}
           <div className="w-12 h-12 bg-accent-light rounded-xl flex items-center justify-center flex-shrink-0">
-            <span className="text-lg font-bold text-accent">
+            <span className="text-lg font-semibold text-accent">
               {proposal.expert?.initials}
             </span>
           </div>
@@ -62,7 +63,7 @@ export function ProposalCard({
               <h3 className="font-semibold text-foreground">
                 {proposal.expert?.name}
               </h3>
-              <span className="px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-bold">
+              <span className="px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-semibold">
                 {proposal.matchPct}% match
               </span>
               {isAccepted && (
@@ -118,39 +119,25 @@ export function ProposalCard({
             {/* Attached Assets for Client */}
             {proposal.attachments && proposal.attachments.length > 0 && (
               <div className="mb-3 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <Paperclip className="w-3.5 h-3.5" /> Attached Assets ({proposal.attachments.length})
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {proposal.attachments.map((att, idx) => {
                     const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
-                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl ? `http://localhost:5186${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}` : "#");
+                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl && rawUrl !== "#" ? enrichFileUrl(rawUrl) : "#");
 
                     let fileName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
                     if (!fileName && typeof rawUrl === "string") {
-                      const baseName = rawUrl.split("/").pop() || "Attachment";
-                      fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                      if (!fileName) fileName = baseName;
+                      fileName = cleanFileName(rawUrl);
+                    } else if (fileName) {
+                      fileName = cleanFileName(fileName);
                     }
 
-                    const handleDownloadFile = async (e) => {
+                    const handleDownloadFile = (e) => {
                       e.preventDefault();
                       if (!fileUrl || fileUrl === "#") return;
-                      try {
-                        const res = await fetch(fileUrl);
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = blobUrl;
-                        a.download = fileName || "Proposal_Attachment";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(blobUrl);
-                      } catch (err) {
-                        console.warn("Direct blob download failed, falling back to window.open:", err);
-                        window.open(fileUrl, "_blank");
-                      }
+                      downloadFile(fileUrl, fileName || "Proposal_Attachment");
                     };
 
                     return (
@@ -171,7 +158,7 @@ export function ProposalCard({
                           href={fileUrl}
                           onClick={handleDownloadFile}
                           download={fileName || true}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-semibold transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary border-l border-border text-xs font-medium transition-colors cursor-pointer"
                           title={`Download ${fileName}`}
                         >
                           <Download className="w-3.5 h-3.5" />
@@ -184,19 +171,17 @@ export function ProposalCard({
               </div>
             )}
 
-            {/* ── Use Case & Task Breakdown ── */}
             {false && (
               <div className="mb-3 p-3 bg-secondary/30 rounded-xl border border-border/60 space-y-2">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                   <GitBranch className="w-3.5 h-3.5" /> Use Case & Task Breakdown
                 </div>
 
                 {hasUseCaseBreakdown ? (
-                  /* ── Grouped by use case ── */
                   proposal.useCaseBreakdown.map((uc) => (
                     <div key={uc.useCaseId} className="space-y-1.5">
                       <div className="flex items-center gap-2 pt-1">
-                        <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">Use Case</span>
+                        <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold dark:bg-accent-light dark:text-accent">Use Case</span>
                         <span className="text-xs font-semibold text-foreground">{uc.useCaseTitle}</span>
                         <span className="text-xs text-muted-foreground">{uc.originalDuration}d</span>
                       </div>
@@ -205,31 +190,31 @@ export function ProposalCard({
                         const isProposed = task.source === "expert" && task.approvalStatus === "pending_client_approval";
                         const isTaskAccepted = task.approvalStatus === "accepted" && task.source === "expert";
                         const isTaskRejected = task.approvalStatus === "rejected" && task.source === "expert";
-                        const borderColor = isTaskAccepted ? "border-green-300" : isTaskRejected ? "border-red-200 opacity-60" : isProposed ? "border-amber-200" : "border-blue-200";
+                        const borderColor = isTaskAccepted ? "border-success/35" : isTaskRejected ? "border-destructive/20 opacity-60" : isProposed ? "border-warning/20" : "border-accent/25";
 
                         return (
                           <div key={task.id || i} className={`pl-2 border-l-2 ${borderColor} space-y-0.5 ml-2`}>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
                               {isClient && (
-                                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">Client Task</span>
+                                <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client Task</span>
                               )}
                               {isProposed && (
-                                <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Pending Approval</span>
+                                <span className="px-1.5 py-0.5 bg-warning-light text-warning rounded text-[10px] font-semibold">Pending Approval</span>
                               )}
                               {isTaskAccepted && (
-                                <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Accepted</span>
+                                <span className="px-1.5 py-0.5 bg-success-light text-success rounded text-[10px] font-semibold">Accepted</span>
                               )}
                               {isTaskRejected && (
-                                <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">Rejected</span>
+                                <span className="px-1.5 py-0.5 bg-destructive-light text-destructive rounded text-[10px] font-semibold">Rejected</span>
                               )}
-                              <span className="text-xs text-muted-foreground">{task.price != null ? `${Number(task.price).toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${Number(task.price).toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                               {isProposed && !hasBeenActed && onAcceptTask && onRejectTask && (
                                 <div className="flex items-center gap-1 ml-auto">
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Accept proposed task">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-success-light hover:bg-success-light text-success border border-success/20 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Accept proposed task">
                                     <CheckCircle className="w-3 h-3" /> Accept
                                   </button>
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); onRejectTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Reject proposed task">
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); onRejectTask(proposal.id, task.id, task); }} className="h-7 px-2 bg-destructive-light hover:bg-destructive-light text-destructive border border-destructive/20 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors" title="Reject proposed task">
                                     <XCircle className="w-3 h-3" /> Reject
                                   </button>
                                 </div>
@@ -242,27 +227,25 @@ export function ProposalCard({
                     </div>
                   ))
                 ) : (
-                  /* ── Flat fallback ── */
                   <>
                     {proposal.tasks.filter(t => t.source !== "expert" || t.approvalStatus !== "pending_client_approval").map((task, i) => (
-                      <div key={task.id || i} className="pl-2 border-l-2 border-blue-200 space-y-0.5">
+                      <div key={task.id || i} className="pl-2 border-l-2 border-accent/25 space-y-0.5">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
                           {task.source === "client" || task.source === "client_use_case_fallback" ? (
-                            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px] font-bold">Client Task</span>
+                            <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client Task</span>
                           ) : null}
-                          <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
+                          <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                         </div>
 
                       </div>
                     ))}
 
-                    {/* ── Expert-Proposed Tasks ── */}
                     {(proposal.proposedTasks?.length > 0 || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")).length > 0) && (
-                      <div className="pt-2 border-t border-amber-200">
+                      <div className="pt-2 border-t border-warning/20">
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="text-xs font-bold text-amber-700 uppercase tracking-wide">Proposed by Expert</span>
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-bold">Pending Client Approval</span>
+                          <span className="text-xs font-semibold text-warning uppercase tracking-wide">Proposed by Expert</span>
+                          <span className="px-1.5 py-0.5 bg-warning-light text-warning rounded text-[10px] font-semibold">Pending Client Approval</span>
                         </div>
                         {(proposal.proposedTasks || proposal.tasks?.filter(t => t.source === "expert" && (t.approvalStatus === "pending_client_approval" || t.approvalStatus === "accepted" || t.approvalStatus === "rejected")) || []).map((task, i) => {
                           const taskStatus = task.approvalStatus || "pending_client_approval";
@@ -271,18 +254,18 @@ export function ProposalCard({
                           const isTaskRejected = taskStatus === "rejected";
 
                           return (
-                          <div key={task.id || `prop-${i}`} className={`pl-2 border-l-2 space-y-0.5 ${isTaskAccepted ? "border-green-300" : isTaskRejected ? "border-red-200 opacity-60" : "border-amber-200"}`}>
+                          <div key={task.id || `prop-${i}`} className={`pl-2 border-l-2 space-y-0.5 ${isTaskAccepted ? "border-success/35" : isTaskRejected ? "border-destructive/20 opacity-60" : "border-warning/20"}`}>
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-foreground">{task.title || `Proposed Task #${i + 1}`}</span>
-                              <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` · ${task.completionDays}d` : ""}</span>
-                              {isTaskAccepted && <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px] font-bold">Accepted</span>}
-                              {isTaskRejected && <span className="px-1.5 py-0.5 bg-red-100 text-red-700 rounded text-[10px] font-bold">Rejected</span>}
+                              <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
+                              {isTaskAccepted && <span className="px-1.5 py-0.5 bg-success-light text-success rounded text-[10px] font-semibold">Accepted</span>}
+                              {isTaskRejected && <span className="px-1.5 py-0.5 bg-destructive-light text-destructive rounded text-[10px] font-semibold">Rejected</span>}
                               {isPending && !hasBeenActed && onAcceptTask && onRejectTask && (
                                 <div className="flex items-center gap-1 ml-auto">
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); onAcceptTask(proposal.id, task.id, task); }}
-                                    className="h-7 px-2 bg-green-50 hover:bg-green-100 text-green-600 border border-green-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                                    className="h-7 px-2 bg-success-light hover:bg-success-light text-success border border-success/20 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
                                     title="Accept proposed task"
                                   >
                                     <CheckCircle className="w-3 h-3" /> Accept
@@ -290,7 +273,7 @@ export function ProposalCard({
                                   <button
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); onRejectTask(proposal.id, task.id, task); }}
-                                    className="h-7 px-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
+                                    className="h-7 px-2 bg-destructive-light hover:bg-destructive-light text-destructive border border-destructive/20 rounded-lg text-xs font-semibold inline-flex items-center gap-1 transition-colors"
                                     title="Reject proposed task"
                                   >
                                     <XCircle className="w-3 h-3" /> Reject
@@ -311,16 +294,23 @@ export function ProposalCard({
           </div>
         </div>
 
-        {/* ── Right: bid amount + actions ── */}
         <div className="flex flex-col items-start md:items-end gap-3 md:min-w-[180px] flex-shrink-0">
           {/* Bid amount */}
           <div className="text-right">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Bid</span>
-            <p className="text-lg font-bold text-accent">
+            <p className="text-lg font-semibold text-accent">
               <MoneyDisplay amount={proposal.bidAmount} />
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Duration: {proposal.durationDays || proposal.estimatedDays || 0} days
+              Duration:{" "}
+              {(Number(proposal.durationDays || proposal.estimatedDays || 0)) +
+                (Number(
+                  localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                  localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                  localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                  0
+                ) || 0)}{" "}
+              days
             </p>
           </div>
 
@@ -329,7 +319,7 @@ export function ProposalCard({
             <div className="flex flex-wrap gap-2 w-full md:w-auto">
               <Link
                 to={`/messenger/${proposal.expertId || ""}`}
-                className="min-w-[140px] justify-center h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[132px] justify-center h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-medium inline-flex items-center gap-1.5 transition-colors"
                 title="Message expert"
               >
                 <MessageSquare className="w-4 h-4" />
@@ -343,7 +333,7 @@ export function ProposalCard({
                     proposal.expert?.name,
                   )
                 }
-                className="min-w-[140px] justify-center h-11 px-5 border border-destructive/20 text-destructive rounded-xl hover:bg-destructive-light text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+                className="min-w-[132px] justify-center h-10 px-4 border border-destructive/20 text-destructive rounded-xl hover:bg-destructive-light text-sm font-medium inline-flex items-center gap-1.5 transition-colors"
               >
                 <XCircle className="w-4 h-4" />
                 {isPendingInvite ? "Revoke Invite" : "Decline"}
@@ -357,7 +347,7 @@ export function ProposalCard({
                       proposal.expert?.name,
                     )
                   }
-                  className="min-w-[140px] justify-center h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-semibold inline-flex items-center gap-1.5 transition-colors"
+                  className="min-w-[132px] justify-center h-10 px-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-medium inline-flex items-center gap-1.5 transition-colors"
                 >
                   <CheckCircle className="w-4 h-4" />
                   Accept

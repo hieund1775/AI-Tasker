@@ -1,7 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon } from "lucide-react";
 
-// ── Compact defaults for AI Planner panel ──
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
 function getFileIcon(file) {
@@ -24,14 +23,14 @@ function getFileColor(file) {
   const type = file.type || "";
   const name = (file.name || "").toLowerCase();
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif)$/.test(name))
-    return "text-green-500";
-  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-red-500";
+    return "text-success";
+  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-destructive";
   if (
     type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     /\.docx?$/.test(name)
   )
-    return "text-blue-500";
-  if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
+    return "text-accent";
+  if (/\.zip$/.test(name) || type.includes("zip")) return "text-warning";
   return "text-muted-foreground";
 }
 
@@ -43,12 +42,12 @@ function formatFileSize(bytes) {
 }
 
 /**
- * AIFileUploadZone — Compact file upload for the AI Planner side panel.
+ * AIFileUploadZone - Compact file upload for the AI Planner side panel.
  *
  * Props:
- *   files         — array of File objects
- *   onFilesChange — callback(File[]) when files are added/removed
- *   disabled      — disable interactions while AI is processing
+ *   files         - array of File objects
+ *   onFilesChange - callback(File[]) when files are added/removed
+ *   disabled      - disable interactions while AI is processing
  */
 export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -138,7 +137,7 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
         disabled={disabled}
       />
 
-      {/* Compact drop zone — hidden when files exist */}
+      {/* Compact drop zone - hidden when files exist */}
       {files.length === 0 && (
         <div
           onDragEnter={handleDragEnter}
@@ -172,12 +171,12 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
             Drop files or <span className="text-brand-primary">browse</span>
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            PDF, DOCX, TXT, Images • Requirements
+            PDF, DOCX, TXT, Images - Requirements
           </p>
         </div>
       )}
 
-      {/* File list — compact */}
+      {/* File list - compact */}
       {files.length > 0 && (
         <div className="space-y-1.5">
           {files.map((file, index) => (
@@ -224,7 +223,7 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
                   <button
                     type="button"
                     onClick={() => removeFile(index)}
-                    className="w-6 h-6 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-md transition-colors inline-flex items-center justify-center"
+                    className="w-6 h-6 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-md transition-colors inline-flex items-center justify-center"
                     title="Remove file"
                   >
                     <X className="w-3 h-3" />

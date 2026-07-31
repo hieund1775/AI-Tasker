@@ -76,13 +76,13 @@ export function AdminProfile() {
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-red-900">{initials}</span>
+            <div className="w-16 h-16 bg-destructive-light rounded-xl flex items-center justify-center flex-shrink-0">
+              <span className="text-xl font-semibold text-destructive">{initials}</span>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
-                <span className="px-2.5 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
+                <span className="px-2.5 py-0.5 bg-destructive-light text-destructive rounded-full text-xs font-medium">
                   Admin
                 </span>
               </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Lock, CheckCircle, X, ShieldAlert } from "lucide-react";
 import { resetPassword } from "../../../services/authService";
@@ -56,8 +56,8 @@ export function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center py-12 px-4">
-      <div className="max-w-md w-full bg-card rounded-xl border border-border p-8 relative">
+    <div className="auth-shell min-h-screen flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      <div className="auth-card max-w-md w-full rounded-xl border border-border p-8 relative">
         <button
           type="button"
           onClick={() => navigate("/")}
@@ -70,11 +70,11 @@ export function ResetPasswordPage() {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center justify-center gap-2 mb-4">
             <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-base">AI</span>
+              <span className="text-primary-foreground font-semibold text-base">AI</span>
             </div>
-            <span className="text-xl font-bold text-foreground tracking-tight">Tasker</span>
+            <span className="text-xl font-semibold text-foreground tracking-tight">Tasker</span>
           </Link>
-          <h2 className="text-xl font-bold text-foreground tracking-tight">Reset Password</h2>
+          <h2 className="text-xl font-semibold text-foreground tracking-tight">Reset Password</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
             {submitted
               ? "Your password has been changed successfully."
@@ -130,7 +130,7 @@ export function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                  placeholder="••••••••"
+                  placeholder="Enter new password"
                   required
                 />
               </div>
@@ -145,7 +145,7 @@ export function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                  placeholder="••••••••"
+                  placeholder="Confirm new password"
                   required
                 />
               </div>

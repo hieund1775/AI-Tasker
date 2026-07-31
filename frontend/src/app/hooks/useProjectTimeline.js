@@ -15,7 +15,7 @@ import {
 } from "../lib/projectTimelineStore.js";
 
 // =============================================================================
-// useProjectTimeline — encapsulates all state, effects, derived values, and
+// useProjectTimeline - encapsulates all state, effects, derived values, and
 // action handlers for the project timeline view.
 //
 // Kept extractive: only moves logic that already existed in
@@ -36,7 +36,7 @@ export function useProjectTimeline(role, projectId) {
   const [rejectReason, setRejectReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Live countdown tick — triggers re-render every 10 seconds for real-time deadline display
+  // Live countdown tick - triggers re-render every 10 seconds for real-time deadline display
   const [tick, setTick] = useState(0);
 
   // Track activity version so we re-fetch timeline after navigation-back
@@ -78,11 +78,10 @@ export function useProjectTimeline(role, projectId) {
     return () => { cancelled = true; };
   }, [projectId, activityVersion]);
 
-  // ── Live countdown tick ──
   useEffect(() => {
-    const isActive = project && ["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase());
+    const isActive = project && ["active", "in_progress", "in progress", "disputed"].includes((project.status || "").toLowerCase());
     if (!isActive) return;
-    const interval = setInterval(() => setTick((t) => t + 1), 10000); // every 10s
+    const interval = setInterval(() => setTick((t) => t + 1), 1000); // tick every 1s for live countdown
     return () => clearInterval(interval);
   }, [project?.status, project?.id]);
 

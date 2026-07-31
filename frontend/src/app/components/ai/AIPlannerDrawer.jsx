@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot,
   Send,
@@ -50,8 +50,8 @@ function parseMiniTasksFromText(text, clientUseCases = []) {
 
     if (foundUseCaseMatch) continue;
 
-    if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•") || /^\d+[\.\)]/.test(trimmed)) {
-      const cleanTitle = trimmed.replace(/^[-*•\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+    if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("\u2022") || /^\d+[\.\)]/.test(trimmed)) {
+      const cleanTitle = trimmed.replace(/^[-*\u2022\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
       if (cleanTitle.length > 2) {
         const currentUC = planUseCases[currentUseCaseIndex];
         if (currentUC && currentUC.tasks && currentUC.tasks[0]) {
@@ -69,8 +69,8 @@ function parseMiniTasksFromText(text, clientUseCases = []) {
   if (totalParsed === 0) {
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•")) {
-        const cleanTitle = trimmed.replace(/^[-*•\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+      if (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("\u2022")) {
+        const cleanTitle = trimmed.replace(/^[-*\u2022\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
         if (cleanTitle.length > 2) {
           planUseCases[0].tasks[0].miniTasks.push({
             id: `mt-ai-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
@@ -118,16 +118,16 @@ function mapPayloadToProposalFormat(payload, clientUseCases = []) {
 }
 
 // =============================================================================
-// AIPlannerPanel — inline right-side panel with chat, file upload & plan preview.
+// AIPlannerPanel - inline right-side panel with chat, file upload & plan preview.
 // =============================================================================
 
 /**
  * Props:
- *   onClose        — callback to close the panel
- *   projectInfo    — { title, category } for context
- *   onApplyTasks   — callback(tasks[]) when user clicks "Apply MiniTasks"
- *   existingTasks  — current tasks in the form
- *   clientUseCases — [{ id, title, tasks: [{id, title}] }] from the job post
+ *   onClose        - callback to close the panel
+ *   projectInfo    - { title, category } for context
+ *   onApplyTasks   - callback(tasks[]) when user clicks "Apply MiniTasks"
+ *   existingTasks  - current tasks in the form
+ *   clientUseCases - [{ id, title, tasks: [{id, title}] }] from the job post
  */
 export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existingTasks = [], clientUseCases = [], jobPostId, expertId, autoPrompt, clearAutoPrompt }) {
   const [messages, setMessages] = useState([]);
@@ -171,7 +171,6 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, generatedPlan]);
 
-  // ── Send message ──
   const handleSend = useCallback(async (customText) => {
     const textToSend = typeof customText === "string" ? customText : input;
     const trimmed = textToSend.trim();
@@ -240,7 +239,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ An error occurred while calling AI: ${errMsg}\nPlease try again later.`,
+        text: `Error while calling AI: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -262,7 +261,6 @@ Description: ${autoPrompt.description}`;
     }
   }, [autoPrompt, handleSend, clearAutoPrompt]);
 
-  // ── Apply plan ──
   const handleApply = useCallback(() => {
     if (generatedPlan?.useCases) {
       const result = onApplyTasks({ useCases: generatedPlan.useCases });
@@ -272,7 +270,6 @@ Description: ${autoPrompt.description}`;
     }
   }, [generatedPlan, onApplyTasks]);
 
-  // ── Regenerate ──
   const handleRegenerate = useCallback(async () => {
     const userMsgs = messages.filter(m => m.role === "user");
     const lastUserMsg = userMsgs[userMsgs.length - 1];
@@ -335,7 +332,7 @@ Description: ${autoPrompt.description}`;
       const errMsg = err?.message || "Cannot connect to AI backend.";
       const aiMsg = {
         role: "ai",
-        text: `❌ An error occurred while regenerating plan: ${errMsg}\nPlease try again later.`,
+        text: `Error while regenerating plan: ${errMsg}\nPlease try again later.`,
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -346,10 +343,9 @@ Description: ${autoPrompt.description}`;
 
   return (
     <div className="h-full flex flex-col">
-      {/* ── Header ── */}
-      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3">
+      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3">
         <div>
-          <h2 className="text-sm font-bold text-foreground">🤖 AI MiniTask Planner</h2>
+          <h2 className="text-sm font-semibold text-foreground">AI MiniTask Planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
             Generate MiniTasks under existing Client Tasks
           </p>
@@ -357,14 +353,13 @@ Description: ${autoPrompt.description}`;
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
         >
           Close
         </button>
       </div>
 
-      {/* ── Chat / Messages ── */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2.5 space-y-4">
         {/* Divider */}
         <div className="flex items-center gap-2">
           <div className="flex-1 h-px bg-border" />
@@ -398,7 +393,7 @@ Description: ${autoPrompt.description}`;
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-secondary rounded-xl rounded-bl-md px-4 py-3 border border-border/50">
+              <div className="bg-secondary rounded-xl rounded-bl-md px-4 py-2.5 border border-border/50">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
                   <span className="text-sm text-muted-foreground">Analyzing...</span>
@@ -421,12 +416,12 @@ Description: ${autoPrompt.description}`;
             <div className="space-y-3 max-h-[240px] overflow-y-auto">
               {generatedPlan.useCases.slice(0, 3).map((uc) => (
                 <div key={uc.useCaseId} className="bg-secondary/40 rounded-lg p-3 space-y-1.5">
-                  <p className="text-xs font-bold text-foreground/70 uppercase tracking-wide">📋 {uc.useCaseTitle}</p>
+                  <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">{uc.useCaseTitle}</p>
                   {uc.tasks.map((t) => (
                     <div key={t.taskId} className="pl-2 border-l-2 border-accent/20 space-y-0.5">
-                      <p className="text-xs font-semibold text-foreground">{t.taskTitle} <span className="text-muted-foreground font-normal">— {t.miniTasks.length} mini</span></p>
+                      <p className="text-xs font-semibold text-foreground">{t.taskTitle} <span className="text-muted-foreground font-normal">- {t.miniTasks.length} mini</span></p>
                       {t.miniTasks.slice(0, 3).map((m) => (
-                        <p key={m.id} className="text-[11px] text-muted-foreground pl-2">• {m.title}</p>
+                        <p key={m.id} className="text-[11px] text-muted-foreground pl-2">- {m.title}</p>
                       ))}
                       {t.miniTasks.length > 3 && (
                         <p className="text-[11px] text-muted-foreground/60 pl-2">+{t.miniTasks.length - 3} more</p>
@@ -445,19 +440,19 @@ Description: ${autoPrompt.description}`;
                 type="button"
                 onClick={handleApply}
                 disabled={applied}
-                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] inline-flex items-center gap-1.5 transition-colors ${applied
+                className={`h-10 min-h-10 px-4 text-sm font-semibold rounded-lg inline-flex items-center gap-1.5 transition-colors ${applied
                     ? "bg-success/10 text-success cursor-default"
                     : "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm"
                   }`}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                {applied ? "Applied ✓" : "Apply MiniTasks"}
+                {applied ? "Applied" : "Apply MiniTasks"}
               </button>
               <button
                 type="button"
                 onClick={handleRegenerate}
                 disabled={loading}
-                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] border border-border bg-card text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5"
+                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-lg border border-border bg-card text-foreground hover:bg-secondary transition-colors inline-flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Regenerate
@@ -465,7 +460,7 @@ Description: ${autoPrompt.description}`;
               <button
                 type="button"
                 onClick={() => inputRef.current?.focus()}
-                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-[14px] text-accent hover:text-accent-hover hover:bg-accent-light transition-colors inline-flex items-center gap-1.5"
+                className="h-10 min-h-10 px-4 text-sm font-semibold rounded-lg text-accent hover:text-accent-hover hover:bg-accent-light transition-colors inline-flex items-center gap-1.5"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
                 Continue Chat
@@ -475,8 +470,7 @@ Description: ${autoPrompt.description}`;
         )}
       </div>
 
-      {/* ── Chat input ── */}
-      <div className="shrink-0 border-t border-border px-4 py-3">
+      <div className="shrink-0 border-t border-border px-4 py-2.5">
         <form
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           className="flex items-center gap-2"
@@ -486,14 +480,14 @@ Description: ${autoPrompt.description}`;
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe technical approach — AI will generate MiniTasks..."
+            placeholder="Describe technical approach - AI will generate MiniTasks..."
             disabled={loading}
-            className="flex-1 h-10 px-4 border border-border rounded-[14px] bg-background text-sm placeholder:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring disabled:opacity-50 transition-shadow"
+            className="flex-1 h-10 px-4 border border-border rounded-lg bg-background text-sm placeholder:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring disabled:opacity-50 transition-shadow"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="h-10 min-h-10 px-4 bg-primary text-primary-foreground rounded-[14px] hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1 disabled:opacity-50"
+            className="h-10 min-h-10 px-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover transition-colors inline-flex items-center justify-center gap-1 disabled:opacity-50"
           >
             <Send className="w-4 h-4" />
           </button>

@@ -14,10 +14,11 @@ import {
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
-import { createReport } from "../../../services/reportService.js";
+import { createReport, uploadEvidenceFiles } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 
 import {
   getProjectProgress,
@@ -69,7 +70,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   let status = (localStatus || dbStatus).toLowerCase();
 
   // If status is awaiting_cancellation, check if it's still pending Admin approval
-  // Only match by projectId — no type filtering needed.
+  // Only match by projectId - no type filtering needed.
   if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
     const report = activeReports.find(r => {
       const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
@@ -83,17 +84,17 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+  let badgeClass = "bg-accent-light text-accent border-accent/25";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    badgeClass = "bg-success-light0/10 text-success border-success/20";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+    badgeClass = "bg-destructive-light0/10 text-destructive border-destructive/20";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-red-100 text-red-700 border border-red-200 font-semibold";
+    badgeClass = "bg-destructive-light text-destructive border border-destructive/20 font-semibold";
   } else {
     const hasProjectRecord = !!projId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -103,7 +104,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      badgeClass = "bg-warning-light/10 text-warning border-warning/20";
     }
   }
 
@@ -220,14 +221,19 @@ export function ExpertDashboard() {
           partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
         });
       } else {
-        const evidenceUrl = Array.isArray(formData.evidence) && formData.evidence.length > 0
-          ? (typeof formData.evidence[0].file === "string" ? formData.evidence[0].file : (formData.evidence[0].name || "Uploaded file"))
-          : null;
+        let evidenceUrl = null;
+        if (Array.isArray(formData.evidence) && formData.evidence.length > 0) {
+          evidenceUrl = await uploadEvidenceFiles(formData.evidence);
+        }
+        const combinedExplanation = (formData.reason && formData.description && formData.reason !== formData.description)
+          ? `${formData.reason}\n\n${formData.description}`
+          : (formData.description || formData.reason || "");
         await api.put(`/reports/${explainingReport.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
-          explanation: formData.description || formData.reason || "",
+          reason: formData.reason || "",
+          explanation: combinedExplanation,
           desiredResolution: formData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
-          userId: user?.id
+          userId: user?.id || user?.Id
         });
       }
       setShowExplanationForm(false);
@@ -542,19 +548,19 @@ export function ExpertDashboard() {
       label: "Completed",
       value: completedCount,
       icon: CheckCircle,
-      color: "text-green-600 bg-green-100",
+      color: "text-success bg-success-light",
     },
     {
       label: "Success Rate",
       value: `${successRate}%`,
       icon: CheckCircle,
-      color: "text-emerald-600 bg-emerald-100",
+      color: "text-success bg-success-light",
     },
     {
       label: "My Wallet",
       value: <MoneyDisplay amount={earningsDisplay} />,
       icon: Wallet,
-      color: "text-amber-600 bg-amber-100",
+      color: "text-warning bg-warning-light",
     },
   ];
 
@@ -563,27 +569,21 @@ export function ExpertDashboard() {
   // ---- Render --------------------------------------------------------------
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* ================================================================== */}
-      {/* Header                                                             */}
-      {/* ================================================================== */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Expert Dashboard
-          </h1>
-          <p className="text-gray-500 mt-0.5">
-            Manage your contracts and discover new opportunities
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <PageHeader
+        title="Expert Dashboard"
+        subtitle="Manage your contracts and discover new opportunities"
+        className="mb-6"
+        actions={
+          <div className="flex items-center gap-3">
           <Link
             to="/expert/find-jobs"
-            className="h-11 px-5 bg-brand-primary text-white rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+            className="h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
           >
             <Search className="w-4 h-4" /> Browse All Jobs
           </Link>
         </div>
-      </div>
+        }
+      />
 
       {/* ================================================================== */}
       {/* Stats Row                                                          */}
@@ -595,18 +595,18 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       <div className="expert-dashboard-grid grid grid-cols-1 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)] gap-6 items-stretch">
         {/* ================================================================ */}
-        {/* LEFT PANEL — MY ACTIVE CONTRACTS                                 */}
+        {/* LEFT PANEL - MY ACTIVE CONTRACTS                                 */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center">
-            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-border-light flex items-center">
+            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
               My Active Contracts
             </h2>
           </div>
@@ -615,16 +615,16 @@ export function ExpertDashboard() {
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {activeContracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                <Briefcase className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-muted-foreground mb-2">
                   No active contracts
                 </h3>
-                <p className="text-sm text-gray-400 mb-4">
+                <p className="text-sm text-muted-foreground/70 mb-4">
                   Browse available jobs and submit proposals.
                 </p>
                 <Link
                   to="/expert/find-jobs"
-                  className="h-10 px-4 border border-gray-300 rounded-xl hover:bg-gray-50 font-semibold text-sm transition-colors inline-flex items-center"
+                  className="h-10 px-4 border border-input rounded-xl hover:bg-secondary font-semibold text-sm transition-colors inline-flex items-center"
                 >
                   Find Jobs
                 </Link>
@@ -651,11 +651,10 @@ export function ExpertDashboard() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* 🔝 Top row: title + status badge 🔝 */}
                     <div className="flex items-start justify-between gap-3 mb-2.5">
-                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
+                      <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
                       </h3>
                       <span
@@ -665,22 +664,20 @@ export function ExpertDashboard() {
                       </span>
                     </div>
 
-                    {/* 👤 Client name 👤 */}
-                    <p className="text-base text-gray-500 mb-3">
+                    <p className="text-base text-muted-foreground mb-3">
                       Client:{" "}
-                      <span className="font-medium text-gray-700">
+                      <span className="font-medium text-foreground">
                         {clientName}
                       </span>
                     </p>
 
-                    {/* 🏷️ Category & Skill tags 🏷️ */}
                     <div className="mb-4">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="px-2.5 py-0.5 bg-blue-50 text-brand-primary border border-blue-100 rounded-md text-xs font-medium uppercase tracking-wider">
+                        <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
                           {categoryName}
                         </span>
                         {specializationName && (
-                          <span className="px-2.5 py-0.5 bg-purple-50 text-purple-700 border border-purple-100 rounded-md text-xs font-medium uppercase tracking-wider">
+                          <span className="px-2.5 py-0.5 bg-warning-light text-warning border border-warning/20 rounded-md text-xs font-medium uppercase tracking-wider">
                             {specializationName}
                           </span>
                         )}
@@ -691,17 +688,16 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* ── Progress bar ── */}
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-gray-500">
+                        <span className="text-sm font-medium text-muted-foreground">
                           Milestone Progress
                         </span>
-                        <span className="text-sm font-bold text-gray-900">
+                        <span className="text-sm font-semibold text-foreground">
                           {progress}%
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-brand-primary rounded-full transition-all"
                           style={{ width: `${progress}%` }}
@@ -709,9 +705,8 @@ export function ExpertDashboard() {
                       </div>
                     </div>
 
-                    {/* ── Bottom row: due date, value, action ── */}
                     <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Calendar className="w-3.5 h-3.5" />
                           Due{" "}
@@ -722,8 +717,8 @@ export function ExpertDashboard() {
                               )
                             : "N/A"}
                         </span>
-                        <span className="inline-flex items-center gap-1 font-semibold text-gray-900">
-                          <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                          <DollarSign className="w-3.5 h-3.5 text-muted-foreground/70" />
                           <MoneyDisplay amount={p.budget} />
                         </span>
                       </div>
@@ -738,7 +733,7 @@ export function ExpertDashboard() {
                                   setReportingProject(p);
                                   setShowReportForm(true);
                                 }}
-                                className="mr-3 h-11 px-4 border border-red-200 text-red-700 bg-red-50 hover:bg-red-100 rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                                className="mr-3 h-10 px-4 border border-destructive/20 text-destructive bg-destructive-light hover:bg-destructive-light rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
                                 <AlertTriangle className="w-4 h-4" /> Report Violation
                               </button>
@@ -752,7 +747,7 @@ export function ExpertDashboard() {
                                   setExplainingReport(reportForProject);
                                   setShowExplanationForm(true);
                                 }}
-                                className="mr-3 h-11 px-4 bg-amber-500 hover:bg-amber-600 border border-amber-500/20 text-white rounded-[14px] text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                                className="mr-3 h-10 px-4 bg-warning-light hover:bg-warning border border-warning/20 text-primary-foreground rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                               >
                                 <AlertTriangle className="w-4 h-4" /> Submit Response
                               </button>
@@ -762,14 +757,14 @@ export function ExpertDashboard() {
                         })()}
                         {btnCfg.disabled ? (
                           <span
-                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-10 px-4 rounded-lg text-base font-medium transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </span>
                         ) : (
                           <Link
                             to={btnCfg.linkTo?.(p) || `/expert/projects/${p.id}`}
-                            className={`h-11 px-5 rounded-[14px] text-base font-semibold transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
+                            className={`h-10 px-4 rounded-lg text-base font-medium transition-colors whitespace-nowrap inline-flex items-center ${btnCfg.className}`}
                           >
                             {btnCfg.label}
                           </Link>
@@ -784,32 +779,32 @@ export function ExpertDashboard() {
         </section>
 
         {/* ================================================================ */}
-        {/* RIGHT PANEL — RECOMMENDED PROJECTS                               */}
+        {/* RIGHT PANEL - RECOMMENDED PROJECTS                               */}
         {/* ================================================================ */}
         <section
-          className="expert-dashboard-panel bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col min-w-0"
+          className="expert-dashboard-panel bg-card rounded-2xl border border-border shadow-sm flex flex-col min-w-0"
           style={{
             height: "calc(100vh - 180px)",
             minHeight: "620px",
           }}
         >
           {/* Panel header */}
-          <div className="flex-shrink-0 px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-gray-900 uppercase tracking-wider">
+          <div className="flex-shrink-0 px-6 py-4 border-b border-border-light flex items-center gap-2">
+            <h2 className="text-[15px] font-semibold text-foreground uppercase tracking-wider">
               Recommended Projects
             </h2>
-            <TrendingUp className="w-4 h-4 text-emerald-500" />
+            <TrendingUp className="w-4 h-4 text-success" />
           </div>
 
           {/* Scrollable card list */}
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             {recommendedProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-500 mb-2">
+                <Search className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-muted-foreground mb-2">
                   No recommendations yet
                 </h3>
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-muted-foreground/70">
                   Complete your profile to get personalized recommendations.
                 </p>
               </div>
@@ -823,37 +818,33 @@ export function ExpertDashboard() {
                 return (
                   <div
                     key={p.id}
-                    className="bg-white border border-gray-200 rounded-xl p-5 hover:border-gray-300 transition-colors"
+                    className="bg-card border border-border rounded-xl p-5 hover:border-input transition-colors"
                   >
-                    {/* 🔝 Top: title + match badge 🔝 */}
                     <div className="flex items-start justify-between gap-3 mb-2">
-                      <h3 className="font-semibold text-gray-900 text-lg leading-snug">
+                      <h3 className="font-semibold text-foreground text-lg leading-snug">
                         {p.title}
                       </h3>
-                      <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
+                      <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-semibold">
                         {matchPct}% match
                       </span>
                     </div>
 
-                    {/* ⏳ Posted by + time ⏳ */}
-                    <p className="text-[13px] text-gray-500 mb-2.5">
+                    <p className="text-[13px] text-muted-foreground mb-2.5">
                       Posted by{" "}
-                      <span className="font-medium text-gray-600">
+                      <span className="font-medium text-muted-foreground">
                         {clientName}
                       </span>
-                      {" • "}
+                      {" - "}
                       {timeAgo(p.createdAt)}
                     </p>
 
-                    {/* 📝 Description 📝 */}
-                    <p className="text-base text-gray-500 mb-3 line-clamp-2 leading-relaxed">
+                    <p className="text-base text-muted-foreground mb-3 line-clamp-2 leading-relaxed">
                       {p.description}
                     </p>
 
-                    {/* 🏷️ Category & Skill tags 🏷️ */}
                     <div className="mb-3">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className="px-2.5 py-0.5 bg-blue-50 text-brand-primary border border-blue-100 rounded-md text-xs font-medium uppercase tracking-wider">
+                        <span className="px-2.5 py-0.5 bg-accent-light text-brand-primary border border-accent/20 rounded-md text-xs font-medium uppercase tracking-wider">
                           {categoryName}
                         </span>
                       </div>
@@ -863,28 +854,26 @@ export function ExpertDashboard() {
                       />
                     </div>
 
-                    {/* ── Budget + Duration ── */}
                     <div className="flex items-center gap-3 mb-4">
-                      <span className="font-semibold text-gray-900 text-base">
+                      <span className="font-semibold text-foreground text-base">
                         <MoneyDisplay amount={p.budget} />
                       </span>
-                      <span className="text-gray-300">·</span>
-                      <span className="text-gray-500 text-[13px]">
+                      <span className="text-muted-foreground/40">-</span>
+                      <span className="text-muted-foreground text-[13px]">
                         {p.deadline || p.durationValue || 0} {p.durationUnit || "days"}
                       </span>
                     </div>
 
-                    {/* ── Action buttons ── */}
                     <div className="grid grid-cols-2 gap-3">
                       <Link
                         to={`/expert/jobs/${p.id}/proposal`}
-                        className="px-4 py-2 bg-brand-primary text-white rounded-xl hover:bg-brand-primary-hover text-xs font-semibold inline-flex items-center gap-1.5 transition-colors w-full justify-center"
+                        className="px-4 py-2 bg-brand-primary text-primary-foreground rounded-xl hover:bg-brand-primary-hover text-xs font-semibold inline-flex items-center gap-1.5 transition-colors w-full justify-center"
                       >
                         Apply Now
                       </Link>
                       <Link
                         to={`/expert/jobs/${p.id}`}
-                        className="h-11 px-5 border border-gray-300 text-gray-700 rounded-[14px] hover:bg-gray-50 text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
+                        className="h-10 px-4 border border-input text-foreground rounded-lg hover:bg-secondary text-base font-semibold text-center transition-colors inline-flex items-center justify-center"
                       >
                         View Job
                       </Link>
@@ -901,7 +890,7 @@ export function ExpertDashboard() {
       <Dialog open={showReportForm} onOpenChange={setShowReportForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-gray-900">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Report Client Violation
             </DialogTitle>
           </DialogHeader>
@@ -923,7 +912,7 @@ export function ExpertDashboard() {
       <Dialog open={showExplanationForm} onOpenChange={setShowExplanationForm}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-foreground">
+            <DialogTitle className="text-xl font-semibold text-foreground">
               Submit Response to Report
             </DialogTitle>
           </DialogHeader>

@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Search, Star, MapPin, ArrowRight } from "lucide-react";
 import api from "../../../services/api.js";
 
 /**
- * ExpertsPage — public expert discovery/browsing page.
+ * ExpertsPage - public expert discovery/browsing page.
  * Note: ExpertList (pages/client/) is the client-facing expert list.
  * ExpertsPage is a public-facing variant without client-specific actions.
  */
@@ -63,7 +63,7 @@ export function ExpertsPage() {
             return {
               id: u.id,
               name: u.fullName,
-              avatar: "from-blue-400 to-purple-500",
+              avatar: "from-primary/20 to-accent/20",
               specialization: resolvedSpecName || "AI Specialist",
               location: profile.location || "N/A",
               rating: 4.8,
@@ -93,7 +93,7 @@ export function ExpertsPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">AI Experts</h1>
+        <h1 className="text-2xl font-semibold text-foreground">AI Experts</h1>
         <p className="text-muted-foreground mt-1">Discover top AI professionals for your projects</p>
       </div>
 
@@ -105,7 +105,7 @@ export function ExpertsPage() {
           placeholder="Search by name or specialization..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 border border-border rounded-xl focus:outline-none focus:border-ring text-sm"
+          className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl focus:outline-none focus:border-ring text-sm"
         />
       </div>
 
@@ -142,8 +142,8 @@ export function ExpertsPage() {
               className="bg-card rounded-xl border border-border p-6 hover:shadow-sm hover:border-accent transition-all group"
             >
               <div className="flex items-start gap-4">
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${expert?.avatar || 'from-blue-400 to-purple-500'} flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-white font-bold text-lg">{expert?.name?.[0] || "?"}</span>
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${expert?.avatar || 'from-primary/20 to-accent/20'} flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-primary-foreground font-semibold text-lg">{expert?.name?.[0] || "?"}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground truncate">{expert?.name}</h3>
@@ -152,7 +152,7 @@ export function ExpertsPage() {
                     {expert?.location && (
                       <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{expert.location}</span>
                     )}
-                    <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-400" />{expert?.rating}</span>
+                    <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5 text-warning" />{expert?.rating}</span>
                     <span className="text-muted-foreground">({expert?.reviews})</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-3">

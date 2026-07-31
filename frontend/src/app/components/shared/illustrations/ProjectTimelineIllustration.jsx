@@ -1,7 +1,7 @@
-// =============================================================================
-// ProjectTimelineIllustration — milestone path with progress indicators.
+﻿// =============================================================================
+// ProjectTimelineIllustration - milestone path with progress indicators.
 // Shows 4-5 milestones on a curving path: completed (check), current (pulse), upcoming (empty).
-// Props: size — "sm" (240x80) | "md" (400x120) | completed — 0-5 (default: 2)
+// Props: size - "sm" (240x80) | "md" (400x120) | completed - 0-5 (default: 2)
 // =============================================================================
 
 const SIZES = {
@@ -53,7 +53,7 @@ export function ProjectTimelineIllustration({ size = "md", completed = 2, classN
         strokeLinecap="round"
         fill="none"
       />
-      {/* Gradient overlay on completed portion — simplified as separate stroke */}
+      {/* Gradient overlay on completed portion - simplified as separate stroke */}
       <path
         d={pathD}
         stroke="color-mix(in srgb, var(--accent) 60%, transparent)"

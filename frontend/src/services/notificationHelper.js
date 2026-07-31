@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // AI-Tasker Notification Service (Helper)
 // =============================================================================
 // Manage sending notifications to correct targets (Targeted Notifications)
@@ -206,7 +206,7 @@ export async function notifyTaskRevisionRequested({ expertUserId, clientName, ta
  * Expert receives notification with mini task details.
  */
 export async function notifyMiniTaskRevisionRequested({ expertUserId, clientName, taskTitle, miniTaskTitles, feedback, projectId, taskId }) {
-  const taskList = (miniTaskTitles || []).map((t) => `• ${t}`).join("\n");
+  const taskList = (miniTaskTitles || []).map((t) => `- ${t}`).join("\n");
   return sendNotification({
     userId: expertUserId,
     title: `Mini task revision requested: ${taskTitle}`,

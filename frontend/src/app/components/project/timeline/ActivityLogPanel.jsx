@@ -1,9 +1,9 @@
-// =============================================================================
-// ActivityLogPanel — renders the project activity log feed.
+﻿// =============================================================================
+// ActivityLogPanel - renders the project activity log feed.
 //
 // Props:
-//   projectLogs — Array<{ time, id, actor, message }>
-//   getActorIcon — (actor: string) => ReactNode
+//   projectLogs - Array<{ time, id, actor, message }>
+//   getActorIcon - (actor: string) => ReactNode
 // =============================================================================
 
 import { getActorIcon as defaultGetActorIcon } from "./timelineHelpers.jsx";

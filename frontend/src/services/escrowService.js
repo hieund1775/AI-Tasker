@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Escrow Service
 // =============================================================================
 // Handles all money-related operations:
@@ -18,9 +18,9 @@ import api from "./api.js";
 // ---------------------------------------------------------------------------
 // If /api/interactions/transaction handles ALL escrow actions, keep these:
 //
-//   payProjectToEscrow          → POST /api/interactions/transaction
-//   releaseProjectMoneyToExpert → POST /api/interactions/transaction
-//   refundProjectMoneyToClient  → POST /api/interactions/transaction
+//   payProjectToEscrow          -> POST /api/interactions/transaction
+//   releaseProjectMoneyToExpert -> POST /api/interactions/transaction
+//   refundProjectMoneyToClient  -> POST /api/interactions/transaction
 //
 // If the backend needs SEPARATE endpoints, change each to "" (empty string)
 // and update the corresponding function below.
@@ -39,7 +39,7 @@ const ESCROW_ENDPOINTS = {
 
 /**
  * Client pays the FULL project amount into the platform escrow system.
- * This is NOT a deposit — it is the full project amount.
+ * This is NOT a deposit - it is the full project amount.
  *
  * Expected payload:
  *   {
@@ -61,7 +61,7 @@ export async function payProjectToEscrow(payload) {
   const endpoint = ESCROW_ENDPOINTS.payProjectToEscrow;
   if (!endpoint) {
     // TODO: add API endpoint here
-    console.warn("[EscrowService] payProjectToEscrow — endpoint not configured");
+    console.warn("[EscrowService] payProjectToEscrow - endpoint not configured");
     return { success: true, projectId: payload.projectId };
   }
   return api.post(endpoint, {
@@ -112,14 +112,14 @@ export async function refundProjectMoneyToClient(payload) {
   const endpoint = ESCROW_ENDPOINTS.refundProjectMoneyToClient;
   if (!endpoint) {
     // TODO: add API endpoint here
-    console.warn("[EscrowService] refundProjectMoneyToClient — endpoint not configured");
+    console.warn("[EscrowService] refundProjectMoneyToClient - endpoint not configured");
     return { success: true, projectId: payload.projectId };
   }
   return api.post(endpoint, {
     ...payload,
     type: "dispute_refund",
     transactionType: "dispute_refund",
-    description: `Dispute resolution — refund escrow to Client for project ${payload.projectId}. Reason: ${payload.reason}`,
+    description: `Dispute resolution - refund escrow to Client for project ${payload.projectId}. Reason: ${payload.reason}`,
   });
 }
 
@@ -135,13 +135,13 @@ export async function refundProjectMoneyToClient(payload) {
  *   Client: remaining refund
  *
  * @param {string} projectId
- * @param {object} payload — { reason, confirmationAccepted }
+ * @param {object} payload - { reason, confirmationAccepted }
  * @returns {Promise<object>} { project, breakdown }
  */
 export async function cancelProjectContract(projectId, payload) {
   const endpoint = ESCROW_ENDPOINTS.cancelContract;
   if (!endpoint) {
-    console.warn("[EscrowService] cancelProjectContract — endpoint not configured");
+    console.warn("[EscrowService] cancelProjectContract - endpoint not configured");
     return { success: true, projectId };
   }
   return api.post(endpoint, {
