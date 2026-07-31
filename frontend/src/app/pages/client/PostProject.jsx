@@ -829,10 +829,10 @@ export function PostProject() {
 
       {/* AI Planner Sidebar */}
       {rightPanelMode === "ai_planner" && (
-        <aside className="lg:col-span-3">
+        <aside className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start">
           <div
             id="ai-assistant-sidebar"
-            className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col min-h-0"
+            className="h-[min(48rem,calc(100vh-7rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col"
           >
             <AIClientsUseCasePlanner
               onClose={() => setRightPanelMode(null)}
@@ -852,8 +852,8 @@ export function PostProject() {
       {showRecommendations && (
         <div
           id="ai-recommendations-section"
-          className="lg:col-span-3 bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col min-h-0 overflow-hidden"
-          style={{ height: formHeight ? `${formHeight}px` : "100%" }}
+          className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col min-h-[34rem] overflow-hidden"
+          style={{ height: formHeight ? `min(${formHeight}px, calc(100vh - 7rem))` : "min(48rem, calc(100vh - 7rem))" }}
         >
           <div className="flex items-center justify-between mb-5 border-b border-border/60 pb-3">
             <div>

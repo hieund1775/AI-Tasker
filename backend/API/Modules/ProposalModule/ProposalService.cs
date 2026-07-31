@@ -117,12 +117,11 @@ namespace AITasker_Modular.Modules.ProposalModule
             var hasActiveProposal = await _context.Proposals
                 .AnyAsync(x => x.JobPostId == dto.JobPostId 
                             && x.ExpertId == dto.ExpertId 
-                            && x.Status.ToLower() != "rejected"
-                            && x.Status.ToLower() != "declined");
+                            && (x.Status.ToLower() == "pending" || x.Status.ToLower() == "accepted"));
 
             if (hasActiveProposal)
             {
-                throw new InvalidOperationException("Each expert can only have one active proposal per job post. You must wait for the previous proposal to be rejected or declined before submitting a new one.");
+                throw new InvalidOperationException("You already have an active or accepted proposal for this job post. You can submit a new proposal after your previous proposal is rejected or declined.");
             }
 
             var proposal = new Proposal

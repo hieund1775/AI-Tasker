@@ -148,7 +148,7 @@ public class UserService : IUserService
         return wallet.Balance;
     }
 
-    public async Task<decimal> WithdrawAsync(string userId, decimal amount)
+    public async Task<decimal> WithdrawAsync(string userId, decimal amount, string? bankCode = null, string? bankAccountNumber = null, string? bankAccountName = null)
     {
         if (amount <= 0)
             throw new ArgumentException("Withdrawal amount must be positive.", nameof(amount));
@@ -164,6 +164,11 @@ public class UserService : IUserService
 
         wallet.Balance -= amount;
 
+        var resolvedBankCode = !string.IsNullOrWhiteSpace(bankCode) ? bankCode : "VISA (ZaloPay)";
+        var description = $"Rút tiền về thẻ/tài khoản ({resolvedBankCode})" +
+                          (!string.IsNullOrWhiteSpace(bankAccountNumber) ? $" - Số thẻ/STK: {bankAccountNumber}" : "") +
+                          (!string.IsNullOrWhiteSpace(bankAccountName) ? $" - Chủ thẻ: {bankAccountName}" : "");
+
         var log = new TransactionLog
         {
             Id = Guid.NewGuid(),
@@ -172,7 +177,10 @@ public class UserService : IUserService
             Type = "Withdraw",
             CreatedAt = DateTime.UtcNow,
             Status = "Success",
-            Description = "Rút tiền khỏi tài khoản: " + amount.ToString("N0") + " VND"
+            BankCode = resolvedBankCode,
+            BankAccountNumber = bankAccountNumber,
+            BankAccountName = bankAccountName,
+            Description = description
         };
         _context.TransactionLogs.Add(log);
 

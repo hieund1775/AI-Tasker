@@ -15,7 +15,7 @@ import {
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
-import { getLocalClientProfile } from "../../lib/clientProfileStorage.js";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 /**
  * Resolve the client user from auth. Returns the auth user directly.
@@ -49,8 +49,6 @@ export function ClientProfile() {
         ]);
 
         if (!cancelled && apiUser) {
-          const localProfile = getLocalClientProfile(targetId);
-
           const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === targetId) : [];
           
           let proposalsCount = 0;
@@ -63,19 +61,7 @@ export function ClientProfile() {
             console.error("Failed to load proposals for client stats:", err);
           }
 
-          const c = {
-            fullName: apiUser.fullName || apiUser.name || apiUser.email?.split("@")[0] || "User",
-            email: localProfile.email || apiUser.email,
-            createdAt: apiUser.createdAt,
-            profile: {
-              company: localProfile.companyName || "",
-              phone: localProfile.phone || apiUser.phoneNumber || apiUser.PhoneNumber || "",
-              location: localProfile.location || "",
-              website: localProfile.website || "",
-              industry: localProfile.industry || "",
-              bio: localProfile.bio || "",
-            }
-          };
+          const c = buildClientProfileFromUser(apiUser);
           setClient(c);
 
           const posted = clientJobs.length;
