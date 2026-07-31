@@ -146,7 +146,7 @@ function HeroProductMap() {
   );
 }
 
-export function HeroSection() {
+export function HeroSection({ isAuthenticated = false, dashboardPath = "/login" }) {
   return (
     <section className="relative overflow-hidden border-b border-border bg-background px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_12%,color-mix(in_srgb,var(--accent)_15%,transparent),transparent_28rem),radial-gradient(circle_at_82%_18%,color-mix(in_srgb,var(--success)_9%,transparent),transparent_24rem)]" />
@@ -184,20 +184,32 @@ export function HeroSection() {
             </motion.div>
 
             <motion.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                to="/signup"
-                className="group inline-flex h-11 min-w-32 items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors duration-200 hover:bg-primary-hover"
-              >
-                Get Started
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex h-11 min-w-32 items-center justify-center gap-2 rounded-lg border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition-colors duration-200 hover:bg-secondary"
-              >
-                Sign In
-                <Users className="h-4 w-4" />
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  to={dashboardPath}
+                  className="group inline-flex h-11 min-w-32 items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors duration-200 hover:bg-primary-hover"
+                >
+                  Dashboard
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    to="/signup"
+                    className="group inline-flex h-11 min-w-32 items-center justify-center gap-2 overflow-hidden rounded-lg bg-primary px-6 text-sm font-medium text-primary-foreground transition-colors duration-200 hover:bg-primary-hover"
+                  >
+                    Get Started
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="inline-flex h-11 min-w-32 items-center justify-center gap-2 rounded-lg border border-border bg-card px-6 text-sm font-medium text-foreground shadow-sm transition-colors duration-200 hover:bg-secondary"
+                  >
+                    Sign In
+                    <Users className="h-4 w-4" />
+                  </Link>
+                </>
+              )}
             </motion.div>
 
             <motion.div variants={fadeUp} className="flex flex-wrap items-center gap-3 pt-2 text-sm text-muted-foreground">

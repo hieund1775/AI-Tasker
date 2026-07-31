@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
+import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { timeAgo } from "../../lib/dateUtils.js";
@@ -22,38 +22,22 @@ export function Header() {
   const location = useLocation();
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
-  const themeDropdownRef = useRef(null);
   const accountMenuRef = useRef(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   const { role, isAuthenticated, logout, user } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const userThemeKey = user?.id || user?.Id || user?.email || user?.Email || null;
   const isProfileLockedExpert =
     isAuthenticated && role === "expert" && user?.hasProfile === false;
 
-  const handleThemeChange = (mode) => {
-    if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, mode);
-    setTheme(mode);
-    setShowThemeMenu(false);
-  };
-
-  const getThemeIcon = () => {
-    if (theme === "system") return <Monitor className="w-4.5 h-4.5 stroke-[1.8]" />;
-    return resolvedTheme === "dark" ? (
-      <Moon className="w-4.5 h-4.5 stroke-[1.8]" />
-    ) : (
-      <Sun className="w-4.5 h-4.5 stroke-[1.8]" />
-    );
-  };
-
-  const getThemeLabel = () => {
-    if (theme === "system") return "System";
-    return resolvedTheme === "dark" ? "Dark" : "Light";
+  const handleThemeToggle = () => {
+    const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+    if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, nextTheme);
+    setTheme(nextTheme);
   };
 
   // Load notifications from API
@@ -137,9 +121,6 @@ export function Header() {
       }
       if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
         setShowMobileMenu(false);
-      }
-      if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target)) {
-        setShowThemeMenu(false);
       }
       if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setShowAccountMenu(false);
@@ -264,52 +245,17 @@ export function Header() {
                   </div>
                 )}
 
-                {/* Theme Toggle Dropdown */}
-                <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
+                {/* Theme Toggle */}
+                <div className="relative flex items-center justify-center">
                   <button
                     type="button"
-                    onClick={() => setShowThemeMenu(!showThemeMenu)}
-                    className={`p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center ${
-                      showThemeMenu ? "bg-secondary text-foreground" : ""
-                    }`}
-                    title={`Theme: ${getThemeLabel()}`}
+                    onClick={handleThemeToggle}
+                    className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+                    title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                    aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                   >
-                    {getThemeIcon()}
+                    {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                   </button>
-
-                  {showThemeMenu && (
-                    <div className="absolute right-0 top-11 w-40 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
-                      <div className="px-3 py-2 border-b border-border">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.05em]">
-                          Theme
-                        </span>
-                      </div>
-                      <div className="p-1">
-                        {[
-                          { mode: "light", icon: Sun, label: "Light" },
-                          { mode: "dark", icon: Moon, label: "Dark" },
-                          { mode: "system", icon: Monitor, label: "System" },
-                        ].map(({ mode, icon: Icon, label }) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() => handleThemeChange(mode)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
-                              theme === mode
-                                ? "bg-accent-light text-accent font-medium"
-                                : "text-foreground hover:bg-secondary"
-                            }`}
-                          >
-                            <Icon className="w-4 h-4" />
-                            <span>{label}</span>
-                            {theme === mode && (
-                              <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Notification Bell */}
