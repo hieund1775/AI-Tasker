@@ -17,11 +17,11 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl, cleanFileName } from "../../../services/api.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 
 /**
- * ProposalReview — Client views all proposals for a specific project.
+ * ProposalReview - Client views all proposals for a specific project.
  *
  * Route: /client/projects/:projectId/proposals
  */
@@ -78,12 +78,11 @@ export function ProposalReview() {
               const fileUrl = enrichFileUrl(rawPath);
               const exists = attachments.some(a => a.url === fileUrl || a.url === rawPath);
               if (!exists) {
-                const rawName = rawPath.split("/").pop() || fallbackTitle;
-                const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawName);
+                const cleanName = cleanFileName(rawPath) || fallbackTitle;
+                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawPath);
                 attachments.push({
                   id: `${idPrefix}-${Date.now()}`,
-                  name: cleanName || rawName,
+                  name: cleanName,
                   type: isImg ? "image/png" : "document",
                   fileType: isImg ? "image/png" : "document",
                   url: fileUrl
@@ -192,7 +191,6 @@ export function ProposalReview() {
     setTimeout(() => setFeedback(null), 5000);
   };
 
-  // ── Task-level accept/reject ──
   const handleAcceptProposedTask = async (proposalId, taskId, task) => {
     await updateTaskApproval(proposalId, taskId, "accepted");
   };
@@ -291,7 +289,6 @@ export function ProposalReview() {
         }
       />
 
-      {/* ── Feedback banner ── */}
       {feedback && (
         <div
           className={`mb-6 p-4 rounded-xl text-sm font-medium ${
@@ -371,7 +368,7 @@ export function ProposalReview() {
       {/* Proposals section */}
       <div className="mt-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-foreground">Proposals Received</h2>
+          <h2 className="text-lg font-semibold text-foreground">Proposals Received</h2>
         </div>
 
         {visibleProposals.length === 0 ? (

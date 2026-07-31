@@ -1,12 +1,12 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 
 // =============================================================================
-// SkillTags — shared expandable skill/tag list with "+N" overflow badge.
+// SkillTags - shared expandable skill/tag list with "+N" overflow badge.
 //
 // Props:
-//   skills     — string[] (required)
-//   maxVisible — number of tags to show before the "+N" badge (default 4)
+//   skills     - string[] (required)
+//   maxVisible - number of tags to show before the "+N" badge (default 4)
 // =============================================================================
 
 export function SkillTags({ skills, maxVisible = 4 }) {

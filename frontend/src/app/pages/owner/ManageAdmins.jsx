@@ -1,5 +1,5 @@
-// =============================================================================
-// ManageAdmins — Owner-only page to view and manage Admin accounts.
+﻿// =============================================================================
+// ManageAdmins - Owner-only page to view and manage Admin accounts.
 //
 // Owner can:
 //   - View list of all Admin accounts
@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, Shield, ShieldOff, Search, CheckCircle } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
@@ -21,9 +22,9 @@ import { getAdminUsers, banAdminAccount } from "../../../services/ownerService.j
 // ---------------------------------------------------------------------------
 
 const ADMIN_STATUS_CONFIG = {
-  active: { color: "bg-green-100 text-green-700", label: "Active" },
-  banned: { color: "bg-red-100 text-red-700", label: "Locked" },
-  locked: { color: "bg-red-100 text-red-700", label: "Locked" },
+  active: { color: "bg-success-light text-success", label: "Active" },
+  banned: { color: "bg-destructive-light text-destructive", label: "Locked" },
+  locked: { color: "bg-destructive-light text-destructive", label: "Locked" },
 };
 
 // ---------------------------------------------------------------------------
@@ -109,8 +110,8 @@ export function ManageAdmins() {
       label: "Admin",
       render: (val, row) => (
         <div>
-          <p className="font-medium text-foreground text-sm">{val || row.name || "—"}</p>
-          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
+          <p className="font-medium text-foreground text-sm">{val || row.name || "-"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "-"}</p>
         </div>
       ),
     },
@@ -118,7 +119,7 @@ export function ManageAdmins() {
       key: "role",
       label: "Role",
       render: () => (
-        <span className="px-2.5 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+        <span className="px-2.5 py-0.5 bg-destructive-light text-destructive rounded-full text-xs font-medium">
           Admin
         </span>
       ),
@@ -138,7 +139,7 @@ export function ManageAdmins() {
       label: "Created",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -152,40 +153,40 @@ export function ManageAdmins() {
       <button
         type="button"
         onClick={() => navigate("/owner/dashboard")}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Dashboard
       </button>
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
-        Manage Admin Accounts
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage Admin accounts on the platform.
-      </p>
+      <PageHeader
+        title="Manage Admin Accounts"
+        subtitle="View and manage Admin accounts on the platform."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-center gap-2">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success flex items-center gap-2">
           <CheckCircle className="w-4 h-4" /> {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Search by name or email..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-md pl-9 pr-4 py-2.5 border border-input rounded-lg focus:outline-none focus:border-brand-primary text-sm"
-        />
+      <div className="page-filter-toolbar">
+        <div className="page-filter-search sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-10 w-full rounded-xl border border-input bg-input-background pl-9 pr-4 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
+          />
+        </div>
       </div>
 
       <DataTable
@@ -208,8 +209,8 @@ export function ManageAdmins() {
               disabled={actionLoading}
               className={`px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 transition ${
                 isBanned
-                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  ? "bg-success-light text-success hover:bg-success-light border border-success/20"
+                  : "bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20"
               }`}
             >
               {isBanned ? (

@@ -1,5 +1,5 @@
-// =============================================================================
-// safety.js — Runtime safety utilities for crash prevention.
+﻿// =============================================================================
+// safety.js - Runtime safety utilities for crash prevention.
 //
 // Use these helpers everywhere instead of raw array/object/date/number
 // operations to guarantee the app never crashes on undefined, null, or

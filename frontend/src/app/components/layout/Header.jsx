@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
-import { Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
+import { ChevronDown, Menu, User, LogOut, Bell, Wallet, X, Sun, Moon, Monitor } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { timeAgo } from "../../lib/dateUtils.js";
+import { saveAccountTheme } from "../../lib/themePreference.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
@@ -11,7 +12,7 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 /**
- * Header — top navigation bar (modern SaaS style).
+ * Header - top navigation bar (modern SaaS style).
  *
  * Reads user & role from AuthContext (JWT), NOT from a prop or the URL.
  * Shows role-specific nav links, notification bell, profile link, and logout.
@@ -22,13 +23,22 @@ export function Header() {
   const dropdownRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const themeDropdownRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showThemeMenu, setShowThemeMenu] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
   const { role, isAuthenticated, logout, user } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const userThemeKey = user?.id || user?.Id || user?.email || user?.Email || null;
+
+  const handleThemeChange = (mode) => {
+    if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, mode);
+    setTheme(mode);
+    setShowThemeMenu(false);
+  };
 
   const getThemeIcon = () => {
     if (theme === "system") return <Monitor className="w-4.5 h-4.5 stroke-[1.8]" />;
@@ -46,33 +56,50 @@ export function Header() {
 
   // Load notifications from API
   useEffect(() => {
-    if (isAuthenticated) {
-      const loadNotifications = () => {
-        api.notifications.getList({ userId: user?.id })
-          .then((data) => {
-            if (Array.isArray(data)) {
-              const mapped = data
-                .filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014")
-                .map((n) => ({
-                  id: n.id,
-                  title: n.title,
-                  description: n.message || n.description || n.content || "",
-                  time: timeAgo(n.createdAt),
-                  isUnread: !n.isRead,
-                  linkTo: n.linkTo || n.linkUrl || n.link || "",
-                  type: n.type,
-                }));
+    if (isAuthenticated && user?.id) {
+      let stopped = false;
+      let retryAfter = 0;
+      let loggedFailure = false;
 
-              const pathParts = location.pathname.split("/");
-              if (pathParts[1] === "messenger" && pathParts[2]) {
-                const activeConvId = pathParts[2];
-                setNotifications(mapped.filter((n) => n.linkTo !== `/messenger/${activeConvId}`));
-              } else {
-                setNotifications(mapped);
-              }
-            }
-          })
-          .catch((err) => console.error("Error loading notifications:", err));
+      const loadNotifications = async () => {
+        if (stopped || Date.now() < retryAfter) return;
+
+        try {
+          const data = await api.notifications.getList({ userId: user.id });
+          if (!Array.isArray(data) || stopped) return;
+
+          loggedFailure = false;
+          retryAfter = 0;
+
+          const mapped = data
+            .filter((n) => n.id !== "8f3b2351-efc8-47bc-9b21-499387a2a014")
+            .map((n) => ({
+              id: n.id,
+              title: n.title,
+              description: n.message || n.description || n.content || "",
+              time: timeAgo(n.createdAt),
+              isUnread: !n.isRead,
+              linkTo: n.linkTo || n.linkUrl || n.link || "",
+              type: n.type,
+            }));
+
+          const pathParts = location.pathname.split("/");
+          if (pathParts[1] === "messenger" && pathParts[2]) {
+            const activeConvId = pathParts[2];
+            setNotifications(mapped.filter((n) => n.linkTo !== `/messenger/${activeConvId}`));
+          } else {
+            setNotifications(mapped);
+          }
+        } catch (err) {
+          if (stopped) return;
+          setNotifications([]);
+          retryAfter = Date.now() + 60000;
+
+          if (!loggedFailure) {
+            loggedFailure = true;
+            console.warn("Notifications are temporarily unavailable. Retrying in 60 seconds.", err);
+          }
+        }
       };
 
       loadNotifications();
@@ -84,6 +111,7 @@ export function Header() {
       window.addEventListener("aitasker_db_update", handleUpdate);
 
       return () => {
+        stopped = true;
         clearInterval(interval);
         window.removeEventListener("aitasker_db_update", handleUpdate);
       };
@@ -106,6 +134,9 @@ export function Header() {
       if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target)) {
         setShowThemeMenu(false);
       }
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
+        setShowAccountMenu(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -116,25 +147,69 @@ export function Header() {
     navigate("/");
   };
 
+  const roleMeta = {
+    client: {
+      label: "Client",
+      context: "Client workspace",
+      tone: "bg-accent-light text-accent border-accent/20",
+      dot: "bg-accent",
+    },
+    expert: {
+      label: "Expert",
+      context: "Expert workspace",
+      tone: "bg-success-light text-success border-success/20",
+      dot: "bg-success",
+    },
+    admin: {
+      label: "Admin",
+      context: "Admin console",
+      tone: "bg-warning-light text-warning border-warning/20",
+      dot: "bg-warning",
+    },
+    staff: {
+      label: "Staff",
+      context: "Staff console",
+      tone: "bg-warning-light text-warning border-warning/20",
+      dot: "bg-warning",
+    },
+    owner: {
+      label: "Owner",
+      context: "Owner console",
+      tone: "bg-primary-light text-primary border-primary/20",
+      dot: "bg-primary",
+    },
+  };
+
+  const currentRoleMeta = roleMeta[role] || null;
+  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : null;
+
   // Common nav link style
-  const navLinkClass = "text-sm font-medium text-muted-foreground hover:text-foreground transition-colors relative after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-0 after:bg-foreground after:transition-all hover:after:w-full";
-  const activeNavClass = "text-sm font-medium text-foreground";
+  const navLinkClass = "inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
+  const activeNavClass = "inline-flex h-10 items-center rounded-xl bg-secondary px-3.5 text-sm font-semibold text-foreground shadow-inner shadow-foreground/[0.025]";
 
   return (
-    <header className="bg-background/80 backdrop-blur-md border-b border-border sticky top-0 z-50 select-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+    <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
+      <div className="mx-auto max-w-[1180px] px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">AI</span>
+              <span className="text-primary-foreground font-semibold text-sm">AI</span>
             </div>
-            <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+            <span className="flex flex-col justify-center leading-none">
+              <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+              {isAuthenticated && currentRoleMeta && (
+                <span className="mt-1 hidden items-center gap-1.5 text-[10px] font-medium text-muted-foreground sm:inline-flex">
+                  <span className={`h-1.5 w-1.5 rounded-full ${currentRoleMeta.dot}`} />
+                  {currentRoleMeta.context}
+                </span>
+              )}
+            </span>
           </Link>
 
-          {/* Navigation Link Items — desktop only */}
+          {/* Navigation Link Items - desktop only */}
           {isAuthenticated && role && (
-            <nav className="hidden md:flex items-center gap-6">
+            <nav className="hidden items-center gap-3 md:flex">
               {role !== "admin" && role !== "owner" && role !== "staff" && (
                 <Link
                   to={`/${role}/dashboard`}
@@ -171,37 +246,15 @@ export function Header() {
           )}
 
           {/* Right Side Control Toolbar */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {isAuthenticated ? (
               <>
-                {/* Wallet (Client only) */}
-                {role === "client" && (
-                  <Link
-                    to="/client/billing"
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                    title="Billing & Wallet"
-                  >
-                    <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
-                  </Link>
-                )}
-
-                {/* Wallet (Expert only) */}
-                {role === "expert" && (
-                  <Link
-                    to="/expert/wallet"
-                    className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                    title="Wallet"
-                  >
-                    <Wallet className="w-4.5 h-4.5 stroke-[1.8]" />
-                  </Link>
-                )}
-
                 {/* Theme Toggle Dropdown */}
                 <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowThemeMenu(!showThemeMenu)}
-                    className={`p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center ${
+                    className={`p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center ${
                       showThemeMenu ? "bg-secondary text-foreground" : ""
                     }`}
                     title={`Theme: ${getThemeLabel()}`}
@@ -225,11 +278,8 @@ export function Header() {
                           <button
                             key={mode}
                             type="button"
-                            onClick={() => {
-                              setTheme(mode);
-                              setShowThemeMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            onClick={() => handleThemeChange(mode)}
+                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
                               theme === mode
                                 ? "bg-accent-light text-accent font-medium"
                                 : "text-foreground hover:bg-secondary"
@@ -252,14 +302,14 @@ export function Header() {
                   <button
                     type="button"
                     onClick={() => setShowNotifications(!showNotifications)}
-                    className={`p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all relative flex items-center justify-center ${
+                    className={`p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all relative flex items-center justify-center ${
                       showNotifications ? "bg-secondary text-foreground" : ""
                     }`}
                   >
                     <Bell className="w-4.5 h-4.5 stroke-[1.8]" />
 
                     {unreadCount > 0 && (
-                      <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] bg-accent text-white rounded-full text-[9px] font-bold flex items-center justify-center border border-background px-[3px]">
+                      <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] bg-accent text-primary-foreground rounded-full text-[9px] font-semibold flex items-center justify-center border border-background px-[3px]">
                         {unreadCount}
                       </span>
                     )}
@@ -268,7 +318,7 @@ export function Header() {
                   {/* Notification Dropdown */}
                   {showNotifications && (
                     <div className="absolute right-0 top-11 w-80 bg-popover border border-border rounded-xl shadow-lg overflow-hidden z-50 text-left animate-fade-in">
-                      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                      <div className="px-4 py-2.5 border-b border-border flex items-center justify-between">
                         <span className="text-xs font-semibold text-foreground uppercase tracking-[0.04em]">
                           Notifications
                         </span>
@@ -297,7 +347,7 @@ export function Header() {
                                 setShowNotifications(false);
                                 if (noti.linkTo) navigate(noti.linkTo);
                               }}
-                              className={`px-4 py-3 flex items-start gap-3 transition-colors cursor-pointer ${
+                              className={`px-4 py-2.5 flex items-start gap-3 transition-colors cursor-pointer ${
                                 noti.isUnread
                                   ? "bg-accent/[0.04] hover:bg-accent/[0.08]"
                                   : "hover:bg-secondary/50"
@@ -336,22 +386,72 @@ export function Header() {
                   )}
                 </div>
 
-                {/* Profile Link */}
-                <Link
-                  to={`/${role}/profile`}
-                  className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all flex items-center justify-center"
-                  title="Profile"
-                >
-                  <User className="w-4.5 h-4.5 stroke-[1.8]" />
-                </Link>
+                {/* Wallet shortcut */}
+                {walletPath && (
+                  <Link
+                    to={walletPath}
+                    className="relative flex items-center justify-center rounded-xl p-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+                    title={role === "client" ? "Billing & Wallet" : "Wallet"}
+                    aria-label={role === "client" ? "Billing & Wallet" : "Wallet"}
+                  >
+                    <Wallet className="h-4.5 w-4.5 stroke-[1.8]" />
+                  </Link>
+                )}
 
-                <button
-                  onClick={handleLogout}
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors ml-1"
-                >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
-                </button>
+                {/* Account Menu */}
+                <div className="relative flex items-center justify-center" ref={accountMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAccountMenu(!showAccountMenu)}
+                    className={`flex h-10 items-center gap-2 rounded-xl px-2.5 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground ${
+                      showAccountMenu ? "bg-secondary text-foreground" : ""
+                    }`}
+                    title={currentRoleMeta ? currentRoleMeta.context : "Account"}
+                    aria-label={currentRoleMeta ? currentRoleMeta.context : "Account"}
+                    aria-expanded={showAccountMenu}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-card ring-1 ring-border">
+                      <User className="h-4 w-4 stroke-[1.8]" />
+                    </span>
+                    <ChevronDown className={`hidden h-3.5 w-3.5 transition-transform sm:block ${showAccountMenu ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {showAccountMenu && (
+                    <div className="absolute right-0 top-11 z-50 w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-lg animate-fade-in">
+                      <div className="border-b border-border px-4 py-3">
+                        <p className="truncate text-sm font-semibold text-foreground">
+                          {user?.name || "Account"}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {currentRoleMeta?.context || "Profile"}
+                        </p>
+                      </div>
+                      <div className="p-1.5">
+                        <Link
+                          to={`/${role}/profile`}
+                          onClick={() => setShowAccountMenu(false)}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+                        >
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span>Profile</span>
+                        </Link>
+                      </div>
+                      <div className="border-t border-border p-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAccountMenu(false);
+                            handleLogout();
+                          }}
+                          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-destructive transition-colors hover:bg-destructive-light"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Logout</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <>
@@ -372,7 +472,7 @@ export function Header() {
 
             {/* Mobile menu toggle */}
             <button
-              className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
+              className="md:hidden p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors ml-1"
               onClick={() => setShowMobileMenu(!showMobileMenu)}
             >
               {showMobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

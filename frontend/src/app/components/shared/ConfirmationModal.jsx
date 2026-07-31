@@ -1,5 +1,5 @@
-// =============================================================================
-// ConfirmationModal — reusable confirmation dialog for important actions.
+﻿// =============================================================================
+// ConfirmationModal - reusable confirmation dialog for important actions.
 // =============================================================================
 
 import { useState, useCallback } from "react";

@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminCategoryTags — Skills & Categories management page for Admin/Owner.
+﻿// =============================================================================
+// AdminCategoryTags - Skills & Categories management page for Admin/Owner.
 //
 // Uses existing /api/category-tags endpoints. Admin/Owner can:
 //   - View skills list with search
@@ -15,6 +15,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, Plus, Trash2, Tag, FolderTree, Briefcase } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import {
   getSkills,
@@ -29,7 +30,7 @@ import {
 } from "../../../services/categoryTagService.js";
 
 // ---------------------------------------------------------------------------
-// Error message helper — maps HTTP status codes to user-friendly messages
+// Error message helper - maps HTTP status codes to user-friendly messages
 // ---------------------------------------------------------------------------
 
 function errorMessage(err, action) {
@@ -38,13 +39,13 @@ function errorMessage(err, action) {
 
   switch (status) {
     case 400:
-      return `Invalid request — ${detail}`;
+      return `Invalid request - ${detail}`;
     case 403:
       return "You do not have permission to perform this action.";
     case 404:
       return "The item was not found. It may have already been deleted.";
     case 500:
-      return "Server error — please try again later.";
+      return "Server error - please try again later.";
     default:
       return `${action} failed: ${detail}`;
   }
@@ -98,7 +99,7 @@ export function AdminCategoryTags() {
   const [deleting, setDeleting] = useState(false);
 
   // -----------------------------------------------------------------------
-  // Toast helper — success variant (green)
+  // Toast helper - success variant (green)
   // -----------------------------------------------------------------------
   const showSuccess = useCallback((msg) => {
     setFeedback({ text: msg, type: "success" });
@@ -106,7 +107,7 @@ export function AdminCategoryTags() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Toast helper — error variant (red)
+  // Toast helper - error variant (red)
   // -----------------------------------------------------------------------
   const showError = useCallback((msg) => {
     setFeedback({ text: msg, type: "error" });
@@ -302,7 +303,7 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Skill Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -312,7 +313,7 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Category Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -322,14 +323,14 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Specialization Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
     {
       key: "domainName",
       label: "Category (Domain)",
       render: (val) => (
-        <span className="text-sm text-muted-foreground">{val || "—"}</span>
+        <span className="text-sm text-muted-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -341,30 +342,19 @@ export function AdminCategoryTags() {
 
   return (
     <div className="space-y-6">
-      
-
-      {/* Page Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-          <Tag className="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Skills &amp; Categories
-          </h1>
-        </div>
-      </div>
-      <p className="text-muted-foreground mb-6 ml-[52px]">
-        Manage platform skills and category tags used in projects and expert profiles.
-      </p>
+      <PageHeader
+        title="Skills & Categories"
+        subtitle="Manage platform skills and category tags used in projects and expert profiles."
+        illustration={<Tag className="h-28 w-28" />}
+      />
 
       {/* Feedback toast */}
       {feedback && (
         <div
-          className={`mb-4 p-3 border rounded-lg text-sm ${
+          className={`p-3 border rounded-lg text-sm ${
             feedback.type === "error"
-              ? "bg-red-50 border-red-200 text-red-700"
-              : "bg-green-50 border-green-200 text-green-700"
+              ? "bg-destructive-light border-destructive/20 text-destructive"
+              : "bg-success-light border-success/20 text-success"
           }`}
         >
           {feedback.text}
@@ -372,7 +362,7 @@ export function AdminCategoryTags() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border">
+      <div className="flex gap-1 border-b border-border">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -382,7 +372,7 @@ export function AdminCategoryTags() {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 isActive
                   ? "border-accent text-accent"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -390,7 +380,7 @@ export function AdminCategoryTags() {
             >
               <Icon className="w-4 h-4" />
               {tab.label}
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                 isActive ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground"
               }`}>
                 {count}
@@ -407,7 +397,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {skillsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {skillsError}
             </div>
           )}
@@ -438,7 +428,7 @@ export function AdminCategoryTags() {
           {/* Add skill form */}
           <form
             onSubmit={handleAddSkill}
-            className="flex gap-2 items-end max-w-lg mb-4"
+            className="page-filter-toolbar max-w-lg"
           >
             <div className="flex-1">
               <label
@@ -483,7 +473,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {categoriesError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {categoriesError}
             </div>
           )}
@@ -514,7 +504,7 @@ export function AdminCategoryTags() {
           {/* Add category form */}
           <form
             onSubmit={handleAddCategory}
-            className="flex gap-2 items-end max-w-lg mb-4"
+            className="page-filter-toolbar max-w-lg"
           >
             <div className="flex-1">
               <label
@@ -559,7 +549,7 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {specializationsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {specializationsError}
             </div>
           )}
@@ -590,7 +580,7 @@ export function AdminCategoryTags() {
           {/* Add specialization form */}
           <form
             onSubmit={handleAddSpecialization}
-            className="flex gap-2 items-end max-w-2xl mb-4"
+            className="page-filter-toolbar max-w-2xl"
           >
             <div className="flex-1">
               <label

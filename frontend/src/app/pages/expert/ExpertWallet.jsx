@@ -6,9 +6,13 @@ import {
   ReceiptText,
   PlusCircle,
   Send,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
@@ -16,12 +20,12 @@ import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
 
 function resolveExpertId(user) {
-  // TODO: Replace with API call — api.users.getProfile()
+  // TODO: Replace with API call - api.users.getProfile()
   return user?.id || null;
 }
 
 function getExpertWalletData() {
-  // TODO: Replace with API call — api.payments.getWallet()
+  // TODO: Replace with API call - api.payments.getWallet()
   return {
     wallet: { balance: 0, pendingBalance: 0, totalEarned: 0 },
     transactions: [],
@@ -29,9 +33,9 @@ function getExpertWalletData() {
 }
 
 const statusColors = {
-  completed: "bg-green-100 text-green-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  failed: "bg-red-100 text-red-700",
+  completed: "bg-success-light text-success",
+  pending: "bg-warning-light text-warning",
+  failed: "bg-destructive-light text-destructive",
 };
 
 const typeLabels = {
@@ -54,6 +58,50 @@ const typeLabels = {
   verdict: "reported request",
 };
 
+const transactionSortColumns = [
+  { key: "type", label: "Type", align: "left" },
+  { key: "description", label: "Description", align: "left" },
+  { key: "amount", label: "Amount", align: "right" },
+  { key: "status", label: "Status", align: "right" },
+  { key: "date", label: "Date", align: "right" },
+];
+
+function getTransactionSortValue(tx, key) {
+  const lowerType = tx.type?.toLowerCase();
+  if (key === "type") return typeLabels[lowerType] || tx.type || "";
+  if (key === "description") return tx.projectTitle || tx.description || "";
+  if (key === "amount") return Number(tx.amount ?? tx.Amount ?? 0) || 0;
+  if (key === "status") return tx.status || "";
+  if (key === "date") {
+    const rawStr = tx.createdAt || "";
+    const dateValue = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : "")).getTime();
+    return Number.isFinite(dateValue) ? dateValue : 0;
+  }
+  return "";
+}
+
+function sortTransactions(rows, sortState) {
+  if (!sortState.key || !sortState.dir) return rows;
+
+  return [...rows].sort((a, b) => {
+    const aVal = getTransactionSortValue(a, sortState.key);
+    const bVal = getTransactionSortValue(b, sortState.key);
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && aVal !== "" && bVal !== "";
+
+    if (bothNumeric) {
+      return sortState.dir === "asc" ? aNum - bNum : bNum - aNum;
+    }
+
+    const result = String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return sortState.dir === "asc" ? result : -result;
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -65,6 +113,7 @@ export function ExpertWallet() {
   const [loading, setLoading] = useState(true);
   const [activeProjects, setActiveProjects] = useState([]);
   const [feedback, setFeedback] = useState(null);
+  const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -75,6 +124,15 @@ export function ExpertWallet() {
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const handleTransactionSort = (key) => {
+    setTransactionSort((prev) => {
+      if (prev.key !== key) return { key, dir: "asc" };
+      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+    });
+  };
+
+  const sortedTransactions = sortTransactions(data?.transactions || [], transactionSort);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,8 +250,12 @@ export function ExpertWallet() {
             const projIdLower = String(projId).toLowerCase();
             const localStatus = localStorage.getItem(`project_status_${projIdLower}`) || p.status || p.Status || "";
             const report = projectReportMap.get(projIdLower);
-            const isCancelledOrReported = ["cancelled", "cancel_done", "stopped", "completed", "disputed"].includes(localStatus.toLowerCase()) && (report || ["cancelled", "cancel_done", "stopped"].includes(localStatus.toLowerCase()));
-            if (isCancelledOrReported || report) {
+            const isTerminallyCancelled =
+              ["cancelled", "cancel_done", "stopped", "contract_cancelled"].includes(localStatus.toLowerCase()) ||
+              (report && ["resolved", "accepted"].includes(String(report.status || "").toLowerCase())) ||
+              !!localStorage.getItem(`dispute_verdict_${projIdLower}`);
+
+            if (isTerminallyCancelled) {
               const splits = getCancellationPayouts(p);
               cancelledProjectSplits.set(projIdLower, {
                 ...splits,
@@ -206,7 +268,11 @@ export function ExpertWallet() {
           // Check compensating transactions to skip them
           const isCompensatingTx = (t) => {
             const lType = (t.type ?? t.Type ?? "").toLowerCase();
-            if (lType !== "deposit" && lType !== "manualdeposit" && lType !== "withdrawal" && lType !== "withdraw") {
+            // User withdrawals are real transactions, never compensating entries
+            if (lType === "withdrawal" || lType === "withdraw") {
+              return false;
+            }
+            if (lType !== "deposit" && lType !== "manualdeposit") {
               return false;
             }
             const amt = t.amount ?? t.Amount ?? 0;
@@ -258,7 +324,7 @@ export function ExpertWallet() {
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
 
-              // Skip ALL transactions for cancelled/reported projects — we'll insert clean rows instead
+              // Skip ALL transactions for cancelled/reported projects - we'll insert clean rows instead
               if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
                 cancelledProjIdsInDb.add(projIdLower);
                 return; // Skip all raw DB rows for cancelled projects
@@ -320,21 +386,36 @@ export function ExpertWallet() {
           }
 
           // Insert clean report/cancelled project rows: 
-          // If report exists (Admin resolution): show 2 rows (Gross 10,000 + Fee -500)
-          // If normal cancellation: show 1 consolidated payout row (expertPayout)
+          // If cancellation negotiation: show 1 consolidated payout row (expertPayout, e.g. 250)
+          // If dispute report (Admin resolution): show 2 rows (Gross 10,000 + Fee -500)
           cancelledProjectSplits.forEach((split, projIdLower) => {
             const report = projectReportMap.get(projIdLower);
             const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+            const isCancellationReport = (report?.reportType || report?.disputeType || "").toLowerCase() === "cancellation";
+
+            if (isCancellationReport || !report) {
+              if (split.expertPayout > 0) {
+                myTransactions.push({
+                  id: `cancel-payout-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.expertPayout,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+              }
+              return;
+            }
 
             const isReportResolvedByAdmin = report && (
-              report.reportType !== "cancellation" ||
               report.adminNote ||
               localStorage.getItem(`report_status_${projIdLower}`) ||
               ["Resolved", "Accepted"].includes(report.status)
             );
 
             if (isReportResolvedByAdmin) {
-              // Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
+              // Dispute Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
               if (split.expertPayout > 0) {
                 const grossBudget = split.escrowTotal || 10000;
                 const pFee = Math.round(grossBudget * 0.05);
@@ -409,7 +490,7 @@ export function ExpertWallet() {
                 if (dv.expertReceives > 0) {
                   adjustedTotalEarned += (dv.expertReceives - dv.expertFee);
                 }
-                // expertReceives = 0 → expert lost → no adjustment
+                // expertReceives = 0 -> expert lost -> no adjustment
               } catch (e) {}
               return;
             }
@@ -476,7 +557,7 @@ export function ExpertWallet() {
             const isCompleted =
               ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped", "terminated", "disputed"].includes(localStatus);
             const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === projIdLower);
-            const isCancelledOrReported = cancelledProjectSplits.has(projIdLower) || projectReportMap.has(projIdLower);
+            const isCancelledOrReported = cancelledProjectSplits.has(projIdLower);
 
             const hasDbReleaseTx = transactionProjectIds.has(projIdLower);
             if (isReleasedLocally && !hasDbReleaseTx && !isCompleted && !isCancelledOrReported) {
@@ -661,14 +742,11 @@ export function ExpertWallet() {
       <BackButton fallback="/expert/dashboard" className="mb-4">
         Back to Dashboard
       </BackButton>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground mb-2">My Wallet</h1>
-          <p className="text-muted-foreground mb-8">
-            Manage your earnings and withdrawals.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="My Wallet"
+        subtitle="Manage your earnings and withdrawals."
+        className="mb-6"
+      />
 
       {/* Feedback banner */}
       {feedback && (
@@ -688,12 +766,12 @@ export function ExpertWallet() {
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-green-700" />
+              <div className="w-10 h-10 bg-success-light rounded-xl flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-success" />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Available Balance</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-semibold text-foreground">
                   <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
                 </p>
               </div>
@@ -702,14 +780,14 @@ export function ExpertWallet() {
               <button
                 type="button"
                 onClick={() => setShowDepositModal(true)}
-                className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
+                className="px-3 py-1.5 bg-success text-success-foreground rounded-lg hover:opacity-90 text-[11px] font-semibold transition-all flex items-center gap-1 shadow-sm"
               >
                 <PlusCircle className="w-3 h-3" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
-                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm"
+                className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-[11px] font-semibold transition-all flex items-center gap-1 shadow-sm"
               >
                 <Send className="w-3 h-3" /> Withdraw
               </button>
@@ -719,12 +797,12 @@ export function ExpertWallet() {
 
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
-              <Clock className="w-5 h-5 text-yellow-700" />
+            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5 text-warning" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Pending / In Escrow</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.pendingBalance ?? 0} />
               </p>
             </div>
@@ -733,12 +811,12 @@ export function ExpertWallet() {
 
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-purple-700" />
+            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-warning" />
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Earned</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.totalEarned ?? 0} />
               </p>
             </div>
@@ -785,25 +863,34 @@ export function ExpertWallet() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/60 bg-secondary/50">
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Type
-                  </th>
-                  <th className="text-left px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Description
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Amount
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Status
-                  </th>
-                  <th className="text-right px-6 py-3 text-sm font-semibold text-muted-foreground uppercase">
-                    Date
-                  </th>
+                  {transactionSortColumns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-sm font-semibold text-muted-foreground uppercase`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleTransactionSort(col.key)}
+                        className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                        title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                      >
+                        {col.label}
+                        {transactionSort.key === col.key ? (
+                          transactionSort.dir === "asc" ? (
+                            <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                          )
+                        ) : (
+                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                        )}
+                      </button>
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.transactions.map((tx) => {
+              <tbody className="divide-y divide-border/50">
+                {sortedTransactions.map((tx) => {
                   const rawStr = tx.createdAt || "";
                   const dateObj = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : ""));
                   const dateStr = dateObj.toLocaleDateString("vi-VN", {
@@ -874,8 +961,8 @@ export function ExpertWallet() {
                       </td>
                       <td className="px-6 py-4 text-right font-mono">
                         <div className="flex flex-col items-end">
-                          <span className="font-semibold text-foreground text-sm">{dateStr}</span>
-                          <span className="text-xs text-muted-foreground mt-0.5 font-normal">{timeStr}</span>
+                          <span className="text-sm font-semibold leading-none text-foreground">{dateStr}</span>
+                          <span className="-mt-px text-[11px] font-medium leading-none tracking-wide text-muted-foreground">{timeStr}</span>
                         </div>
                       </td>
                     </tr>
@@ -889,9 +976,9 @@ export function ExpertWallet() {
 
       {/* Deposit Modal */}
       {showDepositModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -915,7 +1002,7 @@ export function ExpertWallet() {
                 <button
                   type="submit"
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
-                  className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
@@ -925,7 +1012,7 @@ export function ExpertWallet() {
                     setShowDepositModal(false);
                     setWalletDepositAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>
@@ -937,9 +1024,9 @@ export function ExpertWallet() {
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -964,7 +1051,7 @@ export function ExpertWallet() {
                 <button
                   type="submit"
                   disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
-                  className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
@@ -974,7 +1061,7 @@ export function ExpertWallet() {
                     setShowWithdrawModal(false);
                     setWithdrawAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>

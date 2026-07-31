@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MessageSquare, Calendar, Tag, Clock, User, Briefcase, ClipboardList } from "lucide-react";
+import { MessageSquare, Calendar, Tag, Clock, User, Briefcase, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { Button } from "../ui/button.jsx";
@@ -8,17 +8,17 @@ import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 
 // =============================================================================
-// ProjectHeaderCard — project info header with status, names, budget, dates, tags.
+// ProjectHeaderCard - project info header with status, names, budget, dates, tags.
 //
 // Props:
-//   project        — project object
-//   client         — client user object (optional)
-//   expert         — expert user object (optional)
-//   role           — "client" | "expert" (determines what info to show)
-//   overallProgress — 0-100 number
-//   loading        — boolean, shows skeleton
-//   onMessage      — () => void — navigate to messenger
-//   children       — slot for role-specific action buttons (escrow, submit, etc.)
+//   project        - project object
+//   client         - client user object (optional)
+//   expert         - expert user object (optional)
+//   role           - "client" | "expert" (determines what info to show)
+//   overallProgress - 0-100 number
+//   loading        - boolean, shows skeleton
+//   onMessage      - () => void - navigate to messenger
+//   children       - slot for role-specific action buttons (escrow, submit, etc.)
 // =============================================================================
 
 export function ProjectHeaderCard({
@@ -99,7 +99,7 @@ export function ProjectHeaderCard({
 
     // If finished
     if (["completed", "payment_released", "closed"].includes(status)) {
-      return "0 days (Completed)";
+      return "00:00:00 (Completed)";
     }
 
     // If active / in progress / disputed
@@ -127,29 +127,34 @@ export function ProjectHeaderCard({
 
       const now = new Date();
       const diffMs = end.getTime() - now.getTime();
+      const pad = (n) => String(n).padStart(2, "0");
+
       if (diffMs <= 0) {
-        return "Overdue";
+        const overdueMs = Math.abs(diffMs);
+        const overdueSecs = Math.floor((overdueMs / 1000) % 60);
+        const overdueMins = Math.floor((overdueMs / (1000 * 60)) % 60);
+        const overdueHrs = Math.floor((overdueMs / (1000 * 60 * 60)) % 24);
+        const overdueDays = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+
+        return overdueDays > 0
+          ? `Overdue: ${overdueDays}d ${pad(overdueHrs)}:${pad(overdueMins)}:${pad(overdueSecs)}`
+          : `Overdue: ${pad(overdueHrs)}:${pad(overdueMins)}:${pad(overdueSecs)}`;
       }
 
-      const diffSecs = Math.floor(diffMs / 1000);
-      const diffMins = Math.floor(diffSecs / 60);
-      const diffHrs = Math.floor(diffMins / 60);
-      const diffDays = Math.floor(diffHrs / 24);
+      const totalSecs = Math.floor(diffMs / 1000);
+      const secs = totalSecs % 60;
+      const mins = Math.floor(totalSecs / 60) % 60;
+      const hrs = Math.floor(totalSecs / 3600) % 24;
+      const days = Math.floor(totalSecs / 86400);
 
-      if (diffDays > 0) {
-        return `${diffDays} days remaining`;
-      } else if (diffHrs > 0) {
-        return `${diffHrs} hours remaining`;
-      } else if (diffMins > 0) {
-        return `${diffMins} minutes remaining`;
-      } else {
-        return `${diffSecs} seconds remaining`;
-      }
+      return days > 0
+        ? `${days}d ${pad(hrs)}:${pad(mins)}:${pad(secs)}`
+        : `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
     }
 
     // Default/Not started: show use case total duration
     const useCaseDays = project.useCases?.reduce((sum, uc) => sum + (Number(uc.originalDurationDays || uc.durationDays) || 0), 0) || 0;
-    return `${useCaseDays} days`;
+    return `${useCaseDays}d 00:00:00`;
   })();
 
   const otherPerson = role === "client" ? expert : client;
@@ -168,7 +173,7 @@ export function ProjectHeaderCard({
         <div className="flex-1 min-w-0">
           <StatusBadge status={project.status} entity="project" className="mb-2" />
 
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground mt-1 truncate">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-1 truncate">
             {project.title || "Untitled Project"}
           </h1>
 
@@ -178,7 +183,7 @@ export function ProjectHeaderCard({
               <User className="w-4 h-4" />
               {otherRoleLabel}:{" "}
               <span className="text-foreground font-semibold">
-                {otherPerson.fullName || otherPerson.name || "—"}
+                {otherPerson.fullName || otherPerson.name || "-"}
               </span>
             </p>
           )}
@@ -221,7 +226,7 @@ export function ProjectHeaderCard({
             <button
               type="button"
               onClick={onMessage}
-              className="h-11 px-5 border border-border bg-card text-foreground hover:bg-secondary rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+              className="h-10 px-4 border border-border bg-card text-foreground hover:bg-secondary rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer"
             >
               <MessageSquare className="w-4 h-4 text-muted-foreground" />
               Message
@@ -247,7 +252,7 @@ export function ProjectHeaderCard({
           <p className="text-xs text-muted-foreground mb-0.5 flex items-center gap-1 uppercase tracking-wide font-medium">
             <Clock className="w-3.5 h-3.5 text-accent" /> Remaining Time
           </p>
-          <p className="text-sm font-semibold text-foreground">{remainingTime}</p>
+          <p className="text-sm font-semibold text-foreground font-mono tracking-tight">{remainingTime}</p>
         </div>
 
         {/* End Date / Deadline */}
@@ -303,19 +308,36 @@ function ProjectExtensionControl({ project, role }) {
   const [rejectReason, setRejectReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [extensionData, setExtensionData] = useState(null);
+  const [extensionList, setExtensionList] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const loadExtension = () => {
     if (!projId) return;
     try {
-      const raw = localStorage.getItem(`project_extension_request_${projId}`);
-      if (raw) {
-        setExtensionData(JSON.parse(raw));
-      } else if (project?.extensionRequest) {
-        setExtensionData(project.extensionRequest);
-      } else {
-        setExtensionData(null);
+      const rawList =
+        localStorage.getItem(`project_extension_history_${projId}`) ||
+        (project.id ? localStorage.getItem(`project_extension_history_${project.id}`) : null) ||
+        (project.jobPostId ? localStorage.getItem(`project_extension_history_${project.jobPostId}`) : null);
+
+      let list = rawList ? JSON.parse(rawList) : [];
+      if (!Array.isArray(list)) list = [];
+
+      // Migrate single legacy request if present
+      const rawSingle = localStorage.getItem(`project_extension_request_${projId}`);
+      if (rawSingle) {
+        const single = JSON.parse(rawSingle);
+        if (single && !list.some(item => item.id === single.id || (item.requestedAt === single.requestedAt && item.reason === single.reason))) {
+          list.push({ id: single.id || `ext-${Date.now()}`, ...single });
+        }
       }
+
+      setExtensionList(list);
+
+      // Active extension data is pending request if any, or latest request
+      const pending = list.find((item) => item.status === "pending");
+      setExtensionData(pending || (list.length > 0 ? list[list.length - 1] : null));
     } catch (e) {
+      setExtensionList([]);
       setExtensionData(null);
     }
   };
@@ -327,18 +349,33 @@ function ProjectExtensionControl({ project, role }) {
     return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [projId, project]);
 
+  const saveExtensionList = (newList) => {
+    setExtensionList(newList);
+    const jsonStr = JSON.stringify(newList);
+    localStorage.setItem(`project_extension_history_${projId}`, jsonStr);
+    if (project.id) localStorage.setItem(`project_extension_history_${project.id}`, jsonStr);
+    if (project.jobPostId) localStorage.setItem(`project_extension_history_${project.jobPostId}`, jsonStr);
+  };
+
   const handleSubmitRequest = async () => {
     const days = Number(extendDays);
     if (!days || days <= 0 || !extendReason.trim()) return;
     setSubmitting(true);
     try {
       const newReq = {
+        id: `ext-${Date.now()}`,
         status: "pending",
         requestedDays: days,
         reason: extendReason.trim(),
         requestedAt: new Date().toISOString(),
       };
+
+      const updatedList = [...extensionList, newReq];
+      saveExtensionList(updatedList);
+
       localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(newReq));
+      if (project.id) localStorage.setItem(`project_extension_request_${project.id}`, JSON.stringify(newReq));
+
       setExtensionData(newReq);
       setShowForm(false);
       setExtendReason("");
@@ -359,8 +396,12 @@ function ProjectExtensionControl({ project, role }) {
     try {
       const extraDays = Number(extensionData.requestedDays) || 1;
 
-      // Calculate current end date
-      const localDeadline = localStorage.getItem(`project_deadline_${projId}`);
+      // Calculate current effective end date (from localStorage or project fields)
+      const localDeadline =
+        localStorage.getItem(`project_deadline_${projId}`) ||
+        (project.id ? localStorage.getItem(`project_deadline_${project.id}`) : null) ||
+        (project.jobPostId ? localStorage.getItem(`project_deadline_${project.jobPostId}`) : null);
+
       const baseEnd = localDeadline || project.projectDeadlineDate || project.endDate || project.EndDate || project.deadline || project.Deadline;
       let baseDate = new Date();
 
@@ -374,19 +415,42 @@ function ProjectExtensionControl({ project, role }) {
         }
       }
 
+      // Add extraDays directly to current baseDate (incremental addition)
       const newDate = new Date(baseDate.getTime() + extraDays * 24 * 60 * 60 * 1000);
+      
+      // Save new deadline across candidate keys
       localStorage.setItem(`project_deadline_${projId}`, newDate.toISOString());
+      if (project.id) localStorage.setItem(`project_deadline_${project.id}`, newDate.toISOString());
+      if (project.jobPostId) localStorage.setItem(`project_deadline_${project.jobPostId}`, newDate.toISOString());
+
+      // Accumulate total extra days for proposal duration display
+      const currentExtra = Number(localStorage.getItem(`project_extra_days_${projId}`)) || 0;
+      const totalExtra = currentExtra + extraDays;
+      localStorage.setItem(`project_extra_days_${projId}`, totalExtra);
+      if (project.id) localStorage.setItem(`project_extra_days_${project.id}`, totalExtra);
+      if (project.jobPostId) localStorage.setItem(`project_extra_days_${project.jobPostId}`, totalExtra);
 
       const approvedReq = {
         ...extensionData,
         status: "approved",
         approvedAt: new Date().toISOString(),
       };
+
+      const updatedList = extensionList.map((item) =>
+        item.id === extensionData.id || (item.requestedAt === extensionData.requestedAt && item.reason === extensionData.reason)
+          ? approvedReq
+          : item
+      );
+      saveExtensionList(updatedList);
+
       localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(approvedReq));
-      setExtensionData(approvedReq);
+      if (project.id) localStorage.setItem(`project_extension_request_${project.id}`, JSON.stringify(approvedReq));
+      
+      const pendingItem = updatedList.find((item) => item.status === "pending");
+      setExtensionData(pendingItem || approvedReq);
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      toast.success(`Project deadline extended by +${extraDays} days successfully!`);
+      toast.success(`Project deadline extended by +${extraDays} days.`);
     } catch (e) {
       toast.error("Failed to approve extension.");
     } finally {
@@ -404,8 +468,19 @@ function ProjectExtensionControl({ project, role }) {
         rejectReason: rejectReason.trim(),
         rejectedAt: new Date().toISOString(),
       };
+
+      const updatedList = extensionList.map((item) =>
+        item.id === extensionData.id || (item.requestedAt === extensionData.requestedAt && item.reason === extensionData.reason)
+          ? rejectedReq
+          : item
+      );
+      saveExtensionList(updatedList);
+
       localStorage.setItem(`project_extension_request_${projId}`, JSON.stringify(rejectedReq));
-      setExtensionData(rejectedReq);
+      if (project.id) localStorage.setItem(`project_extension_request_${project.id}`, JSON.stringify(rejectedReq));
+
+      const pendingItem = updatedList.find((item) => item.status === "pending");
+      setExtensionData(pendingItem || rejectedReq);
 
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       toast.info("Project extension request rejected.");
@@ -430,7 +505,7 @@ function ProjectExtensionControl({ project, role }) {
           <button
             type="button"
             onClick={() => setShowForm(true)}
-            className="px-3.5 py-1.5 bg-accent-light text-accent border border-accent/20 hover:bg-accent/20 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+            className="px-3.5 py-1.5 bg-accent-light text-accent border border-accent/20 hover:bg-accent/20 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <Clock className="w-3.5 h-3.5" /> Request Project Extension
           </button>
@@ -441,7 +516,7 @@ function ProjectExtensionControl({ project, role }) {
       {role === "expert" && showForm && (
         <div className="p-4 bg-accent-light/40 border border-accent/20 rounded-xl space-y-3 animate-in fade-in duration-200">
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-bold text-accent flex items-center gap-1.5">
+            <h4 className="text-sm font-semibold text-accent flex items-center gap-1.5">
               <Clock className="w-4 h-4" /> Extend Project Time
             </h4>
             <button
@@ -483,7 +558,7 @@ function ProjectExtensionControl({ project, role }) {
               type="button"
               disabled={submitting || !extendReason.trim() || Number(extendDays) <= 0}
               onClick={handleSubmitRequest}
-              className="px-4 py-1.5 bg-accent text-accent-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+              className="px-4 py-1.5 bg-accent text-accent-foreground hover:opacity-90 disabled:opacity-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
             >
               {submitting ? "Submitting..." : "Submit Extension Request"}
             </button>
@@ -493,15 +568,15 @@ function ProjectExtensionControl({ project, role }) {
 
       {/* Extension status banner */}
       {isPending && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3 animate-in fade-in duration-200">
+        <div className="p-4 bg-warning-light/10 border border-warning/30 rounded-xl space-y-3 animate-in fade-in duration-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-bold text-amber-700 dark:text-amber-400">
+              <Clock className="w-4 h-4 text-warning dark:text-warning" />
+              <span className="text-sm font-semibold text-warning dark:text-warning">
                 Project Extension Request (+{extensionData.requestedDays} days)
               </span>
             </div>
-            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300">
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-warning-light/20 text-warning dark:text-warning">
               Pending Review
             </span>
           </div>
@@ -516,7 +591,7 @@ function ProjectExtensionControl({ project, role }) {
                 type="button"
                 disabled={submitting}
                 onClick={handleApprove}
-                className="px-4 py-1.5 bg-success text-success-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+                className="px-4 py-1.5 bg-success text-success-foreground hover:opacity-90 disabled:opacity-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
               >
                 {submitting ? "Processing..." : `Approve (+${extensionData.requestedDays} Days)`}
               </button>
@@ -524,7 +599,7 @@ function ProjectExtensionControl({ project, role }) {
                 type="button"
                 disabled={submitting}
                 onClick={handleReject}
-                className="px-4 py-1.5 bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50 text-xs font-bold rounded-lg transition-all cursor-pointer shadow-sm"
+                className="px-4 py-1.5 bg-destructive text-destructive-foreground hover:opacity-90 disabled:opacity-50 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-sm"
               >
                 Reject Request
               </button>
@@ -532,26 +607,80 @@ function ProjectExtensionControl({ project, role }) {
           )}
 
           {role === "expert" && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 italic">
+            <p className="text-xs text-warning dark:text-warning italic">
               Your extension request has been sent to the Client for review.
             </p>
           )}
         </div>
       )}
 
-      {isApproved && (
-        <div className="p-3 bg-success/10 border border-success/20 rounded-xl flex items-center justify-between text-xs text-success font-medium">
-          <span>✅ Project deadline extended by +{extensionData.requestedDays} days.</span>
-          <button
-            type="button"
-            onClick={() => {
-              try { localStorage.removeItem(`project_extension_request_${projId}`); } catch(e){}
-              setExtensionData(null);
-            }}
-            className="text-[11px] underline font-normal text-muted-foreground hover:text-foreground"
-          >
-            Dismiss
-          </button>
+      {/* Extension History Accordion / Toggle Panel (Renders all requests cumulatively, default collapsed) */}
+      {extensionList.length > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between p-3 bg-secondary/40 border border-border/80 rounded-xl">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-accent" />
+              <span className="text-xs font-semibold text-foreground">
+                Extension History ({extensionList.length} request{extensionList.length > 1 ? "s" : ""} - Total +{extensionList.filter(i => i.status === "approved").reduce((sum, i) => sum + (Number(i.requestedDays) || 0), 0)} days approved)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowHistory((prev) => !prev)}
+              className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors cursor-pointer"
+            >
+              <span>{showHistory ? "Hide History" : "View History"}</span>
+              {showHistory ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+
+          {showHistory && (
+            <div className="mt-2 space-y-2.5 animate-in fade-in duration-200">
+              {extensionList.map((item, idx) => (
+                <div key={item.id || idx} className="p-3 bg-card border border-border rounded-xl space-y-1.5 text-xs shadow-sm">
+                  <div className="flex items-center justify-between border-b border-border/60 pb-1.5">
+                    <span className="font-semibold text-foreground flex items-center gap-1.5">
+                      Request #{idx + 1}: <span className="text-accent font-bold">+{item.requestedDays} days</span>
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
+                      item.status === "approved"
+                        ? "bg-success/15 text-success border border-success/20"
+                        : item.status === "rejected"
+                        ? "bg-destructive/15 text-destructive border border-destructive/20"
+                        : "bg-warning/15 text-warning border border-warning/20"
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  {item.reason && (
+                    <p className="text-muted-foreground">
+                      <span className="font-semibold text-foreground/80">Reason:</span> {item.reason}
+                    </p>
+                  )}
+                  {item.requestedAt && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Requested: {new Date(item.requestedAt).toLocaleString()}
+                    </p>
+                  )}
+                  {item.approvedAt && (
+                    <p className="text-[11px] text-success font-medium">
+                      Approved: {new Date(item.approvedAt).toLocaleString()}
+                    </p>
+                  )}
+                  {item.rejectedAt && (
+                    <p className="text-[11px] text-destructive font-medium">
+                      Rejected: {new Date(item.rejectedAt).toLocaleString()}
+                    </p>
+                  )}
+                  {item.rejectReason && (
+                    <p className="text-xs text-destructive bg-destructive/10 p-2 rounded-lg mt-1">
+                      <span className="font-semibold">Rejection Note:</span> {item.rejectReason}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

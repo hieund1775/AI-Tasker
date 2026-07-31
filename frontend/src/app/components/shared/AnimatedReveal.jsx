@@ -1,30 +1,25 @@
-// =============================================================================
-// AnimatedReveal — lightweight scroll-reveal wrapper with spring animations.
-// Uses Motion library for smooth entry animations with spring physics.
-// Falls back gracefully under prefers-reduced-motion.
+﻿// =============================================================================
+// AnimatedReveal - lightweight scroll-reveal wrapper for list items & cards.
+//
+// Uses native CSS `.reveal-hidden` / `.reveal-visible` classes with
+// IntersectionObserver for zero-dependency scroll-triggered animations.
 //
 // Props:
-//   children   — content to reveal
-//   className  — additional classes on the wrapper
-//   delay      — stagger delay index (multiplied by 80ms)
-//   direction  — "up" (default) | "left" | "right" | "scale" | "fade"
-//   threshold  — visibility threshold (default 0.1)
-//   once       — animate only once (default true)
-//   duration   — animation duration in seconds (default 0.5)
+//   children   - content to reveal
+//   className  - additional classes on the wrapper
+//   delay      - stagger delay index (multiplied by 80ms, e.g. 0->0ms, 2->160ms)
+//   direction  - "up" (default) | "left" | "right"
+//   threshold  - visibility threshold (default 0.1)
+//   once       - animate only once (default true)
 // =============================================================================
 
-"use client";
-
-import { useRef } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "../../lib/utils.js";
 
-const DIRECTION_VARIANTS = {
-  up: { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } },
-  left: { hidden: { opacity: 0, x: -24 }, visible: { opacity: 1, x: 0 } },
-  right: { hidden: { opacity: 0, x: 24 }, visible: { opacity: 1, x: 0 } },
-  scale: { hidden: { opacity: 0, scale: 0.92 }, visible: { opacity: 1, scale: 1 } },
-  fade: { hidden: { opacity: 0 }, visible: { opacity: 1 } },
+const DIRECTION_STYLES = {
+  up: "translate-y-4",
+  left: "-translate-x-4",
+  right: "translate-x-4",
 };
 
 export function AnimatedReveal({
@@ -34,37 +29,45 @@ export function AnimatedReveal({
   direction = "up",
   threshold = 0.1,
   once = true,
-  duration = 0.55,
 }) {
   const ref = useRef(null);
-  const prefersReducedMotion = useReducedMotion();
-  const variant = DIRECTION_VARIANTS[direction] || DIRECTION_VARIANTS.up;
+  const [visible, setVisible] = useState(false);
 
-  if (prefersReducedMotion) {
-    return <div className={className}>{children}</div>;
-  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          if (once) observer.unobserve(el);
+        } else if (!once) {
+          setVisible(false);
+        }
+      },
+      { threshold },
+    );
+
+    observer.observe(el);
+    return () => observer.unobserve(el);
+  }, [threshold, once]);
 
   return (
-    <motion.div
+    <div
       ref={ref}
-      className={className}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once, amount: threshold }}
-      variants={{
-        hidden: variant.hidden,
-        visible: {
-          ...variant.visible,
-          transition: {
-            duration,
-            delay: delay * 0.08,
-            ease: [0.16, 1, 0.3, 1],
-          },
-        },
+      className={cn(
+        "transition-all duration-500 ease-out",
+        DIRECTION_STYLES[direction] || DIRECTION_STYLES.up,
+        visible ? "opacity-100 translate-y-0 translate-x-0" : "opacity-0",
+        className,
+      )}
+      style={{
+        transitionDelay: `${delay * 80}ms`,
       }}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 

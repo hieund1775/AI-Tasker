@@ -17,16 +17,17 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
 
-// Status helpers — delegated to shared proposalStatusConfig.js
+// Status helpers - delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
 
 // ---------------------------------------------------------------------------
-// Section wrapper — keeps visual consistency
+// Section wrapper - keeps visual consistency
 // ---------------------------------------------------------------------------
 
 function DetailSection({ title, children, className = "" }) {
@@ -52,7 +53,7 @@ export function ProposalDetail() {
   const [project, setProject] = useState(null);
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Tab and Edit states
   const [activeTab, setActiveTab] = useState("proposal"); // "proposal" | "detail"
 
@@ -140,14 +141,14 @@ export function ProposalDetail() {
   const convId = getConversationId();
   const isSessionProposal = proposal.id?.startsWith("session-prop-");
   const hasFullFields = isSessionProposal || !!proposal.proposalTitle;
-  
+
   // Aggregate attachments from BE flat database (portfolio and attachmentUrl)
   const attachments = [...(proposal.attachments || [])];
   if (proposal.portfolio) {
     const isImg = proposal.portfolio.match(/\.(png|jpe?g|gif|webp)$/i);
     attachments.push({
       id: "portfolio-file",
-      name: proposal.portfolio.split("/").pop() || "Portfolio Document",
+      name: cleanFileName(proposal.portfolio) || "Portfolio Document",
       type: isImg ? "image/png" : "document",
       fileType: isImg ? "image/png" : "document",
       url: enrichFileUrl(proposal.portfolio)
@@ -157,7 +158,7 @@ export function ProposalDetail() {
     const isImg = proposal.attachmentUrl.match(/\.(png|jpe?g|gif|webp)$/i);
     attachments.push({
       id: "attachment-file",
-      name: proposal.attachmentUrl.split("/").pop() || "Attached Document",
+      name: cleanFileName(proposal.attachmentUrl) || "Attached Document",
       type: isImg ? "image/png" : "document",
       fileType: isImg ? "image/png" : "document",
       url: enrichFileUrl(proposal.attachmentUrl)
@@ -165,8 +166,8 @@ export function ProposalDetail() {
   }
 
   const canEdit = proposal.status?.toLowerCase() !== "accepted" &&
-                  proposal.status?.toLowerCase() !== "pending_pay" &&
-                  proposal.status?.toLowerCase() !== "pending_escrow";
+    proposal.status?.toLowerCase() !== "pending_pay" &&
+    proposal.status?.toLowerCase() !== "pending_escrow";
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -175,7 +176,7 @@ export function ProposalDetail() {
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* ================================================================ */}
-        {/* Header — Project + Status                                         */}
+        {/* Header - Project + Status                                         */}
         {/* ================================================================ */}
         <div className="p-8 border-b border-border/60 bg-secondary/50">
           <div className="flex items-start justify-between flex-wrap gap-4">
@@ -185,7 +186,7 @@ export function ProposalDetail() {
                 Proposal Details
               </div>
 
-              <h1 className="text-2xl font-bold text-foreground">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {proposal.proposalTitle || project?.title || "Proposal"}
               </h1>
 
@@ -203,7 +204,7 @@ export function ProposalDetail() {
                     Client:{" "}
                     <span className="font-medium text-foreground/80">
                       {client.fullName}
-                      {client.profile?.company ? ` · ${client.profile.company}` : ""}
+                      {client.profile?.company ? ` - ${client.profile.company}` : ""}
                     </span>
                   </span>
                 )}
@@ -235,34 +236,47 @@ export function ProposalDetail() {
                   year: "numeric",
                   month: "long",
                   day: "numeric",
-                }, "—")}
+                }, "-")}
               </p>
             </div>
           </div>
 
           {/* Quick stats */}
-          <div className="flex flex-wrap gap-4 mt-5">
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-0.5">Bid Amount</p>
-              <p className="font-semibold text-foreground">
-                <MoneyDisplay amount={proposal.bidAmount} />
-              </p>
-            </div>
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
-              <p className="font-semibold text-foreground">{proposal.durationDays} days</p>
-            </div>
-            <div className="bg-card rounded-xl px-4 py-3 border border-border">
-              <p className="text-xs text-muted-foreground mb-0.5">Submitted</p>
-              <p className="font-semibold text-foreground">
-                {safeDateFormat(proposal.createdAt, {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                }, "—")}
-              </p>
-            </div>
-          </div>
+          {(() => {
+            const extraDays =
+              Number(
+                localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                0
+              ) || 0;
+            const totalDurationDays = (Number(proposal?.durationDays) || 0) + extraDays;
+
+            return (
+              <div className="flex flex-wrap gap-4 mt-5">
+                <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+                  <p className="text-xs text-muted-foreground mb-0.5">Bid Amount</p>
+                  <p className="font-semibold text-foreground">
+                    <MoneyDisplay amount={proposal.bidAmount} />
+                  </p>
+                </div>
+                <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+                  <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
+                  <p className="font-semibold text-foreground">{totalDurationDays} days</p>
+                </div>
+                <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
+                  <p className="text-xs text-muted-foreground mb-0.5">Submitted</p>
+                  <p className="font-semibold text-foreground">
+                    {safeDateFormat(proposal.createdAt, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }, "-")}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* ================================================================ */}
@@ -293,11 +307,10 @@ export function ProposalDetail() {
                         const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                         return (
                           <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                            {/* ── Use Case Header ── */}
                             <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                               <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-foreground text-sm">
+                                  <span className="font-semibold text-foreground text-sm">
                                     UserStory: {uc.title || uc.nameAndDeadline}
                                   </span>
                                 </div>
@@ -312,7 +325,6 @@ export function ProposalDetail() {
                               )}
                             </div>
 
-                            {/* ── Tasks ── */}
                             <div className="p-4 space-y-4">
                               {ucTasks.length === 0 ? (
                                 <p className="text-xs text-muted-foreground italic text-center py-2">No tasks proposed for this user story.</p>
@@ -321,16 +333,16 @@ export function ProposalDetail() {
                                   <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3">
                                     {/* Task Title Row */}
                                     <div className="flex items-center gap-2">
-                                      <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                      <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                      <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                     </div>
 
                                     {/* Minitasks */}
                                     {task.miniTasks && task.miniTasks.length > 0 && (
                                       <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                                         {task.miniTasks.map((mt, mtIdx) => (
-                                          <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                          <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                         ))}
                                       </div>
                                     )}
@@ -349,16 +361,16 @@ export function ProposalDetail() {
                         <div key={task.id || idx} className="p-4 bg-muted/40 border border-border rounded-xl space-y-3">
                           {/* Task Title Row */}
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                            <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                            <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                           </div>
 
                           {/* Minitasks */}
                           {task.miniTasks && task.miniTasks.length > 0 && (
                             <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
                               {task.miniTasks.map((mt, mtIdx) => (
-                                <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
+                                <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                               ))}
                             </div>
                           )}
@@ -383,11 +395,20 @@ export function ProposalDetail() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-secondary/30 rounded-xl border border-border/80">
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Bid Amount</span>
-                    <span className="text-xl font-bold text-foreground"><MoneyDisplay amount={proposal.bidAmount} /></span>
+                    <span className="text-xl font-semibold text-foreground"><MoneyDisplay amount={proposal.bidAmount} /></span>
                   </div>
                   <div>
                     <span className="text-xs font-semibold text-muted-foreground uppercase block">Total Estimated Duration</span>
-                    <span className="text-xl font-bold text-foreground">{proposal.durationDays} days</span>
+                    <span className="text-xl font-semibold text-foreground">
+                      {(Number(proposal?.durationDays) || 0) +
+                        (Number(
+                          localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                          localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                          localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                          0
+                        ) || 0)}{" "}
+                      days
+                    </span>
                   </div>
                 </div>
               </DetailSection>
@@ -407,26 +428,12 @@ export function ProposalDetail() {
                       if (!rawName && typeof rawUrl === "string") {
                         rawName = rawUrl.split("/").pop() || "Attachment";
                       }
-                      const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                      const finalName = cleanName || rawName;
+                      const finalName = cleanFileName(rawName);
 
-                      const handleDownloadFile = async (e) => {
+                      const handleDownloadFile = (e) => {
                         e.preventDefault();
                         if (!rawUrl || rawUrl === "#") return;
-                        try {
-                          const res = await fetch(rawUrl);
-                          const blob = await res.blob();
-                          const blobUrl = URL.createObjectURL(blob);
-                          const a = document.createElement("a");
-                          a.href = blobUrl;
-                          a.download = finalName;
-                          document.body.appendChild(a);
-                          a.click();
-                          document.body.removeChild(a);
-                          URL.revokeObjectURL(blobUrl);
-                        } catch (err) {
-                          window.open(rawUrl, "_blank");
-                        }
+                        downloadFile(rawUrl, finalName);
                       };
 
                       return (
@@ -435,13 +442,13 @@ export function ProposalDetail() {
                           href={rawUrl}
                           onClick={handleDownloadFile}
                           download={finalName}
-                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-3 hover:bg-secondary transition-colors cursor-pointer text-left"
+                          className="flex items-center gap-3 bg-secondary/60 border border-border rounded-xl px-4 py-2.5 hover:bg-secondary transition-colors cursor-pointer text-left"
                           title={`Download ${finalName}`}
                         >
                           {att.type === "image/png" || att.fileType === "image/png" ? (
                             <Image className="w-5 h-5 text-brand-primary flex-shrink-0" />
                           ) : att.type === "folder" ? (
-                            <FolderOpen className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                            <FolderOpen className="w-5 h-5 text-warning flex-shrink-0" />
                           ) : (
                             <FileIcon className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                           )}
@@ -451,7 +458,7 @@ export function ProposalDetail() {
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {att.type || att.fileType || "file"}
-                              {att.size || att.fileSize ? ` · ${att.size || att.fileSize}` : ""}
+                              {att.size || att.fileSize ? ` - ${att.size || att.fileSize}` : ""}
                             </p>
                           </div>
                         </a>
@@ -465,13 +472,12 @@ export function ProposalDetail() {
         </div>
 
         {/* ================================================================ */}
-        {/* Footer — Actions                                                  */}
-        {/* ================================================================ */}
+        {/* Footer - Actions */}
         <div className="p-8 border-t border-border/60 bg-secondary/50 flex flex-wrap items-center gap-3">
           {convId ? (
             <Link
               to={`/messenger/${convId}`}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
@@ -479,27 +485,11 @@ export function ProposalDetail() {
           ) : (
             <Link
               to={client ? `/messenger/${client.id || client.Id}` : "/messenger"}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
             >
               <MessageSquare className="w-4 h-4" />
               Contact Client
             </Link>
-          )}
-
-          {canEdit ? (
-            <Link
-              to={`/expert/jobs/${proposal.jobPostId}/proposal`}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover text-base font-semibold inline-flex items-center gap-2 transition-colors"
-            >
-              Edit
-            </Link>
-          ) : (
-            <button
-              disabled
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-medium inline-flex items-center gap-2 transition-colors opacity-40 cursor-not-allowed"
-            >
-              Edit
-            </button>
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+﻿import { useEffect, useState, useCallback } from "react";
 import { Clock, CheckCircle2, FileText, Edit3, Send, ThumbsUp, RotateCcw, Unlock, AlertTriangle } from "lucide-react";
 import { getTaskAuditLogs, formatAuditMessage } from "../../lib/auditTrail.js";
 import { EmptyState } from "../shared/EmptyState.jsx";
@@ -6,12 +6,12 @@ import { safeArray, safeDateTimeFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// TaskActivityTimeline — chronological activity feed for a single task.
+// TaskActivityTimeline - chronological activity feed for a single task.
 //
 // Props:
-//   taskId    — the task to show activity for
-//   loading   — boolean (optional)
-//   compact   — boolean, show compact version (optional)
+//   taskId    - the task to show activity for
+//   loading   - boolean (optional)
+//   compact   - boolean, show compact version (optional)
 // =============================================================================
 
 const ACTION_ICONS = {

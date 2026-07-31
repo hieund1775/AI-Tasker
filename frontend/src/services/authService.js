@@ -1,15 +1,15 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Auth Service
 // =============================================================================
 // Thin wrapper around the API client for authentication endpoints.
 // Matches the expected ASP.NET Core backend routes:
 //
-//   POST /users/login           → { token, user }
-//   POST /users/register/client → { token, user }  (or /users/register)
-//   POST /users/register/expert → { token, user }
-//   POST /auth/forgot-password  → { message }
-//   POST /auth/reset-password   → { message }
-//   POST /auth/refresh          → { token }
+//   POST /users/login           -> { token, user }
+//   POST /users/register/client -> { token, user }  (or /users/register)
+//   POST /users/register/expert -> { token, user }
+//   POST /auth/forgot-password  -> { message }
+//   POST /auth/reset-password   -> { message }
+//   POST /auth/refresh          -> { token }
 //
 // Usage from AuthContext (or anywhere):
 //   import { login, register } from "../services/authService.js";
