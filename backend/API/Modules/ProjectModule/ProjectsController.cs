@@ -25,6 +25,19 @@ namespace AITasker_Modular.Modules.ProjectModule
 
         #region Project Endpoints
 
+        [HttpGet]
+        public async Task<IActionResult> GetAll()
+        {
+            var projects = await _context.Projects
+                .Include(p => p.JobPost)
+                .Include(p => p.Client)
+                .Include(p => p.Expert)
+                .ToListAsync();
+
+            var result = projects.Select(MapToClientView).ToList();
+            return Ok(result);
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id, [FromQuery] string role = "expert")
         {
