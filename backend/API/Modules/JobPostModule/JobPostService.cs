@@ -180,56 +180,63 @@ public class JobPostService : IJobPostService
                                      .FirstOrDefaultAsync(jp => jp.Id == id);
         if (jobPost == null) return null;
 
-        if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase))
+        // If status update is provided (e.g. Cancelled)
+        if (!string.IsNullOrWhiteSpace(jobPostDto.Status))
         {
-            throw new InvalidOperationException($"Không thể chỉnh sửa bài đăng khi đã có Chuyên gia được chọn hoặc dự án đã được khởi tạo (Trạng thái hiện tại: {jobPost.Status}).");
+            jobPost.Status = jobPostDto.Status;
         }
 
-        int deadlineDays = jobPostDto.Deadline;
-        if (jobPostDto.DurationValue > 0)
+        // If content updates are provided (Title, Description, Budget)
+        if (!string.IsNullOrWhiteSpace(jobPostDto.Title))
         {
-            deadlineDays = jobPostDto.DurationValue;
-            var unitLower = jobPostDto.DurationUnit?.ToLowerInvariant();
-            if (unitLower == "weeks" || unitLower == "week")
-                deadlineDays *= 7;
-            else if (unitLower == "months" || unitLower == "month")
-                deadlineDays *= 30;
-        }
-
-        jobPost.Title = jobPostDto.Title.Trim();
-        jobPost.Description = jobPostDto.Description.Trim();
-        jobPost.Budget = jobPostDto.Budget;
-        jobPost.Deadline = deadlineDays;
-        jobPost.DurationUnit = jobPostDto.DurationUnit;
-        jobPost.DurationValue = jobPostDto.DurationValue;
-        jobPost.DomainId = jobPostDto.DomainId;
-        jobPost.SpecializationId = jobPostDto.SpecializationId;
-
-        _context.JobPostSkills.RemoveRange(jobPost.JobPostSkills);
-        jobPost.JobPostSkills.Clear();
-
-        if (jobPostDto.SkillIds != null && jobPostDto.SkillIds.Any())
-        {
-            foreach (var sid in jobPostDto.SkillIds)
+            if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(jobPostDto.Status))
             {
-                if (Guid.TryParse(sid, out var sguid))
+                throw new InvalidOperationException($"Không thể chỉnh sửa bài đăng khi đã có Chuyên gia được chọn hoặc dự án đã được khởi tạo (Trạng thái hiện tại: {jobPost.Status}).");
+            }
+
+            int deadlineDays = jobPostDto.Deadline.HasValue && jobPostDto.Deadline.Value > 0 ? jobPostDto.Deadline.Value : jobPost.Deadline;
+            if (jobPostDto.DurationValue.HasValue && jobPostDto.DurationValue.Value > 0)
+            {
+                deadlineDays = jobPostDto.DurationValue.Value;
+                var unitLower = jobPostDto.DurationUnit?.ToLowerInvariant();
+                if (unitLower == "weeks" || unitLower == "week")
+                    deadlineDays *= 7;
+                else if (unitLower == "months" || unitLower == "month")
+                    deadlineDays *= 30;
+            }
+
+            jobPost.Title = jobPostDto.Title.Trim();
+            if (!string.IsNullOrWhiteSpace(jobPostDto.Description)) jobPost.Description = jobPostDto.Description.Trim();
+            if (jobPostDto.Budget.HasValue && jobPostDto.Budget.Value > 0) jobPost.Budget = jobPostDto.Budget.Value;
+            jobPost.Deadline = deadlineDays;
+            if (jobPostDto.DurationUnit != null) jobPost.DurationUnit = jobPostDto.DurationUnit;
+            if (jobPostDto.DurationValue.HasValue) jobPost.DurationValue = jobPostDto.DurationValue.Value;
+            if (jobPostDto.DomainId.HasValue) jobPost.DomainId = jobPostDto.DomainId;
+            if (jobPostDto.SpecializationId.HasValue) jobPost.SpecializationId = jobPostDto.SpecializationId;
+
+            if (jobPostDto.SkillIds != null)
+            {
+                _context.JobPostSkills.RemoveRange(jobPost.JobPostSkills);
+                jobPost.JobPostSkills.Clear();
+                foreach (var sid in jobPostDto.SkillIds)
                 {
-                    jobPost.JobPostSkills.Add(new JobPostSkill { JobPostsId = jobPost.Id, SkillsId = sguid });
+                    if (Guid.TryParse(sid, out var sguid))
+                    {
+                        jobPost.JobPostSkills.Add(new JobPostSkill { JobPostsId = jobPost.Id, SkillsId = sguid });
+                    }
                 }
             }
-        }
 
-
-        jobPost.Implementation = jobPostDto.Implementation != null ? System.Text.Json.JsonSerializer.Serialize(jobPostDto.Implementation) : null;
-
-        if (jobPostDto.Implementation != null)
-        {
-            var oldTasks = await _context.JobPostTasks.Where(t => t.JobPostId == id).ToListAsync();
-            _context.JobPostTasks.RemoveRange(oldTasks);
-
-            if (jobPostDto.Implementation.Any())
+            if (jobPostDto.Implementation != null)
             {
-                SaveJobPostWbs(id, jobPostDto.Implementation);
+                jobPost.Implementation = System.Text.Json.JsonSerializer.Serialize(jobPostDto.Implementation);
+                var oldTasks = await _context.JobPostTasks.Where(t => t.JobPostId == id).ToListAsync();
+                _context.JobPostTasks.RemoveRange(oldTasks);
+
+                if (jobPostDto.Implementation.Any())
+                {
+                    SaveJobPostWbs(id, jobPostDto.Implementation);
+                }
             }
         }
 

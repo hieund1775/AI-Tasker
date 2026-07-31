@@ -49,21 +49,15 @@ namespace AITasker_Modular.Modules.JobPostModule
 
     public class UpdateJobPostDto
     {
-        [Required(ErrorMessage = "Title is required.")]
-        public string Title { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Description is required.")]
-        public string Description { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Budget is required.")]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Budget must be greater than 0.")]
-        public decimal Budget { get; set; }
-
-        public int Deadline { get; set; }
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public decimal? Budget { get; set; }
+        public int? Deadline { get; set; }
+        public string? Status { get; set; }
 
         public Guid? DomainId { get; set; }
         public Guid? SpecializationId { get; set; }
-        public int DurationValue { get; set; }
+        public int? DurationValue { get; set; }
         public string? DurationUnit { get; set; }
 
         public List<string>? SkillIds { get; set; }
