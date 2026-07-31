@@ -509,8 +509,8 @@ export default function TaskDetailPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen space-y-6">
+      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-0">
         Back to project
       </BackButton>
 
@@ -545,7 +545,7 @@ export default function TaskDetailPage() {
       />
 
       {/* Task stats row */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-card rounded-xl border border-border p-3 text-center">
           <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
           <p className="font-semibold text-foreground text-sm">
@@ -559,7 +559,7 @@ export default function TaskDetailPage() {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mb-6">
+      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500", task.progress > 0 ? "bg-brand-primary" : "bg-muted")}
           style={{ width: `${task.progress}%` }}
@@ -577,7 +577,7 @@ export default function TaskDetailPage() {
 
       {/* Deliverables Panel */}
       {hasMainProduct && (
-        <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-4 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <h3 className="text-xs font-semibold text-foreground/85 font-sans uppercase tracking-wider">
@@ -637,7 +637,7 @@ export default function TaskDetailPage() {
 
       {/* Status info banner */}
       {isReopenRequested && (
-        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-warning">
@@ -653,7 +653,7 @@ export default function TaskDetailPage() {
       )}
 
       {isNeedsRevision && (
-        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-warning">
@@ -667,7 +667,7 @@ export default function TaskDetailPage() {
       )}
 
       {isExpert && isWaitingForApproval && task?.urgentRequest !== true && (
-        <div className="bg-accent-light border border-accent/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-accent-light border border-accent/20 rounded-lg p-4 flex items-start gap-3">
           <Clock3 className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-accent">
@@ -682,7 +682,7 @@ export default function TaskDetailPage() {
 
       {/* Urgent request banner (Expert sees this) */}
       {isExpert && task?.urgentRequest === true && (
-        <div className="bg-destructive-light border border-destructive/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-destructive-light border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-destructive">
@@ -706,7 +706,7 @@ export default function TaskDetailPage() {
       )}
 
       {isTaskLocked && (
-        <div className="bg-success-light border border-success/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-success-light border border-success/20 rounded-lg p-4 flex items-start gap-3">
           <Lock className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-success">
@@ -772,7 +772,7 @@ export default function TaskDetailPage() {
       )}
 
       {/* Mini-tasks section */}
-      <div className="bg-card rounded-lg border border-border p-6 mb-8 space-y-4">
+      <div className="bg-card rounded-lg border border-border p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Task: {task?.title}</h2>
@@ -1006,7 +1006,7 @@ export default function TaskDetailPage() {
 
       {/* Decline Feedbacks Panel */}
       {isNeedsRevision && task.declineReason && (
-        <div className="bg-destructive-light border-2 border-destructive/35 rounded-xl p-5 mb-8 text-left shadow-sm">
+        <div className="bg-destructive-light border-2 border-destructive/35 rounded-xl p-5 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-destructive" />
             <h3 className="text-lg font-semibold text-destructive">
@@ -1303,7 +1303,7 @@ export default function TaskDetailPage() {
       )}
 
       {/* Activity Timeline */}
-      <div className="bg-card rounded-lg border border-border p-6 mt-8">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Activity Timeline</h2>
@@ -1337,7 +1337,7 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6 mb-6">
       <h3 className="text-sm font-semibold text-foreground/80 mb-4">Task Progress</h3>
-      <div className="flex flex-wrap items-center gap-0">
+      <div className="flex flex-wrap items-center justify-center gap-y-4">
         {steps.map((step, i) => (
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
@@ -1352,7 +1352,7 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />
+              <div className={`w-8 sm:w-12 h-0.5 mx-2 mt-[-12px] transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />
             )}
           </div>
         ))}

@@ -4,11 +4,11 @@
 // Uses existing /api/jobposts endpoint. Admin can:
 //   - View all job posts
 //   - Search
-//   - Change status of violating job posts
+//   - Change job post status
 //   - Delete job posts (placeholder if DELETE API unavailable)
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Edit3, Trash2 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
@@ -34,15 +34,17 @@ const JOB_POST_STATUS_CONFIG = {
   Cancelled: { color: "bg-destructive-light text-destructive", label: "Cancelled" },
 };
 
-const JOB_POST_STATUS_OPTIONS = [
-  { value: "Open", label: "Open", values: ["Open", "Active"] },
-  { value: "Draft", label: "Draft" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Accepted", label: "Accepted" },
-  { value: "Pending Payment", label: "Pending Payment" },
-  { value: "In Progress", label: "In Progress" },
-  { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled", values: ["Cancelled", "Closed"] },
+const JOB_POST_STATUS_ORDER = [
+  "Open",
+  "Active",
+  "Draft",
+  "Inactive",
+  "Closed",
+  "Accepted",
+  "Pending Payment",
+  "In Progress",
+  "Completed",
+  "Cancelled",
 ];
 
 const normalizeJobPostStatus = (rawStatus) => {
@@ -61,6 +63,18 @@ const normalizeJobPostStatus = (rawStatus) => {
 
   return rawStatus || "Open";
 };
+
+const normalizeJobPostRow = (job) => ({
+  ...job,
+  id: job.id || job.Id,
+  title: job.title || job.Title || "Untitled Job Post",
+  budget: job.budget ?? job.Budget ?? 0,
+  category: job.category || job.Category || job.domainName || job.DomainName || job.domain?.name || job.Domain?.Name || "-",
+  clientName: job.clientName || job.ClientName || job.client?.fullName || job.Client?.FullName || "",
+  clientId: job.clientId || job.ClientId || "",
+  createdAt: job.createdAt || job.CreatedAt || job.postedAt || job.PostedAt || "",
+  status: normalizeJobPostStatus(job.status || job.Status),
+});
 
 const renderJobPostStatus = (status) => {
   const normalized = normalizeJobPostStatus(status);
@@ -96,12 +110,9 @@ export function AdminJobPosts() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.get("/jobposts");
+      const result = await api.jobPosts.list({ pageSize: 500 });
       const rows = Array.isArray(result) ? result : result?.data || [];
-      setJobPosts(rows.map((job) => ({
-        ...job,
-        status: normalizeJobPostStatus(job.status || job.Status),
-      })));
+      setJobPosts(rows.map(normalizeJobPostRow));
     } catch (err) {
       setError(err.message || "Unable to load job posts.");
       setJobPosts([]);
@@ -123,8 +134,7 @@ export function AdminJobPosts() {
     async (jobPostId, newStatus) => {
       setActionLoading(true);
       try {
-        // Use existing API: PUT /api/jobposts/{id}
-        await api.put(`/jobposts/${jobPostId}`, { status: newStatus });
+        await api.jobPosts.update(jobPostId, { status: newStatus });
         setJobPosts((prev) =>
           prev.map((j) =>
             j.id === jobPostId ? { ...j, status: newStatus } : j,
@@ -159,10 +169,27 @@ export function AdminJobPosts() {
     [showToast],
   );
 
+  const statusFilterOptions = useMemo(() => {
+    const present = new Set(jobPosts.map((job) => normalizeJobPostStatus(job.status)).filter(Boolean));
+    const options = JOB_POST_STATUS_ORDER
+      .filter((status) => present.has(status))
+      .map((status) => ({ value: status, label: JOB_POST_STATUS_CONFIG[status]?.label || status }));
+
+    jobPosts.forEach((job) => {
+      const status = normalizeJobPostStatus(job.status);
+      if (status && !options.some((option) => option.value === status)) {
+        options.push({ value: status, label: status });
+      }
+    });
+
+    return options;
+  }, [jobPosts]);
+
   const columns = [
     {
       key: "title",
       label: "Title",
+      sortable: false,
       render: (val, row) => (
         <div>
           <p className="font-medium text-foreground text-sm">{val || "-"}</p>
@@ -186,6 +213,7 @@ export function AdminJobPosts() {
     {
       key: "category",
       label: "Category",
+      sortable: false,
       render: (val) => (
         <span className="text-xs text-muted-foreground">{val || "-"}</span>
       ),
@@ -193,7 +221,8 @@ export function AdminJobPosts() {
     {
       key: "status",
       label: "Status",
-      filterOptions: JOB_POST_STATUS_OPTIONS,
+      sortable: false,
+      filterOptions: statusFilterOptions,
       render: (val) => renderJobPostStatus(val),
     },
     {
@@ -213,7 +242,7 @@ export function AdminJobPosts() {
 
       <PageHeader
         title="Job Post / Service Management"
-        subtitle="View and manage violating job posts and services on the platform."
+        subtitle="View and manage job posts and services on the platform."
       />
 
       {feedback && (
@@ -233,16 +262,19 @@ export function AdminJobPosts() {
         data={jobPosts}
         loading={loading}
         emptyMessage="No job posts found."
-        actions={(row) => (
-          <div className="flex gap-1.5">
-            {normalizeJobPostStatus(row.status) !== "Closed" && (
+        actions={(row) => {
+          const normalizedStatus = normalizeJobPostStatus(row.status);
+          const canDeactivate = ["Open", "Active"].includes(normalizedStatus);
+
+          return (
+            <div className="flex gap-1.5">
+              {canDeactivate && (
               <button
                 type="button"
                 onClick={() =>
                   setStatusModal({
                     id: row.id,
-                    newStatus:
-                      ["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Inactive" : "Active",
+                    newStatus: "Inactive",
                   })
                 }
                 disabled={actionLoading}
@@ -250,7 +282,7 @@ export function AdminJobPosts() {
                 title="Change status"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                {["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Deactivate" : "Activate"}
+                Deactivate
               </button>
             )}
             <button
@@ -264,7 +296,8 @@ export function AdminJobPosts() {
               Delete
             </button>
           </div>
-        )}
+          );
+        }}
       />
 
       {/* Status change confirmation modal */}
@@ -272,13 +305,9 @@ export function AdminJobPosts() {
         open={statusModal !== null}
         onOpenChange={(open) => !open && setStatusModal(null)}
         title="Change Status"
-        description={`Are you sure you want to ${
-          statusModal?.newStatus === "Active" ? "activate" : "deactivate"
-        } this job post?`}
-        confirmLabel={
-          statusModal?.newStatus === "Active" ? "Activate" : "Deactivate"
-        }
-        variant={statusModal?.newStatus === "Active" ? "default" : "warning"}
+        description="Are you sure you want to deactivate this job post?"
+        confirmLabel="Deactivate"
+        variant="warning"
         loading={actionLoading}
         onConfirm={() =>
           statusModal &&

@@ -251,8 +251,8 @@ export function ProposalReview() {
   // ---- Loading state ----
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/my-projects" className="mb-6">Back</BackButton>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/my-projects" className="mb-0">Back</BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-muted-foreground animate-pulse">Loading proposals...</h3>
         </div>
@@ -263,8 +263,8 @@ export function ProposalReview() {
   // ---- Project not found ----
   if (!project) {
     return (
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/my-projects" className="mb-6">Back</BackButton>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/my-projects" className="mb-0">Back</BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-muted-foreground">Project not found</h3>
@@ -277,7 +277,7 @@ export function ProposalReview() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="Review Proposals"
         subtitle="Compare expert proposals, review breakdowns, and accept the best fit for your project."
@@ -291,7 +291,7 @@ export function ProposalReview() {
 
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${
+          className={`p-4 rounded-xl text-sm font-medium ${
             feedback.type === "success"
               ? "bg-success-light text-success border border-success"
               : feedback.type === "error"
@@ -366,8 +366,8 @@ export function ProposalReview() {
       </AnimatedReveal>
 
       {/* Proposals section */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">Proposals Received</h2>
         </div>
 

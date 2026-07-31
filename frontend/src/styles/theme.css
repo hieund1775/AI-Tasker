@@ -17,11 +17,12 @@
   --font-weight-bold: 700;
 
   /* Layout Rhythm */
-  --layout-max: 104rem;
-  --page-gutter: clamp(0.75rem, 1.6vw, 1.5rem);
+  --layout-max: 112rem;
+  --page-gutter: clamp(0.5rem, 0.95vw, 1rem);
   --section-y: clamp(4.5rem, 8vw, 6.75rem);
   --section-gap: clamp(2.75rem, 5vw, 4.5rem);
   --panel-gap: 1.75rem;
+  --panel-x-gap: clamp(1rem, 1.2vw, 1.5rem);
   --control-gap: 0.875rem;
 
   --background: #ffffff;
@@ -68,6 +69,7 @@
   --chart-3: #4f7a68;
   --chart-4: #ad8032;
   --chart-5: #656360;
+  --chart-posts: #2563eb;
 
   --brand-primary: #1c2e4a;
   --brand-primary-hover: #142238;
@@ -145,6 +147,7 @@
   --chart-3: #1c2e4a;
   --chart-4: #d7b56f;
   --chart-5: #9d9690;
+  --chart-posts: #60a5fa;
 
   --sidebar: #050505;
   --sidebar-foreground: #f9fafb;
@@ -940,7 +943,8 @@ body::before {
   max-width: var(--layout-max) !important;
 }
 
-.page-shell :where(.max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto:where([class*="px-"]) {
+.page-shell :where(.max-w-2xl, .max-w-3xl, .max-w-4xl, .max-w-5xl, .max-w-6xl, .max-w-7xl).mx-auto:where([class*="px-"]),
+.page-shell :where([class*="max-w-"][class*="mx-auto"]):where([class*="px-"]) {
   padding-left: var(--page-gutter) !important;
   padding-right: var(--page-gutter) !important;
 }
@@ -958,8 +962,12 @@ body::before {
   row-gap: var(--panel-gap);
 }
 
+.page-shell :where(.grid[class*="grid-cols"]) {
+  column-gap: var(--panel-x-gap);
+}
+
 .page-shell :where(.gap-6) {
-  gap: var(--panel-gap);
+  gap: var(--panel-gap) var(--panel-x-gap);
 }
 
 .page-shell :where(.space-y-6 > :not([hidden]) ~ :not([hidden])) {

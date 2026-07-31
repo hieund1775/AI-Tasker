@@ -5,7 +5,7 @@ export function Footer() {
 
   return (
     <footer className="relative z-[2] border-t border-border bg-card">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)] py-10">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           {/* Logo + Description */}
           <div className="flex items-center gap-3">

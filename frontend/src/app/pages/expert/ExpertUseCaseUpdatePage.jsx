@@ -180,11 +180,11 @@ export function ExpertUseCaseUpdatePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 font-sans bg-secondary min-h-screen">
+    <div className="max-w-4xl mx-auto px-4 py-8 font-sans bg-secondary min-h-screen space-y-6">
       {/* Back to Project Management page */}
       <button
         onClick={() => navigate(`/expert/projects/${projectId}`)}
-        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors font-medium cursor-pointer"
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium cursor-pointer"
       >
         <ArrowLeft className="w-4 h-4" /> Back to project
       </button>

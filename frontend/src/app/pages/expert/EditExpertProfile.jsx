@@ -176,11 +176,10 @@ export function EditExpertProfile() {
   const uniqueSkills = Array.from(new Map(allSkills.map(s => [s.name, s])).values());
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title={user?.hasProfile === false ? "Complete profile to start" : "Edit Expert Profile"}
         subtitle="Update your expert profile, skills, and service information."
-        className="mb-6"
         actions={user?.hasProfile !== false ? (
           <Link
             to="/expert/profile"

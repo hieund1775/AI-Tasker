@@ -8,7 +8,7 @@
 //   - View proposals modal (all proposals submitted for the project)
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Eye, Filter, X, Briefcase, Calendar, User, DollarSign, FileText, Paperclip, Image, FolderOpen, CheckCircle, Clock, Sparkles } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
@@ -27,16 +27,13 @@ const PROJECT_STATUS_FILTER_OPTIONS = [
   { value: "needs_revision", label: STATUS_LABELS.needs_revision },
   { value: "awaiting_cancellation", label: STATUS_LABELS.awaiting_cancellation },
   { value: "disputed", label: STATUS_LABELS.disputed },
-  {
-    value: "completed",
-    label: STATUS_LABELS.completed,
-    values: ["completed", "settled_dispute"],
-  },
-  {
-    value: "cancelled",
-    label: STATUS_LABELS.cancelled,
-    values: ["cancelled", "contract_cancelled", "cancel_done"],
-  },
+  { value: "accepted", label: STATUS_LABELS.accepted },
+  { value: "payment_released", label: STATUS_LABELS.payment_released },
+  { value: "completed", label: STATUS_LABELS.completed },
+  { value: "cancelled", label: STATUS_LABELS.cancelled },
+  { value: "contract_cancelled", label: STATUS_LABELS.contract_cancelled },
+  { value: "cancel_done", label: STATUS_LABELS.cancel_done },
+  { value: "settled_dispute", label: STATUS_LABELS.settled_dispute },
 ];
 
 export function AdminProjects() {
@@ -119,6 +116,10 @@ export function AdminProjects() {
           statusKey = "needs_revision";
         } else if (statusKey === "awaitingcancellation") {
           statusKey = "awaiting_cancellation";
+        } else if (statusKey === "accepted") {
+          statusKey = "accepted";
+        } else if (statusKey === "paymentreleased") {
+          statusKey = "payment_released";
         } else if (statusKey === "completed" || statusKey === "complete") {
           statusKey = "completed";
         } else if (statusKey === "cancelled" || statusKey === "stopped") {
@@ -137,6 +138,10 @@ export function AdminProjects() {
 
         return {
           ...p,
+          title: p.title || p.Title || "Untitled Project",
+          clientName: p.clientName || p.ClientName || p.clientId || "",
+          expert: p.expert || p.expertName || p.Expert || p.ExpertName || p.expertId || "",
+          budget: p.budget ?? p.Budget ?? 0,
           status: statusKey,
         };
       });
@@ -192,10 +197,26 @@ export function AdminProjects() {
     downloadFile(rawUrl, fileName);
   };
 
+  const projectStatusFilterOptions = useMemo(() => {
+    const present = new Set(projects.map((project) => project.status).filter(Boolean));
+    const options = PROJECT_STATUS_FILTER_OPTIONS.filter((option) => present.has(option.value));
+
+    projects.forEach((project) => {
+      const status = project.status;
+      if (!status) return;
+      if (!options.some((option) => option.value === status)) {
+        options.push({ value: status, label: STATUS_LABELS[status] || status });
+      }
+    });
+
+    return options;
+  }, [projects]);
+
   const columns = [
     {
       key: "title",
-      label: "PROJECT",
+      label: "Project",
+      sortable: false,
       className: "w-[25%] max-w-[220px]",
       render: (val) => (
         <span className="font-medium text-foreground text-sm truncate block" title={val}>{val || "-"}</span>
@@ -203,7 +224,8 @@ export function AdminProjects() {
     },
     {
       key: "clientName",
-      label: "CLIENT",
+      label: "Client",
+      sortable: false,
       className: "w-[15%] max-w-[140px]",
       render: (val, row) => {
         const name = row.clientName || row.ClientName || row.clientId || "-";
@@ -216,7 +238,8 @@ export function AdminProjects() {
     },
     {
       key: "expert",
-      label: "EXPERT",
+      label: "Expert",
+      sortable: false,
       className: "w-[15%] max-w-[140px]",
       render: (val, row) => {
         const name = row.expert || row.expertName || row.Expert || row.ExpertName || row.expertId || "None";
@@ -229,7 +252,7 @@ export function AdminProjects() {
     },
     {
       key: "budget",
-      label: "BUDGET",
+      label: "Budget",
       className: "w-[12%]",
       render: (val, row) => {
         const amount = row.budget ?? row.Budget ?? 0;
@@ -242,9 +265,10 @@ export function AdminProjects() {
     },
     {
       key: "status",
-      label: "STATUS",
+      label: "Status",
+      sortable: false,
       className: "w-[13%]",
-      filterOptions: PROJECT_STATUS_FILTER_OPTIONS,
+      filterOptions: projectStatusFilterOptions,
       render: (val) => (
         <StatusBadge
           status={val}
@@ -280,7 +304,7 @@ export function AdminProjects() {
               className="px-2.5 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1 transition cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
-              View Detail
+              View Details
             </button>
             <button
               type="button"
@@ -305,7 +329,7 @@ export function AdminProjects() {
               <div>
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-brand-primary" />
-                  {selectedDetailProject.title || selectedDetailProject.Title || "Project Detail"}
+                  {selectedDetailProject.title || selectedDetailProject.Title || "Project Details"}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   ID: {selectedDetailProject.id || selectedDetailProject.Id}

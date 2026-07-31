@@ -926,8 +926,8 @@ Please use this background information to write a personalized and highly releva
   // ---- Loading state ----
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back to Dashboard
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -943,8 +943,8 @@ Please use this background information to write a personalized and highly releva
   // ---- Project not found ----
   if (!project && projectId) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back to Dashboard
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -966,8 +966,8 @@ Please use this background information to write a personalized and highly releva
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <BackButton fallback="/expert/dashboard" className="mb-4">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <BackButton fallback="/expert/dashboard" className="mb-0">
         Back to Dashboard
       </BackButton>
       <PageHeader
@@ -1143,7 +1143,7 @@ Please use this background information to write a personalized and highly releva
       />
 
       <div
-        className={`mt-6 grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
+        className={`grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
       >
         <div
           className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}

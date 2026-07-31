@@ -23,18 +23,36 @@ import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  client: "bg-brand-primary-light text-brand-primary",
-  expert: "bg-warning-light text-warning",
-  admin: "bg-destructive-light text-destructive",
-  owner: "bg-warning-light text-warning",
+  client: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  expert: "bg-[#dbeafe] text-[#1c2e4a] border border-[#93c5fd] dark:bg-[#1c2e4a] dark:text-white dark:border-[#5b7da8]",
+  admin: "bg-destructive-light text-destructive border border-destructive/25",
+  owner: "bg-warning-light text-warning border border-warning/25",
 };
 
 const STATUS_CONFIG = {
-  active: { color: "bg-success-light text-success", label: "Active" },
-  inactive: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  suspended: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  locked: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  banned: { color: "bg-destructive-light text-destructive", label: "Inactive" },
+  pending: { color: "bg-warning-light text-warning border border-warning/25", label: "Pending" },
+  active: { color: "bg-success-light text-success border border-success/20", label: "Active" },
+  inactive: { color: "bg-secondary text-secondary-foreground border border-border", label: "Inactive" },
+  banned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Banned" },
+};
+
+const normalizeUserStatus = (user) => {
+  const isActive = user?.isActive ?? user?.IsActive;
+  const raw = String(user?.status || user?.Status || "").trim().toLowerCase();
+
+  if (raw === "banned" || raw === "ban") return "banned";
+  if (raw === "pending") return "pending";
+  if (raw === "inactive" || raw === "disabled" || raw === "locked" || raw === "suspended" || raw === "false") return "inactive";
+  if (raw === "active" || raw === "true") return "active";
+  if (isActive === false) return "inactive";
+  return "active";
+};
+
+const USER_STATUS_LABELS = {
+  pending: "Pending",
+  active: "Active",
+  inactive: "Inactive",
+  banned: "Banned",
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -93,7 +111,8 @@ export function AdminUsers({ excludeRoles = [] }) {
         const roleLower = (u.role || u.Role || "").trim().toLowerCase();
         return {
           ...u,
-          role: roleLower === "staff" ? "admin" : roleLower
+          role: roleLower === "staff" ? "admin" : roleLower,
+          status: normalizeUserStatus(u),
         };
       });
       setUsers(normalizedData);
@@ -152,6 +171,13 @@ export function AdminUsers({ excludeRoles = [] }) {
     [showToast],
   );
 
+  const statusFilterOptions = useMemo(() => {
+    const statuses = new Set(filteredUsers.map((user) => user.status).filter(Boolean));
+    return Object.entries(USER_STATUS_LABELS)
+      .filter(([value]) => statuses.has(value))
+      .map(([value, label]) => ({ value, label }));
+  }, [filteredUsers]);
+
   // -----------------------------------------------------------------------
   // Table columns
   // -----------------------------------------------------------------------
@@ -159,6 +185,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "fullName",
       label: "User",
+      sortable: false,
       render: (val, row) => (
         <div>
           <p className="text-sm font-medium text-foreground">
@@ -171,6 +198,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "role",
       label: "Role",
+      sortable: false,
       filterOptions: [
         { label: "Client", value: "client" },
         { label: "Expert", value: "expert" },
@@ -194,14 +222,8 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "status",
       label: "Status",
-      filterOptions: [
-        { label: "Active", value: "active" },
-        {
-          label: "Inactive",
-          value: "inactive",
-          values: ["inactive", "suspended", "locked", "banned"],
-        },
-      ],
+      sortable: false,
+      filterOptions: statusFilterOptions,
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
       ),

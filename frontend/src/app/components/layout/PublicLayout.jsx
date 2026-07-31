@@ -31,7 +31,7 @@ export function PublicLayout() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Navbar */}
       <nav className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-40 shadow-sm shadow-foreground/[0.025]">
-        <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-3 sm:px-4 lg:px-5">
+        <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-[var(--page-gutter)]">
           <div className="flex items-center gap-10">
             <Link to="/" className="flex items-center gap-3">
               <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-sm">
@@ -77,7 +77,7 @@ export function PublicLayout() {
         {/* Platform Stats Banner */}
         {stats && (
           <div className="bg-card/65 border-t border-border/70">
-            <div className="mx-auto flex w-full max-w-[var(--layout-max)] items-center justify-center gap-10 px-3 py-2 sm:px-4 lg:px-5 text-xs text-muted-foreground">
+            <div className="mx-auto flex w-full max-w-[var(--layout-max)] items-center justify-center gap-10 px-[var(--page-gutter)] py-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <Users className="w-3.5 h-3.5 text-accent" />
                 <span className="font-semibold text-foreground tabular-nums">

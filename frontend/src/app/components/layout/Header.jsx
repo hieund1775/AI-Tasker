@@ -157,8 +157,8 @@ export function Header() {
     expert: {
       label: "Expert",
       context: "Expert workspace",
-      tone: "bg-success-light text-success border-success/20",
-      dot: "bg-success",
+      tone: "bg-[#dbeafe] text-[#1c2e4a] border-[#93c5fd] dark:bg-[#1c2e4a] dark:text-white dark:border-[#5b7da8]",
+      dot: "bg-[#1c2e4a] dark:bg-white",
     },
     admin: {
       label: "Admin",
@@ -189,7 +189,7 @@ export function Header() {
 
   return (
     <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
-      <div className="mx-auto w-full max-w-[var(--layout-max)] px-3 sm:px-4 lg:px-5">
+      <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)]">
         <div className="flex h-[4.75rem] items-center justify-between gap-5">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">

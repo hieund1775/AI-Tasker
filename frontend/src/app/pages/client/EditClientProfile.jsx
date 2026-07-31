@@ -5,22 +5,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
-
-// ---------------------------------------------------------------------------
-// Helper: localStorage key for client profile (avoids clashing with BE Status column)
-// ---------------------------------------------------------------------------
-export const getClientProfileKey = (userId) => `aitasker_client_profile_${userId}`;
-
-export function getLocalClientProfile(userId) {
-  try {
-    const raw = localStorage.getItem(getClientProfileKey(userId));
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-export function saveLocalClientProfile(userId, data) {
-  localStorage.setItem(getClientProfileKey(userId), JSON.stringify(data));
-}
+import { getLocalClientProfile, saveLocalClientProfile } from "../../lib/clientProfileStorage.js";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -32,6 +17,7 @@ export function EditClientProfile() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
+    companyName: "",
     phone: "",
     location: "",
     website: "",
@@ -52,14 +38,16 @@ export function EditClientProfile() {
           const apiData = {
             fullName: client.fullName || client.name || "",
             email: client.email || "",
+            phone: client.phoneNumber || client.PhoneNumber || "",
           };
           // Profile details from localStorage (phone, location, ...)
           const localProfile = getLocalClientProfile(authUser.id);
 
           setFormData({
             fullName: apiData.fullName,
-            email: apiData.email,
-            phone: localProfile.phone || "",
+            email: localProfile.email || apiData.email,
+            companyName: localProfile.companyName || "",
+            phone: localProfile.phone || apiData.phone,
             location: localProfile.location || "",
             website: localProfile.website || "",
             industry: localProfile.industry || "",
@@ -86,11 +74,13 @@ export function EditClientProfile() {
       // 1. Save fullName & email to API (safe, does not touch Status column)
       await api.users.update(authUser.id, {
         fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        phoneNumber: formData.phone.trim(),
       });
 
       // 2. Save remaining profile fields to localStorage
       saveLocalClientProfile(authUser.id, {
+        email: formData.email.trim(),
+        companyName: formData.companyName.trim(),
         phone: formData.phone.trim(),
         location: formData.location.trim(),
         website: formData.website.trim(),
@@ -103,10 +93,14 @@ export function EditClientProfile() {
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.fullName.trim();
+        u.fullName = formData.fullName.trim();
+        u.email = formData.email.trim();
+        u.phoneNumber = formData.phone.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
         if (localStorage.getItem("aitasker_user_info")) {
           localStorage.setItem("aitasker_user_info", JSON.stringify(u));
         }
+        window.dispatchEvent(new Event("aitasker_auth_sync"));
       }
 
       navigate("/client/profile");
@@ -136,11 +130,10 @@ export function EditClientProfile() {
 
   // ---- Render ----
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="Edit Profile"
         subtitle="Update your client profile information."
-        className="mb-6"
         actions={(
           <Link to="/client/profile" className="text-muted-foreground hover:text-foreground" aria-label="Back to profile">
             <ArrowLeft className="h-5 w-5" />
@@ -155,11 +148,12 @@ export function EditClientProfile() {
         {[
           { key: "fullName", label: "Full Name", type: "text", required: true },
           { key: "email", label: "Email Address", type: "email", required: true },
-          { key: "phone", label: "Phone Number", type: "tel", required: true },
+          { key: "companyName", label: "Company Name", type: "text", required: true },
+          { key: "phone", label: "Phone Number", type: "tel", required: true, pattern: "^0[0-9]{9}$" },
           { key: "location", label: "Location", type: "text" },
           { key: "website", label: "Website", type: "url" },
           { key: "industry", label: "Industry", type: "text" },
-        ].map(({ key, label, type, required }) => (
+        ].map(({ key, label, type, required, pattern }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
               {label} {required && <span className="text-destructive">*</span>}
@@ -169,6 +163,8 @@ export function EditClientProfile() {
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
               required={required}
+              pattern={pattern}
+              title={key === "phone" ? "Use a 10-digit phone number that starts with 0." : undefined}
               className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
