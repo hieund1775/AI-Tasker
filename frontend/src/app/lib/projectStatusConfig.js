@@ -30,7 +30,9 @@ export const STATUS_LABELS = {
   contract_cancelled: "Contract Cancelled",
   awaiting_cancellation: "Awaiting Cancellation",
   cancel_done: "Cancelled Successfully",
-  settled_dispute: "Settled dispute",
+  settled_dispute: "Settled Dispute",
+  accepted: "Delivery Accepted",
+  payment_released: "Payment Released",
 };
 
 // ---------------------------------------------------------------------------
@@ -51,6 +53,8 @@ export const STATUS_BADGE_CLASSES = {
   awaiting_cancellation: "bg-warning-light text-warning border border-warning/25 font-semibold",
   cancel_done: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
   settled_dispute: "bg-success-light text-success border border-success/25 font-semibold",
+  accepted: "bg-success-light text-success border border-success/25 font-semibold",
+  payment_released: "bg-success-light text-success border border-success/25 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
@@ -224,20 +228,22 @@ export function getExpertButtonConfig(statusKey) {
 export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   if (!project) return "reviewing_proposals";
 
-  const raw = project.status;
+  const raw = String(project.status || "").trim().toLowerCase();
 
   // Completed / cancelled pass through directly
-  if (raw === "settled_dispute" || raw === "Settled dispute" || raw === "settled dispute") return "settled_dispute";
-  if (raw === "completed") return "completed";
-  if (raw === "cancelled") return "cancelled";
+  if (raw === "settled_dispute" || raw === "settled dispute") return "settled_dispute";
+  if (raw === "completed" || raw === "complete") return "completed";
+  if (raw === "accepted") return "accepted";
+  if (raw === "payment_released" || raw === "payment released") return "payment_released";
+  if (raw === "cancelled" || raw === "canceled" || raw === "stopped") return "cancelled";
   if (raw === "contract_cancelled") return "contract_cancelled";
   if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
-  if (raw === "disputed" || raw === "Disputed" || raw === "under_review" || raw === "under review" || raw === "Under Review") return "disputed";
-  if (raw === "Awaiting_Cancellation" || raw === "awaiting_cancellation") return "awaiting_cancellation";
+  if (raw === "disputed" || raw === "under_review" || raw === "under review") return "disputed";
+  if (raw === "awaiting_cancellation" || raw === "awaiting cancellation") return "awaiting_cancellation";
   if (raw === "cancel_done") return "cancel_done";
 
   // in_progress or active -> check task states for waiting_review / needs_revision
-  if (raw === "in_progress" || raw === "active") return "in_progress";
+  if (raw === "in_progress" || raw === "in progress" || raw === "inprogress" || raw === "active") return "in_progress";
 
   // open -> determine based on assigned expert and proposals
   if (raw === "open") {

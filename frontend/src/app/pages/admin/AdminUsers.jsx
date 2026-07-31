@@ -30,11 +30,29 @@ const ROLE_COLORS = {
 };
 
 const STATUS_CONFIG = {
+  pending: { color: "bg-warning-light text-warning border border-warning/25", label: "Pending" },
   active: { color: "bg-success-light text-success border border-success/20", label: "Active" },
   inactive: { color: "bg-secondary text-secondary-foreground border border-border", label: "Inactive" },
-  suspended: { color: "bg-warning-light text-warning border border-warning/25", label: "Suspended" },
-  locked: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Locked" },
   banned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Banned" },
+};
+
+const normalizeUserStatus = (user) => {
+  const isActive = user?.isActive ?? user?.IsActive;
+  const raw = String(user?.status || user?.Status || "").trim().toLowerCase();
+
+  if (raw === "banned" || raw === "ban") return "banned";
+  if (raw === "pending") return "pending";
+  if (raw === "inactive" || raw === "disabled" || raw === "locked" || raw === "suspended" || raw === "false") return "inactive";
+  if (raw === "active" || raw === "true") return "active";
+  if (isActive === false) return "inactive";
+  return "active";
+};
+
+const USER_STATUS_LABELS = {
+  pending: "Pending",
+  active: "Active",
+  inactive: "Inactive",
+  banned: "Banned",
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -93,7 +111,8 @@ export function AdminUsers({ excludeRoles = [] }) {
         const roleLower = (u.role || u.Role || "").trim().toLowerCase();
         return {
           ...u,
-          role: roleLower === "staff" ? "admin" : roleLower
+          role: roleLower === "staff" ? "admin" : roleLower,
+          status: normalizeUserStatus(u),
         };
       });
       setUsers(normalizedData);
@@ -152,6 +171,13 @@ export function AdminUsers({ excludeRoles = [] }) {
     [showToast],
   );
 
+  const statusFilterOptions = useMemo(() => {
+    const statuses = new Set(filteredUsers.map((user) => user.status).filter(Boolean));
+    return Object.entries(USER_STATUS_LABELS)
+      .filter(([value]) => statuses.has(value))
+      .map(([value, label]) => ({ value, label }));
+  }, [filteredUsers]);
+
   // -----------------------------------------------------------------------
   // Table columns
   // -----------------------------------------------------------------------
@@ -197,13 +223,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       key: "status",
       label: "Status",
       sortable: false,
-      filterOptions: [
-        { label: "Active", value: "active" },
-        { label: "Inactive", value: "inactive" },
-        { label: "Suspended", value: "suspended" },
-        { label: "Locked", value: "locked" },
-        { label: "Banned", value: "banned" },
-      ],
+      filterOptions: statusFilterOptions,
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
       ),

@@ -2,13 +2,13 @@
 // AdminDisputes - Dispute report list page for Admin/Owner.
 //
 // Shows all dispute reports with:
-//   - Status filter (Pending, Accepted, Rejected, Under Review, Resolved, Closed)
+//   - Status filter for report workflow statuses from /Reports
 //   - Search
 //   - View detail button -> /admin/disputes/:id
 //   - Status badge per report
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router";
 import { Eye } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
@@ -31,25 +31,22 @@ const REPORT_STATUS_CONFIG = {
   "Awaiting Evidence": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Evidence" },
   "Awaiting Both": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Both" },
   Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
+  Accepted: { color: "bg-brand-primary-light text-brand-primary border border-brand-primary/20", label: "Accepted" },
   Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
-  Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   cancel_done: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
 const REPORT_STATUS_FILTER_OPTIONS = [
-  { value: "Pending", label: "Pending Admin" },
+  { value: "Pending Admin", label: "Pending Admin", values: ["Pending Admin", "Pending"] },
   { value: "Awaiting Expert", label: "Awaiting Expert" },
   { value: "Awaiting Client", label: "Awaiting Client" },
   { value: "Awaiting Partner", label: "Awaiting Partner" },
   { value: "Awaiting Evidence", label: "Awaiting Evidence" },
   { value: "Awaiting Both", label: "Awaiting Both" },
   { value: "Returned", label: "Returned" },
-  {
-    value: "Resolved",
-    label: "Resolved",
-    values: ["Resolved", "Accepted", "cancel_done"],
-  },
+  { value: "Accepted", label: "Accepted" },
+  { value: "Resolved", label: "Resolved", values: ["Resolved", "cancel_done"] },
   { value: "Rejected", label: "Rejected" },
 ];
 
@@ -92,6 +89,28 @@ export function AdminDisputes() {
     window.addEventListener("aitasker_db_update", handleUpdate);
     return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [fetchReports]);
+
+  const reportStatusFilterOptions = useMemo(() => {
+    const present = new Set(allReports.map((report) => report.status).filter(Boolean));
+    const options = REPORT_STATUS_FILTER_OPTIONS.filter((option) => {
+      const values = option.values?.length ? option.values : [option.value];
+      return values.some((value) => present.has(value));
+    });
+
+    allReports.forEach((report) => {
+      const status = report.status;
+      if (!status) return;
+      const known = REPORT_STATUS_FILTER_OPTIONS.some((option) => {
+        const values = option.values?.length ? option.values : [option.value];
+        return values.includes(status);
+      });
+      if (!known && !options.some((option) => option.value === status)) {
+        options.push({ value: status, label: status });
+      }
+    });
+
+    return options;
+  }, [allReports]);
 
   const columns = [
     {
@@ -181,7 +200,7 @@ export function AdminDisputes() {
       key: "status",
       label: "Status",
       sortable: false,
-      filterOptions: REPORT_STATUS_FILTER_OPTIONS,
+      filterOptions: reportStatusFilterOptions,
       render: (val, row) => (
         <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
       ),
@@ -220,13 +239,13 @@ export function AdminDisputes() {
           </div>
           <div className="bg-card rounded-xl border border-warning/20 dark:border-warning/30 p-4 text-center">
             <p className="text-2xl font-semibold text-warning dark:text-warning">
-              {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner").length}
+              {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner" || r.status === "Accepted").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Active</p>
           </div>
           <div className="bg-card rounded-xl border border-success/20 dark:border-success/30 p-4 text-center">
             <p className="text-2xl font-semibold text-success dark:text-success">
-              {allReports.filter(r => r.status === "Resolved" || r.status === "Accepted" || r.status === "cancel_done").length}
+              {allReports.filter(r => r.status === "Resolved" || r.status === "cancel_done").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Resolved</p>
           </div>

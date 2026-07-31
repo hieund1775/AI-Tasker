@@ -8,7 +8,7 @@
 //   - View proposals modal (all proposals submitted for the project)
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Eye, Filter, X, Briefcase, Calendar, User, DollarSign, FileText, Paperclip, Image, FolderOpen, CheckCircle, Clock, Sparkles } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
@@ -27,16 +27,13 @@ const PROJECT_STATUS_FILTER_OPTIONS = [
   { value: "needs_revision", label: STATUS_LABELS.needs_revision },
   { value: "awaiting_cancellation", label: STATUS_LABELS.awaiting_cancellation },
   { value: "disputed", label: STATUS_LABELS.disputed },
-  {
-    value: "completed",
-    label: STATUS_LABELS.completed,
-    values: ["completed", "settled_dispute"],
-  },
-  {
-    value: "cancelled",
-    label: STATUS_LABELS.cancelled,
-    values: ["cancelled", "contract_cancelled", "cancel_done"],
-  },
+  { value: "accepted", label: STATUS_LABELS.accepted },
+  { value: "payment_released", label: STATUS_LABELS.payment_released },
+  { value: "completed", label: STATUS_LABELS.completed },
+  { value: "cancelled", label: STATUS_LABELS.cancelled },
+  { value: "contract_cancelled", label: STATUS_LABELS.contract_cancelled },
+  { value: "cancel_done", label: STATUS_LABELS.cancel_done },
+  { value: "settled_dispute", label: STATUS_LABELS.settled_dispute },
 ];
 
 export function AdminProjects() {
@@ -119,6 +116,10 @@ export function AdminProjects() {
           statusKey = "needs_revision";
         } else if (statusKey === "awaitingcancellation") {
           statusKey = "awaiting_cancellation";
+        } else if (statusKey === "accepted") {
+          statusKey = "accepted";
+        } else if (statusKey === "paymentreleased") {
+          statusKey = "payment_released";
         } else if (statusKey === "completed" || statusKey === "complete") {
           statusKey = "completed";
         } else if (statusKey === "cancelled" || statusKey === "stopped") {
@@ -196,6 +197,21 @@ export function AdminProjects() {
     downloadFile(rawUrl, fileName);
   };
 
+  const projectStatusFilterOptions = useMemo(() => {
+    const present = new Set(projects.map((project) => project.status).filter(Boolean));
+    const options = PROJECT_STATUS_FILTER_OPTIONS.filter((option) => present.has(option.value));
+
+    projects.forEach((project) => {
+      const status = project.status;
+      if (!status) return;
+      if (!options.some((option) => option.value === status)) {
+        options.push({ value: status, label: STATUS_LABELS[status] || status });
+      }
+    });
+
+    return options;
+  }, [projects]);
+
   const columns = [
     {
       key: "title",
@@ -252,7 +268,7 @@ export function AdminProjects() {
       label: "Status",
       sortable: false,
       className: "w-[13%]",
-      filterOptions: PROJECT_STATUS_FILTER_OPTIONS,
+      filterOptions: projectStatusFilterOptions,
       render: (val) => (
         <StatusBadge
           status={val}

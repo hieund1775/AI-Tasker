@@ -8,7 +8,7 @@
 //   - Delete job posts (placeholder if DELETE API unavailable)
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Edit3, Trash2 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
@@ -34,17 +34,17 @@ const JOB_POST_STATUS_CONFIG = {
   Cancelled: { color: "bg-destructive-light text-destructive", label: "Cancelled" },
 };
 
-const JOB_POST_STATUS_OPTIONS = [
-  { value: "Open", label: "Open" },
-  { value: "Active", label: "Active" },
-  { value: "Draft", label: "Draft" },
-  { value: "Inactive", label: "Inactive" },
-  { value: "Closed", label: "Closed" },
-  { value: "Accepted", label: "Accepted" },
-  { value: "Pending Payment", label: "Pending Payment" },
-  { value: "In Progress", label: "In Progress" },
-  { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled" },
+const JOB_POST_STATUS_ORDER = [
+  "Open",
+  "Active",
+  "Draft",
+  "Inactive",
+  "Closed",
+  "Accepted",
+  "Pending Payment",
+  "In Progress",
+  "Completed",
+  "Cancelled",
 ];
 
 const normalizeJobPostStatus = (rawStatus) => {
@@ -63,6 +63,18 @@ const normalizeJobPostStatus = (rawStatus) => {
 
   return rawStatus || "Open";
 };
+
+const normalizeJobPostRow = (job) => ({
+  ...job,
+  id: job.id || job.Id,
+  title: job.title || job.Title || "Untitled Job Post",
+  budget: job.budget ?? job.Budget ?? 0,
+  category: job.category || job.Category || job.domainName || job.DomainName || job.domain?.name || job.Domain?.Name || "-",
+  clientName: job.clientName || job.ClientName || job.client?.fullName || job.Client?.FullName || "",
+  clientId: job.clientId || job.ClientId || "",
+  createdAt: job.createdAt || job.CreatedAt || job.postedAt || job.PostedAt || "",
+  status: normalizeJobPostStatus(job.status || job.Status),
+});
 
 const renderJobPostStatus = (status) => {
   const normalized = normalizeJobPostStatus(status);
@@ -98,12 +110,9 @@ export function AdminJobPosts() {
     setLoading(true);
     setError(null);
     try {
-      const result = await api.get("/jobposts");
+      const result = await api.jobPosts.list({ pageSize: 500 });
       const rows = Array.isArray(result) ? result : result?.data || [];
-      setJobPosts(rows.map((job) => ({
-        ...job,
-        status: normalizeJobPostStatus(job.status || job.Status),
-      })));
+      setJobPosts(rows.map(normalizeJobPostRow));
     } catch (err) {
       setError(err.message || "Unable to load job posts.");
       setJobPosts([]);
@@ -125,8 +134,7 @@ export function AdminJobPosts() {
     async (jobPostId, newStatus) => {
       setActionLoading(true);
       try {
-        // Use existing API: PUT /api/jobposts/{id}
-        await api.put(`/jobposts/${jobPostId}`, { status: newStatus });
+        await api.jobPosts.update(jobPostId, { status: newStatus });
         setJobPosts((prev) =>
           prev.map((j) =>
             j.id === jobPostId ? { ...j, status: newStatus } : j,
@@ -160,6 +168,22 @@ export function AdminJobPosts() {
     },
     [showToast],
   );
+
+  const statusFilterOptions = useMemo(() => {
+    const present = new Set(jobPosts.map((job) => normalizeJobPostStatus(job.status)).filter(Boolean));
+    const options = JOB_POST_STATUS_ORDER
+      .filter((status) => present.has(status))
+      .map((status) => ({ value: status, label: JOB_POST_STATUS_CONFIG[status]?.label || status }));
+
+    jobPosts.forEach((job) => {
+      const status = normalizeJobPostStatus(job.status);
+      if (status && !options.some((option) => option.value === status)) {
+        options.push({ value: status, label: status });
+      }
+    });
+
+    return options;
+  }, [jobPosts]);
 
   const columns = [
     {
@@ -198,7 +222,7 @@ export function AdminJobPosts() {
       key: "status",
       label: "Status",
       sortable: false,
-      filterOptions: JOB_POST_STATUS_OPTIONS,
+      filterOptions: statusFilterOptions,
       render: (val) => renderJobPostStatus(val),
     },
     {

@@ -71,8 +71,8 @@ const REPORT_STATUS_CONFIG = {
   "Awaiting Both": { color: "bg-warning-light text-warning border border-warning/30", label: "Awaiting Both Sides" },
   "Awaiting Partner": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Partner" },
   Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
+  Accepted: { color: "bg-brand-primary-light text-brand-primary border border-brand-primary/20", label: "Accepted" },
   Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
-  Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 

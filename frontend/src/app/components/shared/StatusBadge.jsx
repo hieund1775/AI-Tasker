@@ -25,7 +25,24 @@ const ENTITY_CONFIG = {
   },
 };
 
-export function StatusBadge({ status, entity = "project", className = "" }) {
+export function StatusBadge({ status, entity = "project", className = "", config: customConfig }) {
+  if (customConfig) {
+    const key = String(status || "Unknown");
+    const cfg = customConfig[key] || customConfig[key.toLowerCase()] || {
+      color: "bg-secondary text-foreground/80 border border-border",
+      label: key,
+    };
+    const badgeClass = cfg.className || cfg.color || "bg-secondary text-foreground/80 border border-border";
+    const label = cfg.label || key;
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass} ${className}`}>
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
+        {label}
+      </span>
+    );
+  }
+
   const config = ENTITY_CONFIG[entity];
 
   if (!config) {
