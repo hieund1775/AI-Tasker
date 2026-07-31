@@ -131,7 +131,9 @@ export function AdminRevenue() {
             const isActiveStatus = ["inprogress", "active", "worksubmitted", "underreview", "revisionrequested", "awaitingcancellation", "locked", "accepted", "assigned"].includes(status);
 
             if (isActiveStatus && !isReleasedLocally) {
-              const budget = Number(p.escrowBalance ?? p.EscrowBalance ?? p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowAmount ?? 0);
+              const eb = Number(p.escrowBalance ?? p.EscrowBalance ?? 0);
+              const b = Number(p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.proposal?.bidAmount ?? p.Proposal?.BidAmount ?? p.escrowAmount ?? 0);
+              const budget = eb > 0 ? eb : (b > 0 ? b : 0);
               escrowHeld += budget;
             }
           });
