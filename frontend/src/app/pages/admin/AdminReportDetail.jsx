@@ -1666,7 +1666,7 @@ export function AdminReportDetail() {
                               <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
                               <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
                                 <Clock className="w-4 h-4 text-primary shrink-0" />
-                                <span>Chờ Client gửi giải trình & bằng chứng cho Vòng {currentRoundNumber}...</span>
+                                <span>Waiting for the Client to submit an explanation and evidence for Round {currentRoundNumber}...</span>
                               </div>
                             </div>
                           );
@@ -1712,7 +1712,7 @@ export function AdminReportDetail() {
                               <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
                               <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
                                 <Clock className="w-4 h-4 text-warning shrink-0" />
-                                <span>Chờ Expert gửi giải trình & bằng chứng cho Vòng {currentRoundNumber}...</span>
+                                <span>Waiting for the Expert to submit an explanation and evidence for Round {currentRoundNumber}...</span>
                               </div>
                             </div>
                           );

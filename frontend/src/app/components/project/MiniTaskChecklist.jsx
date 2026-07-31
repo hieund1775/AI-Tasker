@@ -15,6 +15,7 @@ import { EmptyState } from "../shared/EmptyState.jsx";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { cn } from "../../lib/utils.js";
 import { safeDateTimeFormat } from "../../lib/safety.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { toast } from "sonner";
 import { api, enrichFileUrl } from "../../../services/api.js";
 
@@ -350,8 +351,16 @@ export function MiniTaskChecklist({
                       type="file"
                       ref={fileInputRef}
                       onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedFile(e.target.files[0]);
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const validation = validateUploadFiles([file]);
+                          if (!validation.valid) {
+                            toast.error(getFileSizeErrorMessage(file));
+                            setSelectedFile(null);
+                            e.target.value = "";
+                            return;
+                          }
+                          setSelectedFile(file);
                         }
                       }}
                       className="hidden"

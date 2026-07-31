@@ -148,14 +148,14 @@ function HeroProductMap() {
 
 export function HeroSection() {
   return (
-    <section className="relative overflow-hidden border-b border-border bg-background px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16 lg:px-8">
+    <section className="relative overflow-hidden border-b border-border bg-background px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8">
       <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_20%_12%,color-mix(in_srgb,var(--accent)_15%,transparent),transparent_28rem),radial-gradient(circle_at_82%_18%,color-mix(in_srgb,var(--success)_9%,transparent),transparent_24rem)]" />
       <div className="relative mx-auto w-full max-w-[var(--layout-max)]">
-        <div className="mb-10 grid grid-cols-2 gap-3 border-y border-border/80 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:grid-cols-4">
-          <span>Brief intake</span>
-          <span>Expert ranking</span>
-          <span>Escrow ready</span>
-          <span>Delivery tracked</span>
+        <div className="mb-10 grid grid-cols-2 items-center gap-3 border-y border-border/80 py-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:grid-cols-4">
+          <span className="block w-full">Brief intake</span>
+          <span className="block w-full">Expert ranking</span>
+          <span className="block w-full">Escrow ready</span>
+          <span className="block w-full">Delivery tracked</span>
         </div>
 
         <div className="grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-16">

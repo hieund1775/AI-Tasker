@@ -25,6 +25,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import api from "../../../services/api.js";
 import {
   notifyNewProposal,
@@ -753,7 +754,15 @@ Please use this background information to write a personalized and highly releva
         clientBudget - finalBid < 0 || clientDuration - totalDays < 0;
 
       if (form.professionalIntro.trim().length < 10) {
-        toast.error("Kí tự phải lớn hơn 10 kí tự.");
+        toast.error("Professional introduction must be at least 10 characters.");
+        setSubmitting(false);
+        return;
+      }
+
+      const attachmentValidation = validateUploadFiles(attachments);
+      if (!attachmentValidation.valid) {
+        toast.error(getFileSizeErrorMessage(attachmentValidation.oversized[0]));
+        setAttachments((prev) => prev.filter((file) => !attachmentValidation.oversized.includes(file)));
         setSubmitting(false);
         return;
       }

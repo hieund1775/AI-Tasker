@@ -31,6 +31,7 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { getTaskDeadlineInfo, isTaskOverdue } from "../../lib/taskDeadlineUtils.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -1055,6 +1056,15 @@ export default function TaskDetailPage() {
                     type="file"
                     onChange={(e) => {
                       const file = e.target.files[0];
+                      if (file) {
+                        const validation = validateUploadFiles([file]);
+                        if (!validation.valid) {
+                          toast.error(getFileSizeErrorMessage(file));
+                          setProductFileObject(null);
+                          e.target.value = "";
+                          return;
+                        }
+                      }
                       setProductFileObject(file || null);
                     }}
                     className="hidden"

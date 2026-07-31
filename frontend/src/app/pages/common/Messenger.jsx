@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { downloadFile } from "../../lib/downloadFileUtils.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
@@ -255,6 +256,12 @@ export function Messenger() {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const validation = validateUploadFiles(files);
+    if (!validation.valid) {
+      toast.error(getFileSizeErrorMessage(validation.oversized[0]));
+      e.target.value = null;
+      return;
+    }
     
     const newAttachments = files.map((file) => {
       return {

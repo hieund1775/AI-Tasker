@@ -1,3 +1,5 @@
+import { validateFormDataUploadFiles } from "../app/lib/fileValidation.js";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "https://aitaskerbe-production.up.railway.app/api";
@@ -171,6 +173,13 @@ async function request(endpoint, options = {}) {
 
   if (!options.isFormData) {
     headers["Content-Type"] = "application/json";
+  }
+
+  if (options.isFormData && body instanceof FormData) {
+    const fileValidation = validateFormDataUploadFiles(body);
+    if (!fileValidation.valid) {
+      throw new ApiError(fileValidation.message, 413);
+    }
   }
 
   if (authenticated) {

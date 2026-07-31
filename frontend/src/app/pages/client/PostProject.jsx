@@ -16,6 +16,7 @@ import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 import { useFooterBoundFixedPanel } from "../../hooks/useFooterBoundFixedPanel.js";
 import { formatCurrency } from "../../lib/formatCurrency.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 const unitToDays = (value, unit) => {
   const n = Number(value) || 0;
@@ -213,7 +214,7 @@ export function PostProject() {
     setSubmitting(true);
 
     if (formData.description.trim().length < 10) {
-      toast.error("Kí tự phải lớn hơn 10 kí tự.");
+      toast.error("Description must be at least 10 characters.");
       setSubmitting(false);
       return;
     }
@@ -221,6 +222,14 @@ export function PostProject() {
     const budgetNum = Number(formData.budget) || 0;
     if (budgetNum < 1000) {
       toast.error(`Project budget must be at least ${formatCurrency(1000)}.`);
+      setSubmitting(false);
+      return;
+    }
+
+    const attachmentValidation = validateUploadFiles(attachments);
+    if (!attachmentValidation.valid) {
+      toast.error(getFileSizeErrorMessage(attachmentValidation.oversized[0]));
+      setAttachments((prev) => prev.filter((file) => !attachmentValidation.oversized.includes(file)));
       setSubmitting(false);
       return;
     }

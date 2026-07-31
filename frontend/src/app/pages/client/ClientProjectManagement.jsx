@@ -31,6 +31,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 // =============================================================================
 // ClientProjectManagement - client-side project progress management page.
@@ -84,6 +85,14 @@ export default function ClientProjectDetail() {
   const handleEvidenceFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const validation = validateUploadFiles([file]);
+    if (!validation.valid) {
+      toast.error(getFileSizeErrorMessage(file));
+      setEvidenceFileName("");
+      setEvidenceFile(null);
+      e.target.value = "";
+      return;
+    }
     setIsUploadingEvidence(true);
     try {
       const formData = new FormData();
