@@ -188,7 +188,7 @@ export function Header() {
   };
 
   const currentRoleMeta = roleMeta[role] || null;
-  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : null;
+  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : role === "owner" ? "/owner/wallet" : null;
 
   // Common nav link style
   const navLinkClass = "inline-flex h-11 min-w-[10.75rem] items-center justify-center rounded-xl px-7 text-base font-semibold text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground lg:text-lg";

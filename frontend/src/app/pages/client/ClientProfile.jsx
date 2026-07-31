@@ -2,19 +2,15 @@
 import { Link, useParams } from "react-router";
 import {
   User,
-  MapPin,
-  Calendar,
   Edit,
   Briefcase,
   CheckCircle2,
   Clock,
-  BarChart3,
   FileText,
   ArrowLeft,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 /**
@@ -67,9 +63,7 @@ export function ClientProfile() {
           const posted = clientJobs.length;
           const active = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "inprogress").length;
           const completed = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "completed").length;
-          const totalSpent = clientProjects.reduce((sum, p) => sum + (p.escrowBalance || 0), 0);
-
-          setStats({ posted, active, completed, proposals: proposalsCount, totalSpent });
+          setStats({ posted, active, completed, proposals: proposalsCount });
         }
       } catch (err) {
         console.error("Failed to load client profile details:", err);
@@ -164,9 +158,6 @@ export function ClientProfile() {
             </div>
             <div>
               <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
-              {client.profile?.company && (
-                <p className="text-secondary-foreground font-medium">{client.profile.company}</p>
-              )}
               <p className="text-muted-foreground text-base">{client.email}</p>
             </div>
           </div>
@@ -184,15 +175,6 @@ export function ClientProfile() {
         {/* Profile information */}
         <div className="mt-8 pt-8 border-t border-border-light space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Starred Fields */}
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Company Name *</span>
-              <span className="text-sm text-foreground font-semibold">{client.profile?.company || ""}</span>
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contact Person *</span>
-              <span className="text-sm text-foreground font-semibold">{displayName || ""}</span>
-            </div>
             <div>
               <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Email Address *</span>
               <span className="text-sm text-foreground font-semibold">{client.email || ""}</span>
@@ -202,48 +184,12 @@ export function ClientProfile() {
               <span className="text-sm text-foreground font-semibold">{client.profile?.phone || ""}</span>
             </div>
           </div>
-
-          <div className="border-t border-border-light pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Optional Fields */}
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</span>
-              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.location || ""}</span>
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Website</span>
-              {client.profile?.website ? (
-                <a
-                  href={client.profile.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-brand-primary hover:underline font-semibold"
-                >
-                  {client.profile.website}
-                </a>
-              ) : (
-                <span className="text-sm text-secondary-foreground font-medium"></span>
-              )}
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Industry</span>
-              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.industry || ""}</span>
-            </div>
-          </div>
-
-          <div className="border-t border-border-light pt-6">
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bio / About</span>
-              <p className="text-base text-foreground leading-relaxed min-h-[40px] whitespace-pre-wrap">
-                {client.profile?.bio || ""}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
       {/* Statistics cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             {
               label: "Projects Posted",
@@ -268,12 +214,6 @@ export function ClientProfile() {
               value: stats.proposals,
               icon: FileText,
               color: "text-chart-4 bg-muted",
-            },
-            {
-              label: "Total Spent",
-              value: <MoneyDisplay amount={stats.totalSpent} />,
-              icon: BarChart3,
-              color: "text-brand-green bg-success-light",
             },
           ].map((stat, i) => (
             <div
