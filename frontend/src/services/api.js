@@ -1,4 +1,4 @@
-﻿const API_BASE_URL =
+const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "https://aitaskerbe-production.up.railway.app/api";
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
@@ -428,7 +428,7 @@ export const api = {
       post("/auth/forgot-password", { email }, { authenticated: false }),
     resetPassword: (token, newPassword) =>
       post("/auth/reset-password", { resetToken: token, newPassword }, { authenticated: false }),
-    verifyEmail: (data) => 
+    verifyEmail: (data) =>
       post("/users/verify-email", data, { authenticated: false }),
     resendVerification: (data) =>
       post("/users/resend-verification", data, { authenticated: false }),
@@ -480,7 +480,7 @@ export const api = {
   },
 
   transactions: {
-    getStats: (userId) => 
+    getStats: (userId) =>
       get(`/users/${userId}/dashboard-stats`).catch(() => ({
         posted: 0, active: 0, completed: 0, proposals: 0, totalSpent: 0
       })),
@@ -509,8 +509,8 @@ export const api = {
 
   reviews: {
     createReview: (data) => post("/Reviews", data),
-    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`),
-    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`),
+    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`).catch(() => null),
+    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`).catch(() => ({ totalReviews: 0, reviews: [] })),
     updateReview: (reviewId, data) => put(`/Reviews/${reviewId}`, data),
     replyReview: (reviewId, data) => post(`/Reviews/${reviewId}/reply`, data),
   },
@@ -699,9 +699,9 @@ export const api = {
   },
 
   notifications: {
-    getList: (params) => get(`/notifications${buildQuery(params)}`),
-    markRead: (id) => put(`/notifications/${id}/read`),
-    markAllRead: (params) => put(`/notifications/read-all${buildQuery(params)}`),
+    getList: (params) => get(`/notifications${buildQuery(params)}`).catch(() => []),
+    markRead: (id) => put(`/notifications/${id}/read`).catch(() => null),
+    markAllRead: (params) => put(`/notifications/read-all${buildQuery(params)}`).catch(() => null),
   },
 
   contracts: {
@@ -724,17 +724,20 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
-      // Append actual files if present, or leave empty
+      // Append PortfolioUrl string if available
+      if (data.portfolioUrl && String(data.portfolioUrl).trim() !== "") {
+        formData.append("PortfolioUrl", String(data.portfolioUrl).trim());
+      }
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
-      } else {
-        formData.append("PortfolioUrl", data.portfolioUrl || "");
       }
 
+      // Append AttachmentUrl string if available
+      if (data.attachmentUrl && String(data.attachmentUrl).trim() !== "") {
+        formData.append("AttachmentUrl", String(data.attachmentUrl).trim());
+      }
       if (data.attachment instanceof File) {
         formData.append("Attachment", data.attachment);
-      } else {
-        formData.append("AttachmentUrl", data.attachmentUrl || "");
       }
 
       return post("/Proposals/submit-proposal", formData, { isFormData: true });
@@ -749,16 +752,18 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
+      if (data.portfolioUrl && String(data.portfolioUrl).trim() !== "") {
+        formData.append("PortfolioUrl", String(data.portfolioUrl).trim());
+      }
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
-      } else {
-        formData.append("PortfolioUrl", data.portfolioUrl || "");
       }
 
+      if (data.attachmentUrl && String(data.attachmentUrl).trim() !== "") {
+        formData.append("AttachmentUrl", String(data.attachmentUrl).trim());
+      }
       if (data.attachment instanceof File) {
         formData.append("Attachment", data.attachment);
-      } else {
-        formData.append("AttachmentUrl", data.attachmentUrl || "");
       }
 
       return put(`/Proposals/${id}`, formData, { isFormData: true });
@@ -815,6 +820,42 @@ export function enrichFileUrl(url) {
   }
 }
 
+/**
+ * Strips GUIDs, hashes, and timestamp prefixes off filenames,
+ * returning the clean human-readable original filename.
+ */
+export function cleanFileName(name) {
+  if (!name || typeof name !== "string") return "Attachment Document";
+
+  // Check for ?name=OriginalName or ?filename=OriginalName in URL
+  const qsMatch = name.match(/[?&](?:name|filename)=([^&]+)/);
+  if (qsMatch) {
+    try { return decodeURIComponent(qsMatch[1]); } catch (e) { return qsMatch[1]; }
+  }
+
+  let raw = name.split("?")[0].split("/").pop().split("\\").pop() || "Attachment Document";
+  try {
+    raw = decodeURIComponent(raw);
+  } catch (e) {}
+
+  const cleaned = raw
+    .replace(/^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})_/i, "")
+    .replace(/^[a-f0-9-]{32,38}_/i, "")
+    .replace(/^[a-f0-9]{24,32}_/i, "")
+    .replace(/^\d{10,17}[-_]/, "")
+    .replace(/^\d+[-_]/, "");
+
+  const resultName = cleaned || raw;
+  // If resultName is a raw pure GUID (e.g. 630eb873-b50a-4e9d-aa99-751a337ff95d.docx)
+  const isPureGuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(\.[a-z0-9]+)?$/i.test(resultName);
+  if (isPureGuid) {
+    const ext = resultName.match(/(\.[a-z0-9]+)$/i)?.[1] || ".pdf";
+    return `Proposal_Attachment_Document${ext}`;
+  }
+
+  return resultName;
+}
+
 export function parseProposalWbs(rawImplementation, proposal) {
   let parsed = {};
   try {
@@ -831,7 +872,18 @@ export function parseProposalWbs(rawImplementation, proposal) {
   const finalTasks = rawTasks.length > 0 ? rawTasks : dbTasks;
 
   const tasks = finalTasks.map((t, idx) => {
-    const titleVal = t.title || t.Title || "";
+    let titleVal = t.title || t.Title || "";
+    if (typeof titleVal === "string" && titleVal.trim().startsWith("{")) {
+      try {
+        const parsedT = JSON.parse(titleVal);
+        if (parsedT.tasks && Array.isArray(parsedT.tasks) && parsedT.tasks[0]) {
+          titleVal = parsedT.tasks[0].title || parsedT.tasks[0].Title || "Proposed Task";
+        } else if (parsedT.Title || parsedT.title) {
+          titleVal = parsedT.Title || parsedT.title;
+        }
+      } catch (e) { }
+    }
+
     const ucidMatch = titleVal.match(/\[UCID:(.*?)\]/);
     const useCaseId = ucidMatch ? ucidMatch[1] : (t.useCaseId || t.UseCaseId || null);
     const cleanTitle = titleVal.replace(/\s*\[UCID:.*?\]/, "");

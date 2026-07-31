@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Wallet,
   TrendingUp,
@@ -250,8 +250,12 @@ export function ExpertWallet() {
             const projIdLower = String(projId).toLowerCase();
             const localStatus = localStorage.getItem(`project_status_${projIdLower}`) || p.status || p.Status || "";
             const report = projectReportMap.get(projIdLower);
-            const isCancelledOrReported = ["cancelled", "cancel_done", "stopped", "completed", "disputed"].includes(localStatus.toLowerCase()) && (report || ["cancelled", "cancel_done", "stopped"].includes(localStatus.toLowerCase()));
-            if (isCancelledOrReported || report) {
+            const isTerminallyCancelled =
+              ["cancelled", "cancel_done", "stopped", "contract_cancelled"].includes(localStatus.toLowerCase()) ||
+              (report && ["resolved", "accepted"].includes(String(report.status || "").toLowerCase())) ||
+              !!localStorage.getItem(`dispute_verdict_${projIdLower}`);
+
+            if (isTerminallyCancelled) {
               const splits = getCancellationPayouts(p);
               cancelledProjectSplits.set(projIdLower, {
                 ...splits,
@@ -264,7 +268,11 @@ export function ExpertWallet() {
           // Check compensating transactions to skip them
           const isCompensatingTx = (t) => {
             const lType = (t.type ?? t.Type ?? "").toLowerCase();
-            if (lType !== "deposit" && lType !== "manualdeposit" && lType !== "withdrawal" && lType !== "withdraw") {
+            // User withdrawals are real transactions, never compensating entries
+            if (lType === "withdrawal" || lType === "withdraw") {
+              return false;
+            }
+            if (lType !== "deposit" && lType !== "manualdeposit") {
               return false;
             }
             const amt = t.amount ?? t.Amount ?? 0;
@@ -378,21 +386,36 @@ export function ExpertWallet() {
           }
 
           // Insert clean report/cancelled project rows: 
-          // If report exists (Admin resolution): show 2 rows (Gross 10,000 + Fee -500)
-          // If normal cancellation: show 1 consolidated payout row (expertPayout)
+          // If cancellation negotiation: show 1 consolidated payout row (expertPayout, e.g. 250)
+          // If dispute report (Admin resolution): show 2 rows (Gross 10,000 + Fee -500)
           cancelledProjectSplits.forEach((split, projIdLower) => {
             const report = projectReportMap.get(projIdLower);
             const tDate = report ? report.updatedAt || report.UpdatedAt || report.createdAt : new Date().toISOString();
+            const isCancellationReport = (report?.reportType || report?.disputeType || "").toLowerCase() === "cancellation";
+
+            if (isCancellationReport || !report) {
+              if (split.expertPayout > 0) {
+                myTransactions.push({
+                  id: `cancel-payout-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.expertPayout,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split.title,
+                });
+              }
+              return;
+            }
 
             const isReportResolvedByAdmin = report && (
-              report.reportType !== "cancellation" ||
               report.adminNote ||
               localStorage.getItem(`report_status_${projIdLower}`) ||
               ["Resolved", "Accepted"].includes(report.status)
             );
 
             if (isReportResolvedByAdmin) {
-              // Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
+              // Dispute Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
               if (split.expertPayout > 0) {
                 const grossBudget = split.escrowTotal || 10000;
                 const pFee = Math.round(grossBudget * 0.05);
@@ -534,7 +557,7 @@ export function ExpertWallet() {
             const isCompleted =
               ["completed", "complete", "closed", "resolved", "cancelled", "cancel_done", "stopped", "terminated", "disputed"].includes(localStatus);
             const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === projIdLower);
-            const isCancelledOrReported = cancelledProjectSplits.has(projIdLower) || projectReportMap.has(projIdLower);
+            const isCancelledOrReported = cancelledProjectSplits.has(projIdLower);
 
             const hasDbReleaseTx = transactionProjectIds.has(projIdLower);
             if (isReleasedLocally && !hasDbReleaseTx && !isCompleted && !isCancelledOrReported) {

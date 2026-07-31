@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AdminReportDetail - Full dispute report detail & handling page.
 //
 // Admin actions:
@@ -33,7 +33,8 @@ import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
-import api, { enrichFileUrl } from "../../../services/api.js";
+import api, { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import {
   getReportDetail,
   acceptReport,
@@ -101,7 +102,7 @@ function normalizeEvidence(...sources) {
         } catch (e) { }
       }
       const fileUrl = trimmed.startsWith("http") ? trimmed : enrichFileUrl(trimmed);
-      const cleanName = trimmed.split("/").pop().replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "") || "Evidence File";
+      const cleanName = cleanFileName(trimmed) || "Evidence File";
       if (!seen.has(fileUrl)) {
         seen.add(fileUrl);
         list.push({ fileUrl, fileName: cleanName, note: "" });
@@ -115,7 +116,7 @@ function normalizeEvidence(...sources) {
 
       const urlFileName = typeof u === "string" ? u.split("?")[0].split("/").pop() : "";
       const rawName = raw.fileName || raw.originalName || (urlFileName && urlFileName.includes(".") ? urlFileName : null) || raw.name || raw.Name || "Evidence File";
-      const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^[a-f0-9]{24,32}_/i, "").replace(/^\d+[-_]/, "");
+      const cleanName = cleanFileName(rawName);
       const note = raw.note || raw.Note || (raw.name && raw.name !== cleanName && !raw.name.includes(".") ? raw.name : "");
 
       if (!seen.has(fileUrl)) {
@@ -127,6 +128,15 @@ function normalizeEvidence(...sources) {
 
   sources.forEach(add);
   return list;
+}
+
+function getReasonAndDetails(explanation, reasonField) {
+  if (reasonField && reasonField !== explanation) return { reason: reasonField, details: explanation };
+  if (explanation && typeof explanation === "string" && explanation.includes("\n\n")) {
+    const parts = explanation.split("\n\n");
+    return { reason: parts[0], details: parts.slice(1).join("\n\n") };
+  }
+  return { reason: null, details: explanation };
 }
 
 export function AdminReportDetail() {
@@ -144,26 +154,7 @@ export function AdminReportDetail() {
     e?.preventDefault?.();
     e?.stopPropagation?.();
     if (!fileUrl) return;
-
-    const enriched = fileUrl.startsWith("http") ? fileUrl : enrichFileUrl(fileUrl);
-    const rawName = fileName || fileUrl.split("?")[0].split("/").pop() || "evidence_document";
-    const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^[a-f0-9]{24,32}_/i, "").replace(/^\d+[-_]/, "");
-
-    fetch(enriched)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = blobUrl;
-        a.download = cleanName;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(blobUrl);
-      })
-      .catch(() => {
-        window.open(enriched, "_blank");
-      });
+    downloadFile(fileUrl, fileName);
   }, []);
 
   // Modal states
@@ -189,13 +180,13 @@ export function AdminReportDetail() {
 
   const reportForPartiesInvolved = (initialRound && report) ? {
     ...report,
-    clientExplanation: initialRound.client.explanation,
-    clientExplanationEvidence: initialRound.client.evidence,
-    clientExplanationDesiredResolution: initialRound.client.desiredResolution,
-    expertExplanation: initialRound.expert.explanation,
-    expertExplanationEvidence: initialRound.expert.evidence,
-    expertExplanationDesiredResolution: initialRound.expert.desiredResolution,
-    evidenceUrl: initialRound.client.evidence || initialRound.expert.evidence,
+    clientExplanation: report.clientExplanation || initialRound.client?.explanation,
+    clientExplanationEvidence: report.clientExplanationEvidence || initialRound.client?.evidence,
+    clientExplanationDesiredResolution: report.clientExplanationDesiredResolution || initialRound.client?.desiredResolution,
+    expertExplanation: report.expertExplanation || initialRound.expert?.explanation,
+    expertExplanationEvidence: report.expertExplanationEvidence || initialRound.expert?.evidence,
+    expertExplanationDesiredResolution: report.expertExplanationDesiredResolution || initialRound.expert?.desiredResolution,
+    evidenceUrl: report.evidenceUrl || initialRound.client?.evidence || initialRound.expert?.evidence,
   } : report;
 
   // Fetch report detail
@@ -235,11 +226,10 @@ export function AdminReportDetail() {
                 data.payoutBreakdown = {};
               }
               data.payoutBreakdown.progressPercent = calculatedProgress;
-              data.payoutBreakdown.contractAmount = projectData.EscrowBalance || projectData.escrowBalance || projectData.Budget || projectData.budget || projectData.escrowAmount || projectData.EscrowAmount || 0;
-
-              const pAmount = data.payoutBreakdown.contractAmount;
-              data.amount = pAmount;
-              data.escrowAmount = pAmount;
+              const pAmount = projectData.Budget || projectData.budget || projectData.EscrowBalance || projectData.escrowBalance || projectData.escrowAmount || projectData.EscrowAmount || 0;
+              data.payoutBreakdown.contractAmount = pAmount;
+              data.amount = data.amount || pAmount;
+              data.escrowAmount = data.escrowAmount || pAmount;
               data.projectTitle = projectData.Title || projectData.title || projectData.ProjectTitle || projectData.projectTitle || data.projectTitle;
               data.projectDeadline = data.projectDeadline || projectData.EndDate || projectData.endDate || projectData.Deadline || projectData.deadline;
               data.projectStartDate = data.projectStartDate || projectData.StartDate || projectData.startDate || projectData.CreatedAt || projectData.createdAt;
@@ -247,8 +237,8 @@ export function AdminReportDetail() {
               // Enrich clientId/expertId from project
               const pClientId = projectData.ClientId || projectData.clientId;
               const pExpertId = projectData.AssignedExpertId || projectData.assignedExpertId || projectData.ExpertId || projectData.expertId;
-              if (pClientId) data.clientId = data.clientId || data.ClientId || pClientId;
-              if (pExpertId) data.expertId = data.expertId || data.ExpertId || pExpertId;
+              data.clientId = data.clientId || data.ClientId || pClientId;
+              data.expertId = data.expertId || data.ExpertId || pExpertId;
 
               // Robust reporterRole normalization: cross-reference reporterId with project's clientId/expertId
               const rawRole = (data.reporterRole || data.ReporterRole || "").toLowerCase();
@@ -872,13 +862,29 @@ export function AdminReportDetail() {
 
         // 2. Handle escrow money
         const projectTitle = report?.projectTitle || report?.projectName || "Project";
-        const escrowTotal = report?.amount || report?.escrowAmount || 0;
+        let targetClientId = report?.clientId || report?.ClientId;
+        let targetExpertId = report?.expertId || report?.ExpertId;
+        let escrowTotal = Number(report?.amount || report?.escrowAmount || report?.payoutBreakdown?.contractAmount || 0);
+
+        if (!escrowTotal || escrowTotal === 0 || !targetClientId || !targetExpertId) {
+          try {
+            const freshProj = await api.projects.getById(report?.projectId);
+            if (freshProj) {
+              escrowTotal = escrowTotal || Number(freshProj.Budget || freshProj.budget || freshProj.EscrowBalance || freshProj.escrowBalance || freshProj.escrowAmount || freshProj.EscrowAmount || 0);
+              targetClientId = targetClientId || freshProj.ClientId || freshProj.clientId;
+              targetExpertId = targetExpertId || freshProj.AssignedExpertId || freshProj.assignedExpertId || freshProj.ExpertId || freshProj.expertId;
+            }
+          } catch (projErr) {
+            console.warn("Failed to fetch fresh project budget/IDs in handleStopProject:", projErr);
+          }
+        }
+
         const payoutAmount = Math.round(escrowTotal * 0.95);
         const platformFee = escrowTotal - payoutAmount;
 
         if (moneyAction === "refund") {
           try {
-            await api.payments.depositWallet(report?.clientId, payoutAmount);
+            if (targetClientId) await api.payments.depositWallet(targetClientId, payoutAmount);
           } catch (depositErr) {
             console.warn("depositWallet client refund failed:", depositErr);
           }
@@ -886,7 +892,7 @@ export function AdminReportDetail() {
             await refundProjectMoneyToClient({
               projectId: report?.projectId,
               amount: escrowTotal,
-              clientId: report?.clientId,
+              clientId: targetClientId,
               reportId: id,
               reason: `${stopReason}`,
             });
@@ -897,7 +903,7 @@ export function AdminReportDetail() {
             await api.post("/interactions/transaction", {
               projectId: report?.projectId,
               amount: platformFee,
-              sourceWalletId: report?.clientId,
+              sourceWalletId: targetClientId,
               reportId: id,
               status: "completed",
               type: "PlatformFee",
@@ -906,8 +912,8 @@ export function AdminReportDetail() {
             });
           } catch (feeErr) { }
           showToast(`Full project amount (minus 5% system fee) has been refunded to Client.`);
-          notifyDisputeResolved({ userId: report?.clientId, userRole: "client", projectTitle, resolution: "Client refunded (-5% fee)", projectId: report?.projectId }).catch(() => { });
-          notifyDisputeResolved({ userId: report?.expertId, userRole: "expert", projectTitle, resolution: "Client refunded (-5% fee)", projectId: report?.projectId }).catch(() => { });
+          if (targetClientId) notifyDisputeResolved({ userId: targetClientId, userRole: "client", projectTitle, resolution: "Client refunded (-5% fee)", projectId: report?.projectId }).catch(() => { });
+          if (targetExpertId) notifyDisputeResolved({ userId: targetExpertId, userRole: "expert", projectTitle, resolution: "Client refunded (-5% fee)", projectId: report?.projectId }).catch(() => { });
           const cancellationMetadata = JSON.stringify({
             expertPayout: 0,
             expertFee: 0,
@@ -919,10 +925,10 @@ export function AdminReportDetail() {
           try {
             await api.projects.updateStatus(report?.projectId, "Cancelled");
             await api.projects.updateMetadata(report?.projectId, cancellationMetadata);
-          } catch(e) { console.warn("Backend update status/metadata failed", e); }
+          } catch (e) { console.warn("Backend update status/metadata failed", e); }
         } else {
           try {
-            await api.payments.depositWallet(report?.expertId, payoutAmount);
+            if (targetExpertId) await api.payments.depositWallet(targetExpertId, payoutAmount);
           } catch (depositErr) {
             console.warn("depositWallet expert release failed:", depositErr);
           }
@@ -930,7 +936,7 @@ export function AdminReportDetail() {
             await api.post("/interactions/transaction", {
               projectId: report?.projectId,
               amount: escrowTotal,
-              expertId: report?.expertId,
+              expertId: targetExpertId,
               reportId: id,
               type: "release_payment",
               transactionType: "release_payment",
@@ -943,7 +949,7 @@ export function AdminReportDetail() {
             await api.post("/interactions/transaction", {
               projectId: report?.projectId,
               amount: platformFee,
-              sourceWalletId: report?.expertId,
+              sourceWalletId: targetExpertId,
               reportId: id,
               status: "completed",
               type: "PlatformFee",
@@ -952,8 +958,8 @@ export function AdminReportDetail() {
             });
           } catch (feeErr) { }
           showToast(`Full project amount (minus 5% system fee) has been released to Expert.`);
-          notifyDisputeResolved({ userId: report?.expertId, userRole: "expert", projectTitle, resolution: "Expert paid (-5% fee)", projectId: report?.projectId }).catch(() => { });
-          notifyDisputeResolved({ userId: report?.clientId, userRole: "client", projectTitle, resolution: "Expert paid (-5% fee)", projectId: report?.projectId }).catch(() => { });
+          if (targetExpertId) notifyDisputeResolved({ userId: targetExpertId, userRole: "expert", projectTitle, resolution: "Expert paid (-5% fee)", projectId: report?.projectId }).catch(() => { });
+          if (targetClientId) notifyDisputeResolved({ userId: targetClientId, userRole: "client", projectTitle, resolution: "Expert paid (-5% fee)", projectId: report?.projectId }).catch(() => { });
           const cancellationMetadata = JSON.stringify({
             expertPayout: escrowTotal,
             expertFee: platformFee,
@@ -965,7 +971,7 @@ export function AdminReportDetail() {
           try {
             await api.projects.updateStatus(report?.projectId, "Cancelled");
             await api.projects.updateMetadata(report?.projectId, cancellationMetadata);
-          } catch(e) { console.warn("Backend update status/metadata failed", e); }
+          } catch (e) { console.warn("Backend update status/metadata failed", e); }
         }
         localStorage.setItem(`report_status_${id}`, "Resolved");
       }
@@ -1113,7 +1119,7 @@ export function AdminReportDetail() {
           isEscalatedVerdict: true,
           verdictType: verdictType
         });
-        
+
         try {
           await api.projects.updateStatus(report?.projectId, "Cancelled");
           await api.projects.updateMetadata(report?.projectId, cancellationMetadata);
@@ -1372,15 +1378,41 @@ export function AdminReportDetail() {
                   &quot;{report.reason}&quot;
                 </p>
               </div>
-              {report.evidence && report.evidence.length > 0 && (
-                <div>
-                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Attached Documents:</strong>
-                  <span className="text-brand-primary underline flex items-center gap-1">
-                    <FileText className="w-4 h-4" />
-                    {report.evidence[0].fileName}
-                  </span>
-                </div>
-              )}
+              {(() => {
+                const evList = normalizeEvidence(
+                  report.evidence,
+                  report.evidenceUrl,
+                  report.EvidenceUrl,
+                  report.evidenceList,
+                  report.EvidenceList,
+                  report.attachmentUrl,
+                  report.attachment,
+                  report.clientEvidence
+                );
+                return (
+                  <div>
+                    <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Attached Documents:</strong>
+                    {evList.length > 0 ? (
+                      <div className="space-y-1.5 max-w-full overflow-hidden">
+                        {evList.map((e, idx) => (
+                          <a
+                            key={idx}
+                            href={e.fileUrl}
+                            onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
+                            className="text-sm text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                            title={e.fileName}
+                          >
+                            <FileText className="w-4 h-4 shrink-0 text-accent" />
+                            <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/70 italic block">None</span>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="border-t border-border pt-4">
                 <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-2">Escrow Split Proposal:</strong>
@@ -1467,7 +1499,7 @@ export function AdminReportDetail() {
 
                       <div className="border-t border-border pt-3 space-y-3">
                         <div>
-                            Client Fault (Client penalized 10% to Expert)
+                          Client Fault (Client penalized 10% to Expert)
                           <div className="pl-2 border-l-2 border-destructive/20 space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress + penalty):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutClientFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundClientFault} /></span></div>
@@ -1475,7 +1507,7 @@ export function AdminReportDetail() {
                         </div>
 
                         <div>
-                            Expert Fault (Expert penalized 10% to Client)
+                          Expert Fault (Expert penalized 10% to Client)
                           <div className="pl-2 border-l-2 border-warning/20 space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress - penalty - fee):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutExpertFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundExpertFault} /></span></div>
@@ -1483,7 +1515,7 @@ export function AdminReportDetail() {
                         </div>
 
                         <div>
-                            Split Fault (Each party penalized 5%)
+                          Split Fault (Each party penalized 5%)
                           <div className="pl-2 border-l-2 border-border space-y-1">
                             <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutSplitFault} /></span></div>
                             <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundSplitFault} /></span></div>
@@ -1531,8 +1563,17 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.client.reason || roundData.client.explanation || "-"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.client.explanation || "-"}</p>
+                          {(() => {
+                            const { reason: cReason, details: cDetails } = getReasonAndDetails(roundData.client.explanation, roundData.client.reason);
+                            return (
+                              <>
+                                {cReason && (
+                                  <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {cReason}</p>
+                                )}
+                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {cDetails || "-"}</p>
+                              </>
+                            );
+                          })()}
                           <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.client.desiredResolution || "-"}</p>
 
                           {normalizeEvidence(roundData.client.evidence).length > 0 && (
@@ -1561,8 +1602,17 @@ export function AdminReportDetail() {
                       <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
                         <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {roundData.round})</h4>
                         <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {roundData.expert.reason || roundData.expert.explanation || "-"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {roundData.expert.explanation || "-"}</p>
+                          {(() => {
+                            const { reason: eReason, details: eDetails } = getReasonAndDetails(roundData.expert.explanation, roundData.expert.reason);
+                            return (
+                              <>
+                                {eReason && (
+                                  <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {eReason}</p>
+                                )}
+                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {eDetails || "-"}</p>
+                              </>
+                            );
+                          })()}
                           <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.expert.desiredResolution || "-"}</p>
 
                           {normalizeEvidence(roundData.expert.evidence).length > 0 && (
@@ -1608,64 +1658,96 @@ export function AdminReportDetail() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {/* Client side latest statement */}
-                      <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
-                        <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
-                        <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation || "-"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation || "Client has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
-
-                          {normalizeEvidence(report.clientExplanationEvidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-accent/20">
-                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                              <div className="space-y-1.5 max-w-full overflow-hidden">
-                                {normalizeEvidence(report.clientExplanationEvidence).map((e, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={e.fileUrl}
-                                    onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                    title={e.fileName}
-                                  >
-                                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                  </a>
-                                ))}
+                      {(() => {
+                        const hasClientSubmitted = !!(report.clientExplanationReason || report.clientExplanation || (normalizeEvidence(report.clientExplanationEvidence).length > 0));
+                        if (!hasClientSubmitted) {
+                          return (
+                            <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-3">
+                              <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
+                              <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
+                                <Clock className="w-4 h-4 text-primary shrink-0" />
+                                <span>Chờ Client gửi giải trình & bằng chứng cho Vòng {currentRoundNumber}...</span>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
+                          );
+                        }
+                        return (
+                          <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
+                            <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
+                            <div className="space-y-2 break-words max-w-full">
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || "-"}</p>
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation || "-"}</p>
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
+
+                              {normalizeEvidence(report.clientExplanationEvidence).length > 0 && (
+                                <div className="mt-3 pt-2 border-t border-accent/20">
+                                  <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
+                                  <div className="space-y-1.5 max-w-full overflow-hidden">
+                                    {normalizeEvidence(report.clientExplanationEvidence).map((e, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={e.fileUrl}
+                                        onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
+                                        className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                        title={e.fileName}
+                                      >
+                                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Expert side latest statement */}
-                      <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
-                        <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
-                        <div className="space-y-2 break-words max-w-full">
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation || "-"}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation || "Expert has not submitted explanation yet..."}</p>
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
-
-                          {normalizeEvidence(report.expertExplanationEvidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-warning/20">
-                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                              <div className="space-y-1.5 max-w-full overflow-hidden">
-                                {normalizeEvidence(report.expertExplanationEvidence).map((e, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={e.fileUrl}
-                                    onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                    title={e.fileName}
-                                  >
-                                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                  </a>
-                                ))}
+                      {(() => {
+                        const hasExpertSubmitted = !!(report.expertExplanationReason || report.expertExplanation || (normalizeEvidence(report.expertExplanationEvidence).length > 0));
+                        if (!hasExpertSubmitted) {
+                          return (
+                            <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-3">
+                              <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
+                              <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
+                                <Clock className="w-4 h-4 text-warning shrink-0" />
+                                <span>Chờ Expert gửi giải trình & bằng chứng cho Vòng {currentRoundNumber}...</span>
                               </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
+                          );
+                        }
+                        return (
+                          <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
+                            <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
+                            <div className="space-y-2 break-words max-w-full">
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || "-"}</p>
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation || "-"}</p>
+                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
+
+                              {normalizeEvidence(report.expertExplanationEvidence).length > 0 && (
+                                <div className="mt-3 pt-2 border-t border-warning/20">
+                                  <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
+                                  <div className="space-y-1.5 max-w-full overflow-hidden">
+                                    {normalizeEvidence(report.expertExplanationEvidence).map((e, idx) => (
+                                      <a
+                                        key={idx}
+                                        href={e.fileUrl}
+                                        onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
+                                        className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                                        title={e.fileName}
+                                      >
+                                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </SectionCard>
@@ -1773,8 +1855,17 @@ export function AdminReportDetail() {
                                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
                                     {report.clientExplanation ? (
                                       <div className="space-y-2 break-words max-w-full">
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || report.clientExplanation}</p>
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation}</p>
+                                        {(() => {
+                                          const { reason: clientReason, details: clientDetails } = getReasonAndDetails(report.clientExplanation, report.clientExplanationReason);
+                                          return (
+                                            <>
+                                              {clientReason && (
+                                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {clientReason}</p>
+                                              )}
+                                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {clientDetails}</p>
+                                            </>
+                                          );
+                                        })()}
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
                                         {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).length > 0 && (
                                           <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
@@ -1862,8 +1953,17 @@ export function AdminReportDetail() {
                                     <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
                                     {report.expertExplanation ? (
                                       <div className="space-y-2 break-words max-w-full">
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || report.expertExplanation}</p>
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation}</p>
+                                        {(() => {
+                                          const { reason: expertReason, details: expertDetails } = getReasonAndDetails(report.expertExplanation, report.expertExplanationReason);
+                                          return (
+                                            <>
+                                              {expertReason && (
+                                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {expertReason}</p>
+                                              )}
+                                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {expertDetails}</p>
+                                            </>
+                                          );
+                                        })()}
                                         <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
                                         {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).length > 0 && (
                                           <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
@@ -2059,7 +2159,7 @@ export function AdminReportDetail() {
                           className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
                         >
                           <XCircle className="w-4 h-4" />
-                            Reject cancellation and lock cancellation feature
+                          Reject cancellation and lock cancellation feature
                         </button>
                       </div>
                     )}

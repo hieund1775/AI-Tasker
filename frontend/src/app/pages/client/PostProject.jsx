@@ -1,6 +1,6 @@
-﻿import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip } from "lucide-react";
+import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip, RotateCcw } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import api, { saveJobUseCases, saveJobAttachments } from "../../../services/api.js";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
@@ -85,6 +85,54 @@ export function PostProject() {
   const [useCases, setUseCases] = useState([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Auto-restore draft from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem("post_project_form_draft");
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.formData) setFormData(parsed.formData);
+        if (parsed.selectedSkills) setSelectedSkills(parsed.selectedSkills);
+        if (parsed.useCases && parsed.useCases.length > 0) setUseCases(parsed.useCases);
+        setDraftRestored(true);
+      }
+    } catch (e) {
+      console.error("Failed to restore draft:", e);
+    }
+  }, []);
+
+  // Auto-save draft to sessionStorage on change
+  useEffect(() => {
+    try {
+      if (formData.title || formData.description || selectedSkills.length > 0 || (useCases.length > 0 && useCases[0].title)) {
+        sessionStorage.setItem(
+          "post_project_form_draft",
+          JSON.stringify({ formData, selectedSkills, useCases })
+        );
+      }
+    } catch (e) {
+      console.error("Failed to save draft:", e);
+    }
+  }, [formData, selectedSkills, useCases]);
+
+  const handleClearDraft = () => {
+    sessionStorage.removeItem("post_project_form_draft");
+    setFormData({
+      category: "",
+      specialization: "",
+      title: "",
+      description: "",
+      budget: 0,
+      durationValue: 1,
+      durationUnit: "Days",
+    });
+    setSelectedSkills([]);
+    setUseCases([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
+    setDraftRestored(false);
+    toast.info("Form draft cleared.");
+  };
 
   // AI Planner sidebar state
   const [rightPanelMode, setRightPanelMode] = useState(null); // null | "recommendations" | "ai_planner"
@@ -158,6 +206,13 @@ export function PostProject() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+
+    const budgetNum = Number(formData.budget) || 0;
+    if (budgetNum < 1000) {
+      toast.error("Project budget must be at least $1,000 USD.");
+      setSubmitting(false);
+      return;
+    }
 
     let deadlineDays = unitToDays(formData.durationValue, formData.durationUnit);
 
@@ -281,6 +336,7 @@ export function PostProject() {
       } else {
         toast.success("Project posted successfully.");
       }
+      sessionStorage.removeItem("post_project_form_draft");
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
@@ -392,7 +448,7 @@ export function PostProject() {
     formData.category !== "" &&
     formData.specialization !== "" &&
     selectedSkills.length > 0 &&
-    Number(formData.budget) > 0 &&
+    Number(formData.budget) >= 1000 &&
     Number(formData.durationValue) > 0 &&
     useCases.every(uc => (uc.title || uc.nameAndDeadline || "").trim() !== "" && uc.description.trim() !== "" && Number(uc.originalDurationDays) > 0) &&
     isDeadlineValid;
@@ -424,26 +480,44 @@ export function PostProject() {
       <div className={`mt-6 grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={(rightPanelMode || showRecommendations) ? "lg:col-span-7 flex flex-col" : "w-full"}>
           <form ref={formRef} onSubmit={handleSubmit} className="flex h-full flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
-          <AnimatedReveal>
+            <div className="flex items-center justify-between gap-3 px-1 py-1 pb-2 border-b border-border/40">
+              <span className="text-xs text-muted-foreground font-medium">Form data auto-saves while typing</span>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="px-3 py-1 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                title="Clear all form fields and start over"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Clear All Data
+              </button>
+            </div>
+            <AnimatedReveal>
             <SectionCard title="Basic Information" icon={Layers} padding="lg">
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Project Title <span className="text-destructive">*</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-foreground/80">
+                      Project Title <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-xs text-muted-foreground">{formData.title.length}/100</span>
+                  </div>
                   <input
                     type="text" name="title" id="title"
                     value={formData.title}
                     onChange={(e) => updateField("title", e.target.value)}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                    maxLength={100}
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
                     placeholder="e.g., AI Chatbot Development"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Description <span className="text-destructive">*</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-foreground/80">
+                      Description <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-xs text-muted-foreground">{formData.description.length}/3000 (Min 10)</span>
+                  </div>
                   <textarea
                     name="description" id="description"
                     value={formData.description}
@@ -452,8 +526,10 @@ export function PostProject() {
                       e.target.style.height = `${e.target.scrollHeight}px`;
                       updateField("description", e.target.value);
                     }}
+                    minLength={10}
+                    maxLength={3000}
                     rows={4}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden"
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden text-sm"
                     placeholder="Describe your project requirements, goals, and expected outcomes..."
                     required
                   />
@@ -665,13 +741,20 @@ export function PostProject() {
                     <label className="block text-sm font-medium text-foreground/80 mb-2">Budget</label>
                     <input
                       type="number" name="budget" id="budget"
-                      min="0" step="1"
+                      min="1000" step="1"
                       value={formData.budget || ""}
                       onChange={(e) => updateField("budget", e.target.value === "" ? 0 : Number(e.target.value))}
-                      className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
-                      placeholder="5000"
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary ${
+                        formData.budget > 0 && formData.budget < 1000 ? "border-destructive focus:border-destructive" : "border-input"
+                      }`}
+                      placeholder="1000"
+                      required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Total budget for this project</p>
+                    {formData.budget > 0 && formData.budget < 1000 ? (
+                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is $1,000 USD</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">Minimum project budget is $1,000 USD</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline (auto from user stories)</label>

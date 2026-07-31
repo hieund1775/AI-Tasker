@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateTimeFormat } from "../../lib/safety.js";
@@ -7,14 +7,15 @@ import api from "../../../services/api.js";
 import {
   Send,
   Plus,
-  Image,
   Paperclip,
-  FolderOpen,
   X,
   Download,
   Eye,
   MessageSquare,
+  FileText,
 } from "lucide-react";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // In-memory session messages - appended when user sends a message in the UI
@@ -38,10 +39,49 @@ function detectCurrentUser(convId, conversations) {
 // ---------------------------------------------------------------------------
 
 const ATTACH_OPTIONS = [
-  { key: "image", label: "Upload Image", icon: Image, color: "text-primary", ext: ".png", mime: "image/png" },
-  { key: "file", label: "Upload File", icon: Paperclip, color: "text-muted-foreground", ext: ".pdf", mime: "application/pdf" },
-  { key: "folder", label: "Upload Folder", icon: FolderOpen, color: "text-warning", ext: "/", mime: "folder" },
+  { key: "file", label: "Upload File", icon: Paperclip, color: "text-brand-primary", ext: "*", mime: "*/*" },
 ];
+
+function renderMessageText(text, isOwn) {
+  if (!text) return null;
+  const linkRegex = /📎\s*\[(.*?)\]\((.*?)\)/g;
+  const matches = [...text.matchAll(linkRegex)];
+
+  if (matches.length === 0) {
+    return <p className="text-sm whitespace-pre-wrap break-words">{text}</p>;
+  }
+
+  const cleanText = text.replace(linkRegex, "").trim();
+
+  return (
+    <div className="space-y-2">
+      {cleanText && <p className="text-sm whitespace-pre-wrap break-words">{cleanText}</p>}
+      <div className="space-y-1.5 pt-1">
+        {matches.map((m, idx) => {
+          const fileName = m[1];
+          const fileUrl = m[2];
+          return (
+            <div
+              key={idx}
+              onClick={(e) => {
+                e.stopPropagation();
+                downloadFile(fileUrl, fileName);
+              }}
+              className={`p-2 rounded-lg flex items-center gap-2 cursor-pointer transition-colors ${
+                isOwn ? "bg-primary-foreground/15 hover:bg-primary-foreground/25 text-primary-foreground" : "bg-muted/70 hover:bg-muted text-foreground"
+              }`}
+              title={`Click to download ${fileName}`}
+            >
+              <FileText className="w-4 h-4 shrink-0" />
+              <span className="text-xs font-medium truncate flex-1">{fileName}</span>
+              <Download className="w-3.5 h-3.5 shrink-0 opacity-80" />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -203,18 +243,10 @@ export function Messenger() {
   }, [showPlusMenu, showSentFiles]);
 
   // ---- Add attachment from plus menu ----
-  const handleAddAttachment = (type) => {
+  const handleAddAttachment = () => {
     if (fileInputRef.current) {
-      if (type === "image") {
-        fileInputRef.current.accept = "image/*";
-        fileInputRef.current.removeAttribute("webkitdirectory");
-      } else if (type === "folder") {
-        fileInputRef.current.accept = "";
-        fileInputRef.current.setAttribute("webkitdirectory", "true");
-      } else {
-        fileInputRef.current.accept = "";
-        fileInputRef.current.removeAttribute("webkitdirectory");
-      }
+      fileInputRef.current.accept = "*/*";
+      fileInputRef.current.removeAttribute("webkitdirectory");
       fileInputRef.current.click();
     }
     setShowPlusMenu(false);
@@ -225,7 +257,6 @@ export function Messenger() {
     if (files.length === 0) return;
     
     const newAttachments = files.map((file) => {
-      // Create a temporary object for the UI until backend API handles uploads
       return {
         id: `att-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         file: file,
@@ -236,7 +267,6 @@ export function Messenger() {
     });
     
     setPendingAttachments((prev) => [...prev, ...newAttachments]);
-    // Reset input so the same file can be selected again
     e.target.value = null;
   };
 
@@ -252,19 +282,62 @@ export function Messenger() {
     if (!activeConvId) return;
 
     try {
+      let attachmentText = "";
+      const uploadedAtts = [];
+
+      if (hasAttachments) {
+        for (const att of pendingAttachments) {
+          if (att.file instanceof File) {
+            try {
+              const formData = new FormData();
+              formData.append("file", att.file);
+              const uploadRes = await api.post("/JobPosts/upload-file", formData, { isFormData: true }).catch(() => null);
+              const cleanUrl = uploadRes?.url || uploadRes?.Url || uploadRes?.fileUrl || uploadRes?.FileUrl || uploadRes?.data || "";
+              const fileName = att.name || att.file.name;
+              const finalUrl = cleanUrl ? (cleanUrl.includes("?") ? cleanUrl : `${cleanUrl}?name=${encodeURIComponent(fileName)}`) : "";
+              
+              if (finalUrl) {
+                attachmentText += (attachmentText ? "\n" : "") + `📎 [${fileName}](${finalUrl})`;
+                uploadedAtts.push({
+                  id: att.id,
+                  name: fileName,
+                  fileUrl: finalUrl,
+                  size: att.size,
+                  type: att.type,
+                });
+              } else {
+                attachmentText += (attachmentText ? "\n" : "") + `📎 [${fileName}]`;
+                uploadedAtts.push(att);
+              }
+            } catch (upErr) {
+              attachmentText += (attachmentText ? "\n" : "") + `📎 [${att.name}]`;
+              uploadedAtts.push(att);
+            }
+          } else {
+            attachmentText += (attachmentText ? "\n" : "") + `📎 [${att.name}]`;
+            uploadedAtts.push(att);
+          }
+        }
+      }
+
+      const fullContent = [message.trim(), attachmentText].filter(Boolean).join("\n\n");
+
       const payload = {
         conversationId: activeConvId,
         senderId: demoUserId,
-        content: message.trim(),
-        // Note: Backend currently only accepts text content for Dto, but we can extend later.
+        content: fullContent,
       };
 
       await api.chat.sendMessage(payload);
+      if (uploadedAtts.length > 0) {
+        setSentAttachments((prev) => [...prev, ...uploadedAtts]);
+      }
       setMessage("");
       setPendingAttachments([]);
       loadConversations();
     } catch (err) {
       console.error("Failed to send message:", err);
+      toast.error(err.message || "Failed to send message.");
     }
   };
 
@@ -410,13 +483,7 @@ export function Messenger() {
                             msg.isOwn ? "bg-primary/20" : "bg-muted"
                           }`}
                         >
-                          {msg.attachment.type === "image/png" ? (
-                            <Image className="w-5 h-5 flex-shrink-0" />
-                          ) : msg.attachment.type === "folder" ? (
-                            <FolderOpen className="w-5 h-5 flex-shrink-0" />
-                          ) : (
-                            <FileIcon className="w-5 h-5 flex-shrink-0" />
-                          )}
+                          <FileText className="w-5 h-5 flex-shrink-0 text-brand-primary" />
                           <div className="min-w-0">
                             <p className="text-xs font-medium truncate">
                               {msg.attachment.name}
@@ -430,7 +497,7 @@ export function Messenger() {
                       )}
 
                       {/* Text */}
-                      {msg.text && <p className="text-sm whitespace-pre-wrap">{msg.text}</p>}
+                      {renderMessageText(msg.text, msg.isOwn)}
 
                       {/* Time */}
                       <p
@@ -458,13 +525,7 @@ export function Messenger() {
                       key={att.id}
                       className="inline-flex items-center gap-2 bg-brand-primary-light border border-accent/25 rounded-lg px-3 py-1.5"
                     >
-                      {att.type === "image/png" ? (
-                        <Image className="w-4 h-4 text-brand-primary" />
-                      ) : att.type === "folder" ? (
-                        <FolderOpen className="w-4 h-4 text-warning" />
-                      ) : (
-                        <FileIcon className="w-4 h-4 text-muted-foreground" />
-                      )}
+                      <FileText className="w-4 h-4 text-brand-primary flex-shrink-0" />
                       <span className="text-xs font-medium text-foreground/80">{att.name}</span>
                       <button
                         type="button"
@@ -559,21 +620,21 @@ export function Messenger() {
                             {allSentAttachments.map((att, idx) => (
                               <div
                                 key={att.id || idx}
-                                className="flex items-center gap-2 bg-secondary/60 rounded-lg p-2"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (att.fileUrl) downloadFile(att.fileUrl, att.name);
+                                }}
+                                className="flex items-center gap-2 bg-secondary/60 rounded-lg p-2 hover:bg-secondary cursor-pointer transition-colors"
+                                title="Click to download"
                               >
-                                {att.type === "image/png" ? (
-                                  <Image className="w-4 h-4 text-brand-primary flex-shrink-0" />
-                                ) : att.type === "folder" ? (
-                                  <FolderOpen className="w-4 h-4 text-warning flex-shrink-0" />
-                                ) : (
-                                  <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                )}
+                                <FileText className="w-4 h-4 text-brand-primary flex-shrink-0" />
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs font-medium text-foreground/80 truncate">
                                     {att.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">{att.size}</p>
                                 </div>
+                                {att.fileUrl && <Download className="w-3.5 h-3.5 text-muted-foreground hover:text-accent shrink-0" />}
                               </div>
                             ))}
                           </div>

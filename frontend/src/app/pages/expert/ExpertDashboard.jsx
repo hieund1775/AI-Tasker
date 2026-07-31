@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import {
   Briefcase,
@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
-import { createReport } from "../../../services/reportService.js";
+import { createReport, uploadEvidenceFiles } from "../../../services/reportService.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
@@ -221,14 +221,19 @@ export function ExpertDashboard() {
           partnerRejectionReason: formData.reason || formData.description || "Decline contract cancellation request",
         });
       } else {
-        const evidenceUrl = Array.isArray(formData.evidence) && formData.evidence.length > 0
-          ? (typeof formData.evidence[0].file === "string" ? formData.evidence[0].file : (formData.evidence[0].name || "Uploaded file"))
-          : null;
+        let evidenceUrl = null;
+        if (Array.isArray(formData.evidence) && formData.evidence.length > 0) {
+          evidenceUrl = await uploadEvidenceFiles(formData.evidence);
+        }
+        const combinedExplanation = (formData.reason && formData.description && formData.reason !== formData.description)
+          ? `${formData.reason}\n\n${formData.description}`
+          : (formData.description || formData.reason || "");
         await api.put(`/reports/${explainingReport.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
-          explanation: formData.description || formData.reason || "",
+          reason: formData.reason || "",
+          explanation: combinedExplanation,
           desiredResolution: formData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
-          userId: user?.id
+          userId: user?.id || user?.Id
         });
       }
       setShowExplanationForm(false);

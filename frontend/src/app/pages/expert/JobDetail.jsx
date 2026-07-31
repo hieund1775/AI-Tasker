@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Clock,
@@ -17,7 +17,8 @@ import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
-import api, { enrichFileUrl } from "../../../services/api.js";
+import api, { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 
@@ -78,14 +79,18 @@ export function JobDetail() {
             hasSubmittedProp = myProposals.some(
               (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
             );
-            // Check for accepted proposal with extended deadline
+            // Check for accepted proposal with extended deadline or active project deadline
             const acceptedProposal = myProposals.find(p =>
-              p.jobPostId === project.id &&
-              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+              (p.jobPostId === project.id || p.jobPostId === id) &&
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "in progress", "active"].includes(p.status?.toLowerCase())
             );
-            if (acceptedProposal?.projectId) {
+            const projIdKey = acceptedProposal?.projectId || acceptedProposal?.id || project.id || id;
+            if (projIdKey) {
               try {
-                const storedDeadline = localStorage.getItem(`project_deadline_${acceptedProposal.projectId}`);
+                const storedDeadline =
+                  localStorage.getItem(`project_deadline_${projIdKey}`) ||
+                  localStorage.getItem(`project_deadline_${project.id}`) ||
+                  localStorage.getItem(`project_deadline_${id}`);
                 if (storedDeadline) extendedDeadlineStr = storedDeadline;
               } catch (e) { /* ignore */ }
             }
@@ -178,9 +183,7 @@ export function JobDetail() {
     : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
 
   const deadlineText = (() => {
-    if (!job.deadline) return null;
-
-    // Use extended deadline from localStorage if available (project extension approved)
+    // 1. Use extended deadline from localStorage / active project extension if available
     if (job._extendedDeadline) {
       return safeDateFormat(job._extendedDeadline, {
         year: "numeric",
@@ -189,10 +192,13 @@ export function JobDetail() {
       }, String(job._extendedDeadline));
     }
 
-    // Convert numeric deadline (days) to actual date based on job creation date
-    const num = Number(job.deadline);
+    // 2. Check for explicit project deadline properties
+    const effectiveVal = job.projectDeadlineDate || job.endDate || job.EndDate || job.deadline || job.Deadline;
+    if (!effectiveVal) return null;
+
+    const num = Number(effectiveVal);
     if (!Number.isNaN(num) && num < 1000) {
-      const startDate = new Date(job.createdAt || job.CreatedAt || Date.now());
+      const startDate = new Date(job.startDate || job.StartDate || job.createdAt || job.CreatedAt || Date.now());
       if (!Number.isNaN(startDate.getTime())) {
         const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
         return safeDateFormat(deadlineDate.toISOString(), {
@@ -202,11 +208,11 @@ export function JobDetail() {
         }, `${num} days`);
       }
     }
-    return safeDateFormat(job.deadline, {
+    return safeDateFormat(effectiveVal, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }, String(job.deadline));
+    }, String(effectiveVal));
   })();
 
   return (
@@ -361,29 +367,15 @@ export function JobDetail() {
 
                   let fileName = typeof file === "object" ? (file.name || file.Name || file.originalName || file.fileName) : null;
                   if (!fileName && typeof rawUrl === "string") {
-                    const baseName = rawUrl.split("/").pop() || "Attachment";
-                    fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                    if (!fileName) fileName = baseName;
+                    fileName = cleanFileName(rawUrl);
+                  } else if (fileName) {
+                    fileName = cleanFileName(fileName);
                   }
 
-                  const handleDownloadFile = async (e) => {
+                  const handleDownloadFile = (e) => {
                     e.preventDefault();
                     if (!fileUrl || fileUrl === "#") return;
-                    try {
-                      const res = await fetch(fileUrl);
-                      const blob = await res.blob();
-                      const blobUrl = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = blobUrl;
-                      a.download = fileName || "Project_Attachment";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(blobUrl);
-                    } catch (err) {
-                      console.warn("Direct blob download failed, falling back to window.open:", err);
-                      window.open(fileUrl, "_blank");
-                    }
+                    downloadFile(fileUrl, fileName);
                   };
 
                   return (

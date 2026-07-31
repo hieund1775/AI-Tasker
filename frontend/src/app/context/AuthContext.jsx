@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useReducer,
   useEffect,
@@ -336,6 +336,37 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  if (context) return context;
+
+  // Safe fallback if called outside AuthProvider context or during hot reload
+  try {
+    const rawUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    const user = rawUser ? JSON.parse(rawUser) : null;
+    const token = sessionStorage.getItem("token") || localStorage.getItem("token") || null;
+    return {
+      user,
+      token,
+      isAuthenticated: !!user,
+      loading: false,
+      error: null,
+      login: async () => {},
+      logout: async () => {},
+      register: async () => {},
+      clearError: () => {},
+      completeExpertProfile: async () => {},
+    };
+  } catch (e) {
+    return {
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      loading: false,
+      error: null,
+      login: async () => {},
+      logout: async () => {},
+      register: async () => {},
+      clearError: () => {},
+      completeExpertProfile: async () => {},
+    };
+  }
 }

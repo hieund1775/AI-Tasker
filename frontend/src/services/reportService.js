@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AITasker Report Service
 // =============================================================================
 // Handles all dispute report operations between Expert and Admin/Owner.
@@ -40,30 +40,37 @@ export async function uploadEvidenceFiles(evidenceList = []) {
   if (!Array.isArray(evidenceList) || evidenceList.length === 0) return null;
   const processed = [];
   for (const item of evidenceList) {
-    if (item.file instanceof File) {
+    const actualFile = item instanceof File ? item : (item?.file instanceof File ? item.file : null);
+    if (actualFile) {
       try {
         const formData = new FormData();
-        formData.append("file", item.file);
+        formData.append("file", actualFile);
         const uploadRes = await api.post("/JobPosts/upload-file", formData, { isFormData: true }).catch(() => null);
-        const fileUrl = uploadRes?.url || uploadRes?.fileUrl || uploadRes?.data || "";
+        const cleanUrl = uploadRes?.url || uploadRes?.Url || uploadRes?.fileUrl || uploadRes?.FileUrl || uploadRes?.data || "";
+        const finalUrl = cleanUrl ? (cleanUrl.includes("?") ? cleanUrl : `${cleanUrl}?name=${encodeURIComponent(actualFile.name)}`) : "";
         processed.push({
-          fileName: item.file.name,
-          fileUrl: fileUrl || item.file.name,
-          note: item.note || ""
+          fileName: actualFile.name,
+          fileUrl: finalUrl || actualFile.name,
+          note: item?.note || ""
         });
       } catch {
         processed.push({
-          fileName: item.file.name,
-          fileUrl: item.file.name,
-          note: item.note || ""
+          fileName: actualFile.name,
+          fileUrl: actualFile.name,
+          note: item?.note || ""
         });
       }
-    } else if (item.file || item.fileUrl || item.name) {
-      processed.push({
-        fileName: (item.file && item.file.name) ? item.file.name : (item.fileName || item.name || "Evidence File"),
-        fileUrl: item.fileUrl || (typeof item.file === "string" ? item.file : ""),
-        note: item.note || ""
-      });
+    } else if (item) {
+      const rawUrl = typeof item === "string" ? item : (item.fileUrl || item.url || item.Url || (typeof item.file === "string" ? item.file : ""));
+      const fileName = (typeof item === "object" && item.fileName) ? item.fileName : (item.name || "Evidence File");
+      const finalUrl = (rawUrl && !rawUrl.includes("?")) ? `${rawUrl}?name=${encodeURIComponent(fileName)}` : rawUrl;
+      if (finalUrl) {
+        processed.push({
+          fileName: fileName,
+          fileUrl: finalUrl,
+          note: item?.note || ""
+        });
+      }
     }
   }
   return processed.length > 0 ? JSON.stringify(processed) : null;

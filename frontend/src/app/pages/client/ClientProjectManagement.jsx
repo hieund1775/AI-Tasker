@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -13,6 +14,7 @@ import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { releaseProjectMoneyToExpert } from "../../../services/escrowService.js";
 import { cancelProjectContract } from "../../../services/escrowService.js";
 import api, { enrichFileUrl } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { createReport } from "../../../services/reportService.js";
 import {
   notifyPaymentReleased,
@@ -73,6 +75,44 @@ export default function ClientProjectDetail() {
 
   // New Cancellation Negotiation states
   const [evidenceFileName, setEvidenceFileName] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+  const evidenceFileInputRef = useRef(null);
+
+  const handleEvidenceFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingEvidence(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+      const uploadedUrl = result?.fileUrl || result?.url || (typeof result === "string" ? result : "");
+      const finalUrl = uploadedUrl ? enrichFileUrl(uploadedUrl) : URL.createObjectURL(file);
+
+      setEvidenceFileName(uploadedUrl || file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: finalUrl,
+        rawUrl: uploadedUrl || file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } catch (err) {
+      console.warn("Evidence upload fallback:", err);
+      setEvidenceFileName(file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: URL.createObjectURL(file),
+        rawUrl: file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
+
   const [showSendConfirmDialog, setShowSendConfirmDialog] = useState(false);
   const [showPartnerRejectForm, setShowPartnerRejectForm] = useState(false);
   const [partnerRejectReason, setPartnerRejectReason] = useState("");
@@ -97,50 +137,108 @@ export default function ClientProjectDetail() {
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [reviewSaved, setReviewSaved] = useState(false);
-  const [isReviewDismissed, setIsReviewDismissed] = useState(false);
+  const [isReviewCollapsed, setIsReviewCollapsed] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [expertReply, setExpertReply] = useState(null);
   const [editedReview, setEditedReview] = useState(null);
   const [originalReview, setOriginalReview] = useState(null);
 
   useEffect(() => {
-    if (currentProjectId) {
-      // Fetch original review from backend API
+    if (!currentProjectId) return;
+
+    const fetchReviewData = () => {
       api.reviews.getReviewByProject(currentProjectId)
         .then((res) => {
           if (res && res.id) {
             setReviewSaved(true);
-            const orig = { id: res.id, rating: res.rating || 0, comment: res.comment || "" };
+            
+            // 1. Get or cache original review so it is NEVER modified by subsequent edits
+            let orig = { id: res.id, rating: res.rating || 0, comment: res.comment || "" };
+            try {
+              const rawOrig = localStorage.getItem(`project_review_original_${currentProjectId}`);
+              if (rawOrig) {
+                orig = JSON.parse(rawOrig);
+              } else {
+                localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(orig));
+              }
+            } catch {
+              localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(orig));
+            }
             setOriginalReview(orig);
-            setRating(res.rating || 0);
-            setComment(res.comment || "");
-            setEditedReview(null);
+
+            // 2. Check if edited review exists locally or in override storage
+            try {
+              const rawEdited = localStorage.getItem(`project_review_edited_${currentProjectId}`);
+              if (rawEdited) {
+                const parsedEdited = JSON.parse(rawEdited);
+                setEditedReview(parsedEdited);
+                setRating(parsedEdited.rating || orig.rating || 0);
+                setComment(parsedEdited.comment || orig.comment || "");
+              } else {
+                setEditedReview(null);
+                setRating(orig.rating || 0);
+                setComment(orig.comment || "");
+              }
+            } catch {
+              setEditedReview(null);
+              setRating(orig.rating || 0);
+              setComment(orig.comment || "");
+            }
 
             if (res.expertReply) {
-              setExpertReply({ replyText: res.expertReply, date: res.replyCreatedAt });
+              setExpertReply({
+                replyText: res.expertReply,
+                requestRevisionText: res.expertReply,
+                date: res.replyCreatedAt
+              });
             } else {
-              setExpertReply(null);
+              try {
+                const localReply = localStorage.getItem(`review_expert_reply_${currentProjectId}`);
+                if (localReply) {
+                  const parsed = JSON.parse(localReply);
+                  setExpertReply(parsed);
+                } else {
+                  setExpertReply(null);
+                }
+              } catch {
+                setExpertReply(null);
+              }
             }
           } else {
             setReviewSaved(false);
             setOriginalReview(null);
+            setEditedReview(null);
             setRating(0);
             setComment("");
             setExpertReply(null);
           }
         })
         .catch(() => {
-            setReviewSaved(false);
-            setOriginalReview(null);
-            setRating(0);
-            setComment("");
-            setExpertReply(null);
+          setReviewSaved(false);
+          setOriginalReview(null);
+          setEditedReview(null);
+          setRating(0);
+          setComment("");
+          setExpertReply(null);
         });
-      
-      const dismissed = localStorage.getItem(`dismissed_review_${currentProjectId}`) === "true";
-      setIsReviewDismissed(dismissed);
-    }
+    };
+
+    fetchReviewData();
+
+    const collapsed = localStorage.getItem(`collapsed_review_${currentProjectId}`) === "true";
+    setIsReviewCollapsed(collapsed);
+
+    window.addEventListener("aitasker_db_update", fetchReviewData);
+    return () => window.removeEventListener("aitasker_db_update", fetchReviewData);
   }, [currentProjectId]);
+
+  const handleToggleReviewCollapse = () => {
+    setIsReviewCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(`collapsed_review_${currentProjectId}`, String(next));
+      return next;
+    });
+  };
 
   const handleSaveReview = () => {
     if (rating === 0) {
@@ -155,21 +253,21 @@ export default function ClientProjectDetail() {
     };
 
     if (originalReview && originalReview.id) {
-      // This is the edit turn (second time), call update API
-      api.reviews.updateReview(originalReview.id, reviewData)
-        .then(() => {
-          setOriginalReview({ ...originalReview, ...reviewData });
-          setReviewSaved(true);
-          toast.success("Expert review updated successfully!");
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        })
-        .catch(() => toast.error("Failed to update review"))
-        .finally(() => setIsSavingReview(false));
+      // This is the supplementary edit turn (second time), keep originalReview 100% untouched
+      const editedObj = { rating: rating, comment: comment.trim() };
+      setEditedReview(editedObj);
+      localStorage.setItem(`project_review_edited_${currentProjectId}`, JSON.stringify(editedObj));
+      setReviewSaved(true);
+      toast.success("Supplementary review submitted successfully!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setIsSavingReview(false);
     } else {
       // This is the first evaluation turn
       api.reviews.createReview(reviewData)
         .then((res) => {
-          setOriginalReview({ id: res.id, ...reviewData });
+          const origObj = { id: res.id, ...reviewData };
+          setOriginalReview(origObj);
+          localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(origObj));
           setReviewSaved(true);
           toast.success("Thank you for submitting your review!");
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -318,8 +416,12 @@ export default function ClientProjectDetail() {
         if (Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0) {
           evidenceUrl = await uploadEvidenceFiles(explanationData.evidence);
         }
+        const combinedExplanation = (explanationData.reason && explanationData.description && explanationData.reason !== explanationData.description)
+          ? `${explanationData.reason}\n\n${explanationData.description}`
+          : (explanationData.description || explanationData.reason || "");
         await api.put(`/reports/${report.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
-          explanation: explanationData.description || explanationData.reason || "",
+          reason: explanationData.reason || "",
+          explanation: combinedExplanation,
           desiredResolution: explanationData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
           userId: user?.id || user?.Id
@@ -408,20 +510,29 @@ export default function ClientProjectDetail() {
     setCancelLoading(true);
     const finalReason = cancelAttemptCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
     try {
+      const targetProjId = project?.id || project?.Id || currentProjectId;
+      const reporterUserId = user?.id || user?.Id;
       await api.reports.create({
-        projectId: currentProjectId,
-        reporterId: user.id,
+        projectId: targetProjId,
+        reporterId: reporterUserId,
         reporterRole: "client",
         reason: finalReason,
         description: finalReason,
-        evidenceUrl: evidenceFileName || "",
+        evidenceUrl: evidenceFile?.rawUrl || evidenceFile?.url || evidenceFileName || "",
         reportType: "cancellation",
         disputeType: "cancellation",
       });
+
+      // Save local fallback status
+      try {
+        localStorage.setItem(`project_status_override_${String(targetProjId).toLowerCase()}`, "Awaiting_Cancellation");
+      } catch (e) {}
+
       setShowCancelModal(false);
       setShowSendConfirmDialog(false);
       setCancelReason("");
       setEvidenceFileName("");
+      setEvidenceFile(null);
       toast.success("Sent contract cancellation request for Admin review.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -994,204 +1105,229 @@ export default function ClientProjectDetail() {
           <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" allTasksApproved={allTasksApproved} />
         </AnimatedReveal>
 
-        {/* Evaluation / Review Section */}
-        {project?.status === "completed" && !isReviewDismissed && (
+        {/* Evaluation / Review Section (Always present on completed projects, collapsible) */}
+        {project?.status === "completed" && (
           <AnimatedReveal>
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 relative text-left space-y-4 mb-6 mt-6">
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleDismissReview}
-                className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                title="Close Review"
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 text-left space-y-4 mb-6 mt-6 transition-all">
+              {/* Header with Collapse/Expand toggle */}
+              <div
+                onClick={handleToggleReviewCollapse}
+                className="flex items-center justify-between cursor-pointer select-none group"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning-light/10 text-warning rounded-lg group-hover:scale-105 transition-transform">
+                    <Star className="w-5 h-5 fill-warning" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground font-sans">Expert Evaluation</h3>
+                      {reviewSaved ? (
+                        <span className="px-2 py-0.5 text-[11px] font-medium bg-success-light text-success rounded-full border border-success/20 inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Reviewed ({editedReview?.rating || rating} ⭐){editedReview ? " (Locked)" : ""}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[11px] font-medium bg-warning-light text-warning rounded-full border border-warning/20">
+                          Pending Review
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-sans">
+                      {isReviewCollapsed
+                        ? "Click to expand expert evaluation & review details."
+                        : "Project completed successfully. Please take a moment to evaluate the expert's service quality."}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-3 border-b border-border pb-3">
-                <div className="p-2 bg-warning-light/10 text-warning rounded-lg">
-                  <Star className="w-5 h-5 fill-warning" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground font-sans">Expert Evaluation</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-sans">Project completed successfully. Please take a moment to evaluate the expert's service quality.</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleReviewCollapse();
+                  }}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                  title={isReviewCollapsed ? "Expand review" : "Collapse review"}
+                >
+                  <span className="hidden sm:inline">{isReviewCollapsed ? "Expand" : "Collapse"}</span>
+                  {isReviewCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
               </div>
 
-              {reviewSaved ? (
-                <div className="space-y-4 font-sans text-xs">
-                  {/* ORIGINAL REVIEW BLOCK */}
-                  {originalReview && (
-                    <div className="space-y-2 border-b border-border/40 pb-3 text-left">
-                      <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-lg font-medium">
-                        <span>Done Original Review</span>
-                        <div className="flex items-center gap-0.5 ml-2">
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${
-                                i < originalReview.rating ? "fill-warning text-warning" : "text-border"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      {originalReview.comment && (
-                        <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-warning/70 font-semibold select-none leading-none">"</span>
-                          {originalReview.comment}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* EXPERT REPLY BLOCK */}
-                  {expertReply?.replyText && (
-                    <div className="p-3.5 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs space-y-1 text-left">
-                      <span className="font-semibold text-brand-primary block">Expert Response (Thank You):</span>
-                      <p className="text-muted-foreground">{expertReply.replyText}</p>
-                    </div>
-                  )}
-                  {expertReply?.requestRevisionText && (
-                    <div className="p-3.5 bg-warning-light/10 border border-warning/20 rounded-xl text-xs space-y-1 text-left">
-                      <span className="font-semibold text-warning block">Expert Response & Revision Request:</span>
-                      <p className="text-muted-foreground">{expertReply.requestRevisionText}</p>
-                    </div>
-                  )}
-
-                  {/* CLIENT EDITED REVIEW BLOCK */}
-                  {editedReview && (
-                    <div className="space-y-2 pt-3 border-t border-border/40 text-left">
-                      <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-lg font-medium">
-                        <span>Done Edited Review</span>
-                        <div className="flex items-center gap-0.5 ml-2">
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${
-                                i < editedReview.rating ? "fill-warning text-warning" : "text-border"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      {editedReview.comment && (
-                        <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">"</span>
-                          {editedReview.comment}
+              {/* Collapsible Content Body */}
+              {!isReviewCollapsed && (
+                <div className="pt-3 border-t border-border space-y-4 animate-fade-in">
+                  {reviewSaved ? (
+                    <div className="space-y-4 font-sans text-xs">
+                      {/* ORIGINAL REVIEW BLOCK */}
+                      {originalReview && (
+                        <div className="space-y-2 border-b border-border/40 pb-3 text-left">
+                          <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-lg font-medium">
+                            <span>Done Original Review</span>
+                            <div className="flex items-center gap-0.5 ml-2">
+                              {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < originalReview.rating ? "fill-warning text-warning" : "text-border"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {originalReview.comment && (
+                            <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
+                              <span className="absolute left-2 text-sm text-warning/70 font-semibold select-none leading-none">"</span>
+                              {originalReview.comment}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* BUTTON TO OPEN REVISION FORM */}
-                  {expertReply?.requestRevisionText && !editedReview && (
-                    <div className="p-4 bg-warning-light border border-warning/15 rounded-xl text-xs space-y-2 text-left animate-pulse mt-2">
-                      <p className="text-muted-foreground font-medium">You can adjust this review based on the expert's request (one-time edit only).</p>
-                      <div className="flex justify-end">
+                      {/* EXPERT RESPONSE BLOCK */}
+                      {(expertReply?.replyText || expertReply?.requestRevisionText) && (
+                        <div className="p-3.5 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs space-y-1 text-left">
+                          <span className="font-semibold text-brand-primary block">Expert Response:</span>
+                          <p className="text-muted-foreground font-medium">{expertReply.replyText || expertReply.requestRevisionText}</p>
+                        </div>
+                      )}
+
+                      {/* CLIENT EDITED REVIEW BLOCK */}
+                      {editedReview && (
+                        <div className="space-y-2 pt-3 border-t border-border/40 text-left">
+                          <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-lg font-medium">
+                            <span>Done Edited Review</span>
+                            <div className="flex items-center gap-0.5 ml-2">
+                              {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < editedReview.rating ? "fill-warning text-warning" : "text-border"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {editedReview.comment && (
+                            <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
+                              <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">"</span>
+                              {editedReview.comment}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* BUTTON TO OPEN REVISION FORM - ONLY IF NOT EDITED YET */}
+                      {expertReply && !editedReview && (
+                        <div className="p-4 bg-warning-light/30 border border-warning/20 rounded-xl text-xs space-y-2 text-left mt-2">
+                          <p className="text-muted-foreground font-medium">Expert has responded. You can adjust your rating or comment (one-time edit based on feedback).</p>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRating(originalReview?.rating || 0);
+                                setComment(originalReview?.comment || "");
+                                setReviewSaved(false);
+                              }}
+                              className="px-4 py-1.5 bg-warning-light hover:bg-warning text-primary-foreground rounded-lg font-semibold text-xs shadow-sm transition-colors cursor-pointer"
+                            >
+                              Adjust Review
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+
+                    </div>
+                  ) : (
+                    <div className="space-y-4 font-sans text-left">
+                      {/* Show previous review thread during editing */}
+                      {originalReview && (
+                        <div className="space-y-2 border-b border-border/40 pb-3">
+                          <p className="text-xs text-muted-foreground font-semibold">Your Original Review:</p>
+                          <div className="flex items-center gap-0.5 mb-1">
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${
+                                  i < originalReview.rating ? "fill-warning text-warning" : "text-border"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {originalReview.comment && (
+                            <p className="text-xs text-muted-foreground italic bg-secondary/20 p-2 rounded-lg border border-border">"{originalReview.comment}"</p>
+                          )}
+                        </div>
+                      )}
+
+                      {expertReply?.requestRevisionText && (
+                        <div className="p-3 bg-warning-light/10 border border-warning/20 rounded-xl text-xs text-left text-muted-foreground">
+                          <span className="font-semibold text-warning">Adjusting review based on Expert's response:</span>
+                          <p className="mt-1 font-medium bg-background/40 p-2 rounded border border-warning/15">"{expertReply.requestRevisionText}"</p>
+                        </div>
+                      )}
+
+                      {/* Stars Row */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-foreground/80 font-medium">Select rating:</span>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const starValue = i + 1;
+                            return (
+                              <button
+                                type="button"
+                                key={i}
+                                onClick={() => setRating(starValue)}
+                                onMouseEnter={() => setHoverRating(starValue)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
+                              >
+                                <Star
+                                  className={`w-6 h-6 transition-all ${
+                                    starValue <= (hoverRating || rating)
+                                      ? "fill-warning text-warning"
+                                      : "text-muted hover:text-warning"
+                                  }`}
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Comment Textarea */}
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-foreground/80 font-medium">Your comment:</span>
+                        <textarea
+                          rows={3}
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Your evaluation comments..."
+                          className="w-full p-3 text-sm border border-input rounded-xl focus:outline-none focus:border-brand-primary text-foreground bg-card"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        {originalReview && (
+                          <button
+                            type="button"
+                            onClick={() => setReviewSaved(true)}
+                            className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium text-sm transition-colors cursor-pointer"
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => {
-                            setRating(originalReview?.rating || 0);
-                            setComment(originalReview?.comment || "");
-                            setReviewSaved(false);
-                          }}
-                          className="px-4 py-1.5 bg-warning-light hover:bg-warning text-primary-foreground rounded-lg font-semibold text-xs shadow-sm transition-colors cursor-pointer"
+                          onClick={handleSaveReview}
+                          disabled={isSavingReview}
+                          className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Adjust Review
+                          {isSavingReview ? "Submitting..." : "Submit Review"}
                         </button>
                       </div>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="space-y-4 font-sans text-left">
-                  {/* Show previous review thread during editing */}
-                  {originalReview && (
-                    <div className="space-y-2 border-b border-border/40 pb-3">
-                      <p className="text-xs text-muted-foreground font-semibold">Your Original Review:</p>
-                      <div className="flex items-center gap-0.5 mb-1">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3.5 h-3.5 ${
-                              i < originalReview.rating ? "fill-warning text-warning" : "text-border"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      {originalReview.comment && (
-                        <p className="text-xs text-muted-foreground italic bg-secondary/20 p-2 rounded-lg border border-border">"{originalReview.comment}"</p>
-                      )}
-                    </div>
-                  )}
-
-                  {expertReply?.requestRevisionText && (
-                    <div className="p-3 bg-warning-light/10 border border-warning/20 rounded-xl text-xs text-left text-muted-foreground">
-                      <span className="font-semibold text-warning">Adjusting review based on Expert's response:</span>
-                      <p className="mt-1 font-medium bg-background/40 p-2 rounded border border-warning/15">"{expertReply.requestRevisionText}"</p>
-                    </div>
-                  )}
-
-                  {/* Stars Row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-foreground/80 font-medium">Select new rating:</span>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }, (_, i) => {
-                        const starValue = i + 1;
-                        return (
-                          <button
-                            type="button"
-                            key={i}
-                            onClick={() => setRating(starValue)}
-                            onMouseEnter={() => setHoverRating(starValue)}
-                            onMouseLeave={() => setHoverRating(0)}
-                            className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
-                          >
-                            <Star
-                              className={`w-6 h-6 transition-all ${
-                                starValue <= (hoverRating || rating)
-                                  ? "fill-warning text-warning"
-                                  : "text-muted hover:text-warning"
-                              }`}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Comment Textarea */}
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-foreground/80 font-medium">New comment:</span>
-                    <textarea
-                      rows={3}
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Your evaluation comments..."
-                      className="w-full p-3 text-sm border border-input rounded-xl focus:outline-none focus:border-brand-primary text-foreground bg-card"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    {originalReview && (
-                      <button
-                        type="button"
-                        onClick={() => setReviewSaved(true)}
-                        className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium text-sm transition-colors cursor-pointer"
-                      >
-                        Cancel Edit
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSaveReview}
-                      disabled={isSavingReview}
-                      className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSavingReview ? "Submitting..." : "Submit Review"}
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1396,9 +1532,9 @@ export default function ClientProjectDetail() {
       )}
 
       {/* View Final Work Modal */}
-      {showFinalWorkModal && (
-        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+      {showFinalWorkModal && createPortal(
+        <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left my-auto">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
               <div className="p-2 bg-muted text-muted-foreground rounded-lg">
@@ -1459,26 +1595,13 @@ export default function ClientProjectDetail() {
                         setTimeout(() => URL.revokeObjectURL(viewUrl), 30000);
                       } catch { window.open(fileInfo.url, "_blank"); }
                     };
-                    const handleDownload = async () => {
-                      try {
-                        const res = await fetch(fileInfo.url, { headers: { Authorization: `Bearer ${getToken()}` } });
-                        const blob = await res.blob();
-                        const dlUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = dlUrl; a.download = fileInfo.name;
-                        document.body.appendChild(a); a.click(); a.remove();
-                        URL.revokeObjectURL(dlUrl);
-                      } catch { window.open(fileInfo.url, "_blank"); }
-                    };
+                    const handleDownload = () => downloadFile(fileInfo.url, fileInfo.name);
                     return (
                       <div className="flex items-center gap-2 mt-1">
                         <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <span className="text-accent font-medium break-all text-sm flex-1 truncate" title={fileInfo.name}>
                           {fileInfo.name}
                         </span>
-                        <button type="button" onClick={handleView} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="View file">
-                          <ExternalLink className="w-4 h-4" />
-                        </button>
                         <button type="button" onClick={handleDownload} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="Download file">
                           <Download className="w-4 h-4" />
                         </button>
@@ -1606,7 +1729,8 @@ export default function ClientProjectDetail() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Cancel Contract Confirmation Modal */}
       {showCancelModal && (() => {
@@ -1681,12 +1805,51 @@ export default function ClientProjectDetail() {
                     Attach documents/evidence (Optional)
                   </label>
                   <input
-                    type="text"
-                    placeholder="e.g. evidence.pdf, supporting_docs.docx"
-                    value={evidenceFileName}
-                    onChange={(e) => setEvidenceFileName(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground text-sm"
+                    type="file"
+                    ref={evidenceFileInputRef}
+                    onChange={handleEvidenceFileChange}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar"
                   />
+
+                  {evidenceFile ? (
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 border border-border rounded-xl">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <Paperclip className="w-4 h-4 text-accent flex-shrink-0" />
+                        <div className="truncate">
+                          <p className="text-xs font-semibold text-foreground truncate">{evidenceFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{evidenceFile.size}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEvidenceFile(null);
+                          setEvidenceFileName("");
+                          if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = "";
+                        }}
+                        className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isUploadingEvidence}
+                      onClick={() => evidenceFileInputRef.current?.click()}
+                      className="w-full p-3 border border-dashed border-input rounded-xl hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      {isUploadingEvidence ? (
+                        <span className="animate-pulse">Uploading evidence file...</span>
+                      ) : (
+                        <>
+                          <Paperclip className="w-4 h-4 text-accent" />
+                          <span>Upload document/evidence file (PDF, DOCX, Images, ZIP)</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1699,6 +1862,7 @@ export default function ClientProjectDetail() {
                     setShowCancelModal(false);
                     setCancelReason("");
                     setEvidenceFileName("");
+                    setEvidenceFile(null);
                   }}
                   className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
@@ -1715,30 +1879,32 @@ export default function ClientProjectDetail() {
               </div>
 
               {/* Send Confirmation Dialog */}
-              {showSendConfirmDialog && (
-                <div data-modal-overlay className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
-                  <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
-                    <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
-                    <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
-                    <div className="flex justify-end gap-3 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => setShowSendConfirmDialog(false)}
-                        className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
-                      >
-                        Cancel (Decline)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmCancellationSend}
-                        className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
-                      >
-                        Agree (Accept)
-                      </button>
+              {showSendConfirmDialog &&
+                createPortal(
+                  <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-all animate-fade-in font-sans">
+                    <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left transform animate-zoom-in">
+                      <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
+                      <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
+                      <div className="flex justify-end gap-3 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setShowSendConfirmDialog(false)}
+                          className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
+                        >
+                          Cancel (Decline)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmCancellationSend}
+                          className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                        >
+                          Agree (Accept)
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </div>,
+                  document.body
+                )}
             </div>
           </div>
         );

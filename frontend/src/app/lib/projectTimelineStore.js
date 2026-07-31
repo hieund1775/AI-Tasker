@@ -288,26 +288,33 @@ export function deriveTaskProgress(task) {
 export function getDeadlineInfo(deadline) {
   if (!deadline) return { isOverdue: false, daysRemaining: 0, text: "No deadline" };
   const d = new Date(deadline);
-  const diff = d - new Date();
-  const diffSecs = Math.floor(diff / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHrs = Math.floor(diffMins / 60);
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const now = new Date();
+  const diff = d - now;
+  const pad = (n) => String(n).padStart(2, "0");
 
-  if (days < 0) {
-    return { isOverdue: true, daysRemaining: days, text: `Overdue by ${Math.abs(days)} days` };
+  if (diff <= 0) {
+    const overdueMs = Math.abs(diff);
+    const overdueSecs = Math.floor((overdueMs / 1000) % 60);
+    const overdueMins = Math.floor((overdueMs / (1000 * 60)) % 60);
+    const overdueHrs = Math.floor((overdueMs / (1000 * 60 * 60)) % 24);
+    const overdueDays = Math.floor(overdueMs / (1000 * 60 * 60 * 24));
+
+    const text = overdueDays > 0
+      ? `Overdue: ${overdueDays}d ${pad(overdueHrs)}:${pad(overdueMins)}:${pad(overdueSecs)}`
+      : `Overdue: ${pad(overdueHrs)}:${pad(overdueMins)}:${pad(overdueSecs)}`;
+
+    return { isOverdue: true, daysRemaining: -overdueDays, text };
   }
-  if (days === 0) {
-    if (diffHrs > 0) {
-      return { isOverdue: false, daysRemaining: 0, text: `${diffHrs} hours remaining` };
-    }
-    if (diffMins > 0) {
-      return { isOverdue: false, daysRemaining: 0, text: `${diffMins} minutes remaining` };
-    }
-    if (diffSecs > 0) {
-      return { isOverdue: false, daysRemaining: 0, text: `${diffSecs} seconds remaining` };
-    }
-    return { isOverdue: false, daysRemaining: 0, text: "Due today" };
-  }
-  return { isOverdue: false, daysRemaining: days, text: `${days} days remaining` };
+
+  const totalSecs = Math.floor(diff / 1000);
+  const secs = totalSecs % 60;
+  const mins = Math.floor(totalSecs / 60) % 60;
+  const hrs = Math.floor(totalSecs / 3600) % 24;
+  const days = Math.floor(totalSecs / 86400);
+
+  const text = days > 0
+    ? `${days}d ${pad(hrs)}:${pad(mins)}:${pad(secs)}`
+    : `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+  return { isOverdue: false, daysRemaining: days, text };
 }

@@ -1,4 +1,5 @@
-﻿import { useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2,
   Clock3,
@@ -462,13 +463,13 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Waiting For Approval WITH deliverables -> View Product */}
-            {isWaitingForApproval && hasMainProduct && (
-              <div className="flex items-center justify-end gap-3">
+            {/* Client: Deliverables submitted -> ALWAYS View Product */}
+            {hasMainProduct && (
+              <div className="flex items-center justify-end gap-3 mt-1">
                 <button
                   type="button"
                   onClick={() => setShowViewProductModal(true)}
-                  className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                  className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <FileText className="w-4 h-4" />
                   View Product
@@ -533,9 +534,9 @@ export function TaskProgressCard({
       </div>
 
       {/* Product Deliverables Modal */}
-      {showViewProductModal && (
-        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in">
+      {showViewProductModal && createPortal(
+        <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in my-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary border-b border-border">
               <div className="text-left">
@@ -587,15 +588,6 @@ export function TaskProgressCard({
                               {resolved.name}
                             </span>
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <a
-                                href={resolved.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                                title="View file"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
                               <button
                                 type="button"
                                 onClick={() => downloadFileBlob(resolved.url, resolved.name)}
@@ -646,7 +638,8 @@ export function TaskProgressCard({
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
@@ -17,7 +17,8 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import api from "../../../services/api.js";
+import api, { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 
 function getStatusConfig(status) {
@@ -232,10 +233,10 @@ export function ClientProposalDetail() {
                 Submitted{" "}
                 {proposal.createdAt
                   ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })
                   : "-"}
               </p>
             </div>
@@ -252,7 +253,14 @@ export function ClientProposalDetail() {
             <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
               <p className="text-xs text-muted-foreground mb-0.5">Duration</p>
               <p className="font-semibold text-foreground">
-                {proposal.durationDays} days
+                {(Number(proposal?.durationDays) || 0) +
+                  (Number(
+                    localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                    localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                    localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                    0
+                  ) || 0)}{" "}
+                days
               </p>
             </div>
             <div className="bg-card rounded-xl px-4 py-2.5 border border-border">
@@ -260,10 +268,10 @@ export function ClientProposalDetail() {
               <p className="font-semibold text-foreground">
                 {proposal.createdAt
                   ? new Date(proposal.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
                   : "-"}
               </p>
             </div>
@@ -315,31 +323,14 @@ export function ClientProposalDetail() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {attachments.map((att, idx) => {
                   const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
-                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
+                  const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl && rawUrl !== "#" ? enrichFileUrl(rawUrl) : "#");
                   let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
-                  if (!rawName && typeof rawUrl === "string") {
-                    rawName = rawUrl.split("/").pop() || "Attachment";
-                  }
-                  const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                  const finalName = cleanName || rawName;
+                  const finalName = cleanFileName(rawName || rawUrl);
 
-                  const handleDownloadFile = async (e) => {
+                  const handleDownloadFile = (e) => {
                     e.preventDefault();
                     if (!fileUrl || fileUrl === "#") return;
-                    try {
-                      const res = await fetch(fileUrl);
-                      const blob = await res.blob();
-                      const blobUrl = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = blobUrl;
-                      a.download = finalName;
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(blobUrl);
-                    } catch (err) {
-                      window.open(fileUrl, "_blank");
-                    }
+                    downloadFile(fileUrl, finalName);
                   };
 
                   return (
