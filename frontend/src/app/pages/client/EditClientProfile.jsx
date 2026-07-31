@@ -136,11 +136,10 @@ export function EditClientProfile() {
 
   // ---- Render ----
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="Edit Profile"
         subtitle="Update your client profile information."
-        className="mb-6"
         actions={(
           <Link to="/client/profile" className="text-muted-foreground hover:text-foreground" aria-label="Back to profile">
             <ArrowLeft className="h-5 w-5" />

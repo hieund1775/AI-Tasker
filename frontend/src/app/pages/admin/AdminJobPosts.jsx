@@ -4,7 +4,7 @@
 // Uses existing /api/jobposts endpoint. Admin can:
 //   - View all job posts
 //   - Search
-//   - Change status of violating job posts
+//   - Change job post status
 //   - Delete job posts (placeholder if DELETE API unavailable)
 // =============================================================================
 
@@ -35,14 +35,16 @@ const JOB_POST_STATUS_CONFIG = {
 };
 
 const JOB_POST_STATUS_OPTIONS = [
-  { value: "Open", label: "Open", values: ["Open", "Active"] },
+  { value: "Open", label: "Open" },
+  { value: "Active", label: "Active" },
   { value: "Draft", label: "Draft" },
   { value: "Inactive", label: "Inactive" },
+  { value: "Closed", label: "Closed" },
   { value: "Accepted", label: "Accepted" },
   { value: "Pending Payment", label: "Pending Payment" },
   { value: "In Progress", label: "In Progress" },
   { value: "Completed", label: "Completed" },
-  { value: "Cancelled", label: "Cancelled", values: ["Cancelled", "Closed"] },
+  { value: "Cancelled", label: "Cancelled" },
 ];
 
 const normalizeJobPostStatus = (rawStatus) => {
@@ -163,6 +165,7 @@ export function AdminJobPosts() {
     {
       key: "title",
       label: "Title",
+      sortable: false,
       render: (val, row) => (
         <div>
           <p className="font-medium text-foreground text-sm">{val || "-"}</p>
@@ -186,6 +189,7 @@ export function AdminJobPosts() {
     {
       key: "category",
       label: "Category",
+      sortable: false,
       render: (val) => (
         <span className="text-xs text-muted-foreground">{val || "-"}</span>
       ),
@@ -193,6 +197,7 @@ export function AdminJobPosts() {
     {
       key: "status",
       label: "Status",
+      sortable: false,
       filterOptions: JOB_POST_STATUS_OPTIONS,
       render: (val) => renderJobPostStatus(val),
     },
@@ -213,7 +218,7 @@ export function AdminJobPosts() {
 
       <PageHeader
         title="Job Post / Service Management"
-        subtitle="View and manage violating job posts and services on the platform."
+        subtitle="View and manage job posts and services on the platform."
       />
 
       {feedback && (
@@ -233,16 +238,19 @@ export function AdminJobPosts() {
         data={jobPosts}
         loading={loading}
         emptyMessage="No job posts found."
-        actions={(row) => (
-          <div className="flex gap-1.5">
-            {normalizeJobPostStatus(row.status) !== "Closed" && (
+        actions={(row) => {
+          const normalizedStatus = normalizeJobPostStatus(row.status);
+          const canDeactivate = ["Open", "Active"].includes(normalizedStatus);
+
+          return (
+            <div className="flex gap-1.5">
+              {canDeactivate && (
               <button
                 type="button"
                 onClick={() =>
                   setStatusModal({
                     id: row.id,
-                    newStatus:
-                      ["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Inactive" : "Active",
+                    newStatus: "Inactive",
                   })
                 }
                 disabled={actionLoading}
@@ -250,7 +258,7 @@ export function AdminJobPosts() {
                 title="Change status"
               >
                 <Edit3 className="w-3.5 h-3.5" />
-                {["Open", "Active"].includes(normalizeJobPostStatus(row.status)) ? "Deactivate" : "Activate"}
+                Deactivate
               </button>
             )}
             <button
@@ -264,7 +272,8 @@ export function AdminJobPosts() {
               Delete
             </button>
           </div>
-        )}
+          );
+        }}
       />
 
       {/* Status change confirmation modal */}
@@ -272,13 +281,9 @@ export function AdminJobPosts() {
         open={statusModal !== null}
         onOpenChange={(open) => !open && setStatusModal(null)}
         title="Change Status"
-        description={`Are you sure you want to ${
-          statusModal?.newStatus === "Active" ? "activate" : "deactivate"
-        } this job post?`}
-        confirmLabel={
-          statusModal?.newStatus === "Active" ? "Activate" : "Deactivate"
-        }
-        variant={statusModal?.newStatus === "Active" ? "default" : "warning"}
+        description="Are you sure you want to deactivate this job post?"
+        confirmLabel="Deactivate"
+        variant="warning"
         loading={actionLoading}
         onConfirm={() =>
           statusModal &&

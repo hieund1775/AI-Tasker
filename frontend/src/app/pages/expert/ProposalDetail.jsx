@@ -108,7 +108,7 @@ export function ProposalDetail() {
   // ---- Loading ----
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="bg-card rounded-2xl border border-border p-12 shadow-sm text-center">
           <div className="animate-pulse space-y-4">
             <div className="h-6 bg-muted rounded w-1/3 mx-auto" />
@@ -122,8 +122,8 @@ export function ProposalDetail() {
   // ---- Not found ----
   if (!proposal) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/proposals" className="mb-6">Back to My Proposals</BackButton>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/proposals" className="mb-0">Back to My Proposals</BackButton>
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
           <FileText className="w-12 h-12 text-muted-foreground/60 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-muted-foreground mb-2">Proposal not found</h3>
@@ -170,9 +170,9 @@ export function ProposalDetail() {
     proposal.status?.toLowerCase() !== "pending_escrow";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Back link */}
-      <BackButton fallback="/expert/proposals" className="mb-6">Back to My Proposals</BackButton>
+      <BackButton fallback="/expert/proposals" className="mb-0">Back to My Proposals</BackButton>
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* ================================================================ */}

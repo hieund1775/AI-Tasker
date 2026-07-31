@@ -10,10 +10,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Search, Eye, Filter, AlertTriangle, CheckCircle2, Clock, BarChart3 } from "lucide-react";
+import { Eye } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { getReports } from "../../../services/reportService.js";
@@ -38,8 +37,7 @@ const REPORT_STATUS_CONFIG = {
   Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
+const REPORT_STATUS_FILTER_OPTIONS = [
   { value: "Pending", label: "Pending Admin" },
   { value: "Awaiting Expert", label: "Awaiting Expert" },
   { value: "Awaiting Client", label: "Awaiting Client" },
@@ -64,8 +62,6 @@ export function AdminDisputes() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
 
   // Fetch reports
   const fetchReports = useCallback(async () => {
@@ -97,36 +93,11 @@ export function AdminDisputes() {
     return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [fetchReports]);
 
-  // Apply filters locally whenever search/status/allReports change
-  useEffect(() => {
-    let filtered = [...allReports];
-    if (statusFilter) {
-      filtered = filtered.filter(r => {
-        const status = r.status || "";
-        if (statusFilter === "Pending") {
-          return status === "Pending" || status === "Pending Admin";
-        }
-        const option = STATUS_OPTIONS.find((opt) => opt.value === statusFilter);
-        const acceptedValues = option?.values?.length ? option.values : [statusFilter];
-        return acceptedValues.some((value) => status.toLowerCase() === String(value).toLowerCase());
-      });
-    }
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(r => 
-        (r.projectTitle && r.projectTitle.toLowerCase().includes(term)) ||
-        (r.reportName && r.reportName.toLowerCase().includes(term)) ||
-        (r.reason && r.reason.toLowerCase().includes(term)) ||
-        (r.id && r.id.toLowerCase().includes(term))
-      );
-    }
-    setReports(filtered);
-  }, [statusFilter, searchTerm, allReports]);
-
   const columns = [
     {
       key: "projectTitle",
       label: "Project Name",
+      sortable: false,
       render: (val, row) => (
         <span className="font-semibold text-foreground text-sm">{val || row.reportName || "-"}</span>
       ),
@@ -134,6 +105,7 @@ export function AdminDisputes() {
     {
       key: "disputeType",
       label: "Dispute Type",
+      sortable: false,
       filterOptions: [
         { value: "financial", label: "Financial Dispute" },
         { value: "cancellation", label: "Cancellation Request" },
@@ -172,6 +144,7 @@ export function AdminDisputes() {
     {
       key: "reporter",
       label: "Reporter",
+      sortable: false,
       render: (val, row) => {
         const isClientReporter = row.reporterRole === "client";
         return (
@@ -184,6 +157,7 @@ export function AdminDisputes() {
     {
       key: "accused",
       label: "Accused",
+      sortable: false,
       render: (val, row) => {
         const isClientReporter = row.reporterRole === "client";
         return (
@@ -196,6 +170,7 @@ export function AdminDisputes() {
     {
       key: "amount",
       label: "Escrow Amount",
+      sortable: false,
       render: (val, row) => (
         <span className="font-semibold text-brand-primary text-sm">
           <MoneyDisplay amount={row.escrowAmount || row.amount || 0} />
@@ -203,8 +178,10 @@ export function AdminDisputes() {
       ),
     },
     {
-      key: "actualStatus",
+      key: "status",
       label: "Status",
+      sortable: false,
+      filterOptions: REPORT_STATUS_FILTER_OPTIONS,
       render: (val, row) => (
         <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
       ),
@@ -224,7 +201,7 @@ export function AdminDisputes() {
     <div className="space-y-6">
       <PageHeader
         title="Report Progress"
-        subtitle="Review and track progress reports between Clients and Experts."
+        subtitle="Review and track progress reports between clients and experts."
       />
 
       {/* Error state */}
@@ -262,36 +239,6 @@ export function AdminDisputes() {
         </div>
       )}
 
-      {/* Filter row */}
-      <div className="page-filter-toolbar">
-        <div className="page-filter-search">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by report name, project..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-input-background pl-9 pr-4 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
-          />
-        </div>
-        <div className="page-filter-controls">
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 rounded-xl border border-input bg-card pl-9 pr-4 text-sm appearance-none focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
       {/* Table */}
       <DataTable
         columns={columns}
@@ -304,7 +251,7 @@ export function AdminDisputes() {
             className="px-3 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />
-            View Detail
+            View Details
           </Link>
         )}
       />

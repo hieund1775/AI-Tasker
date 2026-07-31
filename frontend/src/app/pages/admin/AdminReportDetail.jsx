@@ -1221,20 +1221,20 @@ export function AdminReportDetail() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback={window.location.pathname.startsWith("/owner") ? "/owner/reports" : "/admin/disputes"} className="mb-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback={window.location.pathname.startsWith("/owner") ? "/owner/reports" : "/admin/disputes"} className="mb-0">
         Back to Dispute List
       </BackButton>
 
       {/* Feedback toast */}
       {feedback && (
-        <div className="mb-4 p-4 bg-success-light border border-success/20 rounded-xl text-sm text-success font-medium flex items-center gap-2">
+        <div className="p-4 bg-success-light border border-success/20 rounded-xl text-sm text-success font-medium flex items-center gap-2">
           <CheckCircle className="w-4 h-4" /> {feedback}
         </div>
       )}
 
       {/* ---- Header ---- */}
-      <div className="flex items-start justify-between flex-wrap gap-4 mb-6">
+      <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">
             {report.reportName || report.projectTitle || `Report #${id}`}
@@ -1255,7 +1255,7 @@ export function AdminReportDetail() {
 
       {/* Deadline warning banner */}
       {(report.status === "Awaiting Expert" || report.status === "Awaiting Client" || report.status === "Awaiting Both") && (
-        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 text-destructive rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="p-4 bg-destructive-light border border-destructive/20 text-destructive rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-destructive-light rounded-lg text-destructive">
               <AlertTriangle className="w-5 h-5" />
@@ -1287,7 +1287,7 @@ export function AdminReportDetail() {
 
       {/* Awaiting Evidence countdown banner */}
       {report.status === "Awaiting Evidence" && (
-        <div className="mb-6 p-4 bg-warning-light border border-warning/30 text-warning rounded-xl flex items-center justify-between shadow-sm animate-pulse">
+        <div className="p-4 bg-warning-light border border-warning/30 text-warning rounded-xl flex items-center justify-between shadow-sm animate-pulse">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-warning-light rounded-lg text-warning">
               <AlertTriangle className="w-5 h-5" />
@@ -1309,7 +1309,7 @@ export function AdminReportDetail() {
 
       {/* ---- Rejection notification preview ---- */}
       {isRejected && report.rejectionReason && (
-        <div className="mb-6 p-4 bg-destructive-light border border-destructive/20 rounded-xl">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl">
           <h3 className="text-sm font-semibold text-destructive mb-1">
             Rejection notification sent to Expert:
           </h3>

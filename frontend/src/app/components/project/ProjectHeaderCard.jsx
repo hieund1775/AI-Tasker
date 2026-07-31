@@ -644,10 +644,10 @@ function ProjectExtensionControl({ project, role }) {
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
                       item.status === "approved"
-                        ? "bg-success/15 text-success border border-success/20"
+                        ? "bg-success-light text-success border border-success/25"
                         : item.status === "rejected"
-                        ? "bg-destructive/15 text-destructive border border-destructive/20"
-                        : "bg-warning/15 text-warning border border-warning/20"
+                        ? "bg-destructive-light text-destructive border border-destructive/25"
+                        : "bg-warning-light text-warning border border-warning/25"
                     }`}>
                       {item.status}
                     </span>

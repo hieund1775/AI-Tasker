@@ -30,7 +30,7 @@ export function HomePage() {
     <div className="page-shell min-h-screen bg-background flex flex-col">
       {/* Navbar */}
       <nav className="bg-background/88 backdrop-blur-xl border-b border-border/70 sticky top-0 z-40 shadow-sm shadow-foreground/[0.025]">
-        <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-3 sm:px-4 lg:px-5">
+        <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-[var(--page-gutter)]">
           <Link to="/" className="flex items-center gap-3 group rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center relative overflow-hidden shadow-inner shadow-white/10">
               <div
@@ -92,7 +92,7 @@ export function HomePage() {
 
       {/* Footer */}
       <footer className="border-t border-border/70 bg-card/65">
-        <div className="mx-auto w-full max-w-[var(--layout-max)] px-3 py-10 sm:px-4 lg:px-5">
+        <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)] py-10">
           <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
             <div className="flex items-center gap-3">
               <Link to="/" className="flex items-center gap-2">

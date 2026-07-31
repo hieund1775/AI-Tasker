@@ -153,7 +153,7 @@ export function JobDetail() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-48" />
           <div className="h-64 bg-muted rounded-2xl" />
@@ -164,11 +164,11 @@ export function JobDetail() {
 
   if (error || !job) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/find-jobs" className="mb-4">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/find-jobs" className="mb-0">
           Back to Jobs
         </BackButton>
-        <PageHeader title="Job Details" subtitle="-" divider={false} className="mb-6" />
+        <PageHeader title="Job Details" subtitle="-" divider={false} />
         <div className="bg-card rounded-2xl border border-destructive/20 p-12 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-destructive mb-2">{error || "Job not found"}</h3>
           <p className="text-sm text-muted-foreground">This job may have been removed or is no longer available.</p>
@@ -215,16 +215,26 @@ export function JobDetail() {
     }, String(effectiveVal));
   })();
 
+  const statusKey = String(job.status || "open").toLowerCase();
+  const statusBadgeClass =
+    statusKey === "completed"
+      ? "bg-success-light text-success border border-success/25"
+      : statusKey === "cancelled" || statusKey === "canceled"
+        ? "bg-destructive-light text-destructive border border-destructive/25"
+        : statusKey === "pending" || statusKey === "pending_escrow"
+          ? "bg-warning-light text-warning border border-warning/25"
+          : "bg-brand-primary-light text-brand-primary border border-brand-primary/25";
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/expert/find-jobs" className="mb-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/expert/find-jobs" className="mb-0">
         Back to Jobs
       </BackButton>
       <PageHeader
         title={job.title}
         subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` - ${job.client.company}` : ""}`}
         badge={
-          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary capitalize">
+          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusBadgeClass}`}>
             {job.status || "Open"}
           </span>
         }
@@ -254,7 +264,7 @@ export function JobDetail() {
 
       {/* Invitation banner */}
       {invitation && (
-        <div className="bg-success-light dark:bg-success-light border border-success/20 dark:border-success/30 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="bg-success-light dark:bg-success-light border border-success/20 dark:border-success/30 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4">
           <div>
             <h4 className="text-sm font-semibold text-success dark:text-success">You've been invited to this project!</h4>
             <p className="text-xs text-success dark:text-success mt-1">Please Accept or Decline this invitation.</p>
@@ -270,9 +280,9 @@ export function JobDetail() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/82 p-2 shadow-sm shadow-foreground/[0.02] sm:p-3 [&>*+*]:border-t [&>*+*]:border-border/60">
+      <div className="space-y-6">
         {/* Description */}
-        <SectionCard title="Description" icon={FileText} padding="lg" noBorder className="rounded-none bg-transparent">
+        <SectionCard title="Description" icon={FileText} padding="lg">
           <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
             {job.description || "No description provided."}
           </p>
@@ -280,7 +290,7 @@ export function JobDetail() {
 
         {/* User Stories */}
         {safeArray(job.useCases).length > 0 && (
-          <SectionCard title="Project User Stories" icon={Layers} padding="lg" noBorder className="rounded-none bg-transparent">
+          <SectionCard title="Project User Stories" icon={Layers} padding="lg">
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
                 <div key={i} className="space-y-2 rounded-2xl border border-border/50 bg-secondary/30 p-4">
@@ -300,7 +310,7 @@ export function JobDetail() {
         )}
 
         {/* Category + Specialization */}
-        <SectionCard title="Category & Skills" icon={Tag} padding="lg" noBorder className="rounded-none bg-transparent">
+        <SectionCard title="Category & Skills" icon={Tag} padding="lg">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
@@ -328,7 +338,7 @@ export function JobDetail() {
         </SectionCard>
 
         {/* Project Attachments */}
-        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg" noBorder className="rounded-none bg-transparent">
+        <SectionCard title="Project Attachments" icon={Paperclip} padding="lg">
           {(() => {
             const cached = job._attachments;
             const rawBE = job.attachmentUrl || job.AttachmentUrl;
@@ -398,7 +408,7 @@ export function JobDetail() {
         </SectionCard>
 
         {/* Stats */}
-        <SectionCard padding="lg" noBorder className="rounded-none bg-transparent">
+        <SectionCard padding="lg">
           <div className="grid grid-cols-3 gap-4">
             <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Budget</p>

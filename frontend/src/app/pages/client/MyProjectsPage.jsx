@@ -616,17 +616,17 @@ export function MyProjectsList() {
     })();
 
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Back Button */}
         <button
           onClick={handleBackToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Projects
         </button>
 
         {showInviteSuccessBanner && (
-          <div className="mb-6 p-4 bg-success-light border border-success/20 text-success rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="p-4 bg-success-light border border-success/20 text-success rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
             <span className="font-semibold text-sm">
               Successfully invited expert {invitedExpertName ? `"${invitedExpertName}" ` : ""}
             </span>
@@ -817,11 +817,11 @@ export function MyProjectsList() {
     const isAcceptedView = !!proposal;
 
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Back Button */}
         <button
           onClick={handleBackToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors font-medium"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Projects
         </button>
@@ -1453,11 +1453,10 @@ export function MyProjectsList() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="All Projects"
         subtitle="Manage your posted projects"
-        className="mb-6"
         actions={(
           <div className="page-filter-controls">
             <div className="flex items-center gap-2">

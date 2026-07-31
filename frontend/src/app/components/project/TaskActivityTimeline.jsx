@@ -28,16 +28,16 @@ const ACTION_ICONS = {
 };
 
 const ACTION_COLORS = {
-  mini_task_created: "bg-primary-light text-primary",
-  mini_task_completed: "bg-success-light text-success",
-  mini_tasks_confirmed: "bg-accent-light text-accent",
-  mini_tasks_unlocked: "bg-warning-light text-warning",
-  task_submitted_for_review: "bg-primary-light text-primary",
-  task_approved: "bg-success-light text-success",
-  task_revision_requested: "bg-destructive-light text-destructive",
-  task_reopened: "bg-destructive-light text-destructive",
-  mini_task_revision_requested: "bg-destructive-light text-destructive",
-  urgent_submission_requested: "bg-destructive-light text-destructive",
+  mini_task_created: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  mini_task_completed: "bg-success-light text-success border border-success/25",
+  mini_tasks_confirmed: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  mini_tasks_unlocked: "bg-warning-light text-warning border border-warning/25",
+  task_submitted_for_review: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  task_approved: "bg-success-light text-success border border-success/25",
+  task_revision_requested: "bg-destructive-light text-destructive border border-destructive/25",
+  task_reopened: "bg-destructive-light text-destructive border border-destructive/25",
+  mini_task_revision_requested: "bg-destructive-light text-destructive border border-destructive/25",
+  urgent_submission_requested: "bg-destructive-light text-destructive border border-destructive/25",
 };
 
 export function TaskActivityTimeline({ taskId, loading = false, compact = false }) {
@@ -94,10 +94,10 @@ export function TaskActivityTimeline({ taskId, loading = false, compact = false 
   }
 
   return (
-    <div className={cn("space-y-0", compact ? "max-h-64 overflow-y-auto" : "max-h-96 overflow-y-auto")}>
+    <div className={cn("space-y-3", compact ? "max-h-64 overflow-y-auto" : "max-h-96 overflow-y-auto")}>
       {safeArray(logs).map((entry, idx) => {
         const IconComponent = ACTION_ICONS[entry.action] || FileText;
-        const colorClasses = ACTION_COLORS[entry.action] || "bg-secondary text-muted-foreground";
+        const colorClasses = ACTION_COLORS[entry.action] || "bg-brand-primary-light text-brand-primary border border-brand-primary/20";
         const isLast = idx === logs.length - 1;
 
         return (

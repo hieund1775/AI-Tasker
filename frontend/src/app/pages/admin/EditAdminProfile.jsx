@@ -92,13 +92,12 @@ export function EditAdminProfile() {
 
   // ---- Render ----
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/admin/profile" className="mb-4">Back to Profile</BackButton>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/admin/profile" className="mb-0">Back to Profile</BackButton>
 
       <PageHeader
         title="Edit Admin Profile"
         subtitle="Update your admin profile information."
-        className="mb-6"
       />
 
       <form

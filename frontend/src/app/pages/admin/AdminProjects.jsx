@@ -137,6 +137,10 @@ export function AdminProjects() {
 
         return {
           ...p,
+          title: p.title || p.Title || "Untitled Project",
+          clientName: p.clientName || p.ClientName || p.clientId || "",
+          expert: p.expert || p.expertName || p.Expert || p.ExpertName || p.expertId || "",
+          budget: p.budget ?? p.Budget ?? 0,
           status: statusKey,
         };
       });
@@ -195,7 +199,8 @@ export function AdminProjects() {
   const columns = [
     {
       key: "title",
-      label: "PROJECT",
+      label: "Project",
+      sortable: false,
       className: "w-[25%] max-w-[220px]",
       render: (val) => (
         <span className="font-medium text-foreground text-sm truncate block" title={val}>{val || "-"}</span>
@@ -203,7 +208,8 @@ export function AdminProjects() {
     },
     {
       key: "clientName",
-      label: "CLIENT",
+      label: "Client",
+      sortable: false,
       className: "w-[15%] max-w-[140px]",
       render: (val, row) => {
         const name = row.clientName || row.ClientName || row.clientId || "-";
@@ -216,7 +222,8 @@ export function AdminProjects() {
     },
     {
       key: "expert",
-      label: "EXPERT",
+      label: "Expert",
+      sortable: false,
       className: "w-[15%] max-w-[140px]",
       render: (val, row) => {
         const name = row.expert || row.expertName || row.Expert || row.ExpertName || row.expertId || "None";
@@ -229,7 +236,7 @@ export function AdminProjects() {
     },
     {
       key: "budget",
-      label: "BUDGET",
+      label: "Budget",
       className: "w-[12%]",
       render: (val, row) => {
         const amount = row.budget ?? row.Budget ?? 0;
@@ -242,7 +249,8 @@ export function AdminProjects() {
     },
     {
       key: "status",
-      label: "STATUS",
+      label: "Status",
+      sortable: false,
       className: "w-[13%]",
       filterOptions: PROJECT_STATUS_FILTER_OPTIONS,
       render: (val) => (
@@ -280,7 +288,7 @@ export function AdminProjects() {
               className="px-2.5 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1 transition cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
-              View Detail
+              View Details
             </button>
             <button
               type="button"
@@ -305,7 +313,7 @@ export function AdminProjects() {
               <div>
                 <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                   <Briefcase className="w-5 h-5 text-brand-primary" />
-                  {selectedDetailProject.title || selectedDetailProject.Title || "Project Detail"}
+                  {selectedDetailProject.title || selectedDetailProject.Title || "Project Details"}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   ID: {selectedDetailProject.id || selectedDetailProject.Id}

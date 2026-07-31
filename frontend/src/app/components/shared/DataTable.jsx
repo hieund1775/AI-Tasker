@@ -48,7 +48,9 @@ export function DataTable({
   const handleSort = (colKey) => {
     setSortState(prev => {
       if (prev.key !== colKey) return { key: colKey, dir: "asc" };
-      return { key: colKey, dir: prev.dir === "asc" ? "desc" : "asc" };
+      if (prev.dir === "asc") return { key: colKey, dir: "desc" };
+      if (prev.dir === "desc") return { key: null, dir: null };
+      return { key: colKey, dir: "asc" };
     });
     setCurrentPage(1);
   };
@@ -68,6 +70,16 @@ export function DataTable({
 
   const filterableColumns = columns.filter((col) => col.filterOptions?.length);
   const activeFilterCount = Object.keys(colFilters).length;
+  const getAllFilterLabel = (label) => {
+    const labels = {
+      Status: "All Statuses",
+      Role: "All Roles",
+      "Dispute Type": "All Dispute Types",
+      Category: "All Categories",
+      Type: "All Types",
+    };
+    return labels[label] || `All ${label}`;
+  };
 
   // Reset page when global search changes
   useEffect(() => {
@@ -185,7 +197,7 @@ export function DataTable({
                         : "border-input bg-input-background text-muted-foreground hover:text-foreground"
                     } focus:border-ring focus:ring-2 focus:ring-ring/15`}
                   >
-                    <option value="">All {col.label}</option>
+                    <option value="">{col.filterAllLabel || getAllFilterLabel(col.label)}</option>
                     {col.filterOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -219,7 +231,7 @@ export function DataTable({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className={`text-left px-5 py-2.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-[0.08em] relative ${
+                  className={`text-left px-5 py-2.5 text-[13px] font-semibold text-muted-foreground tracking-[0.02em] relative ${
                     col.className || ""
                   }`}
                 >
@@ -229,7 +241,13 @@ export function DataTable({
                         type="button"
                         onClick={() => handleSort(col.key)}
                         className="flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer group"
-                        title={sortState.key === col.key && sortState.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
+                        title={
+                          sortState.key !== col.key || !sortState.dir
+                            ? "Sort A-Z"
+                            : sortState.dir === "asc"
+                              ? "Sort Z-A"
+                              : "Clear sort"
+                        }
                       >
                         {col.label}
                         <span className="flex flex-col -space-y-1">
@@ -246,7 +264,7 @@ export function DataTable({
                 </th>
               ))}
               {actions && (
-                <th className="text-right px-5 py-2.5 text-[13px] font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="text-right px-5 py-2.5 text-[13px] font-semibold text-muted-foreground tracking-[0.02em]">
                   Actions
                 </th>
               )}

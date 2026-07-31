@@ -31,14 +31,14 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
   if (!config) {
     const label = String(status || "Unknown");
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-muted-foreground ${className}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary border border-brand-primary/20 ${className}`}>
         <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
         {label}
       </span>
     );
   }
 
-  let badgeClass = "bg-secondary text-muted-foreground";
+  let badgeClass = "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold";
   let label = status || "Unknown";
 
   if (entity === "proposal") {
@@ -51,7 +51,7 @@ export function StatusBadge({ status, entity = "project", className = "" }) {
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${badgeClass} ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${badgeClass} ${className}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-current opacity-40" />
       {label}
     </span>

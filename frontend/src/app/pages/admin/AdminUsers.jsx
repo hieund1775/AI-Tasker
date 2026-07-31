@@ -23,18 +23,18 @@ import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  client: "bg-brand-primary-light text-brand-primary",
-  expert: "bg-warning-light text-warning",
-  admin: "bg-destructive-light text-destructive",
-  owner: "bg-warning-light text-warning",
+  client: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  expert: "bg-[#dbeafe] text-[#1c2e4a] border border-[#93c5fd] dark:bg-[#1c2e4a] dark:text-white dark:border-[#5b7da8]",
+  admin: "bg-destructive-light text-destructive border border-destructive/25",
+  owner: "bg-warning-light text-warning border border-warning/25",
 };
 
 const STATUS_CONFIG = {
-  active: { color: "bg-success-light text-success", label: "Active" },
-  inactive: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  suspended: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  locked: { color: "bg-destructive-light text-destructive", label: "Inactive" },
-  banned: { color: "bg-destructive-light text-destructive", label: "Inactive" },
+  active: { color: "bg-success-light text-success border border-success/20", label: "Active" },
+  inactive: { color: "bg-secondary text-secondary-foreground border border-border", label: "Inactive" },
+  suspended: { color: "bg-warning-light text-warning border border-warning/25", label: "Suspended" },
+  locked: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Locked" },
+  banned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Banned" },
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -159,6 +159,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "fullName",
       label: "User",
+      sortable: false,
       render: (val, row) => (
         <div>
           <p className="text-sm font-medium text-foreground">
@@ -171,6 +172,7 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "role",
       label: "Role",
+      sortable: false,
       filterOptions: [
         { label: "Client", value: "client" },
         { label: "Expert", value: "expert" },
@@ -194,13 +196,13 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "status",
       label: "Status",
+      sortable: false,
       filterOptions: [
         { label: "Active", value: "active" },
-        {
-          label: "Inactive",
-          value: "inactive",
-          values: ["inactive", "suspended", "locked", "banned"],
-        },
+        { label: "Inactive", value: "inactive" },
+        { label: "Suspended", value: "suspended" },
+        { label: "Locked", value: "locked" },
+        { label: "Banned", value: "banned" },
       ],
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />

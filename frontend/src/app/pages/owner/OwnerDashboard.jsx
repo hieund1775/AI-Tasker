@@ -420,7 +420,6 @@ export function OwnerDashboard() {
       <PageHeader
         title="Owner Dashboard"
         subtitle="Platform overview and business metrics."
-        className="mb-6"
         actions={
           <div className="page-filter-controls">
             <select
@@ -492,13 +491,21 @@ export function OwnerDashboard() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={postData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} />
+                <YAxis tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: "0.75rem",
+                    color: "var(--popover-foreground)",
+                  }}
+                  labelStyle={{ color: "var(--foreground)" }}
+                />
                 <Legend />
                 <Bar
                   dataKey="Posts"
-                  fill="var(--chart-3)"
+                  fill="var(--chart-posts)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
