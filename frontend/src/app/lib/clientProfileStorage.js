@@ -19,3 +19,33 @@ export function saveLocalClientProfile(userId, data) {
   if (!userId) return;
   localStorage.setItem(getClientProfileKey(userId), JSON.stringify(data));
 }
+
+export function buildClientProfileFromUser(apiUser) {
+  if (!apiUser) return null;
+
+  const id = apiUser.id || apiUser.Id || "";
+  const localProfile = getLocalClientProfile(id);
+  const fullName =
+    apiUser.fullName ||
+    apiUser.FullName ||
+    apiUser.name ||
+    apiUser.Name ||
+    apiUser.email?.split("@")[0] ||
+    "Client";
+
+  return {
+    id,
+    fullName,
+    name: fullName,
+    email: localProfile.email || apiUser.email || apiUser.Email || "",
+    createdAt: apiUser.createdAt || apiUser.CreatedAt,
+    profile: {
+      company: localProfile.companyName || "",
+      phone: localProfile.phone || apiUser.phoneNumber || apiUser.PhoneNumber || "",
+      location: localProfile.location || "",
+      website: localProfile.website || "",
+      industry: localProfile.industry || "",
+      bio: localProfile.bio || "",
+    },
+  };
+}

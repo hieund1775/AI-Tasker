@@ -21,6 +21,7 @@ import api, { enrichFileUrl, cleanFileName } from "../../../services/api.js";
 import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 export function JobDetail() {
   const { id } = useParams();
@@ -50,16 +51,11 @@ export function JobDetail() {
           try {
             const clientUser = await api.users.getById(project.clientId);
             if (clientUser) {
-              let parsedStatus = {};
-              try {
-                parsedStatus = JSON.parse(clientUser.status);
-              } catch {
-                parsedStatus = { companyName: "", location: "" };
-              }
+              const clientProfile = buildClientProfileFromUser(clientUser);
               clientInfo = {
-                name: clientUser.fullName || clientUser.name || "Client",
-                company: parsedStatus.companyName || "",
-                location: parsedStatus.location || "",
+                name: clientProfile?.fullName || "Client",
+                company: clientProfile?.profile?.company || "",
+                location: clientProfile?.profile?.location || "",
               };
             }
           } catch (e) {

@@ -28,6 +28,7 @@ import {
   notifyNewProposal,
   notifyUpdatedProposal,
 } from "../../../services/notificationHelper.js";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 import { toast } from "sonner";
 
 /**
@@ -476,7 +477,7 @@ Please use this background information to write a personalized and highly releva
         if (job.clientId) {
           try {
             const userDetail = await api.users.getById(job.clientId);
-            setClient(userDetail);
+            setClient(buildClientProfileFromUser(userDetail));
           } catch (err) {
             console.error("Failed to load client details:", err);
           }
@@ -1959,8 +1960,8 @@ Please use this background information to write a personalized and highly releva
         </div>
 
         {showAIPlanner && (
-          <aside className="lg:col-span-3">
-            <div className="lg:sticky lg:top-16 lg:h-[calc(100vh-9rem)] lg:max-h-none bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <aside className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start">
+            <div className="h-[min(48rem,calc(100vh-7rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
               <AIPlannerPanel
                 onClose={handleCloseAI}
                 projectInfo={{

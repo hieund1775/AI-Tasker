@@ -22,6 +22,7 @@ import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { getProposalStatusConfig } from "../../lib/proposalStatusConfig.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 // Status helpers - delegated to shared proposalStatusConfig.js
 function getStatusConfig(status) { return getProposalStatusConfig(status); }
@@ -80,7 +81,7 @@ export function ProposalDetail() {
               setProject(job);
               if (job.clientId) {
                 const cli = await api.users.getById(job.clientId);
-                setClient(cli);
+                setClient(buildClientProfileFromUser(cli));
               }
             } catch (err) {
               console.error("Failed to load project/client details:", err);
