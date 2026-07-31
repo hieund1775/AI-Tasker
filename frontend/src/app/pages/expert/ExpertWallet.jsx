@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   Wallet,
-  TrendingUp,
   Clock,
   ReceiptText,
   PlusCircle,
@@ -61,11 +60,11 @@ const typeLabels = {
 };
 
 const transactionSortColumns = [
-  { key: "type", label: "Type", align: "left" },
-  { key: "description", label: "Description", align: "left" },
-  { key: "amount", label: "Amount", align: "right" },
-  { key: "status", label: "Status", align: "right" },
-  { key: "date", label: "Date", align: "right" },
+  { key: "type", label: "Type", align: "left", sortable: false },
+  { key: "description", label: "Description", align: "left", sortable: false },
+  { key: "amount", label: "Amount", align: "right", sortable: false },
+  { key: "status", label: "Status", align: "right", sortable: false },
+  { key: "date", label: "Date", align: "right", sortable: true },
 ];
 
 function getTransactionSortValue(tx, key) {
@@ -104,6 +103,20 @@ function sortTransactions(rows, sortState) {
   });
 }
 
+function getExpertTransactionDisplayStatus(tx) {
+  const lowerType = tx.type?.toLowerCase();
+
+  if (lowerType === "escrow_deposit" || lowerType === "escrowdeposit") {
+    return tx.status === "completed" ? "done" : "in progress";
+  }
+
+  if (lowerType === "cancel" && tx.status === "cancel") {
+    return "cancel";
+  }
+
+  return "done";
+}
+
 function SignedTransactionAmount({ amount }) {
   const value = Number(amount ?? 0);
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
@@ -128,6 +141,7 @@ export function ExpertWallet() {
   const [activeProjects, setActiveProjects] = useState([]);
   const [feedback, setFeedback] = useState(null);
   const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState("");
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -140,13 +154,27 @@ export function ExpertWallet() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const handleTransactionSort = (key) => {
+    if (key !== "date") return;
+
     setTransactionSort((prev) => {
       if (prev.key !== key) return { key, dir: "asc" };
-      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return { key: null, dir: null };
     });
   };
 
-  const sortedTransactions = sortTransactions(data?.transactions || [], transactionSort);
+  const transactionStatusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "done", label: "Done" },
+    { value: "in progress", label: "In Progress" },
+    { value: "cancel", label: "Cancel" },
+  ];
+
+  const filteredTransactions = (data?.transactions || []).filter((tx) => {
+    if (!transactionStatusFilter) return true;
+    return getExpertTransactionDisplayStatus(tx).toLowerCase() === transactionStatusFilter;
+  });
+  const sortedTransactions = sortTransactions(filteredTransactions, transactionSort);
 
   useEffect(() => {
     let cancelled = false;
@@ -775,7 +803,7 @@ export function ExpertWallet() {
 
 
       {/* Wallet stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
@@ -808,29 +836,15 @@ export function ExpertWallet() {
           </div>
         </div>
 
-        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
+        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm md:justify-self-end md:w-full">
+          <div className="flex items-center gap-3 md:justify-end md:text-right">
+            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center md:order-2">
               <Clock className="w-5 h-5 text-warning" />
             </div>
-            <div>
+            <div className="md:order-1">
               <p className="text-sm text-muted-foreground">Pending / In Escrow</p>
               <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.pendingBalance ?? 0} />
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-warning-light rounded-xl flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Total Earned</p>
-              <p className="text-2xl font-semibold text-foreground">
-                <MoneyDisplay amount={data?.wallet?.totalEarned ?? 0} />
               </p>
             </div>
           </div>
@@ -860,10 +874,24 @@ export function ExpertWallet() {
 
       {/* Transaction history */}
       <div className="bg-card rounded-2xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border/60">
+        <div className="flex flex-col gap-3 border-b border-border/60 p-6 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-foreground">
             Transaction History
           </h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
+            <select
+              value={transactionStatusFilter}
+              onChange={(event) => setTransactionStatusFilter(event.target.value)}
+              className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              {transactionStatusOptions.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {!data?.transactions?.length ? (
@@ -881,29 +909,39 @@ export function ExpertWallet() {
                       key={col.key}
                       className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-sm font-semibold text-muted-foreground uppercase`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleTransactionSort(col.key)}
-                        className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
-                        title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
-                      >
-                        {col.label}
-                        {transactionSort.key === col.key ? (
-                          transactionSort.dir === "asc" ? (
-                            <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTransactionSort(col.key)}
+                          className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                          title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : transactionSort.key === col.key && transactionSort.dir === "desc" ? "Clear sort" : "Sort A-Z"}
+                        >
+                          {col.label}
+                          {transactionSort.key === col.key ? (
+                            transactionSort.dir === "asc" ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                            )
                           ) : (
-                            <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
-                          )
-                        ) : (
-                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
-                        )}
-                      </button>
+                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                          )}
+                        </button>
+                      ) : (
+                        <span>{col.label}</span>
+                      )}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {sortedTransactions.map((tx) => {
+                {sortedTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={transactionSortColumns.length} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      No transactions match the selected status.
+                    </td>
+                  </tr>
+                ) : sortedTransactions.map((tx) => {
                   const rawStr = tx.createdAt || "";
                   const dateObj = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : ""));
                   const dateStr = dateObj.toLocaleDateString("vi-VN", {

@@ -73,11 +73,11 @@ const statusColors = {
 };
 
 const transactionSortColumns = [
-  { key: "type", label: "Type", align: "left" },
-  { key: "description", label: "Description", align: "left" },
-  { key: "amount", label: "Amount", align: "right" },
-  { key: "status", label: "Status", align: "right" },
-  { key: "date", label: "Date", align: "right" },
+  { key: "type", label: "Type", align: "left", sortable: false },
+  { key: "description", label: "Description", align: "left", sortable: false },
+  { key: "amount", label: "Amount", align: "right", sortable: false },
+  { key: "status", label: "Status", align: "right", sortable: false },
+  { key: "date", label: "Date", align: "right", sortable: true },
 ];
 
 function getTransactionSortValue(tx, key) {
@@ -116,6 +116,36 @@ function sortTransactions(rows, sortState) {
   });
 }
 
+function getClientTransactionDisplayStatus(tx) {
+  const projId = tx.projectId;
+  const projIdLower = projId ? String(projId).toLowerCase() : "";
+  const dbStatus = (tx.projectStatus || "").toLowerCase();
+  let localStatus = projIdLower ? (localStorage.getItem(`project_status_${projIdLower}`) || "").toLowerCase() : "";
+  const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+  const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === projIdLower);
+  if (isReleasedLocally) localStatus = "completed";
+  if (!localStatus) localStatus = dbStatus;
+
+  const hasDisputeVerdict = projIdLower && (() => {
+    const verdict = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+    if (!verdict) return false;
+    try { return !!JSON.parse(verdict); } catch (e) { return false; }
+  })();
+  if (hasDisputeVerdict && ["cancelled", "stopped", "cancel_done"].includes(localStatus)) {
+    localStatus = "done";
+  }
+
+  const lowerType = tx.type?.toLowerCase();
+  const isEscrowDeposit = lowerType === "escrow_deposit" || lowerType === "escrowdeposit";
+  if (isEscrowDeposit) {
+    if (localStatus === "completed" || localStatus === "done") return "done";
+    if (["cancelled", "stopped", "cancel_done", "resolved", "disputed"].includes(localStatus)) return "cancel";
+    return "in progress";
+  }
+  if (lowerType === "cancel") return tx.status || "done";
+  return "done";
+}
+
 function SignedTransactionAmount({ amount }) {
   const value = Number(amount ?? 0);
   const sign = value > 0 ? "+" : value < 0 ? "-" : "";
@@ -149,6 +179,7 @@ export function Billing() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState("");
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -161,13 +192,25 @@ export function Billing() {
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const handleTransactionSort = (key) => {
+    if (key !== "date") return;
     setTransactionSort((prev) => {
       if (prev.key !== key) return { key, dir: "asc" };
-      return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return { key: null, dir: null };
     });
   };
 
-  const sortedTransactions = sortTransactions(data?.transactions || [], transactionSort);
+  const transactionStatusOptions = [
+    { value: "", label: "All Statuses" },
+    { value: "done", label: "Done" },
+    { value: "in progress", label: "In Progress" },
+    { value: "cancel", label: "Cancel" },
+  ];
+  const filteredTransactions = (data?.transactions || []).filter((tx) => {
+    if (!transactionStatusFilter) return true;
+    return getClientTransactionDisplayStatus(tx).toLowerCase() === transactionStatusFilter;
+  });
+  const sortedTransactions = sortTransactions(filteredTransactions, transactionSort);
 
   useEffect(() => {
     const currentUserId = user?.id || user?.Id;
@@ -916,12 +959,12 @@ export function Billing() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm md:justify-self-end md:w-full">
+          <div className="flex items-center gap-3 mb-4 md:justify-end md:text-right">
+            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center md:order-2">
               <Shield className="w-5 h-5 text-accent" />
             </div>
-            <div>
+            <div className="md:order-1">
               <p className="text-sm text-muted-foreground">In Escrow</p>
               <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.escrowBalance ?? 0} />
@@ -1034,8 +1077,22 @@ export function Billing() {
 
       {/* Transaction history */}
       <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+        <div className="flex flex-col gap-3 border-b border-border p-6 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
+            <select
+              value={transactionStatusFilter}
+              onChange={(event) => setTransactionStatusFilter(event.target.value)}
+              className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              {transactionStatusOptions.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {!data?.transactions?.length ? (
@@ -1055,29 +1112,39 @@ export function Billing() {
                       key={col.key}
                       className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleTransactionSort(col.key)}
-                        className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
-                        title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : "Sort A-Z"}
-                      >
-                        {col.label}
-                        {transactionSort.key === col.key ? (
-                          transactionSort.dir === "asc" ? (
-                            <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTransactionSort(col.key)}
+                          className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                          title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : transactionSort.key === col.key && transactionSort.dir === "desc" ? "Clear sort" : "Sort A-Z"}
+                        >
+                          {col.label}
+                          {transactionSort.key === col.key ? (
+                            transactionSort.dir === "asc" ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                            )
                           ) : (
-                            <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
-                          )
-                        ) : (
-                          <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
-                        )}
-                      </button>
+                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                          )}
+                        </button>
+                      ) : (
+                        <span>{col.label}</span>
+                      )}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {sortedTransactions.map((tx) => {
+                {sortedTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={transactionSortColumns.length} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      No transactions match the selected status.
+                    </td>
+                  </tr>
+                ) : sortedTransactions.map((tx) => {
                   const projId = tx.projectId;
                   const projIdLower = projId ? String(projId).toLowerCase() : "";
                   const dbStatus = (tx.projectStatus || "").toLowerCase();
