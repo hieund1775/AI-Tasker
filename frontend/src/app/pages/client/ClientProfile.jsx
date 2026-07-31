@@ -15,6 +15,7 @@ import {
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { getLocalClientProfile } from "../../lib/clientProfileStorage.js";
 
 /**
  * Resolve the client user from auth. Returns the auth user directly.
@@ -48,14 +49,7 @@ export function ClientProfile() {
         ]);
 
         if (!cancelled && apiUser) {
-          let profile = {};
-          try {
-            profile = JSON.parse(apiUser.status);
-          } catch (e) {
-            profile = {
-              bio: apiUser.status || "",
-            };
-          }
+          const localProfile = getLocalClientProfile(targetId);
 
           const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === targetId) : [];
           
@@ -71,22 +65,22 @@ export function ClientProfile() {
 
           const c = {
             fullName: apiUser.fullName || apiUser.name || apiUser.email?.split("@")[0] || "User",
-            email: apiUser.email,
+            email: localProfile.email || apiUser.email,
             createdAt: apiUser.createdAt,
             profile: {
-              company: profile.companyName || "",
-              phone: profile.phone || "",
-              location: profile.location || "",
-              website: profile.website || "",
-              industry: profile.industry || "",
-              bio: profile.bio || "",
+              company: localProfile.companyName || "",
+              phone: localProfile.phone || apiUser.phoneNumber || apiUser.PhoneNumber || "",
+              location: localProfile.location || "",
+              website: localProfile.website || "",
+              industry: localProfile.industry || "",
+              bio: localProfile.bio || "",
             }
           };
           setClient(c);
 
           const posted = clientJobs.length;
-          const active = clientProjects.filter(p => p.status?.toLowerCase() === "inprogress").length;
-          const completed = clientProjects.filter(p => p.status?.toLowerCase() === "completed").length;
+          const active = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "inprogress").length;
+          const completed = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "completed").length;
           const totalSpent = clientProjects.reduce((sum, p) => sum + (p.escrowBalance || 0), 0);
 
           setStats({ posted, active, completed, proposals: proposalsCount, totalSpent });
