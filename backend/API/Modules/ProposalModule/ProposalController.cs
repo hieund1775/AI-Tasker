@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -27,6 +27,7 @@ namespace AITasker_Modular.Modules.JobModule
         }
 
         [HttpPost("submit-proposal")]
+        [HttpPost("reapply")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> SubmitProposal([FromForm] CreateProposalDto dto)
         {
