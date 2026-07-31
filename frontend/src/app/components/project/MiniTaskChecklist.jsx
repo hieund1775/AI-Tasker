@@ -4,7 +4,6 @@ import {
   Square,
   Loader2,
   AlertCircle,
-  Edit3,
   Paperclip,
   Upload,
   X,
@@ -551,19 +550,9 @@ export function MiniTaskChecklist({
               </div>
             )}
 
-            {/* Action buttons (Edit / Done tag) */}
+            {/* Action tag */}
             {!isEditingThis && (
               <div className="flex-shrink-0 flex items-center gap-2">
-                {isActuallyEditable && (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(mini)}
-                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                )}
                 {compact && isDone && (
                   <span className="text-sm text-success font-medium">
                     Done

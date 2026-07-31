@@ -1290,8 +1290,8 @@ export default function ClientProjectDetail() {
                                 <Star
                                   className={`w-6 h-6 transition-all ${
                                     starValue <= (hoverRating || rating)
-                                      ? "fill-warning text-warning"
-                                      : "text-muted hover:text-warning"
+                                      ? "fill-warning text-warning drop-shadow-sm"
+                                      : "text-warning/45 hover:fill-warning/20 hover:text-warning"
                                   }`}
                                 />
                               </button>

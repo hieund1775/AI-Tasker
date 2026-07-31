@@ -384,7 +384,7 @@ export function TaskProgressCard({
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                  className="border border-brand-primary/45 bg-brand-primary-light text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground cursor-pointer flex items-center gap-1.5"
+                  className="w-fit min-w-0 border border-brand-primary/45 bg-brand-primary-light px-3 text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground cursor-pointer flex items-center gap-1.5"
                 >
                   <Send className="w-4 h-4" />
                   Submit Product
@@ -399,7 +399,7 @@ export function TaskProgressCard({
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                  className="border border-brand-primary/45 bg-brand-primary-light text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground cursor-pointer flex items-center gap-1.5"
+                  className="w-fit min-w-0 border border-brand-primary/45 bg-brand-primary-light px-3 text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground cursor-pointer flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Resubmit Product
