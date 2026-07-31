@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
 
@@ -414,7 +415,7 @@ export function ExpertProfile() {
           {expert.profile?.hourlyRate > 0 && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="w-4 h-4 text-muted-foreground/60" />
-              ${expert.profile.hourlyRate}/hr
+              {formatCurrency(expert.profile.hourlyRate)}/hr
             </span>
           )}
           {expert.createdAt && (

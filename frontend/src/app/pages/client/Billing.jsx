@@ -14,6 +14,7 @@ import {
   ChevronsUpDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { api } from "../../../services/api.js";
@@ -997,12 +998,10 @@ export function Billing() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount</label>
-                  <input
-                    type="number"
+                  <MoneyInput
                     min="1"
-                    step="1"
                     value={depositAmount || ""}
-                    onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    onValueChange={(value) => setDepositAmount(value === "" ? 0 : value)}
                     className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
                     placeholder="500"
                     required
@@ -1224,12 +1223,10 @@ export function Billing() {
             <form onSubmit={handleWalletDeposit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount (VND)</label>
-                <input
-                  type="number"
+                <MoneyInput
                   min="1000"
-                  step="1000"
                   value={walletDepositAmount}
-                  onChange={(e) => setWalletDepositAmount(e.target.value)}
+                  onValueChange={setWalletDepositAmount}
                   placeholder="e.g. 50000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
@@ -1272,13 +1269,11 @@ export function Billing() {
             <form onSubmit={handleWalletWithdraw} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-muted-foreground mb-2">Withdrawal Amount (VND)</label>
-                <input
-                  type="number"
+                <MoneyInput
                   min="1"
-                  step="1"
                   max={data?.wallet?.balance || 0}
                   value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  onValueChange={setWithdrawAmount}
                   placeholder="e.g. 20000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required

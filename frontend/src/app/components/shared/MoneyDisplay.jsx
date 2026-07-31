@@ -6,7 +6,7 @@
  * NEVER use this inside a form input. Form state must store raw numbers.
  * This component is for displaying money in cards, tables, summaries, etc.
  */
-export function MoneyDisplay({ amount, currency = "USD", locale, className = "" }) {
+export function MoneyDisplay({ amount, currency = "VND", locale = "vi-VN", className = "" }) {
   const formatted = formatCurrency(amount, currency, locale);
 
   if (!formatted) {

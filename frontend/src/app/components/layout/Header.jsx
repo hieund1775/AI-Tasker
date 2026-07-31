@@ -188,7 +188,7 @@ export function Header() {
   const activeNavClass = "inline-flex h-12 min-w-[11.25rem] items-center justify-center rounded-xl bg-secondary px-8 text-lg font-bold text-foreground shadow-inner shadow-foreground/[0.025]";
 
   return (
-    <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
+    <header className="fixed inset-x-0 top-0 z-50 bg-background/82 backdrop-blur-xl border-b border-border/70 select-none shadow-sm shadow-foreground/[0.025]">
       <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)]">
         <div className="flex h-[4.75rem] items-center justify-between gap-5">
           {/* Logo */}

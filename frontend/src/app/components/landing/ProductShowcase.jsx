@@ -83,7 +83,7 @@ function DashboardMockup() {
         {[
           ["Active", "12"],
           ["Done", "47"],
-          ["Budget", "$28K"],
+          ["Budget", "28.000.000 VND"],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-border bg-card p-3 text-center">
             <p className="text-sm font-semibold text-foreground">{value}</p>

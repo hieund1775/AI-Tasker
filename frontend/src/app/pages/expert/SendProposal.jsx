@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -17,12 +17,14 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import { AIPlannerCard } from "../../components/ai/AIPlannerCard.jsx";
 import { AIPlannerPanel } from "../../components/ai/AIPlannerDrawer.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import api from "../../../services/api.js";
 import {
   notifyNewProposal,
@@ -30,6 +32,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 import { toast } from "sonner";
+import { useFooterBoundFixedPanel } from "../../hooks/useFooterBoundFixedPanel.js";
 
 /**
  * SendProposal - Expert submits a comprehensive proposal to a client project.
@@ -551,6 +554,9 @@ Please use this background information to write a personalized and highly releva
 
   // ---- AI Planner state ----
   const [showAIPlanner, setShowAIPlanner] = useState(false);
+  const proposalFormRef = useRef(null);
+  const { anchorRef: aiPanelAnchorRef, fixedPanelStyle: aiPanelStyle } =
+    useFooterBoundFixedPanel(showAIPlanner, proposalFormRef);
 
   // ---- AI Planner handlers ----
   const handleActivateAI = () => {
@@ -683,6 +689,12 @@ Please use this background information to write a personalized and highly releva
         project?.originalTotalDurationDays || project?.deadline || 0;
       const exceedsTargets =
         clientBudget - finalBid < 0 || clientDuration - totalDays < 0;
+
+      if (form.professionalIntro.trim().length < 10) {
+        toast.error("Kí tự phải lớn hơn 10 kí tự.");
+        setSubmitting(false);
+        return;
+      }
 
       // Check acknowledgement if exceeding targets
       if (exceedsTargets && !form.acknowledged) {
@@ -1144,12 +1156,13 @@ Please use this background information to write a personalized and highly releva
       />
 
       <div
-        className={`grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
+        className={`grid grid-cols-1 ${showAIPlanner ? "items-start gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
       >
         <div
           className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}
         >
           <form
+            ref={proposalFormRef}
             onSubmit={handleSubmit}
             className="space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5"
           >
@@ -1171,7 +1184,7 @@ Please use this background information to write a personalized and highly releva
                 padding="lg"
                 actions={
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{form.professionalIntro.length}/3000 (Min 10)</span>
+                    <span className="text-xs text-muted-foreground">{form.professionalIntro.length}/3000</span>
                     <button
                       type="button"
                       onClick={handleGenerateIntro}
@@ -1226,7 +1239,6 @@ Please use this background information to write a personalized and highly releva
                     e.target.style.height = `${e.target.scrollHeight}px`;
                     updateField("professionalIntro", e.target.value);
                   }}
-                  minLength={10}
                   maxLength={3000}
                   rows={5}
                   placeholder="Introduce yourself - your experience, background, relevant skills, and why you are the best fit for this project."
@@ -1810,21 +1822,20 @@ Please use this background information to write a personalized and highly releva
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-foreground mb-2">
-                            Total Bid Amount ($){" "}
+                            Total Bid Amount (VND){" "}
                             <span className="text-destructive">*</span>
                           </label>
                           <div className="text-xs text-muted-foreground mb-1">
                             Auto-computed from tasks:{" "}
-                            {totalBid.toLocaleString()}
+                            {formatCurrency(totalBid)}
                           </div>
-                          <input
-                            type="number"
+                          <MoneyInput
                             min="1"
                             value={form.bidAmount}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               updateField(
                                 "bidAmount",
-                                Math.max(0, Number(e.target.value) || 0),
+                                Math.max(0, Number(value) || 0),
                               )
                             }
                             className="w-full px-4 py-2.5 border border-input rounded-xl bg-card text-foreground text-sm font-medium focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary focus:outline-none"
@@ -1888,10 +1899,10 @@ Please use this background information to write a personalized and highly releva
                               Proposed budget exceeds baseline
                             </p>
                             <p className="text-xs text-destructive mt-0.5">
-                              Your bid amount ({finalBid.toLocaleString()} USD)
+                              Your bid amount ({formatCurrency(finalBid)})
                               exceeds the client's budget (
-                              {clientBudget.toLocaleString()} USD) by{" "}
-                              {Math.abs(budgetDeviation).toLocaleString()} USD.
+                              {formatCurrency(clientBudget)}) by{" "}
+                              {formatCurrency(Math.abs(budgetDeviation))}.
                             </p>
                           </div>
                         </div>
@@ -1960,8 +1971,11 @@ Please use this background information to write a personalized and highly releva
         </div>
 
         {showAIPlanner && (
-          <aside className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start">
-            <div className="h-[min(48rem,calc(100vh-7rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <aside ref={aiPanelAnchorRef} className="lg:col-span-3 lg:min-h-[28rem]">
+            <div
+              style={aiPanelStyle || undefined}
+              className="h-[min(56rem,calc(100vh-5.75rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden lg:h-auto lg:min-h-0"
+            >
               <AIPlannerPanel
                 onClose={handleCloseAI}
                 projectInfo={{

@@ -27,6 +27,7 @@ import { Users, Briefcase, TrendingUp, AlertTriangle, Shield, ShieldCheck, FileT
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import {
   getOwnerDashboardStats,
   getMonthlyTrafficStats,
@@ -525,10 +526,7 @@ export function OwnerDashboard() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
                   formatter={(value) => [
-                    new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "VND",
-                    }).format(value),
+                    formatCurrency(value),
                     "Amount",
                   ]}
                 />

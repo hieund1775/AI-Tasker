@@ -30,7 +30,7 @@ export function PublicLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Navbar */}
-      <nav className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-40 shadow-sm shadow-foreground/[0.025]">
+      <nav className="fixed inset-x-0 top-0 z-40 bg-background/82 backdrop-blur-xl border-b border-border/70 shadow-sm shadow-foreground/[0.025]">
         <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-[var(--page-gutter)]">
           <div className="flex items-center gap-10">
             <Link to="/" className="flex items-center gap-3">
@@ -107,7 +107,7 @@ export function PublicLayout() {
       </nav>
 
       {/* Content */}
-      <main className="flex-1">
+      <main className={`flex-1 ${stats ? "pt-[6.5rem]" : "pt-[4.25rem]"}`}>
         <Outlet />
       </main>
 
