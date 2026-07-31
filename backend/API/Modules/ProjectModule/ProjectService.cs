@@ -156,6 +156,8 @@ namespace AITasker_Modular.Modules.ProjectModule;
         return project;
     }
     public async Task<Project?> GetProjectByIdAsync(Guid projectId) => await _context.Projects
+        .Include(p => p.JobPost).ThenInclude(jp => jp!.Domain)
+        .Include(p => p.JobPost).ThenInclude(jp => jp!.Specialization)
         .Include(p => p.Tasks)
         .ThenInclude(t => t.MiniTasks)
         .Include(p => p.Client)
