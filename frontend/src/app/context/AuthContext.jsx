@@ -142,11 +142,11 @@ export function AuthProvider({ children }) {
   const restoreSession = useCallback(() => {
     try {
       const storedToken =
-        localStorage.getItem(TOKEN_STORAGE_KEY) ||
-        sessionStorage.getItem(TOKEN_STORAGE_KEY);
+        sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+        localStorage.getItem(TOKEN_STORAGE_KEY);
       const storedUser =
-        localStorage.getItem(USER_STORAGE_KEY) ||
-        sessionStorage.getItem(USER_STORAGE_KEY);
+        sessionStorage.getItem(USER_STORAGE_KEY) ||
+        localStorage.getItem(USER_STORAGE_KEY);
 
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -154,8 +154,6 @@ export function AuthProvider({ children }) {
       }
       const payload = decodeJwtPayload(storedToken);
       if (!payload) {
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-        localStorage.removeItem(USER_STORAGE_KEY);
         sessionStorage.removeItem(TOKEN_STORAGE_KEY);
         sessionStorage.removeItem(USER_STORAGE_KEY);
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -183,8 +181,6 @@ export function AuthProvider({ children }) {
         payload: { token: storedToken, user },
       });
     } catch {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -197,26 +193,28 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     function handleUnauthorized() {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
-      try {
-        window.dispatchEvent(new Event("aitasker_auth_sync"));
-      } catch (e) {}
     }
-    const handleSync = () => restoreSession();
+
+    const handleStorageChange = (e) => {
+      // Ignore login tracking data updates so active tab session is preserved
+      if (e.key === "aitasker_user_logins") return;
+      if (e.key === TOKEN_STORAGE_KEY && !e.newValue) {
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(USER_STORAGE_KEY);
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      }
+    };
 
     window.addEventListener("auth:unauthorized", handleUnauthorized);
-    window.addEventListener("storage", handleSync);
-    window.addEventListener("aitasker_auth_sync", handleSync);
+    window.addEventListener("storage", handleStorageChange);
     return () => {
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
-      window.removeEventListener("storage", handleSync);
-      window.removeEventListener("aitasker_auth_sync", handleSync);
+      window.removeEventListener("storage", handleStorageChange);
     };
-  }, [restoreSession]);
+  }, []);
 
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
     try {
