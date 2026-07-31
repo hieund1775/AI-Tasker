@@ -125,6 +125,7 @@ export function MiniTaskChecklist({
   const [editLink, setEditLink] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [existingFileObj, setExistingFileObj] = useState(null);
+  const [fileError, setFileError] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -172,6 +173,7 @@ export function MiniTaskChecklist({
     const resolved = resolveMiniTaskFile(mini.productFile);
     setExistingFileObj(resolved);
     setSelectedFile(null);
+    setFileError("");
   };
 
   const handleSave = async (miniId) => {
@@ -220,7 +222,14 @@ export function MiniTaskChecklist({
       setEditingId(null);
       setSelectedFile(null);
       setExistingFileObj(null);
+      setFileError("");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setTimeout(() => {
+        document.getElementById("project-progress")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 80);
     } catch (err) {
       console.error(err);
       toast.error("Failed to update mini-task.");
@@ -355,11 +364,14 @@ export function MiniTaskChecklist({
                         if (file) {
                           const validation = validateUploadFiles([file]);
                           if (!validation.valid) {
-                            toast.error(getFileSizeErrorMessage(file));
+                            const message = getFileSizeErrorMessage(file);
+                            toast.error(message);
+                            setFileError(message);
                             setSelectedFile(null);
                             e.target.value = "";
                             return;
                           }
+                          setFileError("");
                           setSelectedFile(file);
                         }
                       }}
@@ -376,7 +388,10 @@ export function MiniTaskChecklist({
                         </div>
                         <button
                           type="button"
-                          onClick={() => setSelectedFile(null)}
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setFileError("");
+                          }}
                           className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
                           title="Remove file"
                         >
@@ -401,7 +416,10 @@ export function MiniTaskChecklist({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setExistingFileObj(null)}
+                            onClick={() => {
+                              setExistingFileObj(null);
+                              setFileError("");
+                            }}
                             className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
                             title="Remove attachment"
                           >
@@ -419,6 +437,11 @@ export function MiniTaskChecklist({
                         <span>Upload file from computer...</span>
                       </button>
                     )}
+                    {fileError && (
+                      <p className="mt-1.5 text-xs font-medium text-destructive">
+                        {fileError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -430,6 +453,7 @@ export function MiniTaskChecklist({
                       setEditingId(null);
                       setSelectedFile(null);
                       setExistingFileObj(null);
+                      setFileError("");
                     }}
                     className="px-2.5 py-1.5 border border-border text-foreground rounded-md hover:bg-secondary font-semibold"
                   >

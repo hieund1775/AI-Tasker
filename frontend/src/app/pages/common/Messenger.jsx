@@ -101,6 +101,7 @@ export function Messenger() {
 
   // ---- Pending attachments (before sending) ----
   const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [attachmentError, setAttachmentError] = useState("");
 
   // ---- Sent attachments tracker ----
   const [sentAttachments, setSentAttachments] = useState([]);
@@ -258,10 +259,13 @@ export function Messenger() {
     if (files.length === 0) return;
     const validation = validateUploadFiles(files);
     if (!validation.valid) {
-      toast.error(getFileSizeErrorMessage(validation.oversized[0]));
+      const message = getFileSizeErrorMessage(validation.oversized[0]);
+      toast.error(message);
+      setAttachmentError(message);
       e.target.value = null;
       return;
     }
+    setAttachmentError("");
     
     const newAttachments = files.map((file) => {
       return {
@@ -279,6 +283,7 @@ export function Messenger() {
 
   const removePendingAttachment = (id) => {
     setPendingAttachments((prev) => prev.filter((a) => a.id !== id));
+    setAttachmentError("");
   };
 
   // ---- Send message ----
@@ -341,6 +346,7 @@ export function Messenger() {
       }
       setMessage("");
       setPendingAttachments([]);
+      setAttachmentError("");
       loadConversations();
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -544,6 +550,11 @@ export function Messenger() {
                     </div>
                   ))}
                 </div>
+              )}
+              {attachmentError && (
+                <p className="px-4 pb-2 text-xs font-medium text-destructive">
+                  {attachmentError}
+                </p>
               )}
 
               {/* Input row */}

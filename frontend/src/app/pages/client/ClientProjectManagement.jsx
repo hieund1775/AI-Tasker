@@ -79,6 +79,7 @@ export default function ClientProjectDetail() {
   // New Cancellation Negotiation states
   const [evidenceFileName, setEvidenceFileName] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceFileError, setEvidenceFileError] = useState("");
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const evidenceFileInputRef = useRef(null);
 
@@ -87,12 +88,15 @@ export default function ClientProjectDetail() {
     if (!file) return;
     const validation = validateUploadFiles([file]);
     if (!validation.valid) {
-      toast.error(getFileSizeErrorMessage(file));
+      const message = getFileSizeErrorMessage(file);
+      toast.error(message);
+      setEvidenceFileError(message);
       setEvidenceFileName("");
       setEvidenceFile(null);
       e.target.value = "";
       return;
     }
+    setEvidenceFileError("");
     setIsUploadingEvidence(true);
     try {
       const formData = new FormData();
@@ -544,6 +548,7 @@ export default function ClientProjectDetail() {
       setCancelReason("");
       setEvidenceFileName("");
       setEvidenceFile(null);
+      setEvidenceFileError("");
       toast.success("Sent contract cancellation request for Admin review.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -747,6 +752,7 @@ export default function ClientProjectDetail() {
       setShowCancelModal(false);
       setCancelReason("");
       setEvidenceFileName("");
+      setEvidenceFileError("");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
     } catch (err) {
@@ -1859,6 +1865,7 @@ export default function ClientProjectDetail() {
                         onClick={() => {
                           setEvidenceFile(null);
                           setEvidenceFileName("");
+                          setEvidenceFileError("");
                           if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = "";
                         }}
                         className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
@@ -1883,6 +1890,11 @@ export default function ClientProjectDetail() {
                       )}
                     </button>
                   )}
+                  {evidenceFileError && (
+                    <p className="text-xs font-medium text-destructive">
+                      {evidenceFileError}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1896,6 +1908,7 @@ export default function ClientProjectDetail() {
                     setCancelReason("");
                     setEvidenceFileName("");
                     setEvidenceFile(null);
+                    setEvidenceFileError("");
                   }}
                   className="h-10 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >

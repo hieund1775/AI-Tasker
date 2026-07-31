@@ -65,6 +65,8 @@ export default function ExpertProjectDetail() {
   const [projectLink, setProjectLink] = useState("");
   const [projectFile, setProjectFile] = useState("");
   const [projectFileObject, setProjectFileObject] = useState(null);
+  const [projectFileError, setProjectFileError] = useState("");
+  const projectFileInputRef = useRef(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Dispute / Report states
@@ -79,20 +81,51 @@ export default function ExpertProjectDetail() {
   // New Cancellation Negotiation states
   const [evidenceFileName, setEvidenceFileName] = useState("");
   const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceFileError, setEvidenceFileError] = useState("");
   const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const evidenceFileInputRef = useRef(null);
+
+  const clearProjectFile = () => {
+    setProjectFileObject(null);
+    setProjectFileError("");
+    if (projectFileInputRef.current) projectFileInputRef.current.value = "";
+  };
+
+  const handleProjectFileChange = (e) => {
+    const file = e.currentTarget.files?.[0] || null;
+    if (!file) {
+      clearProjectFile();
+      return;
+    }
+
+    const validation = validateUploadFiles([file]);
+    if (!validation.valid) {
+      const message = validation.message || getFileSizeErrorMessage(file);
+      toast.error(message);
+      setProjectFileError(message);
+      setProjectFileObject(null);
+      e.currentTarget.value = "";
+      return;
+    }
+
+    setProjectFileError("");
+    setProjectFileObject(file);
+  };
 
   const handleEvidenceFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const validation = validateUploadFiles([file]);
     if (!validation.valid) {
-      toast.error(getFileSizeErrorMessage(file));
+      const message = getFileSizeErrorMessage(file);
+      toast.error(message);
+      setEvidenceFileError(message);
       setEvidenceFileName("");
       setEvidenceFile(null);
       e.target.value = "";
       return;
     }
+    setEvidenceFileError("");
     setIsUploadingEvidence(true);
     try {
       const formData = new FormData();
@@ -307,6 +340,7 @@ export default function ExpertProjectDetail() {
       setCancelReason("");
       setEvidenceFileName("");
       setEvidenceFile(null);
+      setEvidenceFileError("");
       toast.success("Contract cancellation request sent for Admin review.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -485,6 +519,7 @@ export default function ExpertProjectDetail() {
       setShowCancelModal(false);
       setCancelReason("");
       setEvidenceFileName("");
+      setEvidenceFileError("");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
     } catch (err) {
@@ -1078,6 +1113,10 @@ export default function ExpertProjectDetail() {
               onSubmit={async (e) => {
                 e.preventDefault();
                 const trimmedLink = projectLink.trim();
+                if (projectFileError) {
+                  toast.error(projectFileError);
+                  return;
+                }
                 if (!projectFileObject) {
                   toast.error("Please attach a Project File to complete final delivery.");
                   return;
@@ -1109,6 +1148,7 @@ export default function ExpertProjectDetail() {
                   }).catch(() => { });
                   setShowSubmitModal(false);
                   setProjectFileObject(null);
+                  setProjectFileError("");
                   setProjectLink("");
                 } catch (err) {
                   toast.error("Failed to submit deliverables.");
@@ -1135,33 +1175,41 @@ export default function ExpertProjectDetail() {
                 <label className="block text-foreground/80 font-semibold mb-1">
                   Project Files <span className="text-destructive">*</span>
                 </label>
-                <label className="flex items-center gap-2 px-3 py-2.5 border border-dashed border-input rounded-[10px] cursor-pointer hover:border-brand-primary/50 hover:bg-secondary/60 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (projectFileInputRef.current) {
+                      projectFileInputRef.current.value = "";
+                      projectFileInputRef.current.click();
+                    }
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 border border-dashed rounded-[10px] cursor-pointer transition-colors text-left ${
+                    projectFileError
+                      ? "border-destructive/45 bg-destructive-light/40"
+                      : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
+                  }`}
+                >
                   <Upload className="w-4 h-4 text-muted-foreground" />
                   <span className={projectFileObject ? "text-foreground font-medium text-sm" : "text-muted-foreground text-sm"}>
                     {projectFileObject ? projectFileObject.name : "Choose file (.zip, .rar, .pdf, ...)"}
                   </span>
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        const validation = validateUploadFiles([file]);
-                        if (!validation.valid) {
-                          toast.error(getFileSizeErrorMessage(file));
-                          setProjectFileObject(null);
-                          e.target.value = "";
-                          return;
-                        }
-                      }
-                      setProjectFileObject(file || null);
-                    }}
-                    className="hidden"
-                  />
-                </label>
+                </button>
+                <input
+                  ref={projectFileInputRef}
+                  type="file"
+                  onChange={handleProjectFileChange}
+                  onInput={handleProjectFileChange}
+                  className="hidden"
+                />
+                {projectFileError && (
+                  <p className="mt-1.5 text-xs font-medium text-destructive">
+                    {projectFileError}
+                  </p>
+                )}
                 {projectFileObject && (
                   <button
                     type="button"
-                    onClick={() => setProjectFileObject(null)}
+                    onClick={clearProjectFile}
                     className="mt-1 text-xs text-destructive hover:text-destructive font-medium"
                   >
                     Remove file
@@ -1176,7 +1224,7 @@ export default function ExpertProjectDetail() {
                   disabled={isSubmitting}
                   onClick={() => {
                     setShowSubmitModal(false);
-                    setProjectFileObject(null);
+                    clearProjectFile();
                   }}
                   className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
@@ -1303,6 +1351,7 @@ export default function ExpertProjectDetail() {
                         onClick={() => {
                           setEvidenceFile(null);
                           setEvidenceFileName("");
+                          setEvidenceFileError("");
                           if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = "";
                         }}
                         className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
@@ -1327,6 +1376,11 @@ export default function ExpertProjectDetail() {
                       )}
                     </button>
                   )}
+                  {evidenceFileError && (
+                    <p className="text-xs font-medium text-destructive">
+                      {evidenceFileError}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1340,6 +1394,7 @@ export default function ExpertProjectDetail() {
                     setCancelReason("");
                     setEvidenceFileName("");
                     setEvidenceFile(null);
+                    setEvidenceFileError("");
                   }}
                   className="h-10 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
