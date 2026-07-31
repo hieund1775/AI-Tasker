@@ -191,11 +191,21 @@ public class UserService : IUserService
 
         if (isOwner)
         {
-            var availableBalance = Math.Max(wallet.Balance, ownerFeeWallet.TotalBalance);
+            var totalLoggedRevenue = await _context.SystemTransactionLogs
+                .SumAsync(l => (decimal?)l.Amount) ?? 0m;
+
+            var totalFeeWithdrawals = await _context.TransactionLogs
+                .Where(t => t.SourceWalletId == wallet.UserId && t.Type == "Withdraw")
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+            var netLoggedRevenue = Math.Max(0m, totalLoggedRevenue - totalFeeWithdrawals);
+            var effectiveRevenue = Math.Max(ownerFeeWallet.TotalBalance, netLoggedRevenue);
+            var availableBalance = Math.Max(wallet.Balance, effectiveRevenue);
+
             if (availableBalance < amount)
                 throw new InvalidOperationException("Insufficient fee balance in Owner wallet.");
 
-            ownerFeeWallet.TotalBalance -= amount;
+            ownerFeeWallet.TotalBalance = availableBalance - amount;
             ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
             wallet.Balance = ownerFeeWallet.TotalBalance;
         }
