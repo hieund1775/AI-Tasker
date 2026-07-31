@@ -202,12 +202,12 @@ export const router = createBrowserRouter([
           { path: "my-projects", element: <Navigate to="/client/my-projects" replace /> },
           { path: "messages", element: <Navigate to="/messenger" replace /> },
 
-          // ----- Catch-all 404 -----
-          { path: "*", Component: NotFound },
         ],
       },
     ],
   },
+  // ================= GLOBAL 404 ROUTE =================
+  { path: "*", Component: NotFound },
 ]);
 
 // ---------------------------------------------------------------------------
