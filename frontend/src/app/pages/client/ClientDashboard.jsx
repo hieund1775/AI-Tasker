@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router";
 
 import {
@@ -93,13 +93,17 @@ export function getNormalizedStatus(project, activeReports = []) {
     label = "Disputed";
     badgeClass = "bg-destructive-light text-destructive border border-destructive/20 font-semibold";
   } else {
-    const hasProjectRecord = !!project.projectId;
-    const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
+    const hasProjectRecord = !!projId;
+    const isPendingEscrow = status === "pending_escrow" || dbStatus === "pending_escrow";
 
     const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
-    const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+    const isDepositedLocal = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+    const hasEscrowBalance = Number(project.escrowBalance ?? project.EscrowBalance ?? 0) > 0;
+    const isActiveDbStatus = ["in progress", "in_progress", "active", "work_submitted", "worksubmitted", "under_review", "underreview", "revision_requested", "revisionrequested", "awaiting_cancellation", "accepted", "assigned", "disputed"].includes(dbStatus);
 
-    if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
+    const isDeposited = isDepositedLocal || hasEscrowBalance || isActiveDbStatus;
+
+    if (!hasProjectRecord || (isPendingEscrow && !isDeposited)) {
       label = "Open";
       badgeClass = "bg-warning-light text-warning border-warning/25 font-semibold";
     }

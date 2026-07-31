@@ -97,12 +97,16 @@ export function getNormalizedStatus(project, activeReports = []) {
     badgeClass = "bg-destructive-light text-destructive border border-destructive/20 font-semibold";
   } else {
     const hasProjectRecord = !!projId;
-    const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
+    const isPendingEscrow = status === "pending_escrow" || dbStatus === "pending_escrow";
 
     const localDepositedIds = JSON.parse(localStorage.getItem("deposited_project_ids") || "[]");
-    const isDeposited = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+    const isDepositedLocal = projId ? localDepositedIds.some(id => String(id).toLowerCase() === String(projId).toLowerCase()) : false;
+    const hasEscrowBalance = Number(project.escrowBalance ?? project.EscrowBalance ?? 0) > 0;
+    const isActiveDbStatus = ["in progress", "in_progress", "active", "work_submitted", "worksubmitted", "under_review", "underreview", "revision_requested", "revisionrequested", "awaiting_cancellation", "accepted", "assigned", "disputed"].includes(dbStatus);
 
-    if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
+    const isDeposited = isDepositedLocal || hasEscrowBalance || isActiveDbStatus;
+
+    if (!hasProjectRecord || (isPendingEscrow && !isDeposited)) {
       label = "Open";
       badgeClass = "bg-warning-light text-warning border-warning/25 font-semibold";
     }
@@ -118,42 +122,31 @@ function calculateMatchPct(job, expertProfile, allSkills) {
   let matchScore = 0;
   
   // Category match (40%)
-  const expertCategory = expertProfile.category || "";
-  const jobCat = job.category || job.domain?.name || "";
-  if (jobCat && expertCategory && jobCat.toLowerCase() === expertCategory.toLowerCase()) {
+  if (job.category && expertProfile.major && job.category.toLowerCase().includes(expertProfile.major.toLowerCase())) {
     matchScore += 40;
-  }
-  
-  // Specialization match (30%)
-  const expertSpecialization = expertProfile.specialization || expertProfile.major || "";
-  const jobSpec = job.specialization || "";
-  if (jobSpec && expertSpecialization && jobSpec.toLowerCase() === expertSpecialization.toLowerCase()) {
-    matchScore += 30;
-  }
-  
-  // Skills match (30%)
-  const expertSkills = expertProfile.skills || [];
-  const expertSkillsResolved = expertSkills.map(sk => {
-    if (typeof sk === "string" && sk.startsWith("skill-") && Array.isArray(allSkills)) {
-      const match = allSkills.find(s => s.id === sk);
-      return match ? match.name : sk;
-    }
-    return typeof sk === "string" ? sk : sk?.name || "";
-  });
-  
-  const jobSkills = job.jobPostSkills?.map((s) => s.skill?.name) || job.requiredSkills || [];
-  if (jobSkills.length === 0) {
-    matchScore += 30;
   } else {
-    let matches = 0;
-    jobSkills.forEach(js => {
-      const hasSkill = expertSkillsResolved.some(es => es.toLowerCase() === js.toLowerCase());
-      if (hasSkill) matches++;
-    });
-    matchScore += Math.round((matches / jobSkills.length) * 30);
+    matchScore += 20;
   }
   
-  return Math.min(100, Math.max(0, matchScore));
+  // Specialization match (35%)
+  if (job.specializationName && expertProfile.jobTitle && job.specializationName.toLowerCase().includes(expertProfile.jobTitle.toLowerCase())) {
+    matchScore += 35;
+  } else {
+    matchScore += 15;
+  }
+
+  // Skills match (25%)
+  const expertSkillNames = (expertProfile.skills || []).map(s => (s.name || s).toLowerCase());
+  const jobSkillNames = (job.requiredSkills || []).map(s => (s.name || s).toLowerCase());
+  
+  if (jobSkillNames.length > 0 && expertSkillNames.length > 0) {
+    const commonSkills = jobSkillNames.filter(s => expertSkillNames.includes(s));
+    matchScore += Math.round((commonSkills.length / jobSkillNames.length) * 25);
+  } else {
+    matchScore += 15;
+  }
+
+  return Math.min(99, Math.max(65, matchScore));
 }
 
 // ---------------------------------------------------------------------------
@@ -258,10 +251,11 @@ export function ExpertDashboard() {
       let allUserProjects = [];
       // Load user details (projects, proposals, transactions)
       try {
-        const [userRes, reportsRes, transactions] = await Promise.all([
+        const [userRes, reportsRes, transactions, expertProjectsRes] = await Promise.all([
           api.users.getById(currentUserId),
           api.get("/reports").catch(() => ({ data: [] })),
           api.payments.getTransactions(currentUserId).catch(() => []),
+          api.users.getExpertProjects(currentUserId).catch(() => []),
         ]);
         setExpertDetails(userRes);
         expertDataToPass = userRes;
@@ -270,7 +264,18 @@ export function ExpertDashboard() {
         
         const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
         const expertReleases = localReleases.filter(r => String(r.expertId).toLowerCase() === String(currentUserId).toLowerCase());
-        allUserProjects = (userRes.projects || userRes.Projects || []).map(p => {
+
+        const rawUserProjects = (userRes.projects || userRes.Projects || []);
+        const rawExpertProjects = Array.isArray(expertProjectsRes) ? expertProjectsRes : [];
+        const mergedProjectsMap = new Map();
+        [...rawUserProjects, ...rawExpertProjects].forEach(p => {
+          const pId = p.id || p.Id;
+          if (pId && !mergedProjectsMap.has(String(pId).toLowerCase())) {
+            mergedProjectsMap.set(String(pId).toLowerCase(), p);
+          }
+        });
+
+        allUserProjects = Array.from(mergedProjectsMap.values()).map(p => {
           const isReleasedLocally = expertReleases.some(r => String(r.projectId).toLowerCase() === String(p.id || p.Id).toLowerCase());
           const localStatus = localStorage.getItem(`project_status_${p.id || p.Id}`);
           if (isReleasedLocally || localStatus === "completed") {
