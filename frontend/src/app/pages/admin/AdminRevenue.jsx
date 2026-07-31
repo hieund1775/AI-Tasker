@@ -45,14 +45,16 @@ export function AdminRevenue() {
   useEffect(() => {
     async function fetchRevenue() {
       try {
-        const [dashboardRes, transactionsRes, usersRes] = await Promise.all([
+        const [dashboardRes, transactionsRes, usersRes, directProjectsRes] = await Promise.all([
           isOwnerOrAdmin ? api.users.systemDashboard().catch(() => null) : Promise.resolve(null),
           api.payments.getTransactions().catch(() => []),
           api.users.list().catch(() => []),
+          api.projects.list().catch(() => []),
         ]);
 
         const transactions = Array.isArray(transactionsRes) ? transactionsRes : [];
         const users = Array.isArray(usersRes) ? usersRes : (usersRes?.data || usersRes?.value || []);
+        const directProjects = Array.isArray(directProjectsRes) ? directProjectsRes : (directProjectsRes?.data || directProjectsRes?.value || []);
 
         // Build User Map
         const userMap = new Map();
@@ -75,16 +77,19 @@ export function AdminRevenue() {
         const projectsResults = await Promise.all(projectPromises);
         const projects = [];
         const seenIds = new Set();
-        projectsResults.forEach(list => {
-          if (Array.isArray(list)) {
-            list.forEach(p => {
-              const pId = String(p.id || p.Id).toLowerCase();
-              if (!seenIds.has(pId)) {
-                seenIds.add(pId);
-                projects.push(p);
-              }
-            });
+
+        const addProject = (p) => {
+          if (!p) return;
+          const pId = String(p.id || p.Id || "").toLowerCase();
+          if (pId && !seenIds.has(pId)) {
+            seenIds.add(pId);
+            projects.push(p);
           }
+        };
+
+        directProjects.forEach(addProject);
+        projectsResults.forEach(list => {
+          if (Array.isArray(list)) list.forEach(addProject);
         });
 
         const projectMap = new Map();
@@ -93,7 +98,7 @@ export function AdminRevenue() {
           const clientName = p.client?.fullName || p.client?.FullName || p.clientName || p.client || "";
           const expertName = p.expert?.fullName || p.expert?.FullName || p.expertName || p.expert || "";
           const title = p.title || p.jobPost?.title || p.jobPostTitle || "Project";
-          const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+          const budget = Number(p.escrowBalance ?? p.EscrowBalance ?? p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowAmount ?? 0);
           projectMap.set(projId, { clientName, expertName, title, budget });
         });
 
@@ -107,6 +112,7 @@ export function AdminRevenue() {
 
         const dbEscrowFunds = Number(dashboardRes?.statistics?.totalFundsLockedInEscrow || dashboardRes?.Statistics?.TotalFundsLockedInEscrow || 0);
         let escrowHeld = 0;
+
         if (projects.length > 0) {
           projects.forEach(p => {
             const projId = p.id || p.Id;
@@ -118,21 +124,26 @@ export function AdminRevenue() {
             }
 
             const localStatus = localStorage.getItem(`project_status_${projId}`);
-            const status = (localStatus || p.status || p.Status || "").toLowerCase().replace(/_/g, "").trim();
+            const rawStatusStr = localStatus || p.status || p.Status || "";
+            const status = rawStatusStr.toLowerCase().replace(/[\s_]+/g, "").trim();
             const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
 
-            if (status === "inprogress" && !isReleasedLocally) {
-              const budget = p.escrowBalance ?? p.escrowAmount ?? p.budget ?? p.Budget ?? 0;
-              escrowHeld += Number(budget);
+            const isActiveStatus = ["inprogress", "active", "worksubmitted", "underreview", "revisionrequested", "awaitingcancellation", "locked", "accepted", "assigned"].includes(status);
+
+            if (isActiveStatus && !isReleasedLocally) {
+              const budget = Number(p.escrowBalance ?? p.EscrowBalance ?? p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowAmount ?? 0);
+              escrowHeld += budget;
             }
           });
-        } else {
+        }
+
+        if (escrowHeld === 0 && dbEscrowFunds > 0) {
           escrowHeld = dbEscrowFunds;
           localReleases.forEach(r => {
             const releaseProjIdLower = String(r.projectId).toLowerCase();
             const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
             if (!hasDbTx) {
-              escrowHeld = Math.max(0, escrowHeld - Number(r.amount));
+              escrowHeld = Math.max(0, escrowHeld - Number(r.amount || 0));
             }
           });
         }
