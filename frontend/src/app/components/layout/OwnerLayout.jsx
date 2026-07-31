@@ -1,5 +1,5 @@
 ﻿import { Link, Outlet, useLocation } from "react-router";
-import { ShieldPlus, Users, Briefcase, FileText, Tag, LayoutDashboard, DollarSign, Wallet } from "lucide-react";
+import { ShieldPlus, Users, Briefcase, FileText, Tag, LayoutDashboard, Banknote, Wallet } from "lucide-react";
 
 export function OwnerLayout() {
   const location = useLocation();
@@ -13,7 +13,7 @@ export function OwnerLayout() {
     { label: "Project Management", to: "/owner/projects", icon: Briefcase },
     { label: "Job Post Management", to: "/owner/job-posts", icon: FileText },
     { label: "Skills & Categories", to: "/owner/category-tags", icon: Tag },
-    { label: "Revenue Report", to: "/owner/revenue", icon: DollarSign },
+    { label: "Revenue Report", to: "/owner/revenue", icon: Banknote },
   ];
 
 

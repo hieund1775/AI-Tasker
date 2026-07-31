@@ -9,7 +9,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Eye, Filter, X, Briefcase, Calendar, User, DollarSign, FileText, Paperclip, Image, FolderOpen, CheckCircle, Clock, Sparkles } from "lucide-react";
+import { Search, Eye, Filter, X, Briefcase, Calendar, User, FileText, Paperclip, Image, FolderOpen, CheckCircle, Clock, Sparkles } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";

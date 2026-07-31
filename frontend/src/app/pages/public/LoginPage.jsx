@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Eye, EyeOff, X, Sun, Moon, Monitor } from "lucide-react";
+import { Eye, EyeOff, X, Sun, Moon } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
@@ -9,13 +9,19 @@ import { rememberPendingTheme } from "../../lib/themePreference.js";
 export function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const handleThemeToggle = () => {
+    const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+    rememberPendingTheme(nextTheme);
+    setTheme(nextTheme);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,23 +88,12 @@ export function LoginPage() {
           <div className="absolute -top-1 -right-1 flex items-center gap-0.5">
             <button
               type="button"
-              onClick={() => {
-                const modes = ["light", "dark", "system"];
-                const idx = modes.indexOf(theme ?? "system");
-                const nextTheme = modes[(idx + 1) % modes.length];
-                rememberPendingTheme(nextTheme);
-                setTheme(nextTheme);
-              }}
-              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
-              title={`Theme: ${theme === "system" ? "System" : resolvedTheme === "dark" ? "Dark" : "Light"}`}
+              onClick={handleThemeToggle}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+              title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-label={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             >
-              {theme === "system" ? (
-                <Monitor className="w-4 h-4" />
-              ) : resolvedTheme === "dark" ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
+              {resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </button>
             <button
               type="button"

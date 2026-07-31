@@ -369,7 +369,7 @@ export function DataTable({
                         onClick={() => handlePageChange(pageNumber)}
                         className={`min-w-[32px] h-8 flex items-center justify-center rounded-xl text-sm font-medium transition-colors ${
                           safeCurrentPage === pageNumber
-                            ? "bg-brand-primary text-brand-primary-foreground border border-brand-primary"
+                            ? "bg-card text-foreground border border-brand-primary shadow-sm ring-2 ring-brand-primary/20"
                             : "border border-transparent hover:bg-secondary text-muted-foreground hover:text-foreground"
                         }`}
                       >

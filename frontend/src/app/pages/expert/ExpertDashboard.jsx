@@ -6,7 +6,7 @@ import {
   CheckCircle,
   Search,
   Calendar,
-  DollarSign,
+  Banknote,
   Wallet,
   AlertTriangle,
   Loader2,
@@ -722,7 +722,7 @@ export function ExpertDashboard() {
                             : "N/A"}
                         </span>
                         <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                          <DollarSign className="w-3.5 h-3.5 text-muted-foreground/70" />
+                          <Banknote className="w-3.5 h-3.5 text-muted-foreground/70" />
                           <MoneyDisplay amount={p.budget} />
                         </span>
                       </div>

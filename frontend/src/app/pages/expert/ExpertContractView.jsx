@@ -4,7 +4,6 @@ import {
   CheckCircle,
   XCircle,
   FileText,
-  DollarSign,
   Calendar,
   User,
   Briefcase,

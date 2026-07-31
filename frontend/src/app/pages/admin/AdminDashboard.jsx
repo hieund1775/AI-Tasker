@@ -6,7 +6,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router";
-import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag, DollarSign } from "lucide-react";
+import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
