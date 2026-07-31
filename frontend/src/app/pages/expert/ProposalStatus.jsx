@@ -145,7 +145,7 @@ export function ProposalStatus() {
   }, [user?.id]);
 
   const STATUS_OPTIONS = [
-    { value: "", label: "All Statuses" },
+    { value: "", label: "All" },
     { value: "pending", label: "Pending" },
     { value: "under_review", label: "Under Review" },
     { value: "pending_escrow", label: "Pending Payment" },

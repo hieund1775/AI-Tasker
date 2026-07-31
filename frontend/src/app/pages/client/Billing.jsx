@@ -226,7 +226,7 @@ export function Billing() {
   };
 
   const transactionStatusOptions = [
-    { value: "", label: "All Statuses" },
+    { value: "", label: "All" },
     { value: "done", label: "Done" },
     { value: "in progress", label: "In Progress" },
     { value: "cancel", label: "Cancel" },

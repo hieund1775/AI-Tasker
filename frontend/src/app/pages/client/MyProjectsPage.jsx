@@ -1461,7 +1461,7 @@ export function MyProjectsList() {
   // VIEW: LIST
   // =========================================================================
   const STATUS_OPTIONS = [
-    { value: "", label: "All Statuses" },
+    { value: "", label: "All" },
     { value: "Open", label: "Open" },
     { value: "In Progress", label: "In Progress" },
     { value: "Completed", label: "Complete" },

@@ -26,7 +26,7 @@ const REVIEW_STATUS_CONFIG = {
 };
 
 const REVIEW_STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
+  { value: "", label: "All" },
   { value: "Visible", label: "Visible" },
   { value: "Hidden", label: "Hidden" },
   { value: "Deleted", label: "Deleted" },

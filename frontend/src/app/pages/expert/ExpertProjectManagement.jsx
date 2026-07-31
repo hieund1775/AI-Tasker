@@ -1214,53 +1214,53 @@ export default function ExpertProjectDetail() {
         const expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
         const clientRefund = contractAmount - expertPayout - platformFee;
         return (
-          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm transition-all animate-fade-in">
-            <div className="bg-card rounded-2xl border border-destructive/25 shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4 bg-black/65 backdrop-blur-sm transition-all animate-fade-in">
+            <div className="bg-card rounded-2xl border border-destructive/25 shadow-2xl w-[min(90vw,30rem)] max-h-[calc(100vh-1rem)] overflow-hidden transform transition-all scale-100 animate-zoom-in text-left grid min-h-0 grid-rows-[auto,minmax(0,1fr),auto]">
               {/* Header */}
-              <div className={`flex items-start gap-3 px-6 py-5 border-b ${cancelAttemptCount >= 1 ? "bg-warning-light/80 border-warning/25" : "bg-destructive-light/75 border-destructive/25"}`}>
-                <div className={`mt-0.5 p-2.5 rounded-xl ring-1 ring-inset ${cancelAttemptCount >= 1 ? "bg-card/70 text-warning ring-warning/25" : "bg-card/70 text-destructive ring-destructive/25"}`}>
-                  <Ban className="w-5 h-5" />
+              <div className={`shrink-0 flex items-start gap-2.5 px-3.5 py-2.5 border-b ${cancelAttemptCount >= 1 ? "bg-warning-light/80 border-warning/25" : "bg-destructive-light/75 border-destructive/25"}`}>
+                <div className={`mt-0.5 p-1.5 rounded-lg ring-1 ring-inset ${cancelAttemptCount >= 1 ? "bg-card/70 text-warning ring-warning/25" : "bg-card/70 text-destructive ring-destructive/25"}`}>
+                  <Ban className="w-3.5 h-3.5" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className={`text-lg font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
+                  <h3 className={`text-sm font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract (Expert)"}
                   </h3>
-                  <p className={`text-sm mt-1 font-medium leading-relaxed font-sans ${cancelAttemptCount >= 1 ? "text-warning/85" : "text-muted-foreground"}`}>
+                  <p className={`text-[11px] sm:text-xs mt-1 font-medium leading-relaxed font-sans ${cancelAttemptCount >= 1 ? "text-warning/85" : "text-muted-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract - 5% platform fee + 10% penalty will be applied"}
                   </p>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="p-6 space-y-5 text-sm font-sans">
-                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-secondary/35 p-4 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border bg-card/80 p-3">
+              <div className="min-h-0 overflow-y-auto p-3 space-y-2.5 text-sm font-sans">
+                <div className="grid grid-cols-1 gap-1.5 rounded-2xl border border-border bg-secondary/35 p-2.5 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border bg-card/80 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Escrow</span>
-                    <span className="mt-1 block text-base font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span>
+                    <span className="mt-1 block text-xs sm:text-sm font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span>
                   </div>
-                  <div className="rounded-xl border border-border bg-card/80 p-3">
+                  <div className="rounded-xl border border-border bg-card/80 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Progress</span>
-                    <span className="mt-1 block text-base font-semibold text-foreground">{overallProgress}%</span>
+                    <span className="mt-1 block text-xs sm:text-sm font-semibold text-foreground">{overallProgress}%</span>
                   </div>
-                  <div className="rounded-xl border border-warning/25 bg-warning-light/50 p-3">
+                  <div className="rounded-xl border border-warning/25 bg-warning-light/50 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Platform Fee</span>
-                    <span className="mt-1 block text-base font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span>
+                    <span className="mt-1 block text-xs sm:text-sm font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span>
                   </div>
-                  <div className="rounded-xl border border-destructive/25 bg-destructive-light/60 p-3">
+                  <div className="rounded-xl border border-destructive/25 bg-destructive-light/60 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cancellation Penalty</span>
-                    <span className="mt-1 block text-base font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span>
+                    <span className="mt-1 block text-xs sm:text-sm font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span>
                   </div>
-                  <div className="rounded-xl border border-success/25 bg-success-light/50 p-3">
+                  <div className="rounded-xl border border-success/25 bg-success-light/50 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">You Receive</span>
-                    <span className={`mt-1 block text-lg font-semibold ${expertPayout >= 0 ? 'text-success' : 'text-destructive'}`}><MoneyDisplay amount={expertPayout} /></span>
+                    <span className={`mt-1 block text-xs sm:text-sm font-semibold ${expertPayout >= 0 ? 'text-success' : 'text-destructive'}`}><MoneyDisplay amount={expertPayout} /></span>
                   </div>
-                  <div className="rounded-xl border border-warning/25 bg-warning-light/45 p-3">
+                  <div className="rounded-xl border border-warning/25 bg-warning-light/45 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Refund to Client</span>
-                    <span className="mt-1 block text-lg font-semibold text-warning"><MoneyDisplay amount={clientRefund} /></span>
+                    <span className="mt-1 block text-xs sm:text-sm font-semibold text-warning"><MoneyDisplay amount={clientRefund} /></span>
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-destructive/25 bg-destructive-light/70 px-4 py-3 text-sm font-medium leading-relaxed text-destructive">
+                <div className="rounded-xl border border-destructive/25 bg-destructive-light/70 px-3 py-2.5 text-[11px] sm:text-xs font-medium leading-relaxed text-destructive">
                   As an expert, cancelling the contract requires you to compensate the client by 10% of the budget and cover the 5% platform service fee. This action is irreversible.
                 </div>
 
@@ -1273,7 +1273,7 @@ export default function ExpertProjectDetail() {
                     placeholder="Why do you want to cancel this contract?"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full p-3.5 border border-input rounded-xl bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-destructive/20 focus:border-destructive/45"
+                    className="w-full p-2.5 border border-input rounded-xl bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-destructive/20 focus:border-destructive/45"
                   />
                 </div>
 
@@ -1315,7 +1315,7 @@ export default function ExpertProjectDetail() {
                       type="button"
                       disabled={isUploadingEvidence}
                       onClick={() => evidenceFileInputRef.current?.click()}
-                      className="w-full p-4 border border-dashed border-accent/35 rounded-xl bg-accent-light/35 hover:bg-accent-light/60 text-accent hover:text-accent-hover text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      className="w-full p-3 border border-dashed border-accent/35 rounded-xl bg-accent-light/35 hover:bg-accent-light/60 text-accent hover:text-accent-hover text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       {isUploadingEvidence ? (
                         <span className="animate-pulse">Uploading evidence file...</span>
@@ -1331,7 +1331,7 @@ export default function ExpertProjectDetail() {
               </div>
 
               {/* Footer */}
-              <div className="flex flex-col-reverse gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans sm:flex-row sm:items-center sm:justify-end">
+              <div className="shrink-0 flex flex-col-reverse gap-3 px-4 py-3 sm:px-5 bg-secondary/60 border-t border-border font-sans sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
                   disabled={cancelLoading}

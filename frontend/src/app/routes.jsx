@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 import { HomePage } from "./pages/public/HomePage.jsx";
 import { LoginPage } from "./pages/public/LoginPage.jsx";
 import { SignUpPage } from "./pages/public/SignUpPage.jsx";
+import { ForgotPasswordPage } from "./pages/public/ForgotPasswordPage.jsx";
 import { ResetPasswordPage } from "./pages/public/ResetPasswordPage.jsx";
 
 // Client Pages
@@ -79,6 +80,7 @@ export const router = createBrowserRouter([
       { index: true, Component: HomePage },
       { path: "login", Component: LoginPage },
       { path: "signup", Component: SignUpPage },
+      { path: "forgot-password", Component: ForgotPasswordPage },
       { path: "reset-password", Component: ResetPasswordPage },
       { path: "unauthorized", Component: UnauthorizedPage },
     ],
