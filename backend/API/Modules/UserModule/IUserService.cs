@@ -5,7 +5,7 @@ public interface IUserService
     Task<(bool Success, string Message, string? VerificationToken)> RegisterAsync(string email, string password, string fullName, string role, string phoneNumber, string baseUrl);
     Task<(DTOs.UserDto? User, string? Token, string? Error)> LoginAsync(string email, string password);
     Task<decimal> DepositAsync(string userId, decimal amount); // Changed Guid to string
-    Task<decimal> WithdrawAsync(string userId, decimal amount); // Changed Guid to string
+    Task<decimal> WithdrawAsync(string userId, decimal amount, string? bankCode = null, string? bankAccountNumber = null, string? bankAccountName = null); // Support Visa / ZaloPay card details
     Task<bool> UpdateExpertProfileAsync(string userId, DTOs.UpdateExpertProfileDto dto);
     Task<bool> UpdateUserAsync(string userId, DTOs.UpdateUserDto dto);
     Task<(System.Collections.Generic.List<DTOs.UserDto>? Users, string? Error)> GetAllUsersAsync(string requesterId);
