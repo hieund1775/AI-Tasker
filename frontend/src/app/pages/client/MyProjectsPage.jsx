@@ -13,6 +13,7 @@ import {
   Clock,
   Paperclip,
   File as FileIcon,
+  ChevronDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
@@ -26,6 +27,24 @@ import { notifyProposalDecision } from "../../../services/notificationHelper.js"
 import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getOverallProgress } from "../../lib/projectTimelineStore.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
+
+const CLIENT_ACCEPTED_PROPOSAL_STATUSES = new Set([
+  "accepted",
+  "pending_pay",
+  "pending_escrow",
+  "in_progress",
+  "active",
+  "completed",
+]);
+
+function canClientViewProposalMiniTasks(status) {
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  return CLIENT_ACCEPTED_PROPOSAL_STATUSES.has(normalizedStatus);
+}
 
 export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
@@ -108,6 +127,44 @@ export function MyProjectsList() {
   const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
   const [invitedExpertName, setInvitedExpertName] = useState("");
   const [activeReports, setActiveReports] = useState([]);
+  const [expandedMiniTaskIds, setExpandedMiniTaskIds] = useState(() => new Set());
+
+  const toggleMiniTasks = (key) => {
+    setExpandedMiniTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const renderMiniTasksToggle = (task, status, keyPrefix, idx) => {
+    if (!canClientViewProposalMiniTasks(status) || !task.miniTasks || task.miniTasks.length === 0) return null;
+
+    const key = `${keyPrefix}-${task.id || idx}`;
+    const isOpen = expandedMiniTaskIds.has(key);
+
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => toggleMiniTasks(key)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-brand-primary/45 hover:bg-brand-primary-light/45 cursor-pointer"
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          {isOpen ? "Hide mini-tasks" : `Show mini-tasks (${task.miniTasks.length})`}
+        </button>
+        {isOpen && (
+          <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
+            {task.miniTasks.map((mt, mtIdx) => (
+              <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   async function loadProjects() {
     if (!user?.id) return;
@@ -426,7 +483,7 @@ export function MyProjectsList() {
         );
 
         if (!cancelled) {
-          const accepted = enrichedList.find(p => ["accepted", "pending_escrow", "pending_pay", "in_progress", "completed", "active"].includes(p.status?.toLowerCase()));
+          const accepted = enrichedList.find(p => canClientViewProposalMiniTasks(p.status));
           if (accepted) {
             setProposal(accepted);
           } else {
@@ -911,7 +968,7 @@ export function MyProjectsList() {
                     <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
-                        {selectedProject.useCases.map((uc) => {
+                        {selectedProject.useCases.map((uc, ucIdx) => {
                           const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
@@ -945,15 +1002,7 @@ export function MyProjectsList() {
                                         <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Mini-tasks */}
-                                      {task.miniTasks && task.miniTasks.length > 0 && (
-                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
-                                          {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
-                                          ))}
-                                        </div>
-                                      )}
+                                      {renderMiniTasksToggle(task, proposal.status, `accepted-uc-${uc.id || ucIdx}`, idx)}
                                     </div>
                                   ))
                                 )}
@@ -972,15 +1021,7 @@ export function MyProjectsList() {
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Mini-tasks */}
-                            {task.miniTasks && task.miniTasks.length > 0 && (
-                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
-                                {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
-                                ))}
-                              </div>
-                            )}
+                            {renderMiniTasksToggle(task, proposal.status, "accepted-flat", idx)}
                           </div>
                         ))}
                       </div>
@@ -1278,7 +1319,7 @@ export function MyProjectsList() {
                     <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
-                        {selectedProject.useCases.map((uc) => {
+                        {selectedProject.useCases.map((uc, ucIdx) => {
                           const ucTasks = viewedProposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
@@ -1312,15 +1353,7 @@ export function MyProjectsList() {
                                         <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Mini-tasks */}
-                                      {false && task.miniTasks && task.miniTasks.length > 0 && (
-                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
-                                          {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
-                                          ))}
-                                        </div>
-                                      )}
+                                      {renderMiniTasksToggle(task, viewedProposal.status, `viewed-uc-${uc.id || ucIdx}`, idx)}
                                     </div>
                                   ))
                                 )}
@@ -1339,15 +1372,7 @@ export function MyProjectsList() {
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Mini-tasks */}
-                            {false && task.miniTasks && task.miniTasks.length > 0 && (
-                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
-                                {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
-                                ))}
-                              </div>
-                            )}
+                            {renderMiniTasksToggle(task, viewedProposal.status, "viewed-flat", idx)}
                           </div>
                         ))}
                       </div>

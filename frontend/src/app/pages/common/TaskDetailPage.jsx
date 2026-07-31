@@ -31,6 +31,7 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { getTaskDeadlineInfo, isTaskOverdue } from "../../lib/taskDeadlineUtils.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -189,17 +190,20 @@ export default function TaskDetailPage() {
       });
       if (success) {
         toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+          replace: true,
+        });
       } else {
         toast.error("Failed to submit evidence.");
       }
       setShowEvidenceModal(false);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Failed to submit evidence.");
     } finally {
       setEvidenceSubmitting(false);
     }
-  }, [taskId, handleSubmitHandoverEvidence]);
+  }, [taskId, role, projectId, navigate, handleSubmitHandoverEvidence]);
 
   // ---- Handlers ----
 
@@ -307,6 +311,26 @@ export default function TaskDetailPage() {
       setApproveLoading(false);
     }
   }, [taskId, projectId, handleApproveTask, project, client, task]);
+
+  const handleQuickAcceptClick = useCallback(async () => {
+    setApproveLoading(true);
+    try {
+      const success = await handleQuickAccept(taskId);
+      if (success) {
+        toast.success("Task accepted! (Quick Accept)");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+          replace: true,
+        });
+      } else {
+        toast.error("Failed to accept task.");
+      }
+    } catch (err) {
+      toast.error("Failed to accept task.");
+    } finally {
+      setApproveLoading(false);
+    }
+  }, [taskId, role, projectId, navigate, handleQuickAccept]);
 
   const handleRevisionClick = useCallback(async () => {
     if (!revisionFeedback.trim()) {
@@ -544,36 +568,34 @@ export default function TaskDetailPage() {
         compact
       />
 
-      {/* Task stats row */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
-          <p className="font-semibold text-foreground text-sm">
-            {task.completedMiniTasks}/{task.totalMiniTasks} completed
-          </p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Progress</p>
-          <p className="font-semibold text-foreground text-sm">{task.progress}%</p>
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-center">
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-foreground">Task Progress</h3>
+            <div className="grid w-full grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border bg-secondary/35 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
+                <p className="font-semibold text-foreground text-sm">
+                  {task.completedMiniTasks}/{task.totalMiniTasks} completed
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-secondary/35 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Progress</p>
+                <p className="font-semibold text-foreground text-sm">{task.progress}%</p>
+              </div>
+            </div>
+
+          </div>
+
+          <TaskAcceptanceStepper
+            displayStatus={displayStatus}
+            isWaitingForApproval={isWaitingForApproval}
+            isDone={isDone}
+            hasMainProduct={hasMainProduct}
+            task={task}
+          />
         </div>
       </div>
-
-      {/* Progress bar */}
-      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all duration-500", task.progress > 0 ? "bg-brand-primary" : "bg-muted")}
-          style={{ width: `${task.progress}%` }}
-        />
-      </div>
-
-      {/* Task acceptance stepper */}
-      <TaskAcceptanceStepper
-        displayStatus={displayStatus}
-        isWaitingForApproval={isWaitingForApproval}
-        isDone={isDone}
-        hasMainProduct={hasMainProduct}
-        task={task}
-      />
 
       {/* Deliverables Panel */}
       {hasMainProduct && (
@@ -822,7 +844,6 @@ export default function TaskDetailPage() {
                     <Button
                       variant="default"
                       size="default"
-                      fullWidth
                       disabled={isWaitingForApproval}
                       onClick={() => {
                         setProductLinkInput(task.productLink || "");
@@ -830,7 +851,7 @@ export default function TaskDetailPage() {
                         setProductFileObject(null);
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-warning-light text-primary-foreground hover:bg-warning font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mx-auto w-fit min-w-0 border border-brand-primary/45 bg-brand-primary-light px-4 text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
                       {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
@@ -878,22 +899,7 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={async () => {
-                        setApproveLoading(true);
-                        try {
-                          const success = await handleQuickAccept(taskId);
-                          if (success) {
-                            toast.success("Task accepted! (Quick Accept)");
-                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-                          } else {
-                            toast.error("Failed to accept task.");
-                          }
-                        } catch (err) {
-                          toast.error("Failed to accept task.");
-                        } finally {
-                          setApproveLoading(false);
-                        }
-                      }}
+                      onClick={handleQuickAcceptClick}
                       icon={!approveLoading ? ThumbsUp : undefined}
                       className="flex-1 cursor-pointer font-semibold bg-brand-green hover:bg-brand-green/90 text-primary-foreground border-brand-green"
                     >
@@ -1055,6 +1061,15 @@ export default function TaskDetailPage() {
                     type="file"
                     onChange={(e) => {
                       const file = e.target.files[0];
+                      if (file) {
+                        const validation = validateUploadFiles([file]);
+                        if (!validation.valid) {
+                          toast.error(getFileSizeErrorMessage(file));
+                          setProductFileObject(null);
+                          e.target.value = "";
+                          return;
+                        }
+                      }
                       setProductFileObject(file || null);
                     }}
                     className="hidden"
@@ -1335,12 +1350,11 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
   ];
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6 mb-6">
-      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Task Progress</h3>
-      <div className="flex flex-wrap items-center justify-center gap-y-4">
+    <div className="w-full">
+      <div className="flex w-full items-start">
         {steps.map((step, i) => (
-          <div key={step.label} className="flex items-center">
-            <div className="flex flex-col items-center">
+          <div key={step.label} className="flex min-w-0 flex-1 items-start last:flex-none">
+            <div className="flex w-20 shrink-0 flex-col items-center">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-brand-primary text-brand-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
@@ -1352,7 +1366,7 @@ function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, ha
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-8 sm:w-12 h-0.5 mx-2 mt-[-12px] transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />
+              <div className={`h-0.5 min-w-8 flex-1 mt-4 transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />
             )}
           </div>
         ))}

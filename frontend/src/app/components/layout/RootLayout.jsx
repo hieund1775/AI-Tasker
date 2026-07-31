@@ -153,7 +153,7 @@ export function RootLayout() {
       )}
 
       {!hideHeaderFooter && <Header />}
-      <main className="flex-1 w-full overflow-x-hidden">
+      <main className={`flex-1 w-full overflow-x-hidden ${hideHeaderFooter ? "" : "pt-[4.75rem]"}`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

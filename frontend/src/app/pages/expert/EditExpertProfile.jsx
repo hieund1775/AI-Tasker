@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
@@ -138,14 +139,11 @@ export function EditExpertProfile() {
         completeExpertProfile(apiPayload),
       ]);
 
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.name.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
       }
 
       // Save dropped fields to localStorage as fallback
@@ -407,14 +405,13 @@ export function EditExpertProfile() {
         {/* Hourly Rate */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Hourly Rate (USD/hr)
+            Hourly Rate (VND/hr)
           </label>
-          <input
-            type="number"
+          <MoneyInput
             min="0"
             value={formData.hourlyRate}
-            onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-            placeholder="e.g. 50"
+            onValueChange={(value) => setFormData({ ...formData, hourlyRate: value })}
+            placeholder="e.g. 500000"
             className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>

@@ -1,3 +1,5 @@
+import { validateFormDataUploadFiles } from "../app/lib/fileValidation.js";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
   "https://aitaskerbe-production.up.railway.app/api";
@@ -6,9 +8,7 @@ const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 function getToken() {
   try {
     return (
-      localStorage.getItem(TOKEN_STORAGE_KEY) ||
       sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
-      localStorage.getItem("token") ||
       sessionStorage.getItem("token")
     );
   } catch {
@@ -16,12 +16,55 @@ function getToken() {
   }
 }
 
+const CLAIM_USER_ID = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+const CLAIM_ROLE = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+
+function decodeJwtPayload(token) {
+  try {
+    if (!token || token.startsWith("mock-jwt-token-for-")) return null;
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const binary = atob(padded);
+    return JSON.parse(decodeURIComponent(escape(binary)));
+  } catch {
+    return null;
+  }
+}
+
+function getTokenRole() {
+  const payload = decodeJwtPayload(getToken());
+  const role = payload?.role || payload?.[CLAIM_ROLE] || "";
+  return role ? String(role).toLowerCase() : "";
+}
+
+function getTokenUserId() {
+  const payload = decodeJwtPayload(getToken());
+  return payload?.sub || payload?.nameid || payload?.[CLAIM_USER_ID] || "";
+}
+
+function resolveProposalExpertId(expertId) {
+  const tokenRole = getTokenRole();
+  const tokenUserId = getTokenUserId();
+
+  if (tokenRole && tokenRole !== "expert") {
+    throw new ApiError("Only expert accounts can submit proposals. Please log in with an expert account.", 403);
+  }
+
+  if (tokenUserId && expertId && String(tokenUserId).toLowerCase() !== String(expertId).toLowerCase()) {
+    throw new ApiError("The active session does not match this expert account. Please log out and log in again.", 403);
+  }
+
+  return tokenUserId || expertId;
+}
+
 function clearToken() {
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem("aitasker_user_info");
     sessionStorage.removeItem("aitasker_user_info");
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
   } catch { }
 }
 
@@ -130,6 +173,13 @@ async function request(endpoint, options = {}) {
 
   if (!options.isFormData) {
     headers["Content-Type"] = "application/json";
+  }
+
+  if (options.isFormData && body instanceof FormData) {
+    const fileValidation = validateFormDataUploadFiles(body);
+    if (!fileValidation.valid) {
+      throw new ApiError(fileValidation.message, 413);
+    }
   }
 
   if (authenticated) {
@@ -444,8 +494,8 @@ export const api = {
       let userId = null;
       try {
         const userInfo =
-          localStorage.getItem("aitasker_user_info") ||
-          sessionStorage.getItem("aitasker_user_info");
+          sessionStorage.getItem("aitasker_user_info") ||
+          sessionStorage.getItem("user");
         if (userInfo) {
           const parsed = JSON.parse(userInfo);
           userId = parsed?.id || parsed?.Id;
@@ -696,9 +746,12 @@ export const api = {
       }),
     releaseEscrow: (data) =>
       post(`/Projects/${data.projectId}/release-payment`),
-    withdraw: (userId, amount) =>
+    withdraw: (userId, amount, extraData = {}) =>
       post(`/users/${userId}/withdraw`, {
-        amount: Number(amount)
+        amount: Number(amount),
+        bankCode: extraData.bankCode || "VISA (ZaloPay)",
+        cardNumber: extraData.cardNumber || extraData.bankAccountNumber || "",
+        cardHolderName: extraData.cardHolderName || extraData.bankAccountName || "",
       }),
     // ZaloPay create-order: returns { orderUrl } to redirect to ZaloPay page
     createPaymentOrder: (userId, amount) =>
@@ -725,10 +778,11 @@ export const api = {
 
   proposals: {
     create: (data) => {
+      const expertId = resolveProposalExpertId(data.expertId);
       // API /api/Proposals/submit-proposal accepts multipart/form-data
       const formData = new FormData();
       formData.append("JobPostId", data.jobPostId);
-      formData.append("ExpertId", data.expertId);
+      formData.append("ExpertId", expertId);
       formData.append("BidAmount", String(data.bidAmount));
       formData.append("EstimatedDuration", String(data.estimatedDays));
       formData.append("Introduction", data.introduction || "");

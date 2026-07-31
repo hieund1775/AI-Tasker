@@ -49,6 +49,7 @@ import { OwnerDashboard } from "./pages/owner/OwnerDashboard.jsx";
 import { CreateAdmin } from "./pages/owner/CreateAdmin.jsx";
 import { OwnerProfile } from "./pages/owner/OwnerProfile.jsx";
 import { OwnerRevenue } from "./pages/owner/OwnerRevenue.jsx";
+import { OwnerWallet } from "./pages/owner/OwnerWallet.jsx";
 
 
 // Layouts
@@ -170,6 +171,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <Navigate to="/owner/dashboard" replace /> },
                   { path: "dashboard", Component: OwnerDashboard },
                   { path: "create-admin", Component: CreateAdmin },
+                  { path: "wallet", Component: OwnerWallet },
                   { path: "revenue", Component: OwnerRevenue },
                   { path: "disputes/:id", Component: AdminReportDetail },
                   { path: "profile", Component: OwnerProfile },

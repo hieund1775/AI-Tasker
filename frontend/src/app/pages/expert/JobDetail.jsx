@@ -23,6 +23,14 @@ import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
 import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
+const isResubmittableProposalStatus = (status) =>
+  ["decline", "declined", "rejected", "withdrawn", "expired"].includes(
+    String(status || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_"),
+  );
+
 export function JobDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -70,10 +78,26 @@ export function JobDetail() {
           try {
             const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
             invitationProposal = myProposals.find(
-              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) === 0 && p.status?.toLowerCase() === "pending"
+              (p) => {
+                const proposalJobId = p.jobPostId || p.JobPostId;
+                const proposalStatus = p.status || p.Status;
+                return (
+                  String(proposalJobId) === String(project.id) &&
+                  (Number(p.bidAmount || p.BidAmount) || 0) === 0 &&
+                  String(proposalStatus || "").toLowerCase() === "pending"
+                );
+              }
             );
             hasSubmittedProp = myProposals.some(
-              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
+              (p) => {
+                const proposalJobId = p.jobPostId || p.JobPostId;
+                const proposalStatus = p.status || p.Status;
+                return (
+                  String(proposalJobId) === String(project.id) &&
+                  (Number(p.bidAmount || p.BidAmount) || 0) > 0 &&
+                  !isResubmittableProposalStatus(proposalStatus)
+                );
+              }
             );
             // Check for accepted proposal with extended deadline or active project deadline
             const acceptedProposal = myProposals.find(p =>

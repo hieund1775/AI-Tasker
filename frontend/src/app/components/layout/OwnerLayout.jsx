@@ -1,5 +1,5 @@
 ﻿import { Link, Outlet, useLocation } from "react-router";
-import { ShieldPlus, Users, Briefcase, FileText, Tag, LayoutDashboard, DollarSign } from "lucide-react";
+import { ShieldPlus, Users, Briefcase, FileText, Tag, LayoutDashboard, DollarSign, Wallet } from "lucide-react";
 
 export function OwnerLayout() {
   const location = useLocation();
@@ -7,6 +7,7 @@ export function OwnerLayout() {
   const menuItems = [
     { label: "Dashboard", to: "/owner/dashboard", icon: LayoutDashboard },
     { label: "Create Admin", to: "/owner/create-admin", icon: ShieldPlus },
+    { label: "Wallet", to: "/owner/wallet", icon: Wallet },
     { label: "User Management", to: "/owner/users", icon: Users },
     { label: "Report Progress", to: "/owner/reports", icon: FileText },
     { label: "Project Management", to: "/owner/projects", icon: Briefcase },
@@ -19,7 +20,7 @@ export function OwnerLayout() {
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] w-full max-w-[100vw] overflow-x-hidden">
       {/* LEFT SIDEBAR MENU (VERTICAL NAVBAR) */}
-      <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[17rem] flex-shrink-0 self-start overflow-hidden border-r border-border/70 bg-sidebar/85 backdrop-blur-xl md:block">
+      <aside className="fixed left-0 top-[4.75rem] z-30 hidden h-[calc(100vh-4.75rem)] w-[17rem] flex-shrink-0 overflow-hidden border-r border-border/70 bg-sidebar/85 backdrop-blur-xl md:block">
         <div className="flex h-full flex-col gap-1.5 overflow-y-auto p-4">
           <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em] mb-4 px-3 mt-2">Owner Menu</h3>
           {menuItems.map((link, i) => {
@@ -44,7 +45,7 @@ export function OwnerLayout() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 min-w-0 p-5 sm:p-6 lg:p-10 flex flex-col gap-8 bg-background overflow-x-hidden">
+      <main className="flex-1 min-w-0 p-5 sm:p-6 lg:p-10 flex flex-col gap-8 bg-background overflow-x-hidden md:ml-[17rem]">
         <Outlet />
       </main>
     </div>

@@ -1,4 +1,5 @@
 ﻿import { Star, ReceiptText, Users } from 'lucide-react';
+import { formatCurrency } from "../../lib/formatCurrency.js";
 
 export function FeaturedExperts() {
   // TODO: Replace with API call when backend is ready
@@ -41,7 +42,7 @@ export function FeaturedExperts() {
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground text-sm">
                     <ReceiptText className="w-4 h-4" />
-                    <span className="font-medium">${expert.hourlyRate}/hr</span>
+                    <span className="font-medium">{formatCurrency(expert.hourlyRate)}/hr</span>
                   </div>
                 </div>
               </div>

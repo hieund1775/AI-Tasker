@@ -6,6 +6,35 @@ import { TaskProgressCard } from "./TaskProgressCard.jsx";
 import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTimelineIllustration.jsx";
 import { cn } from "../../lib/utils.js";
 
+function isTaskFinishedForOrdering(task) {
+  const status = String(task?.displayStatus || task?.status || "").toLowerCase();
+  return (
+    [
+      "done",
+      "completed",
+      "checklist completed",
+      "checklist_completed",
+      "waiting for approval",
+      "waiting_for_approval",
+      "pending approval",
+      "pending_approval",
+      "pending review",
+      "pending_review",
+    ].includes(status)
+  );
+}
+
+function orderTasksByCompletion(tasks) {
+  return tasks
+    .map((task, index) => ({ task, index }))
+    .sort((a, b) => {
+      const aFinished = isTaskFinishedForOrdering(a.task) ? 1 : 0;
+      const bFinished = isTaskFinishedForOrdering(b.task) ? 1 : 0;
+      return aFinished - bFinished || a.index - b.index;
+    })
+    .map(({ task }) => task);
+}
+
 // =============================================================================
 // ProjectProgressPanel - overall project progress section with task cards.
 //
@@ -30,6 +59,7 @@ export function ProjectProgressPanel({
   project = null,
 }) {
   const taskRefs = useRef({});
+  const orderedTasks = orderTasksByCompletion(tasks);
 
   // Scroll to focused task when focusTaskId changes
   useEffect(() => {
@@ -66,7 +96,7 @@ export function ProjectProgressPanel({
     );
   }
 
-  if (tasks.length === 0) {
+  if (orderedTasks.length === 0) {
     return (
       <EmptyState
         icon={ClipboardList}
@@ -78,12 +108,12 @@ export function ProjectProgressPanel({
     );
   }
 
-  const completedTasks = tasks.filter(
+  const completedTasks = orderedTasks.filter(
     (t) => t.displayStatus === "Done"
   ).length;
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 space-y-6">
+    <div id="project-progress" className="bg-card rounded-xl border border-border p-6 space-y-6 scroll-mt-28">
       {/* Overall progress header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4">
         <div>
@@ -91,9 +121,9 @@ export function ProjectProgressPanel({
           <p className="text-sm text-muted-foreground">
             Progress is automatically calculated from completed mini-tasks.
           </p>
-          {tasks.length > 0 && (
+          {orderedTasks.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
-              {completedTasks} of {tasks.length} tasks completed
+              {completedTasks} of {orderedTasks.length} tasks completed
             </p>
           )}
         </div>
@@ -125,12 +155,12 @@ export function ProjectProgressPanel({
       {project?.useCases && project.useCases.length > 0 ? (
         <div className="space-y-6 pt-2">
           {project.useCases.map((uc, ucIdx) => {
-            const ucTasks = tasks.filter((t) => {
+            const ucTasks = orderTasksByCompletion(tasks.filter((t) => {
               if (t.useCaseId === uc.id) return true;
               const hasValidUseCase = project.useCases.some((item) => item.id === t.useCaseId);
               if (!hasValidUseCase && project.useCases[0]?.id === uc.id) return true;
               return false;
-            });
+            }));
 
             // Calculate Use Case progress based on child tasks' minitasks
             let totalMinis = 0;
@@ -195,6 +225,7 @@ export function ProjectProgressPanel({
                           if (el) taskRefs.current[task.id] = el;
                         }}
                         id={task.id}
+                        className="scroll-mt-28"
                       >
                         <TaskProgressCard
                           task={task}
@@ -217,13 +248,14 @@ export function ProjectProgressPanel({
             Milestones ({tasks.length})
           </h3>
           <div className="space-y-4">
-            {tasks.map((task) => (
+            {orderedTasks.map((task) => (
               <div
                 key={task.id}
                 ref={(el) => {
                   if (el) taskRefs.current[task.id] = el;
                 }}
                 id={task.id}
+                className="scroll-mt-28"
               >
                 <TaskProgressCard
                   task={task}

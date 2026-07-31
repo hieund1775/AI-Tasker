@@ -43,11 +43,14 @@ export default function PaymentResult() {
 
       // Redirect after 3 seconds to the correct wallet page
       const timer = setTimeout(() => {
+        const role = String(user.role || user.Role || "").toLowerCase();
         const returnUrl = sessionStorage.getItem("payment_return_url");
         if (returnUrl) {
           sessionStorage.removeItem("payment_return_url");
           navigate(returnUrl, { replace: true });
-        } else if (user.role === "expert") {
+        } else if (role === "owner") {
+          navigate("/owner/wallet", { replace: true });
+        } else if (role === "expert") {
           navigate("/expert/wallet", { replace: true });
         } else {
           // Client doesn't have a standalone wallet page, usually it's billing

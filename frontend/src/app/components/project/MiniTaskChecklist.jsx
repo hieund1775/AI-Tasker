@@ -4,7 +4,6 @@ import {
   Square,
   Loader2,
   AlertCircle,
-  Edit3,
   Paperclip,
   Upload,
   X,
@@ -16,6 +15,7 @@ import { EmptyState } from "../shared/EmptyState.jsx";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { cn } from "../../lib/utils.js";
 import { safeDateTimeFormat } from "../../lib/safety.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { toast } from "sonner";
 import { api, enrichFileUrl } from "../../../services/api.js";
 
@@ -351,8 +351,16 @@ export function MiniTaskChecklist({
                       type="file"
                       ref={fileInputRef}
                       onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedFile(e.target.files[0]);
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const validation = validateUploadFiles([file]);
+                          if (!validation.valid) {
+                            toast.error(getFileSizeErrorMessage(file));
+                            setSelectedFile(null);
+                            e.target.value = "";
+                            return;
+                          }
+                          setSelectedFile(file);
                         }
                       }}
                       className="hidden"
@@ -551,19 +559,9 @@ export function MiniTaskChecklist({
               </div>
             )}
 
-            {/* Action buttons (Edit / Done tag) */}
+            {/* Action tag */}
             {!isEditingThis && (
               <div className="flex-shrink-0 flex items-center gap-2">
-                {isActuallyEditable && (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(mini)}
-                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                )}
                 {compact && isDone && (
                   <span className="text-sm text-success font-medium">
                     Done

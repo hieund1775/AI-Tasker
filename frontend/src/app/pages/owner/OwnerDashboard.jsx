@@ -27,12 +27,7 @@ import { Users, Briefcase, TrendingUp, AlertTriangle, Shield, ShieldCheck, FileT
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
-import {
-  getOwnerDashboardStats,
-  getMonthlyTrafficStats,
-  getYearlyPostStats,
-  getTotalPaymentStats,
-} from "../../../services/ownerService.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import api from "../../../services/api.js";
 import { getReports } from "../../../services/reportService.js";
 
@@ -61,7 +56,6 @@ export function OwnerDashboard() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
 
   // Data state
-  const [trafficData, setTrafficData] = useState([]);
   const [postData, setPostData] = useState([]);
   const [paymentData, setPaymentData] = useState([]);
   const [systemStats, setSystemStats] = useState({
@@ -96,65 +90,12 @@ export function OwnerDashboard() {
       systemDashboardSettled
     ] = results;
 
-    // 1. Calculate Monthly Visits (Client / Expert) from localStorage logins
-    let localLogins = [];
-    try {
-      localLogins = JSON.parse(localStorage.getItem("aitasker_user_logins") || "[]");
-    } catch (e) {
-      console.warn("Failed to parse user logins:", e);
-    }
-
     // Current date helpers to filter future month/year plotting
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonthIndex = now.getMonth(); // 0-indexed (0 = Jan, 6 = Jul)
 
-    if (localLogins.length === 0) {
-      // Seed mock logins only for past/current months of the current year
-      const seeded = [];
-      const roles = ["client", "expert"];
-      for (let m = 0; m <= currentMonthIndex; m++) {
-        const monthNum = String(m + 1).padStart(2, "0");
-        roles.forEach(r => {
-          const count = r === "client" ? 15 + Math.floor(Math.random() * 15) : 20 + Math.floor(Math.random() * 20);
-          for (let c = 0; c < count; c++) {
-            const dayNum = String(1 + Math.floor(Math.random() * 28)).padStart(2, "0");
-            seeded.push({
-              userId: `mock-${r}-${c}`,
-              role: r,
-              date: `${currentYear}-${monthNum}-${dayNum}`,
-            });
-          }
-        });
-      }
-      try {
-        localStorage.setItem("aitasker_user_logins", JSON.stringify(seeded));
-      } catch (e) {}
-      localLogins = seeded;
-    }
-
-    const monthlyTrafficMap = MONTHS.map((m, idx) => {
-      const isFuture = (selectedYear > currentYear) || (selectedYear === currentYear && idx > currentMonthIndex);
-      if (isFuture) {
-        return { month: m, Client: 0, Expert: 0 };
-      }
-
-      const monthStr = String(idx + 1).padStart(2, "0");
-      const targetYearMonth = `${selectedYear}-${monthStr}`;
-      
-      const monthLogins = localLogins.filter(l => l.date && l.date.startsWith(targetYearMonth));
-      const clientsCount = monthLogins.filter(l => (l.role || "").toLowerCase() === "client").length;
-      const expertsCount = monthLogins.filter(l => (l.role || "").toLowerCase() === "expert").length;
-      
-      return {
-        month: m,
-        Client: clientsCount,
-        Expert: expertsCount
-      };
-    });
-    setTrafficData(monthlyTrafficMap);
-
-    // 2. Calculate Total Posts in selectedYear from job posts list
+    // 1. Calculate Total Posts in selectedYear from job posts list
     const jobPosts = jobPostsSettled.status === "fulfilled" ? jobPostsSettled.value : [];
     const monthlyPostsMap = MONTHS.map((m, idx) => {
       const isFuture = (selectedYear > currentYear) || (selectedYear === currentYear && idx > currentMonthIndex);
@@ -464,26 +405,7 @@ export function OwnerDashboard() {
 
       {/* Charts */}
       <div className="space-y-6">
-        {/* Chart 1: Monthly visits */}
-        <ChartCard title="Monthly Visits (Client / Expert)">
-          {loading ? (
-            <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
-          ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={trafficData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="Client" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expert" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </ChartCard>
-
-        {/* Chart 2: Total posts in year */}
+        {/* Chart 1: Total posts in year */}
         <ChartCard title={`Total Posts in ${selectedYear}`}>
           {loading ? (
             <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
@@ -513,7 +435,7 @@ export function OwnerDashboard() {
           )}
         </ChartCard>
 
-        {/* Chart 3: Total money transferred */}
+        {/* Chart 2: Total money transferred */}
         <ChartCard title="Total Money Clients Transferred to Experts">
           {loading ? (
             <div className="h-80 bg-secondary rounded-2xl animate-pulse" />
@@ -525,10 +447,7 @@ export function OwnerDashboard() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
                   formatter={(value) => [
-                    new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: "VND",
-                    }).format(value),
+                    formatCurrency(value),
                     "Amount",
                   ]}
                 />

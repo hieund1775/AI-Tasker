@@ -10,9 +10,13 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
+import { useFooterBoundFixedPanel } from "../../hooks/useFooterBoundFixedPanel.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 const unitToDays = (value, unit) => {
   const n = Number(value) || 0;
@@ -158,6 +162,8 @@ export function PostProject() {
 
   const formRef = useRef(null);
   const [formHeight, setFormHeight] = useState(0);
+  const { anchorRef: aiPanelAnchorRef, fixedPanelStyle: aiPanelStyle } =
+    useFooterBoundFixedPanel(rightPanelMode === "ai_planner" || showRecommendations, formRef);
 
   useEffect(() => {
     if (formRef.current) {
@@ -207,9 +213,23 @@ export function PostProject() {
     e.preventDefault();
     setSubmitting(true);
 
+    if (formData.description.trim().length < 10) {
+      toast.error("Description must be at least 10 characters.");
+      setSubmitting(false);
+      return;
+    }
+
     const budgetNum = Number(formData.budget) || 0;
     if (budgetNum < 1000) {
-      toast.error("Project budget must be at least $1,000 USD.");
+      toast.error(`Project budget must be at least ${formatCurrency(1000)}.`);
+      setSubmitting(false);
+      return;
+    }
+
+    const attachmentValidation = validateUploadFiles(attachments);
+    if (!attachmentValidation.valid) {
+      toast.error(getFileSizeErrorMessage(attachmentValidation.oversized[0]));
+      setAttachments((prev) => prev.filter((file) => !attachmentValidation.oversized.includes(file)));
       setSubmitting(false);
       return;
     }
@@ -348,6 +368,7 @@ export function PostProject() {
 
   const handleRecommendExperts = async () => {
     setLoadingRecommendations(true);
+    setRightPanelMode(null);
     setShowRecommendations(true);
     setSelectedRecommendExpert(null);
     setVisibleCount(3);
@@ -477,9 +498,9 @@ export function PostProject() {
         }
       />
 
-      <div className={`grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
+      <div className={`grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-start gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={(rightPanelMode || showRecommendations) ? "lg:col-span-7 flex flex-col" : "w-full"}>
-          <form ref={formRef} onSubmit={handleSubmit} className="flex h-full flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
+          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
             <div className="flex items-center justify-between gap-3 px-1 py-1 pb-2 border-b border-border/40">
               <span className="text-xs text-muted-foreground font-medium">Form data auto-saves while typing</span>
               <button
@@ -516,7 +537,7 @@ export function PostProject() {
                     <label className="block text-sm font-medium text-foreground/80">
                       Description <span className="text-destructive">*</span>
                     </label>
-                    <span className="text-xs text-muted-foreground">{formData.description.length}/3000 (Min 10)</span>
+                    <span className="text-xs text-muted-foreground">{formData.description.length}/3000</span>
                   </div>
                   <textarea
                     name="description" id="description"
@@ -526,7 +547,6 @@ export function PostProject() {
                       e.target.style.height = `${e.target.scrollHeight}px`;
                       updateField("description", e.target.value);
                     }}
-                    minLength={10}
                     maxLength={3000}
                     rows={4}
                     className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden text-sm"
@@ -622,7 +642,10 @@ export function PostProject() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setRightPanelMode("ai_planner")}
+                    onClick={() => {
+                      setShowRecommendations(false);
+                      setRightPanelMode("ai_planner");
+                    }}
                     disabled={rightPanelMode === "ai_planner"}
                     className={`h-9 px-3 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
                       rightPanelMode === "ai_planner"
@@ -739,11 +762,12 @@ export function PostProject() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-foreground/80 mb-2">Budget</label>
-                    <input
-                      type="number" name="budget" id="budget"
-                      min="1000" step="1"
+                    <MoneyInput
+                      name="budget"
+                      id="budget"
+                      min="1000"
                       value={formData.budget || ""}
-                      onChange={(e) => updateField("budget", e.target.value === "" ? 0 : Number(e.target.value))}
+                      onValueChange={(value) => updateField("budget", value === "" ? 0 : value)}
                       className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary ${
                         formData.budget > 0 && formData.budget < 1000 ? "border-destructive focus:border-destructive" : "border-input"
                       }`}
@@ -751,9 +775,9 @@ export function PostProject() {
                       required
                     />
                     {formData.budget > 0 && formData.budget < 1000 ? (
-                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is $1,000 USD</p>
+                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is {formatCurrency(1000)}</p>
                     ) : (
-                      <p className="text-xs text-muted-foreground mt-1">Minimum project budget is $1,000 USD</p>
+                      <p className="text-xs text-muted-foreground mt-1">Minimum project budget is {formatCurrency(1000)}</p>
                     )}
                   </div>
                   <div>
@@ -829,10 +853,11 @@ export function PostProject() {
 
       {/* AI Planner Sidebar */}
       {rightPanelMode === "ai_planner" && (
-        <aside className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start">
+        <aside ref={aiPanelAnchorRef} className="lg:col-span-3 lg:min-h-[28rem]">
           <div
             id="ai-assistant-sidebar"
-            className="h-[min(48rem,calc(100vh-7rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col"
+            style={aiPanelStyle || undefined}
+            className="h-[min(56rem,calc(100vh-5.75rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col lg:h-auto lg:min-h-0"
           >
             <AIClientsUseCasePlanner
               onClose={() => setRightPanelMode(null)}
@@ -850,11 +875,12 @@ export function PostProject() {
 
       {/* AI Recommendations Section */}
       {showRecommendations && (
-        <div
-          id="ai-recommendations-section"
-          className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col min-h-[34rem] overflow-hidden"
-          style={{ height: formHeight ? `min(${formHeight}px, calc(100vh - 7rem))` : "min(48rem, calc(100vh - 7rem))" }}
-        >
+        <aside ref={aiPanelAnchorRef} className="lg:col-span-3 lg:min-h-[28rem]">
+          <div
+            id="ai-recommendations-section"
+            style={aiPanelStyle || { height: formHeight ? `min(${formHeight}px, calc(100vh - 5.75rem))` : "min(56rem, calc(100vh - 5.75rem))" }}
+            className="bg-card rounded-2xl border border-border shadow-sm p-5 flex flex-col min-h-[34rem] overflow-hidden lg:h-auto lg:min-h-0"
+          >
           <div className="flex items-center justify-between mb-5 border-b border-border/60 pb-3">
             <div>
               <h2 className="text-sm font-semibold text-foreground">AI Recommendations</h2>
@@ -926,7 +952,7 @@ export function PostProject() {
                         <span className="text-muted-foreground/60">-</span>
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
-                            {expert.hourlyRate}
+                            {formatCurrency(expert.hourlyRate)}
                           </span>
                           /hr
                         </span>
@@ -1007,7 +1033,7 @@ export function PostProject() {
                   {selectedRecommendExpert.hourlyRate != null && (
                     <span className="inline-flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                      {selectedRecommendExpert.hourlyRate}/hr
+                      {formatCurrency(selectedRecommendExpert.hourlyRate)}/hr
                     </span>
                   )}
                 </div>
@@ -1126,7 +1152,8 @@ export function PostProject() {
               </div>
             </div>
           )}
-        </div>
+          </div>
+        </aside>
       )}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   Send,
@@ -17,12 +17,15 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import { AIPlannerCard } from "../../components/ai/AIPlannerCard.jsx";
 import { AIPlannerPanel } from "../../components/ai/AIPlannerDrawer.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import api from "../../../services/api.js";
 import {
   notifyNewProposal,
@@ -30,6 +33,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 import { toast } from "sonner";
+import { useFooterBoundFixedPanel } from "../../hooks/useFooterBoundFixedPanel.js";
 
 /**
  * SendProposal - Expert submits a comprehensive proposal to a client project.
@@ -95,17 +99,43 @@ export function SendProposal() {
   const [generatingUseCases, setGeneratingUseCases] = useState({});
   const [minitaskCounts, setMinitaskCounts] = useState({});
 
+  const getRequestedMiniTaskCount = (useCaseId) => {
+    const rawValue = minitaskCounts[useCaseId];
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return null;
+    return Math.min(parsed, 20);
+  };
+
+  const extractMiniTasksFromAiPayload = (payload) => {
+    if (!Array.isArray(payload)) return [];
+    return payload.flatMap((task) => {
+      const nestedMiniTasks = task.MiniTasks || task.miniTasks;
+      if (Array.isArray(nestedMiniTasks) && nestedMiniTasks.length > 0) {
+        return nestedMiniTasks.map((mt) => ({
+          title: mt.Title || mt.title || "",
+          description: mt.Description || mt.description || "",
+        }));
+      }
+
+      return [{
+        title: task.Title || task.title || "",
+        description: task.Description || task.description || "",
+      }];
+    }).filter((mt) => mt.title.trim());
+  };
+
   const handleGenerateMiniTaskForUseCase = async (uc) => {
     const ucId = uc.id;
-    const requestedCount = minitaskCounts[ucId];
+    const requestedCount = getRequestedMiniTaskCount(ucId);
     const countInstruction = requestedCount
-      ? `CRITICAL RULE: You MUST return EXACTLY ${requestedCount} minitask(s). Do NOT generate more or less than ${requestedCount}. Your JSON payload array MUST contain exactly ${requestedCount} item(s).`
+      ? `CRITICAL RULE: Return EXACTLY ${requestedCount} mini-task(s) for this one user story. The payload must contain ONE task object and its MiniTasks array must contain exactly ${requestedCount} item(s). Do not return more or fewer.`
       : "Generate a detailed list of minitasks.";
 
     setGeneratingUseCases((prev) => ({ ...prev, [ucId]: "loading" }));
     setAutoPrompt({
       title: uc.title || uc.nameAndDeadline || "User Story",
       description: uc.description || "",
+      requestedCount,
     });
     const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
 User Story: ${uc.title || uc.nameAndDeadline || ""}
@@ -127,22 +157,20 @@ Description: ${uc.description || ""}
 
       const payload = response?.payload || response?.Payload;
       if (payload && Array.isArray(payload) && payload.length > 0) {
-        const mappedTasks = payload.map((task) => ({
+        const generatedMiniTasks = extractMiniTasksFromAiPayload(payload);
+        const mappedTasks = [{
           useCaseId: uc.id,
           useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
           tasks: [
             {
               taskId: uc.id,
               taskTitle: uc.title || uc.nameAndDeadline || "Task",
-              miniTasks: (task.MiniTasks || task.miniTasks || []).map((mt) => ({
-                title: mt.Title || mt.title || "",
-                description: "",
-              })),
+              miniTasks: generatedMiniTasks,
             },
           ],
-        }));
+        }];
 
-        if (mappedTasks.length > 0) {
+        if (generatedMiniTasks.length > 0) {
           handleApplyAITasks({ useCases: mappedTasks });
         }
       }
@@ -364,6 +392,34 @@ Please use this background information to write a personalized and highly releva
   const [loading, setLoading] = useState(true);
   const [existingProposal, setExistingProposal] = useState(null);
 
+  const isResubmittableProposalStatus = (status) =>
+    ["decline", "declined", "rejected", "withdrawn", "expired"].includes(
+      String(status || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_"),
+    );
+
+  const getProposalId = (proposal) =>
+    proposal?.id || proposal?.Id || proposal?.data?.id || proposal?.data?.Id || null;
+
+  const findLatestProposalForCurrentJob = async () => {
+    const list = await api.proposals.getByExpert(user.id).catch(() => []);
+    const matching = list
+      .filter((p) => {
+        const proposalJobId =
+          p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+        return String(proposalJobId) === String(projectId);
+      })
+      .sort((a, b) => {
+        const bTime = new Date(b.createdAt || b.CreatedAt || 0).getTime();
+        const aTime = new Date(a.createdAt || a.CreatedAt || 0).getTime();
+        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+      });
+
+    return matching[0] || null;
+  };
+
   useEffect(() => {
     if (!projectId || !user?.id) return;
     setLoading(true);
@@ -402,14 +458,19 @@ Please use this background information to write a personalized and highly releva
         setTasks(buildTasksFromUseCases(job));
 
         // Find existing proposal for this jobPostId (with robust PascalCase fallbacks)
-        const foundProp = proposalsList.find(
-          (p) =>
-            String(
-              p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id,
-            ) === String(projectId),
-        );
+        const matchingProposals = proposalsList.filter((p) => {
+          const proposalJobId =
+            p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+          return String(proposalJobId) === String(projectId);
+        });
+        const foundProp = matchingProposals.find((p) => {
+          return (
+            !isResubmittableProposalStatus(p.status || p.Status)
+          );
+        });
+        setExistingProposal(foundProp || null);
+
         if (foundProp) {
-          setExistingProposal(foundProp);
           let parsedCoverLetter = {};
           try {
             parsedCoverLetter = JSON.parse(foundProp.coverLetter);
@@ -551,6 +612,9 @@ Please use this background information to write a personalized and highly releva
 
   // ---- AI Planner state ----
   const [showAIPlanner, setShowAIPlanner] = useState(false);
+  const proposalFormRef = useRef(null);
+  const { anchorRef: aiPanelAnchorRef, fixedPanelStyle: aiPanelStyle } =
+    useFooterBoundFixedPanel(showAIPlanner, proposalFormRef);
 
   // ---- AI Planner handlers ----
   const handleActivateAI = () => {
@@ -600,7 +664,12 @@ Please use this background information to write a personalized and highly releva
         for (const taskBlock of ucBlock.tasks || []) {
           if (!taskBlock.miniTasks?.length) continue;
 
-          const generatedMiniTasks = taskBlock.miniTasks.map((mt) => ({
+          const miniTasksForApply = (taskBlock.miniTasks || []).filter((mt) =>
+            String(mt.title || "").trim(),
+          );
+          if (!miniTasksForApply.length) continue;
+
+          const generatedMiniTasks = miniTasksForApply.map((mt) => ({
             id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             taskId: taskBlock.taskId || `task-fb-${ucBlock.useCaseId}`,
             title: mt.title,
@@ -620,14 +689,9 @@ Please use this background information to write a personalized and highly releva
           }
 
           if (idx !== -1) {
-            const hasRealContent = nextTasks[idx].miniTasks.some((mt) =>
-              mt.title?.trim(),
-            );
             nextTasks[idx] = {
               ...nextTasks[idx],
-              miniTasks: hasRealContent
-                ? [...nextTasks[idx].miniTasks, ...generatedMiniTasks]
-                : generatedMiniTasks,
+              miniTasks: generatedMiniTasks,
             };
           } else {
             // ponytail: no matching task exists - create fallback under the use case
@@ -665,6 +729,11 @@ Please use this background information to write a personalized and highly releva
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.id) return;
+    if (String(user?.role || "").toLowerCase() !== "expert") {
+      toast.error("Only expert accounts can submit proposals.");
+      navigate("/unauthorized", { replace: true });
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -683,6 +752,20 @@ Please use this background information to write a personalized and highly releva
         project?.originalTotalDurationDays || project?.deadline || 0;
       const exceedsTargets =
         clientBudget - finalBid < 0 || clientDuration - totalDays < 0;
+
+      if (form.professionalIntro.trim().length < 10) {
+        toast.error("Professional introduction must be at least 10 characters.");
+        setSubmitting(false);
+        return;
+      }
+
+      const attachmentValidation = validateUploadFiles(attachments);
+      if (!attachmentValidation.valid) {
+        toast.error(getFileSizeErrorMessage(attachmentValidation.oversized[0]));
+        setAttachments((prev) => prev.filter((file) => !attachmentValidation.oversized.includes(file)));
+        setSubmitting(false);
+        return;
+      }
 
       // Check acknowledgement if exceeding targets
       if (exceedsTargets && !form.acknowledged) {
@@ -861,7 +944,10 @@ Please use this background information to write a personalized and highly releva
             expertId: user.id,
             ...proposalPayload,
           });
-          finalPropId = created?.id || created?.Id;
+          finalPropId = getProposalId(created);
+          if (!finalPropId) {
+            finalPropId = getProposalId(await findLatestProposalForCurrentJob());
+          }
           // Notify client that a new proposal arrived
           notifyNewProposal({
             clientUserId: project?.clientId,
@@ -870,30 +956,7 @@ Please use this background information to write a personalized and highly releva
             jobPostId: projectId,
           }).catch(() => { });
         } catch (createErr) {
-          // If backend rejects create because an active proposal already exists in DB, fetch and update it!
-          if (
-            createErr.message?.toLowerCase().includes("active proposal") ||
-            createErr.status === 400
-          ) {
-            const list = await api.proposals
-              .getByExpert(user.id)
-              .catch(() => []);
-            const activeProp = list.find(
-              (p) =>
-                String(
-                  p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id,
-                ) === String(projectId),
-            );
-            const activeId = activeProp?.id || activeProp?.Id;
-            if (activeId) {
-              await api.proposals.update(activeId, proposalPayload);
-              finalPropId = activeId;
-            } else {
-              throw createErr;
-            }
-          } else {
-            throw createErr;
-          }
+          throw createErr;
         }
       }
 
@@ -1144,12 +1207,13 @@ Please use this background information to write a personalized and highly releva
       />
 
       <div
-        className={`grid grid-cols-1 ${showAIPlanner ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
+        className={`grid grid-cols-1 ${showAIPlanner ? "items-start gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}
       >
         <div
           className={showAIPlanner ? "lg:col-span-7 flex flex-col" : "w-full"}
         >
           <form
+            ref={proposalFormRef}
             onSubmit={handleSubmit}
             className="space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5"
           >
@@ -1171,7 +1235,7 @@ Please use this background information to write a personalized and highly releva
                 padding="lg"
                 actions={
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground">{form.professionalIntro.length}/3000 (Min 10)</span>
+                    <span className="text-xs text-muted-foreground">{form.professionalIntro.length}/3000</span>
                     <button
                       type="button"
                       onClick={handleGenerateIntro}
@@ -1226,7 +1290,6 @@ Please use this background information to write a personalized and highly releva
                     e.target.style.height = `${e.target.scrollHeight}px`;
                     updateField("professionalIntro", e.target.value);
                   }}
-                  minLength={10}
                   maxLength={3000}
                   rows={5}
                   placeholder="Introduce yourself - your experience, background, relevant skills, and why you are the best fit for this project."
@@ -1359,12 +1422,28 @@ Please use this background information to write a personalized and highly releva
                                         placeholder="Auto"
                                         title="Leave empty for AI to decide automatically"
                                         value={minitaskCounts[uc.id] || ""}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          const rawValue = e.target.value;
+                                          const nextValue =
+                                            rawValue === ""
+                                              ? ""
+                                              : String(
+                                                  Math.min(
+                                                    20,
+                                                    Math.max(
+                                                      1,
+                                                      Number.parseInt(
+                                                        rawValue,
+                                                        10,
+                                                      ) || 1,
+                                                    ),
+                                                  ),
+                                                );
                                           setMinitaskCounts((prev) => ({
                                             ...prev,
-                                            [uc.id]: e.target.value,
-                                          }))
-                                        }
+                                            [uc.id]: nextValue,
+                                          }));
+                                        }}
                                         className="w-14 h-8 text-xs px-2 border border-border rounded-md bg-background focus:ring-1 focus:ring-brand-primary"
                                       />
                                     </div>
@@ -1810,21 +1889,20 @@ Please use this background information to write a personalized and highly releva
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-sm font-semibold text-foreground mb-2">
-                            Total Bid Amount ($){" "}
+                            Total Bid Amount (VND){" "}
                             <span className="text-destructive">*</span>
                           </label>
                           <div className="text-xs text-muted-foreground mb-1">
                             Auto-computed from tasks:{" "}
-                            {totalBid.toLocaleString()}
+                            {formatCurrency(totalBid)}
                           </div>
-                          <input
-                            type="number"
+                          <MoneyInput
                             min="1"
                             value={form.bidAmount}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               updateField(
                                 "bidAmount",
-                                Math.max(0, Number(e.target.value) || 0),
+                                Math.max(0, Number(value) || 0),
                               )
                             }
                             className="w-full px-4 py-2.5 border border-input rounded-xl bg-card text-foreground text-sm font-medium focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary focus:outline-none"
@@ -1888,10 +1966,10 @@ Please use this background information to write a personalized and highly releva
                               Proposed budget exceeds baseline
                             </p>
                             <p className="text-xs text-destructive mt-0.5">
-                              Your bid amount ({finalBid.toLocaleString()} USD)
+                              Your bid amount ({formatCurrency(finalBid)})
                               exceeds the client's budget (
-                              {clientBudget.toLocaleString()} USD) by{" "}
-                              {Math.abs(budgetDeviation).toLocaleString()} USD.
+                              {formatCurrency(clientBudget)}) by{" "}
+                              {formatCurrency(Math.abs(budgetDeviation))}.
                             </p>
                           </div>
                         </div>
@@ -1960,8 +2038,11 @@ Please use this background information to write a personalized and highly releva
         </div>
 
         {showAIPlanner && (
-          <aside className="lg:sticky lg:top-20 lg:col-span-3 lg:self-start">
-            <div className="h-[min(48rem,calc(100vh-7rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          <aside ref={aiPanelAnchorRef} className="lg:col-span-3 lg:min-h-[28rem]">
+            <div
+              style={aiPanelStyle || undefined}
+              className="h-[min(56rem,calc(100vh-5.75rem))] min-h-[34rem] bg-card rounded-2xl border border-border shadow-sm overflow-hidden lg:h-auto lg:min-h-0"
+            >
               <AIPlannerPanel
                 onClose={handleCloseAI}
                 projectInfo={{

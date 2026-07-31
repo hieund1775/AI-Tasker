@@ -17,12 +17,7 @@ export function EditClientProfile() {
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
-    companyName: "",
     phone: "",
-    location: "",
-    website: "",
-    industry: "",
-    bio: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -46,12 +41,7 @@ export function EditClientProfile() {
           setFormData({
             fullName: apiData.fullName,
             email: localProfile.email || apiData.email,
-            companyName: localProfile.companyName || "",
             phone: localProfile.phone || apiData.phone,
-            location: localProfile.location || "",
-            website: localProfile.website || "",
-            industry: localProfile.industry || "",
-            bio: localProfile.bio || "",
           });
         }
       })
@@ -80,16 +70,11 @@ export function EditClientProfile() {
       // 2. Save remaining profile fields to localStorage
       saveLocalClientProfile(authUser.id, {
         email: formData.email.trim(),
-        companyName: formData.companyName.trim(),
         phone: formData.phone.trim(),
-        location: formData.location.trim(),
-        website: formData.website.trim(),
-        industry: formData.industry.trim(),
-        bio: formData.bio.trim(),
       });
 
-      // 3. Update fullName in auth localStorage
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      // 3. Update current tab auth session only
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.fullName.trim();
@@ -97,9 +82,6 @@ export function EditClientProfile() {
         u.email = formData.email.trim();
         u.phoneNumber = formData.phone.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
         window.dispatchEvent(new Event("aitasker_auth_sync"));
       }
 
@@ -148,11 +130,7 @@ export function EditClientProfile() {
         {[
           { key: "fullName", label: "Full Name", type: "text", required: true },
           { key: "email", label: "Email Address", type: "email", required: true },
-          { key: "companyName", label: "Company Name", type: "text", required: true },
           { key: "phone", label: "Phone Number", type: "tel", required: true, pattern: "^0[0-9]{9}$" },
-          { key: "location", label: "Location", type: "text" },
-          { key: "website", label: "Website", type: "url" },
-          { key: "industry", label: "Industry", type: "text" },
         ].map(({ key, label, type, required, pattern }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
@@ -169,18 +147,6 @@ export function EditClientProfile() {
             />
           </div>
         ))}
-
-        <div>
-          <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Bio / About
-          </label>
-          <textarea
-            value={formData.bio}
-            onChange={(e) => handleChange("bio", e.target.value)}
-            rows={4}
-            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
-          />
-        </div>
 
         <div className="flex gap-3 pt-2">
           <button
