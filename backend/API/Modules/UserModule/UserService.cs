@@ -653,8 +653,30 @@ public class UserService : IUserService
 
         await _context.SaveChangesAsync();
 
-        // TODO: Gửi email cho user chứa link reset password với resetToken
-        // Trong dev mode, trả về token để test trực tiếp
+        // Gửi email chứa mã reset password cho người dùng
+        var emailSubject = "Yêu cầu đặt lại mật khẩu AI-Tasker";
+        var emailBody = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;'>
+                <h2 style='color: #2c3e50; text-align: center;'>Đặt lại mật khẩu tài khoản AI-Tasker</h2>
+                <p>Xin chào <strong>{user.FullName}</strong>,</p>
+                <p>Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản email <strong>{normalizedEmail}</strong>.</p>
+                <p>Vui lòng sử dụng mã xác thực bên dưới để hoàn tất việc đặt lại mật khẩu:</p>
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 2px; border: 1px dashed #3498db; color: #2c3e50;'>
+                    {resetToken}
+                </div>
+                <p style='color: #e74c3c; font-size: 13px; margin-top: 20px;'>⚠️ Mã xác thực này có hiệu lực trong vòng <strong>15 phút</strong> và chỉ sử dụng được 1 lần.</p>
+                <p style='color: #7f8c8d; font-size: 12px; margin-top: 30px;'>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.</p>
+            </div>";
+
+        try
+        {
+            await _emailService.SendEmailAsync(normalizedEmail, emailSubject, emailBody);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EmailError] Failed to send forgot password email: {ex.Message}");
+        }
+
         return (true, resetToken, null);
     }
 
