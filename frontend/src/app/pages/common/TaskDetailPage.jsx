@@ -830,7 +830,7 @@ export default function TaskDetailPage() {
                         setProductFileObject(null);
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-warning-light text-primary-foreground hover:bg-warning font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 border border-brand-primary/45 bg-brand-primary-light text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
                       {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
