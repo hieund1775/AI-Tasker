@@ -54,6 +54,7 @@ export default function ExpertProjectDetail() {
     loading,
     error,
     overallProgress,
+    focusTaskId,
     handleToggleMiniTask,
     handleSubmitProjectFinalWork,
     retry,
@@ -1027,11 +1028,13 @@ export default function ExpertProjectDetail() {
             overallProgress={overallProgress}
             role="expert"
             projectId={currentProjectId}
+            focusTaskId={focusTaskId}
             onToggleMiniTask={(taskId, miniTaskId) =>
               handleToggleMiniTask(taskId, miniTaskId)
             }
             loading={false}
             readOnly={isDisputed}
+            project={project}
           />
         </AnimatedReveal>
       </div>

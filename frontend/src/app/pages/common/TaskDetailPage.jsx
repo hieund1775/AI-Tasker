@@ -189,17 +189,20 @@ export default function TaskDetailPage() {
       });
       if (success) {
         toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+          replace: true,
+        });
       } else {
         toast.error("Failed to submit evidence.");
       }
       setShowEvidenceModal(false);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Failed to submit evidence.");
     } finally {
       setEvidenceSubmitting(false);
     }
-  }, [taskId, handleSubmitHandoverEvidence]);
+  }, [taskId, role, projectId, navigate, handleSubmitHandoverEvidence]);
 
   // ---- Handlers ----
 

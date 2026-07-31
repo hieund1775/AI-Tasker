@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
@@ -42,6 +42,7 @@ export default function ClientProjectDetail() {
   const currentProjectId = projectId || id;
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const {
     project,
@@ -50,6 +51,7 @@ export default function ClientProjectDetail() {
     loading,
     error,
     overallProgress,
+    focusTaskId,
     handleToggleMiniTask,
     handleAcceptProjectFinalDelivery,
     handleDeclineProjectFinalDelivery,
@@ -1482,6 +1484,7 @@ export default function ClientProjectDetail() {
             overallProgress={overallProgress}
             role="client"
             projectId={currentProjectId}
+            focusTaskId={focusTaskId || searchParams.get("focusTaskId")}
             onToggleMiniTask={() => { }} // Client cannot toggle
             loading={false}
             readOnly={isLocked}
