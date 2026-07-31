@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Eye, EyeOff, ArrowLeft, Mail, CheckCircle, X, Sun, Moon, Monitor } from "lucide-react";
+import { Eye, EyeOff, X, Sun, Moon, Monitor } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useTheme } from "next-themes";
 import { rememberPendingTheme } from "../../lib/themePreference.js";
-import { forgotPassword } from "../../../services/authService";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -17,12 +16,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-  const [view, setView] = useState("login");
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetSubmitted, setResetSubmitted] = useState(false);
-  const [resetError, setResetError] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,28 +64,6 @@ export function LoginPage() {
       setError(err.message || "Login failed. Please check your credentials.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleResetSubmit = async (e) => {
-    e.preventDefault();
-    setResetError("");
-    if (!resetEmail.trim()) {
-      setResetError("Please enter your email address.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail.trim())) {
-      setResetError("Please enter a valid email address.");
-      return;
-    }
-    setResetLoading(true);
-    try {
-      await forgotPassword(resetEmail.trim());
-      setResetSubmitted(true);
-    } catch (err) {
-      setResetError(err.message || "Failed to send reset link. Please try again.");
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -151,88 +122,7 @@ export function LoginPage() {
             </Link>
           </div>
 
-          {view === "forgotPassword" ? (
-            <div>
-              <h2 className="text-xl font-semibold text-foreground text-center tracking-tight">
-                Forgot Password
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground text-center">
-                {resetSubmitted
-                  ? "Check your email for reset instructions."
-                  : "Enter your email to receive a password reset link."}
-              </p>
-              {resetSubmitted ? (
-                <div className="text-center mt-8">
-                  <div className="w-14 h-14 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <CheckCircle className="w-7 h-7 text-success" />
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    If an account with{" "}
-                    <span className="font-medium text-foreground">
-                      {resetEmail}
-                    </span>{" "}
-                    exists, password reset instructions will be sent.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setView("login");
-                      setResetSubmitted(false);
-                      setResetEmail("");
-                      setResetError("");
-                    }}
-                    className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-hover transition-colors"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleResetSubmit} className="space-y-5 mt-8">
-                  {resetError && (
-                    <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg text-sm text-destructive">
-                      {resetError}
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1.5">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-                      <input
-                        type="email"
-                        value={resetEmail}
-                        onChange={(e) => setResetEmail(e.target.value)}
-                        className="w-full h-10 pl-10 pr-4 text-sm border border-border rounded-lg bg-transparent outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 placeholder:text-muted-foreground/50"
-                        placeholder="your@email.com"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={resetLoading}
-                    className="w-full h-10 bg-primary text-primary-foreground rounded-lg hover:bg-primary-hover font-medium text-sm transition-colors flex items-center justify-center disabled:opacity-50"
-                  >
-                    {resetLoading ? "Sending..." : "Send Reset Link"}
-                  </button>
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setView("login");
-                        setResetError("");
-                      }}
-                      className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ArrowLeft className="w-3.5 h-3.5" /> Back to Login
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          ) : (
-            <div>
+          <div>
               <h2 className="text-xl font-semibold text-foreground text-center tracking-tight">
                 Welcome Back
               </h2>
@@ -295,13 +185,12 @@ export function LoginPage() {
                     <input type="checkbox" className="rounded border-border accent-accent" />
                     <span className="text-sm text-muted-foreground">Remember me</span>
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setView("forgotPassword")}
+                  <Link
+                    to="/forgot-password"
                     className="text-sm text-accent hover:text-accent-hover bg-transparent border-none p-0 cursor-pointer font-medium"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
                 <button
                   type="submit"
@@ -322,8 +211,7 @@ export function LoginPage() {
                   </Link>
                 </p>
               </div>
-            </div>
-          )}
+          </div>
         </div>
       </motion.div>
     </div>

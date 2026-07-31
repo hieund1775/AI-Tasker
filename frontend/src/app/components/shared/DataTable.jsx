@@ -72,7 +72,7 @@ export function DataTable({
   const activeFilterCount = Object.keys(colFilters).length;
   const getAllFilterLabel = (label) => {
     const labels = {
-      Status: "All Statuses",
+      Status: "All",
       Role: "All Roles",
       "Dispute Type": "All Dispute Types",
       Category: "All Categories",
