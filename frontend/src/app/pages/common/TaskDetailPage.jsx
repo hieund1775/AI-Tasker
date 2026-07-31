@@ -312,6 +312,26 @@ export default function TaskDetailPage() {
     }
   }, [taskId, projectId, handleApproveTask, project, client, task]);
 
+  const handleQuickAcceptClick = useCallback(async () => {
+    setApproveLoading(true);
+    try {
+      const success = await handleQuickAccept(taskId);
+      if (success) {
+        toast.success("Task accepted! (Quick Accept)");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+          replace: true,
+        });
+      } else {
+        toast.error("Failed to accept task.");
+      }
+    } catch (err) {
+      toast.error("Failed to accept task.");
+    } finally {
+      setApproveLoading(false);
+    }
+  }, [taskId, role, projectId, navigate, handleQuickAccept]);
+
   const handleRevisionClick = useCallback(async () => {
     if (!revisionFeedback.trim()) {
       toast.error("Please provide feedback for the revision request.");
@@ -879,22 +899,7 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={async () => {
-                        setApproveLoading(true);
-                        try {
-                          const success = await handleQuickAccept(taskId);
-                          if (success) {
-                            toast.success("Task accepted! (Quick Accept)");
-                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-                          } else {
-                            toast.error("Failed to accept task.");
-                          }
-                        } catch (err) {
-                          toast.error("Failed to accept task.");
-                        } finally {
-                          setApproveLoading(false);
-                        }
-                      }}
+                      onClick={handleQuickAcceptClick}
                       icon={!approveLoading ? ThumbsUp : undefined}
                       className="flex-1 cursor-pointer font-semibold bg-brand-green hover:bg-brand-green/90 text-primary-foreground border-brand-green"
                     >

@@ -17,6 +17,7 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { VisaWithdrawalFields, emptyVisaWithdrawalCard, isValidVisaWithdrawalCard } from "../../components/wallet/VisaWithdrawalFields.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notifyEscrowFunded } from "../../../services/notificationHelper.js";
@@ -189,6 +190,7 @@ export function Billing() {
   // Withdrawal
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawCard, setWithdrawCard] = useState(emptyVisaWithdrawalCard);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
 
   const handleTransactionSort = (key) => {
@@ -768,16 +770,25 @@ export function Billing() {
     e.preventDefault();
     const amount = Number(withdrawAmount);
     if (!amount || amount <= 0 || amount > (data?.wallet?.balance || 0)) return;
+    if (!isValidVisaWithdrawalCard(withdrawCard)) {
+      setFeedback({ type: "error", message: "Please enter valid Visa card details before withdrawing." });
+      return;
+    }
 
     setWithdrawLoading(true);
     setFeedback(null);
     try {
       const resolvedUserId = user?.id || user?.Id;
-      const res = await api.payments.withdraw(resolvedUserId, amount);
+      const res = await api.payments.withdraw(resolvedUserId, amount, {
+        bankCode: withdrawCard.bankCode,
+        cardNumber: withdrawCard.cardNumber.replace(/\D/g, ""),
+        cardHolderName: withdrawCard.cardHolderName.trim(),
+      });
 
       setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
+      setWithdrawCard(emptyVisaWithdrawalCard);
 
       try {
         localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
@@ -793,6 +804,7 @@ export function Billing() {
       });
       setShowWithdrawModal(false);
       setWithdrawAmount("");
+      setWithdrawCard(emptyVisaWithdrawalCard);
     } finally {
       setWithdrawLoading(false);
     }
@@ -1346,10 +1358,16 @@ export function Billing() {
                   required
                 />
               </div>
+              <VisaWithdrawalFields
+                amount={withdrawAmount}
+                balance={data?.wallet?.balance || 0}
+                card={withdrawCard}
+                onChange={setWithdrawCard}
+              />
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
+                  disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0) || !isValidVisaWithdrawalCard(withdrawCard)}
                   className="flex-1 h-10 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {withdrawLoading ? "Processing..." : "Withdraw"}
@@ -1359,6 +1377,7 @@ export function Billing() {
                   onClick={() => {
                     setShowWithdrawModal(false);
                     setWithdrawAmount("");
+                    setWithdrawCard(emptyVisaWithdrawalCard);
                   }}
                   className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >

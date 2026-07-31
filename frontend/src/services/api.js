@@ -746,9 +746,12 @@ export const api = {
       }),
     releaseEscrow: (data) =>
       post(`/Projects/${data.projectId}/release-payment`),
-    withdraw: (userId, amount) =>
+    withdraw: (userId, amount, extraData = {}) =>
       post(`/users/${userId}/withdraw`, {
-        amount: Number(amount)
+        amount: Number(amount),
+        bankCode: extraData.bankCode || "VISA (ZaloPay)",
+        cardNumber: extraData.cardNumber || extraData.bankAccountNumber || "",
+        cardHolderName: extraData.cardHolderName || extraData.bankAccountName || "",
       }),
     // ZaloPay create-order: returns { orderUrl } to redirect to ZaloPay page
     createPaymentOrder: (userId, amount) =>
