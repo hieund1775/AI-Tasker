@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon } from "lucide-react";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
@@ -51,6 +52,7 @@ function formatFileSize(bytes) {
  */
 export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [sizeError, setSizeError] = useState("");
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
 
@@ -92,6 +94,12 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
 
       const droppedFiles = Array.from(e.dataTransfer.files || []);
       if (droppedFiles.length === 0) return;
+      const validation = validateUploadFiles(droppedFiles);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        return;
+      }
+      setSizeError("");
 
       onFilesChange([...files, ...droppedFiles]);
     },
@@ -106,6 +114,13 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
     (e) => {
       const selected = Array.from(e.target.files || []);
       if (selected.length === 0) return;
+      const validation = validateUploadFiles(selected);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        e.target.value = "";
+        return;
+      }
+      setSizeError("");
       onFilesChange([...files, ...selected]);
       e.target.value = "";
     },
@@ -158,7 +173,9 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
             ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
             ${isDragging
               ? "border-brand-primary bg-brand-primary-light/30"
-              : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
+              : sizeError
+                ? "border-destructive/35 bg-destructive-light"
+                : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
             }
           `}
         >
@@ -174,6 +191,10 @@ export function AIFileUploadZone({ files = [], onFilesChange, disabled = false }
             PDF, DOCX, TXT, Images - Requirements
           </p>
         </div>
+      )}
+
+      {sizeError && (
+        <p className="text-[11px] font-medium text-destructive">{sizeError}</p>
       )}
 
       {/* File list - compact */}

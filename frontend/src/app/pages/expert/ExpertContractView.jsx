@@ -15,6 +15,7 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 /**
  * ExpertContractView - Expert views a contract in read-only mode.
@@ -62,7 +63,7 @@ export function ExpertContractView() {
         if (contractRes.clientId) {
           try {
             const cli = await api.users.getById(contractRes.clientId);
-            setClient(cli);
+            setClient(buildClientProfileFromUser(cli));
           } catch {
             console.warn("Failed to load client for contract");
           }

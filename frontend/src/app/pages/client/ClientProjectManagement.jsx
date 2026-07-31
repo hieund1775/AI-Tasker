@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
@@ -31,6 +31,7 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 // =============================================================================
 // ClientProjectManagement - client-side project progress management page.
@@ -42,6 +43,7 @@ export default function ClientProjectDetail() {
   const currentProjectId = projectId || id;
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const {
     project,
@@ -50,6 +52,7 @@ export default function ClientProjectDetail() {
     loading,
     error,
     overallProgress,
+    focusTaskId,
     handleToggleMiniTask,
     handleAcceptProjectFinalDelivery,
     handleDeclineProjectFinalDelivery,
@@ -82,6 +85,14 @@ export default function ClientProjectDetail() {
   const handleEvidenceFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const validation = validateUploadFiles([file]);
+    if (!validation.valid) {
+      toast.error(getFileSizeErrorMessage(file));
+      setEvidenceFileName("");
+      setEvidenceFile(null);
+      e.target.value = "";
+      return;
+    }
     setIsUploadingEvidence(true);
     try {
       const formData = new FormData();
@@ -1290,8 +1301,8 @@ export default function ClientProjectDetail() {
                                 <Star
                                   className={`w-6 h-6 transition-all ${
                                     starValue <= (hoverRating || rating)
-                                      ? "fill-warning text-warning"
-                                      : "text-muted hover:text-warning"
+                                      ? "fill-warning text-warning drop-shadow-sm"
+                                      : "text-warning/45 hover:fill-warning/20 hover:text-warning"
                                   }`}
                                 />
                               </button>
@@ -1466,7 +1477,7 @@ export default function ClientProjectDetail() {
               {(project.status === "completed" || project.status === "payment_released") && (
                 <button
                   disabled
-                  className="h-10 px-4 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
+                  className="h-10 px-4 bg-success text-success-foreground border border-success rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2 shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Payment Released
                 </button>
@@ -1482,6 +1493,7 @@ export default function ClientProjectDetail() {
             overallProgress={overallProgress}
             role="client"
             projectId={currentProjectId}
+            focusTaskId={focusTaskId || searchParams.get("focusTaskId")}
             onToggleMiniTask={() => { }} // Client cannot toggle
             loading={false}
             readOnly={isLocked}
@@ -1758,37 +1770,53 @@ export default function ClientProjectDetail() {
         const expertPayout = penaltyFee + progressAmount;
         const clientRefund = contractAmount - platformFee - penaltyFee - progressAmount;
         return (
-          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-            <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm transition-all animate-fade-in">
+            <div className="bg-card rounded-2xl border border-destructive/25 shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
               {/* Header */}
-              <div className={`flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border ${cancelAttemptCount >= 1 ? "bg-warning-light border-warning/20" : ""}`}>
-                <div className={`p-2 rounded-lg ${cancelAttemptCount >= 1 ? "bg-warning-light text-warning" : "bg-destructive-light text-destructive"}`}>
+              <div className={`flex items-start gap-3 px-6 py-5 border-b ${cancelAttemptCount >= 1 ? "bg-warning-light/80 border-warning/25" : "bg-destructive-light/75 border-destructive/25"}`}>
+                <div className={`mt-0.5 p-2.5 rounded-xl ring-1 ring-inset ${cancelAttemptCount >= 1 ? "bg-card/70 text-warning ring-warning/25" : "bg-card/70 text-destructive ring-destructive/25"}`}>
                   <Ban className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h3 className={`text-lg font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract"}
                   </h3>
-                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-warning/80" : "text-muted-foreground"}`}>
+                  <p className={`text-sm mt-1 font-medium leading-relaxed font-sans ${cancelAttemptCount >= 1 ? "text-warning/85" : "text-muted-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract & split escrow based on progress"}
                   </p>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="p-6 space-y-4 text-sm font-sans">
-                <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-xl">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Total Escrow:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
-                  <div className="border-t border-border my-2" />
-                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
-                  <div className="border-t border-border my-2" />
-                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">Payment to Expert:</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
-                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">You receive (minus 15% fee):</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefund} /></span></div>
+              <div className="p-6 space-y-5 text-sm font-sans">
+                <div className="grid grid-cols-1 gap-3 rounded-2xl border border-border bg-secondary/35 p-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-border bg-card/80 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Escrow</span>
+                    <span className="mt-1 block text-base font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span>
+                  </div>
+                  <div className="rounded-xl border border-border bg-card/80 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Current Progress</span>
+                    <span className="mt-1 block text-base font-semibold text-foreground">{overallProgress}%</span>
+                  </div>
+                  <div className="rounded-xl border border-warning/25 bg-warning-light/50 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Platform Fee</span>
+                    <span className="mt-1 block text-base font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span>
+                  </div>
+                  <div className="rounded-xl border border-destructive/25 bg-destructive-light/60 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cancellation Penalty</span>
+                    <span className="mt-1 block text-base font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span>
+                  </div>
+                  <div className="rounded-xl border border-warning/25 bg-warning-light/45 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment to Expert</span>
+                    <span className="mt-1 block text-lg font-semibold text-warning"><MoneyDisplay amount={expertPayout} /></span>
+                  </div>
+                  <div className="rounded-xl border border-success/25 bg-success-light/50 p-3">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">You Receive</span>
+                    <span className="mt-1 block text-lg font-semibold text-success"><MoneyDisplay amount={clientRefund} /></span>
+                  </div>
                 </div>
 
-                <div className="p-3 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-xs">
+                <div className="rounded-xl border border-destructive/25 bg-destructive-light/70 px-4 py-3 text-sm font-medium leading-relaxed text-destructive">
                   After cancellation, the project will be closed and cannot be continued. This action cannot be undone.
                 </div>
 
@@ -1801,7 +1829,7 @@ export default function ClientProjectDetail() {
                     placeholder="Why do you want to cancel this contract?"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive/35 text-foreground text-sm"
+                    className="w-full p-3.5 border border-input rounded-xl bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-destructive/20 focus:border-destructive/45"
                   />
                 </div>
 
@@ -1818,7 +1846,7 @@ export default function ClientProjectDetail() {
                   />
 
                   {evidenceFile ? (
-                    <div className="flex items-center justify-between p-3 bg-secondary/50 border border-border rounded-xl">
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 border border-accent/25 rounded-xl">
                       <div className="flex items-center gap-2.5 overflow-hidden">
                         <Paperclip className="w-4 h-4 text-accent flex-shrink-0" />
                         <div className="truncate">
@@ -1843,7 +1871,7 @@ export default function ClientProjectDetail() {
                       type="button"
                       disabled={isUploadingEvidence}
                       onClick={() => evidenceFileInputRef.current?.click()}
-                      className="w-full p-3 border border-dashed border-input rounded-xl hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      className="w-full p-4 border border-dashed border-accent/35 rounded-xl bg-accent-light/35 hover:bg-accent-light/60 text-accent hover:text-accent-hover text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
                     >
                       {isUploadingEvidence ? (
                         <span className="animate-pulse">Uploading evidence file...</span>
@@ -1859,7 +1887,7 @@ export default function ClientProjectDetail() {
               </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-end gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans">
+              <div className="flex flex-col-reverse gap-3 px-6 py-4 bg-secondary/60 border-t border-border font-sans sm:flex-row sm:items-center sm:justify-end">
                 <button
                   type="button"
                   disabled={cancelLoading}
@@ -1869,7 +1897,7 @@ export default function ClientProjectDetail() {
                     setEvidenceFileName("");
                     setEvidenceFile(null);
                   }}
-                  className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
+                  className="h-10 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
                   Close
                 </button>
@@ -1877,7 +1905,7 @@ export default function ClientProjectDetail() {
                   type="button"
                   disabled={cancelLoading}
                   onClick={report?.status === "Returned" ? handleInitiatorRespondRejection : handleCancelContractInit}
-                  className="px-5 py-2 bg-destructive hover:bg-destructive disabled:bg-destructive/45 text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  className="h-10 px-5 bg-destructive hover:bg-destructive/90 disabled:bg-destructive/45 text-destructive-foreground rounded-lg font-semibold text-sm transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {cancelLoading ? "Processing..." : "Confirm Cancellation"}
                 </button>
@@ -1901,7 +1929,7 @@ export default function ClientProjectDetail() {
                         <button
                           type="button"
                           onClick={handleConfirmCancellationSend}
-                          className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                          className="px-4 py-1.5 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
                         >
                           Agree (Accept)
                         </button>

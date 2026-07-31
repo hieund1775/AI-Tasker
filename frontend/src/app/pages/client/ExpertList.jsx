@@ -4,6 +4,7 @@ import { Search, Star, MapPin, SlidersHorizontal, X } from "lucide-react";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { Button } from "../../components/ui/button.jsx";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
@@ -545,9 +546,9 @@ export function ExpertList() {
                   <span className="text-muted-foreground/60">-</span>
                   <span className="text-sm text-muted-foreground">
                     <span className="font-semibold text-foreground">
-                      {expert.hourlyRate}
+                      {formatCurrency(expert.hourlyRate)}
                     </span>{" "}
-                    USD/hr
+                    /hr
                   </span>
                 </div>
               </div>

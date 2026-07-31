@@ -33,6 +33,8 @@ export function Header() {
   const { role, isAuthenticated, logout, user } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const userThemeKey = user?.id || user?.Id || user?.email || user?.Email || null;
+  const isProfileLockedExpert =
+    isAuthenticated && role === "expert" && user?.hasProfile === false;
 
   const handleThemeChange = (mode) => {
     if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, mode);
@@ -56,6 +58,11 @@ export function Header() {
 
   // Load notifications from API
   useEffect(() => {
+    if (isProfileLockedExpert) {
+      setNotifications([]);
+      return;
+    }
+
     if (isAuthenticated && user?.id) {
       let stopped = false;
       let retryAfter = 0;
@@ -118,7 +125,7 @@ export function Header() {
     } else {
       setNotifications([]);
     }
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, isProfileLockedExpert, location.pathname]);
 
   const unreadCount = notifications.filter((n) => n.isUnread).length;
 
@@ -181,18 +188,20 @@ export function Header() {
   };
 
   const currentRoleMeta = roleMeta[role] || null;
-  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : null;
+  const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : role === "owner" ? "/owner/wallet" : null;
 
   // Common nav link style
-  const navLinkClass = "inline-flex h-12 min-w-[11.25rem] items-center justify-center rounded-xl px-8 text-lg font-semibold text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
-  const activeNavClass = "inline-flex h-12 min-w-[11.25rem] items-center justify-center rounded-xl bg-secondary px-8 text-lg font-bold text-foreground shadow-inner shadow-foreground/[0.025]";
+  const navLinkClass = "inline-flex h-11 min-w-[10.75rem] items-center justify-center rounded-xl px-7 text-base font-semibold text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground lg:text-lg";
+  const activeNavClass = "inline-flex h-11 min-w-[10.75rem] items-center justify-center rounded-xl bg-secondary px-7 text-base font-bold text-foreground shadow-inner shadow-foreground/[0.025] lg:text-lg";
+  const mobileNavLinkClass = "flex h-11 items-center rounded-xl px-4 text-base font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground";
+  const mobileActiveNavClass = "flex h-11 items-center rounded-xl bg-secondary px-4 text-base font-bold text-foreground";
 
   return (
-    <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
-      <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)]">
-        <div className="flex h-[4.75rem] items-center justify-between gap-5">
+    <header className="fixed inset-x-0 top-0 z-50 bg-background/92 backdrop-blur-xl border-b border-border/70 select-none shadow-sm shadow-foreground/[0.025] dark:bg-background/94">
+      <div className="w-full px-3 sm:px-4 lg:px-5">
+        <div className="flex h-[4.75rem] items-center justify-between gap-4">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+          <Link to={isProfileLockedExpert ? "/expert/profile/edit" : "/"} className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-primary-foreground font-bold text-base">AI</span>
             </div>
@@ -208,8 +217,8 @@ export function Header() {
           </Link>
 
           {/* Navigation Link Items - desktop only */}
-          {isAuthenticated && role && (
-            <nav className="hidden flex-1 items-center justify-center gap-12 md:flex">
+          {isAuthenticated && role && !isProfileLockedExpert && (
+            <nav className="hidden flex-1 items-center justify-center gap-6 md:flex lg:gap-8 xl:gap-10">
               {role !== "admin" && role !== "owner" && role !== "staff" && (
                 <Link
                   to={`/${role}/dashboard`}
@@ -249,6 +258,12 @@ export function Header() {
           <div className="flex items-center gap-2.5">
             {isAuthenticated ? (
               <>
+                {isProfileLockedExpert && (
+                  <div className="hidden rounded-xl border border-warning/25 bg-warning-light px-3 py-2 text-sm font-semibold text-warning sm:block">
+                    Complete your expert profile to continue
+                  </div>
+                )}
+
                 {/* Theme Toggle Dropdown */}
                 <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
                   <button
@@ -298,6 +313,7 @@ export function Header() {
                 </div>
 
                 {/* Notification Bell */}
+                {!isProfileLockedExpert && (
                 <div className="relative flex items-center justify-center" ref={dropdownRef}>
                   <button
                     type="button"
@@ -385,9 +401,10 @@ export function Header() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Wallet shortcut */}
-                {walletPath && (
+                {walletPath && !isProfileLockedExpert && (
                   <Link
                     to={walletPath}
                     className="relative flex items-center justify-center rounded-xl p-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
@@ -428,12 +445,12 @@ export function Header() {
                       </div>
                       <div className="p-1.5">
                         <Link
-                          to={`/${role}/profile`}
+                          to={isProfileLockedExpert ? "/expert/profile/edit" : `/${role}/profile`}
                           onClick={() => setShowAccountMenu(false)}
                           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                         >
                           <User className="h-4 w-4 text-muted-foreground" />
-                          <span>Profile</span>
+                          <span>{isProfileLockedExpert ? "Complete Profile" : "Profile"}</span>
                         </Link>
                       </div>
                       <div className="border-t border-border p-1.5">
@@ -480,6 +497,49 @@ export function Header() {
           </div>
         </div>
       </div>
+
+      {showMobileMenu && isAuthenticated && role && !isProfileLockedExpert && (
+        <div ref={mobileMenuRef} className="border-t border-border/70 bg-background/96 px-3 py-3 shadow-lg md:hidden">
+          <nav className="space-y-2">
+            {role !== "admin" && role !== "owner" && role !== "staff" && (
+              <Link
+                to={`/${role}/dashboard`}
+                onClick={() => setShowMobileMenu(false)}
+                className={location.pathname === `/${role}/dashboard` ? mobileActiveNavClass : mobileNavLinkClass}
+              >
+                Dashboard
+              </Link>
+            )}
+            {role === "client" && (
+              <Link
+                to="/client/experts"
+                onClick={() => setShowMobileMenu(false)}
+                className={location.pathname.startsWith("/client/experts") ? mobileActiveNavClass : mobileNavLinkClass}
+              >
+                Find Experts
+              </Link>
+            )}
+            {role === "expert" && (
+              <Link
+                to="/expert/proposals"
+                onClick={() => setShowMobileMenu(false)}
+                className={location.pathname.startsWith("/expert/proposals") ? mobileActiveNavClass : mobileNavLinkClass}
+              >
+                My Proposals
+              </Link>
+            )}
+            {role !== "owner" && role !== "admin" && role !== "staff" && (
+              <Link
+                to="/messenger"
+                onClick={() => setShowMobileMenu(false)}
+                className={location.pathname.startsWith("/messenger") ? mobileActiveNavClass : mobileNavLinkClass}
+              >
+                Messages
+              </Link>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

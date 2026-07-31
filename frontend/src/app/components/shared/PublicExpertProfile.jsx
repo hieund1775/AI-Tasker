@@ -16,7 +16,9 @@ import {
   Calendar,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
-import { safeArray, safeNumberFormat } from "../../lib/safety.js";
+import { safeArray } from "../../lib/safety.js";
+import { MoneyDisplay } from "./MoneyDisplay.jsx";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notificationService } from "../../../services/notificationHelper.js";
 import { toast } from "sonner";
@@ -561,7 +563,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                   {expert.hourlyRate != null && (
                     <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                       <Clock className="w-4 h-4 text-muted-foreground" />
-                      ${expert.hourlyRate}/hr
+                      {formatCurrency(expert.hourlyRate)}/hr
                     </span>
                   )}
                 </div>
@@ -872,7 +874,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                     <div key={post.id} className="border border-border/60 rounded-xl p-3 flex flex-col justify-between gap-3 hover:border-brand-primary/20 transition-colors bg-secondary/50">
                       <div>
                         <h3 className="text-sm font-semibold text-foreground line-clamp-1">{post.title}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">Budget: {safeNumberFormat(post.budget)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Budget: <MoneyDisplay amount={post.budget} /></p>
                       </div>
                       <button
                         onClick={() => handleInvite(post)}

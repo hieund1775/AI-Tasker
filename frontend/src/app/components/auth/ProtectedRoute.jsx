@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 
 /**
@@ -20,7 +20,8 @@ import { useAuth } from "../../hooks/useAuth.js";
  *   </Route>
  */
 export function ProtectedRoute({ role, roles, children }) {
-  const { isAuthenticated, role: userRole, loading } = useAuth();
+  const location = useLocation();
+  const { isAuthenticated, role: userRole, user, loading } = useAuth();
 
   // While the AuthProvider is restoring session from localStorage,
   // show nothing (or a spinner). This prevents a flash of the login page.
@@ -51,14 +52,19 @@ export function ProtectedRoute({ role, roles, children }) {
 
   const normalizedUserRole = userRole?.toLowerCase();
 
+  const isIncompleteExpert =
+    normalizedUserRole === "expert" && user?.hasProfile === false;
+  const isExpertProfileSetupRoute = location.pathname === "/expert/profile/edit";
+
+  if (isIncompleteExpert && !isExpertProfileSetupRoute) {
+    return <Navigate to="/expert/profile/edit" replace />;
+  }
+
   // Role check - normalize to lowercase for case-insensitive comparison
   if (allowedRoles) {
     const allowedLower = allowedRoles.map((r) => r.toLowerCase());
     const isAllowed = allowedLower.includes(normalizedUserRole);
-    // EXCEPTION: Admin/Owner/Staff are authorized to inspect Client & Expert management routes
-    const isManagementOverride = ["owner", "admin", "staff"].includes(normalizedUserRole);
-
-    if (!isAllowed && !isManagementOverride) {
+    if (!isAllowed) {
       return <Navigate to="/unauthorized" replace />;
     }
   }

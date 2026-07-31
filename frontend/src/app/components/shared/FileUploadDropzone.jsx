@@ -1,5 +1,6 @@
 ﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon, AlertCircle } from "lucide-react";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
 const DEFAULT_ACCEPT_MIME = [
   "application/pdf",
@@ -81,6 +82,7 @@ export function FileUploadDropzone({
   helperText,
 }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [sizeError, setSizeError] = useState("");
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
 
@@ -131,6 +133,12 @@ export function FileUploadDropzone({
 
       const droppedFiles = Array.from(e.dataTransfer.files || []);
       if (droppedFiles.length === 0) return;
+      const validation = validateUploadFiles(droppedFiles);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        return;
+      }
+      setSizeError("");
 
       if (multiple) {
         const combined = [...files, ...droppedFiles];
@@ -150,6 +158,13 @@ export function FileUploadDropzone({
     (e) => {
       const selected = Array.from(e.target.files || []);
       if (selected.length === 0) return;
+      const validation = validateUploadFiles(selected);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        e.target.value = "";
+        return;
+      }
+      setSizeError("");
 
       if (multiple) {
         const combined = [...files, ...selected];
@@ -217,7 +232,7 @@ export function FileUploadDropzone({
             ${disabled || !canAddMore ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
             ${isDragging
               ? "border-brand-primary bg-brand-primary-light/30"
-              : error
+              : error || sizeError
                 ? "border-destructive/35 bg-destructive-light"
                 : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
             }
@@ -225,7 +240,7 @@ export function FileUploadDropzone({
         >
           <Upload
             className={`w-8 h-8 mx-auto mb-2 ${
-              isDragging ? "text-brand-primary" : error ? "text-destructive/55" : "text-muted-foreground/60"
+              isDragging ? "text-brand-primary" : error || sizeError ? "text-destructive/55" : "text-muted-foreground/60"
             }`}
           />
           <p className="text-sm font-semibold text-foreground/80">
@@ -248,15 +263,15 @@ export function FileUploadDropzone({
       )}
 
       {/* Error message */}
-      {error && (
+      {(error || sizeError) && (
         <p className="flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
-          {error}
+          {error || sizeError}
         </p>
       )}
 
       {/* Helper text */}
-      {helperText && !error && (
+      {helperText && !error && !sizeError && (
         <p className="text-xs text-muted-foreground">{helperText}</p>
       )}
 

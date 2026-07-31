@@ -83,7 +83,7 @@ function DashboardMockup() {
         {[
           ["Active", "12"],
           ["Done", "47"],
-          ["Budget", "$28K"],
+          ["Budget", "28.000.000 VND"],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-border bg-card p-3 text-center">
             <p className="text-sm font-semibold text-foreground">{value}</p>
@@ -165,7 +165,7 @@ function ShowcaseCard({ item, index }) {
       <BrowserFrame label={`ai-tasker.app/${item.type}`}>
         <MockupContent type={item.type} />
       </BrowserFrame>
-      <div className="mt-4 flex items-start gap-3">
+      <div className="mt-3 flex items-start gap-3">
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${item.bg} ${item.color}`}>
           <Icon className="h-5 w-5" />
         </div>
@@ -182,14 +182,14 @@ export function ProductShowcase() {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.2, triggerOnce: false });
 
   return (
-    <section className="relative overflow-hidden bg-background px-4 py-[var(--section-y)] sm:px-6 lg:px-8">
+    <section className="relative overflow-hidden bg-background px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
       <div className="relative mx-auto w-full max-w-[var(--layout-max)]">
         <motion.div
           ref={ref}
           initial={false}
           animate={isVisible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto mb-14 max-w-[44rem] text-center"
+          className="mx-auto mb-9 max-w-[44rem] text-center sm:mb-10"
         >
           <span className="mb-3 inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
             <BarChart3 className="h-3.5 w-3.5" />
@@ -203,14 +203,14 @@ export function ProductShowcase() {
           </p>
         </motion.div>
 
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {showcaseItems.map((item, index) => (
             <ShowcaseCard key={item.title} item={item} index={index} />
           ))}
         </div>
 
-        <div className="mt-12 rounded-xl border border-border bg-card p-5 shadow-sm md:p-6">
-          <div className="grid gap-4 md:grid-cols-4">
+        <div className="mt-8 rounded-xl border border-border bg-card p-5 shadow-sm md:p-6">
+          <div className="grid gap-3 md:grid-cols-4">
             {[
               { icon: Users, value: "500+", label: "AI experts" },
               { icon: BriefcaseIcon, value: "1,000+", label: "projects supported" },

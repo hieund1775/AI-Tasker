@@ -18,7 +18,7 @@ import { useAuth } from "../../hooks/useAuth.js";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import api from "../../../services/api.js";
 import { categoryTagService } from "../../../services/categoryTagService.js";
-import { safeNumberFormat } from "../../lib/safety.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 
 /**
  * Job Card - renders a scannable job listing card for the expert job board.
@@ -64,11 +64,7 @@ function ProjectCard({ job }) {
 
   const getBudgetFormatted = () => {
     if (!job.budget) return "N/A";
-    try {
-      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(job.budget));
-    } catch {
-      return String(job.budget);
-    }
+    return formatCurrency(job.budget);
   };
 
   // Match score - simulated from skills count vs total skills
@@ -376,7 +372,7 @@ export function JobList() {
             </p>
           </div>
           <Link
-            to="/expert/edit-profile"
+            to="/expert/profile/edit"
             className="whitespace-nowrap h-10 px-4 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
           >
             Create Profile
