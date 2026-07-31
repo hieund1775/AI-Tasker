@@ -1,12 +1,12 @@
-/**
+﻿/**
  * Currency formatting utilities.
  *
  * All functions in this module are for DISPLAY ONLY.
- * Form state must always store raw numbers — never formatted strings.
+ * Form state must always store raw numbers - never formatted strings.
  *
  * Usage:
  *   formatCurrency(5000)          // "$5,000.00" (en-US)
- *   formatCurrency(5000, "EUR")  // "€5,000.00"
+ *   formatCurrency(5000, "EUR")  // "EUR 5,000.00"
  *   formatCurrency(5000, "USD", "de-DE")  // "5.000,00 $" (German locale)
  */
 
@@ -58,7 +58,7 @@ export function formatCompactCurrency(amount, locale = "en-US") {
     return "";
   }
 
-  // Abbreviate large numbers: 5000 → "5K", 1500000 → "1.5M"
+  // Abbreviate large numbers: 5000 -> "5K", 1500000 -> "1.5M"
   if (num >= 1_000_000) {
     return `${(num / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   }
@@ -74,7 +74,7 @@ export function formatCompactCurrency(amount, locale = "en-US") {
 
 /**
  * Parse a currency string back to a number (for cleaning up user input).
- * Handles "$5,000.00", "5,000", "5000", "€1.234,56", etc.
+ * Handles "$5,000.00", "5,000", "5000", "EUR 1.234,56", etc.
  *
  * @param {string} value - Raw input that may contain currency symbols/formatting
  * @returns {number} Clean numeric value, or 0 if unparseable
@@ -87,15 +87,15 @@ export function parseCurrencyInput(value) {
   const str = String(value);
 
   // Remove currency symbols, whitespace
-  let cleaned = str.replace(/[$€£¥₩₹]/g, "").trim();
+  let cleaned = str.replace(/[$\u20ac\u00a3\u00a5\u20a9\u20b9]/g, "").trim();
 
   // Detect European format (e.g. "1.234,56" where comma is decimal separator)
   // If there's a comma followed by exactly 2 digits at the end, treat comma as decimal
   if (/,\d{2}$/.test(cleaned) && !/\.\d{2}$/.test(cleaned)) {
-    // European: "1.234,56" → remove grouping dots, then comma → decimal point
+    // European: "1.234,56" -> remove grouping dots, then comma -> decimal point
     cleaned = cleaned.replace(/\./g, "").replace(",", ".");
   } else {
-    // US/International: "1,234.56" → remove grouping commas
+    // US/International: "1,234.56" -> remove grouping commas
     cleaned = cleaned.replace(/,/g, "");
   }
 

@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminDashboard — Dashboard overview page for Admin/Owner.
+﻿// =============================================================================
+// AdminDashboard - Dashboard overview page for Admin/Owner.
 //
 // Shows platform stats and quick links to all management pages.
 // =============================================================================
@@ -9,6 +9,7 @@ import { Link } from "react-router";
 import { Users, Briefcase, AlertTriangle, TrendingUp, Star, FileText, Tag, DollarSign } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { getReports } from "../../../services/reportService.js";
 import api from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
@@ -179,7 +180,7 @@ export function AdminDashboard() {
     fetchStats().finally(() => setLoadingStats(false));
   }, [fetchStats]);
 
-  // Static content renders immediately — only metric values show a loading
+  // Static content renders immediately - only metric values show a loading
   // indicator when API data is still being fetched.
 
   const SkeletonValue = () => (
@@ -219,14 +220,10 @@ export function AdminDashboard() {
 
   return (
     <>
-      {/* Branded Header */}
-      <div className="relative bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3 rounded-xl border border-border p-6 overflow-hidden">
-        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
-        <div className="relative">
-          <h1 className="page-title mb-1">Admin Dashboard</h1>
-          <p className="page-subtitle">Platform overview and key metrics.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Admin Dashboard"
+        subtitle="Platform overview and key metrics."
+      />
 
       {/* Error banner (non-blocking) */}
       {error && (

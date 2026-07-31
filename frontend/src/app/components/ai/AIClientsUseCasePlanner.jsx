@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+﻿import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Bot,
   Send,
@@ -15,10 +15,10 @@ function parseUseCasesFromText(text) {
   const useCases = [];
   
   const regexPatterns = [
-    /^\s*[-*•]?\s*\d+[\.\)]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
-    /^\s*[-*•]?\s*\d+[\.\)]\s*([^:\-]+)[:\-]\s*(.*)$/,
-    /^\s*[-*•]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
-    /^\s*[-*•]\s*([^:\-]+)[:\-]\s*(.*)$/,
+    /^\s*[-*\u2022]?\s*\d+[\.\)]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*\u2022]?\s*\d+[\.\)]\s*([^:\-]+)[:\-]\s*(.*)$/,
+    /^\s*[-*\u2022]\s*\*\*([^*]+)\*\*[:\-]?\s*(.*)$/,
+    /^\s*[-*\u2022]\s*([^:\-]+)[:\-]\s*(.*)$/,
   ];
 
   for (const line of lines) {
@@ -47,8 +47,8 @@ function parseUseCasesFromText(text) {
       }
     }
     
-    if (!matched && (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("•") || /^\d+[\.\)]/.test(trimmed))) {
-      const cleaned = trimmed.replace(/^[-*•\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
+    if (!matched && (trimmed.startsWith("-") || trimmed.startsWith("*") || trimmed.startsWith("\u2022") || /^\d+[\.\)]/.test(trimmed))) {
+      const cleaned = trimmed.replace(/^[-*\u2022\d\.\)\s]+/, "").replace(/[\*_`\[\]]/g, "").trim();
       if (cleaned.length > 10) {
         const parts = cleaned.split(/[:\-]/);
         const title = parts[0].trim();
@@ -232,9 +232,9 @@ export function AIClientsUseCasePlanner({
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-3 bg-secondary/50">
+      <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-secondary/50">
         <div>
-          <h2 className="text-sm font-bold text-foreground">🤖 AI User Story Planner</h2>
+          <h2 className="text-sm font-semibold text-foreground">AI User Story Planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
             Plan User Stories from Document & Chat
           </p>
@@ -242,22 +242,22 @@ export function AIClientsUseCasePlanner({
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
+          className="text-xs text-muted-foreground hover:text-foreground font-medium transition-colors"
         >
           Close
         </button>
       </div>
 
       {/* Upload Requirements */}
-      <div className="shrink-0 px-4 py-3 border-b border-border bg-card">
+      <div className="shrink-0 px-4 py-2.5 border-b border-border bg-card">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          📎 Upload BRD / SRS
+          Upload BRD / SRS
         </p>
         <AIFileUploadZone files={files} onFilesChange={handleFilesChange} disabled={loading} />
       </div>
 
       {/* Chat Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 bg-secondary/40">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2.5 space-y-4 bg-secondary/40">
         <div className="space-y-3">
           {messages.length === 0 && !loading && (
             <div className="text-center py-8 px-4">
@@ -280,7 +280,7 @@ export function AIClientsUseCasePlanner({
                 {msg.role === "ai" && msg.plan && (
                   <div className="mt-4 space-y-3 border-t border-border pt-3 w-full">
                     <div className="bg-accent/10 border border-accent/20 rounded-lg p-2.5">
-                      <p className="text-[11px] font-bold text-accent uppercase tracking-wider">
+                      <p className="text-[11px] font-semibold text-accent uppercase tracking-wider">
                         Predicted Category:
                       </p>
                       <p className="text-xs text-foreground font-semibold mt-0.5">
@@ -289,7 +289,7 @@ export function AIClientsUseCasePlanner({
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Proposed Use Cases:
                       </p>
                       {msg.plan.useCases.map((uc, index) => (
@@ -307,7 +307,7 @@ export function AIClientsUseCasePlanner({
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-3 shadow-sm">
+              <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-2.5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
                   <span className="text-sm text-muted-foreground font-medium">AI is analyzing document & requirements...</span>
@@ -327,13 +327,13 @@ export function AIClientsUseCasePlanner({
             type="button"
             onClick={handleApply}
             disabled={applied}
-            className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all ${applied
+            className={`w-full py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-1.5 transition-all ${applied
                 ? "bg-success/10 text-success border border-success/20 cursor-default"
                 : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover"
               }`}
           >
             <Sparkles className="w-4 h-4" />
-            {applied ? "✓ Applied Use Cases to Form" : "Apply these Use Cases"}
+            {applied ? "Applied Use Cases to Form" : "Apply these Use Cases"}
           </button>
         </div>
       )}

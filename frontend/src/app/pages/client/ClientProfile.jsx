@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import {
   User,
@@ -135,7 +135,7 @@ export function ClientProfile() {
           {isOwnProfile && (
             <Link
               to="/client/profile/edit"
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
             >
               <Edit className="w-4 h-4" /> Edit Profile
             </Link>
@@ -174,16 +174,16 @@ export function ClientProfile() {
           <ArrowLeft className="w-4 h-4" /> {backLink.label}
         </Link>
       )}
-      {/* ── Profile header card ── */}
+      {/* Profile header */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-brand-primary">{initials}</span>
+              <span className="text-xl font-semibold text-brand-primary">{initials}</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
               {client.profile?.company && (
                 <p className="text-secondary-foreground font-medium">{client.profile.company}</p>
               )}
@@ -194,14 +194,14 @@ export function ClientProfile() {
           {isOwnProfile && (
             <Link
               to="/client/profile/edit"
-              className="h-11 px-5 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+              className="h-10 px-4 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
             >
               <Edit className="w-4 h-4" /> Edit Profile
             </Link>
           )}
         </div>
 
-        {/* ── Profile Information ── */}
+        {/* Profile information */}
         <div className="mt-8 pt-8 border-t border-border-light space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Starred Fields */}
@@ -261,7 +261,7 @@ export function ClientProfile() {
         </div>
       </div>
 
-      {/* ── Statistics cards ── */}
+      {/* Statistics cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
@@ -308,7 +308,7 @@ export function ClientProfile() {
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                 {stat.label}
               </p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+              <p className="text-xl font-semibold text-foreground mt-0.5">{stat.value}</p>
             </div>
           ))}
         </div>

@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router";
-import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon } from "lucide-react";
+import { CreditCard, Send, CheckCircle2, Ban, Clock, AlertTriangle, X, Star, ExternalLink, Download, File as FileIcon, ChevronDown, ChevronUp, Paperclip } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
 import { ProjectHeaderCard } from "../../components/project/ProjectHeaderCard.jsx";
 import { ProjectProgressPanel } from "../../components/project/ProjectProgressPanel.jsx";
@@ -13,6 +14,7 @@ import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { releaseProjectMoneyToExpert } from "../../../services/escrowService.js";
 import { cancelProjectContract } from "../../../services/escrowService.js";
 import api, { enrichFileUrl } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { createReport } from "../../../services/reportService.js";
 import {
   notifyPaymentReleased,
@@ -31,7 +33,7 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 // =============================================================================
-// ClientProjectManagement — client-side project progress management page.
+// ClientProjectManagement - client-side project progress management page.
 // Route: /client/projects/:id
 // =============================================================================
 
@@ -73,6 +75,44 @@ export default function ClientProjectDetail() {
 
   // New Cancellation Negotiation states
   const [evidenceFileName, setEvidenceFileName] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+  const evidenceFileInputRef = useRef(null);
+
+  const handleEvidenceFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingEvidence(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+      const uploadedUrl = result?.fileUrl || result?.url || (typeof result === "string" ? result : "");
+      const finalUrl = uploadedUrl ? enrichFileUrl(uploadedUrl) : URL.createObjectURL(file);
+
+      setEvidenceFileName(uploadedUrl || file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: finalUrl,
+        rawUrl: uploadedUrl || file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } catch (err) {
+      console.warn("Evidence upload fallback:", err);
+      setEvidenceFileName(file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: URL.createObjectURL(file),
+        rawUrl: file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
+
   const [showSendConfirmDialog, setShowSendConfirmDialog] = useState(false);
   const [showPartnerRejectForm, setShowPartnerRejectForm] = useState(false);
   const [partnerRejectReason, setPartnerRejectReason] = useState("");
@@ -92,55 +132,113 @@ export default function ClientProjectDetail() {
 
   const [showRejectedBanner, setShowRejectedBanner] = useState(true);
 
-  // ── Review & Evaluation states ──
+  // Review & Evaluation states
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
   const [reviewSaved, setReviewSaved] = useState(false);
-  const [isReviewDismissed, setIsReviewDismissed] = useState(false);
+  const [isReviewCollapsed, setIsReviewCollapsed] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
   const [expertReply, setExpertReply] = useState(null);
   const [editedReview, setEditedReview] = useState(null);
   const [originalReview, setOriginalReview] = useState(null);
 
   useEffect(() => {
-    if (currentProjectId) {
-      // Fetch original review from backend API
+    if (!currentProjectId) return;
+
+    const fetchReviewData = () => {
       api.reviews.getReviewByProject(currentProjectId)
         .then((res) => {
           if (res && res.id) {
             setReviewSaved(true);
-            const orig = { id: res.id, rating: res.rating || 0, comment: res.comment || "" };
+            
+            // 1. Get or cache original review so it is NEVER modified by subsequent edits
+            let orig = { id: res.id, rating: res.rating || 0, comment: res.comment || "" };
+            try {
+              const rawOrig = localStorage.getItem(`project_review_original_${currentProjectId}`);
+              if (rawOrig) {
+                orig = JSON.parse(rawOrig);
+              } else {
+                localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(orig));
+              }
+            } catch {
+              localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(orig));
+            }
             setOriginalReview(orig);
-            setRating(res.rating || 0);
-            setComment(res.comment || "");
-            setEditedReview(null);
+
+            // 2. Check if edited review exists locally or in override storage
+            try {
+              const rawEdited = localStorage.getItem(`project_review_edited_${currentProjectId}`);
+              if (rawEdited) {
+                const parsedEdited = JSON.parse(rawEdited);
+                setEditedReview(parsedEdited);
+                setRating(parsedEdited.rating || orig.rating || 0);
+                setComment(parsedEdited.comment || orig.comment || "");
+              } else {
+                setEditedReview(null);
+                setRating(orig.rating || 0);
+                setComment(orig.comment || "");
+              }
+            } catch {
+              setEditedReview(null);
+              setRating(orig.rating || 0);
+              setComment(orig.comment || "");
+            }
 
             if (res.expertReply) {
-              setExpertReply({ replyText: res.expertReply, date: res.replyCreatedAt });
+              setExpertReply({
+                replyText: res.expertReply,
+                requestRevisionText: res.expertReply,
+                date: res.replyCreatedAt
+              });
             } else {
-              setExpertReply(null);
+              try {
+                const localReply = localStorage.getItem(`review_expert_reply_${currentProjectId}`);
+                if (localReply) {
+                  const parsed = JSON.parse(localReply);
+                  setExpertReply(parsed);
+                } else {
+                  setExpertReply(null);
+                }
+              } catch {
+                setExpertReply(null);
+              }
             }
           } else {
             setReviewSaved(false);
             setOriginalReview(null);
+            setEditedReview(null);
             setRating(0);
             setComment("");
             setExpertReply(null);
           }
         })
         .catch(() => {
-            setReviewSaved(false);
-            setOriginalReview(null);
-            setRating(0);
-            setComment("");
-            setExpertReply(null);
+          setReviewSaved(false);
+          setOriginalReview(null);
+          setEditedReview(null);
+          setRating(0);
+          setComment("");
+          setExpertReply(null);
         });
-      
-      const dismissed = localStorage.getItem(`dismissed_review_${currentProjectId}`) === "true";
-      setIsReviewDismissed(dismissed);
-    }
+    };
+
+    fetchReviewData();
+
+    const collapsed = localStorage.getItem(`collapsed_review_${currentProjectId}`) === "true";
+    setIsReviewCollapsed(collapsed);
+
+    window.addEventListener("aitasker_db_update", fetchReviewData);
+    return () => window.removeEventListener("aitasker_db_update", fetchReviewData);
   }, [currentProjectId]);
+
+  const handleToggleReviewCollapse = () => {
+    setIsReviewCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(`collapsed_review_${currentProjectId}`, String(next));
+      return next;
+    });
+  };
 
   const handleSaveReview = () => {
     if (rating === 0) {
@@ -155,21 +253,21 @@ export default function ClientProjectDetail() {
     };
 
     if (originalReview && originalReview.id) {
-      // This is the edit turn (second time), call update API
-      api.reviews.updateReview(originalReview.id, reviewData)
-        .then(() => {
-          setOriginalReview({ ...originalReview, ...reviewData });
-          setReviewSaved(true);
-          toast.success("Expert review updated successfully!");
-          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        })
-        .catch(() => toast.error("Failed to update review"))
-        .finally(() => setIsSavingReview(false));
+      // This is the supplementary edit turn (second time), keep originalReview 100% untouched
+      const editedObj = { rating: rating, comment: comment.trim() };
+      setEditedReview(editedObj);
+      localStorage.setItem(`project_review_edited_${currentProjectId}`, JSON.stringify(editedObj));
+      setReviewSaved(true);
+      toast.success("Supplementary review submitted successfully!");
+      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setIsSavingReview(false);
     } else {
       // This is the first evaluation turn
       api.reviews.createReview(reviewData)
         .then((res) => {
-          setOriginalReview({ id: res.id, ...reviewData });
+          const origObj = { id: res.id, ...reviewData };
+          setOriginalReview(origObj);
+          localStorage.setItem(`project_review_original_${currentProjectId}`, JSON.stringify(origObj));
           setReviewSaved(true);
           toast.success("Thank you for submitting your review!");
           window.dispatchEvent(new CustomEvent("aitasker_db_update"));
@@ -233,7 +331,7 @@ export default function ClientProjectDetail() {
     return rawStatus === "completed" || rawStatus === "done";
   });
 
-  // ── Cancel Contract availability ──
+  // Cancel Contract availability
   // Block ONLY when project is fully 100% completed and done (all tasks approved + status completed).
   // Always show for other states (including disputed, awaiting, etc.)
   const normalizedStatus = String(project?.status || "").toLowerCase();
@@ -318,8 +416,12 @@ export default function ClientProjectDetail() {
         if (Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0) {
           evidenceUrl = await uploadEvidenceFiles(explanationData.evidence);
         }
+        const combinedExplanation = (explanationData.reason && explanationData.description && explanationData.reason !== explanationData.description)
+          ? `${explanationData.reason}\n\n${explanationData.description}`
+          : (explanationData.description || explanationData.reason || "");
         await api.put(`/reports/${report.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
-          explanation: explanationData.description || explanationData.reason || "",
+          reason: explanationData.reason || "",
+          explanation: combinedExplanation,
           desiredResolution: explanationData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
           userId: user?.id || user?.Id
@@ -408,20 +510,29 @@ export default function ClientProjectDetail() {
     setCancelLoading(true);
     const finalReason = cancelAttemptCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
     try {
+      const targetProjId = project?.id || project?.Id || currentProjectId;
+      const reporterUserId = user?.id || user?.Id;
       await api.reports.create({
-        projectId: currentProjectId,
-        reporterId: user.id,
+        projectId: targetProjId,
+        reporterId: reporterUserId,
         reporterRole: "client",
         reason: finalReason,
         description: finalReason,
-        evidenceUrl: evidenceFileName || "",
+        evidenceUrl: evidenceFile?.rawUrl || evidenceFile?.url || evidenceFileName || "",
         reportType: "cancellation",
         disputeType: "cancellation",
       });
+
+      // Save local fallback status
+      try {
+        localStorage.setItem(`project_status_override_${String(targetProjId).toLowerCase()}`, "Awaiting_Cancellation");
+      } catch (e) {}
+
       setShowCancelModal(false);
       setShowSendConfirmDialog(false);
       setCancelReason("");
       setEvidenceFileName("");
+      setEvidenceFile(null);
       toast.success("Sent contract cancellation request for Admin review.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -584,7 +695,7 @@ export default function ClientProjectDetail() {
     try {
       await api.put(`/reports/${report.id}/initiator-accept-rejection`);
 
-      // KEEP cancel_attempt_count — do not reset to preserve escalation eligibility
+      // KEEP cancel_attempt_count - do not reset to preserve escalation eligibility
       // if Client cancels again after being declined, it enters Binding Dispute immediately.
       // Only clear count when the contract is actually terminated (partner accepts cancellation).
 
@@ -617,7 +728,7 @@ export default function ClientProjectDetail() {
       });
 
       if (newCount >= 1) {
-        toast.success("⚠️ Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
+        toast.success("Cancellation request has escalated to Binding Dispute (Round 2). Admin will issue a final verdict.", { duration: 6000 });
       } else {
         toast.success("Responded and submitted a new cancellation request to Admin.");
       }
@@ -654,7 +765,7 @@ export default function ClientProjectDetail() {
           action={
             <button
               onClick={retry}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
             >
               Retry
             </button>
@@ -675,7 +786,7 @@ export default function ClientProjectDetail() {
           action={
             <button
               onClick={() => navigate("/client/my-projects")}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-base font-semibold"
             >
               Go to My Projects
             </button>
@@ -748,32 +859,32 @@ export default function ClientProjectDetail() {
       <div className="space-y-6">
         {/* Multi-Stage Cancellation Negotiation Widget */}
         {isLocked && project?.status === "Awaiting_Cancellation" && (report?.disputeType === "cancellation" || report?.reportType === "cancellation") && (
-          <div className="p-6 bg-card border border-amber-300 rounded-2xl shadow-sm text-sm font-sans space-y-4">
+          <div className="p-6 bg-card border border-warning/35 rounded-2xl shadow-sm text-sm font-sans space-y-4">
             {report.reporterRole === "client" ? (
               report.status === "Pending Admin" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Your contract cancellation request is awaiting review</h4>
+                    <h4 className="font-semibold text-foreground text-base">Your contract cancellation request is awaiting review</h4>
                     <p className="text-muted-foreground mt-1">The cancellation request has been submitted. Admin is reviewing your request before forwarding it to the partner.</p>
                   </div>
                 </div>
               ) : report.status === "Awaiting Partner" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Cancellation request sent to partner (Expert)</h4>
+                    <h4 className="font-semibold text-foreground text-base">Cancellation request sent to partner (Expert)</h4>
                     <p className="text-muted-foreground mt-1">Admin has approved your cancellation request. Awaiting Expert's review (Accept or Decline).</p>
                   </div>
                 </div>
               ) : report.status === "Returned" ? (
                 <div className="space-y-4 text-left">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-foreground text-base text-red-600">Contract cancellation request declined by partner</h4>
+                      <h4 className="font-semibold text-foreground text-base text-destructive">Contract cancellation request declined by partner</h4>
                       <p className="text-muted-foreground mt-1">Expert does not agree to cancel the contract for the following reasons:</p>
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-xl mt-2 font-medium text-red-800">
+                      <div className="p-3 bg-destructive-light border border-destructive/20 rounded-xl mt-2 font-medium text-destructive">
                         &quot;{report.partnerRejectionReason}&quot;
                       </div>
                     </div>
@@ -793,7 +904,7 @@ export default function ClientProjectDetail() {
                         setCancelReason(report.reason || "");
                         setShowCancelModal(true);
                       }}
-                      className="px-4 py-2 bg-brand-primary text-white rounded-xl font-bold text-sm hover:bg-brand-primary-hover transition-all cursor-pointer"
+                      className="px-4 py-2 bg-brand-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-brand-primary-hover transition-all cursor-pointer"
                     >
                       Respond (Submit New Cancellation)
                     </button>
@@ -803,18 +914,18 @@ export default function ClientProjectDetail() {
             ) : (
               report.status === "Pending Admin" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Expert requested contract cancellation</h4>
+                    <h4 className="font-semibold text-foreground text-base">Expert requested contract cancellation</h4>
                     <p className="text-muted-foreground mt-1">Expert has submitted a contract cancellation request to Admin. The project is temporarily locked awaiting Admin review.</p>
                   </div>
                 </div>
               ) : report.status === "Awaiting Partner" ? (
                 <div className="space-y-4 text-left">
                   <div className="flex items-start gap-3 border-b border-border pb-3">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-bold text-foreground text-base">Expert requested contract cancellation</h4>
+                      <h4 className="font-semibold text-foreground text-base">Expert requested contract cancellation</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">Please see the cancellation reason and escrow split details below.</p>
                     </div>
                   </div>
@@ -862,11 +973,11 @@ export default function ClientProjectDetail() {
                         <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
                         <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{prog}%</span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-orange-500">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-red-500">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                        <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                         <div className="border-t border-border my-1.5" />
-                        <div className="flex justify-between font-bold"><span className="text-foreground">You receive (Refund):</span><span className="text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
-                        <div className="flex justify-between font-bold"><span className="text-foreground">Payment to Expert:</span><span className="text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
+                        <div className="flex justify-between font-semibold"><span className="text-foreground">You receive (Refund):</span><span className="text-success"><MoneyDisplay amount={clientRefund} /></span></div>
+                        <div className="flex justify-between font-semibold"><span className="text-foreground">Payment to Expert:</span><span className="text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
                       </div>
                     );
                   })()}
@@ -877,7 +988,7 @@ export default function ClientProjectDetail() {
                         type="button"
                         onClick={handlePartnerAcceptCancel}
                         disabled={partnerActionLoading}
-                        className="px-5 py-2 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-700 transition-all cursor-pointer shadow-sm"
+                        className="px-5 py-2 bg-success text-primary-foreground rounded-lg font-medium text-sm hover:bg-success/85 transition-all cursor-pointer shadow-sm"
                       >
                         Accept (Agree to cancel & Receive funds)
                       </button>
@@ -885,27 +996,27 @@ export default function ClientProjectDetail() {
                         type="button"
                         onClick={() => setShowPartnerRejectForm(true)}
                         disabled={partnerActionLoading}
-                        className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl font-semibold text-sm hover:bg-red-100 transition-all cursor-pointer"
+                        className="px-4 py-2 bg-destructive-light text-destructive border border-destructive/20 rounded-lg font-medium text-sm hover:bg-destructive-light transition-all cursor-pointer"
                       >
                         Reject (Decline cancellation)
                       </button>
                     </div>
                   ) : (
                     <div className="space-y-3 pt-2 animate-slide-up">
-                      <label className="block text-xs font-bold text-foreground/80 uppercase">Reason for declining cancellation <span className="text-red-500">*</span></label>
+                      <label className="block text-xs font-semibold text-foreground/80 uppercase">Reason for declining cancellation <span className="text-destructive">*</span></label>
                       <textarea
                         rows={2}
                         placeholder="Please provide the reason why you decline this cancellation request..."
                         value={partnerRejectReason}
                         onChange={(e) => setPartnerRejectReason(e.target.value)}
-                        className="w-full max-w-lg p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                        className="w-full max-w-lg p-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive/35 text-foreground text-sm"
                       />
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={handlePartnerRejectCancel}
                           disabled={partnerActionLoading}
-                          className="px-4 py-1.5 bg-red-600 text-white rounded-xl font-bold text-xs hover:bg-red-700 transition-all cursor-pointer"
+                          className="px-4 py-1.5 bg-destructive text-primary-foreground rounded-lg font-medium text-xs hover:bg-destructive transition-all cursor-pointer"
                         >
                           Submit Decline Reason
                         </button>
@@ -925,9 +1036,9 @@ export default function ClientProjectDetail() {
                 </div>
               ) : report.status === "Returned" ? (
                 <div className="flex items-start gap-3 text-left">
-                  <Clock className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <Clock className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-bold text-foreground text-base">Contract cancellation declined</h4>
+                    <h4 className="font-semibold text-foreground text-base">Contract cancellation declined</h4>
                     <p className="text-muted-foreground mt-1">You declined the partner's cancellation request. Awaiting partner's response or request withdrawal.</p>
                   </div>
                 </div>
@@ -936,16 +1047,16 @@ export default function ClientProjectDetail() {
           </div>
         )}
         {project?.status === "cancel_done" && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium text-left">
+          <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-sm font-medium text-left">
             The project contract was successfully cancelled. Escrow funds split based on project progress ({project?.contractCancellation?.progressPercent || 0}%). Project is now read-only.
           </div>
         )}
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
         {report?.status === "Rejected" && report?.reporterRole === "client" && showRejectedBanner && (
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
+          <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
             <div className="flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-foreground">Violation report declined by Admin</p>
                 {(() => {
@@ -962,18 +1073,18 @@ export default function ClientProjectDetail() {
                 setShowRejectedBanner(false);
                 localStorage.setItem(`dismissed_rejection_report_${report.id}`, "true");
               }} 
-              className="text-amber-600 hover:text-amber-800 transition-colors p-1 rounded-lg hover:bg-amber-100"
+              className="text-warning hover:text-warning transition-colors p-1 rounded-lg hover:bg-warning-light"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
         )}
         {report?.status === "Resolved" && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-sm font-sans flex items-start gap-2.5 shadow-sm animate-fade-in">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="p-4 bg-success-light border border-success/20 rounded-xl text-success text-sm font-sans flex items-start gap-2.5 shadow-sm animate-fade-in">
+            <CheckCircle2 className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-emerald-950">Dispute resolved successfully</p>
-              <p className="mt-1 text-emerald-800/90">
+              <p className="font-semibold text-success">Dispute resolved successfully</p>
+              <p className="mt-1 text-success/90">
                 {report.moneyAction === "refund" || project?.status?.toLowerCase() === "cancelled" ? (
                   "The project has ended (Cancelled). All escrow funds have been refunded to the Client's wallet by Admin."
                 ) : (
@@ -984,7 +1095,7 @@ export default function ClientProjectDetail() {
           </div>
         )}
         {isContractCancelled && (
-          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-medium">
+          <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-sm font-medium">
             This contract has been cancelled. Escrow has been distributed based on project progress ({project?.contractCancellation?.progressPercent || 0}%). The project is now read-only.
           </div>
         )}
@@ -994,204 +1105,229 @@ export default function ClientProjectDetail() {
           <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" allTasksApproved={allTasksApproved} />
         </AnimatedReveal>
 
-        {/* ── Evaluation / Review Section ── */}
-        {project?.status === "completed" && !isReviewDismissed && (
+        {/* Evaluation / Review Section (Always present on completed projects, collapsible) */}
+        {project?.status === "completed" && (
           <AnimatedReveal>
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 relative text-left space-y-4 mb-6 mt-6">
-              {/* Close button */}
-              <button
-                type="button"
-                onClick={handleDismissReview}
-                className="absolute top-4 right-4 p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
-                title="Close Review"
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 text-left space-y-4 mb-6 mt-6 transition-all">
+              {/* Header with Collapse/Expand toggle */}
+              <div
+                onClick={handleToggleReviewCollapse}
+                className="flex items-center justify-between cursor-pointer select-none group"
               >
-                <X className="w-4 h-4" />
-              </button>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-warning-light/10 text-warning rounded-lg group-hover:scale-105 transition-transform">
+                    <Star className="w-5 h-5 fill-warning" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-foreground font-sans">Expert Evaluation</h3>
+                      {reviewSaved ? (
+                        <span className="px-2 py-0.5 text-[11px] font-medium bg-success-light text-success rounded-full border border-success/20 inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Reviewed ({editedReview?.rating || rating} ⭐){editedReview ? " (Locked)" : ""}
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 text-[11px] font-medium bg-warning-light text-warning rounded-full border border-warning/20">
+                          Pending Review
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 font-sans">
+                      {isReviewCollapsed
+                        ? "Click to expand expert evaluation & review details."
+                        : "Project completed successfully. Please take a moment to evaluate the expert's service quality."}
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-3 border-b border-border pb-3">
-                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
-                  <Star className="w-5 h-5 fill-amber-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground font-sans">Expert Evaluation</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 font-sans">Project completed successfully. Please take a moment to evaluate the expert's service quality.</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleReviewCollapse();
+                  }}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer flex items-center gap-1 text-xs font-semibold"
+                  title={isReviewCollapsed ? "Expand review" : "Collapse review"}
+                >
+                  <span className="hidden sm:inline">{isReviewCollapsed ? "Expand" : "Collapse"}</span>
+                  {isReviewCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                </button>
               </div>
 
-              {reviewSaved ? (
-                <div className="space-y-4 font-sans text-xs">
-                  {/* ORIGINAL REVIEW BLOCK */}
-                  {originalReview && (
-                    <div className="space-y-2 border-b border-border/40 pb-3 text-left">
-                      <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-xl font-semibold">
-                        <span>✓ Original Review</span>
-                        <div className="flex items-center gap-0.5 ml-2">
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${
-                                i < originalReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      {originalReview.comment && (
-                        <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-amber-500/70 font-semibold select-none leading-none">“</span>
-                          {originalReview.comment}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* EXPERT REPLY BLOCK */}
-                  {expertReply?.replyText && (
-                    <div className="p-3.5 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs space-y-1 text-left">
-                      <span className="font-bold text-brand-primary block">Expert Response (Thank You):</span>
-                      <p className="text-muted-foreground">{expertReply.replyText}</p>
-                    </div>
-                  )}
-                  {expertReply?.requestRevisionText && (
-                    <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs space-y-1 text-left">
-                      <span className="font-bold text-amber-600 block">Expert Response & Revision Request:</span>
-                      <p className="text-muted-foreground">{expertReply.requestRevisionText}</p>
-                    </div>
-                  )}
-
-                  {/* CLIENT EDITED REVIEW BLOCK */}
-                  {editedReview && (
-                    <div className="space-y-2 pt-3 border-t border-border/40 text-left">
-                      <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-xl font-semibold">
-                        <span>✓ Edited Review</span>
-                        <div className="flex items-center gap-0.5 ml-2">
-                          {Array.from({ length: 5 }, (_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${
-                                i < editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                      {editedReview.comment && (
-                        <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
-                          <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">“</span>
-                          {editedReview.comment}
+              {/* Collapsible Content Body */}
+              {!isReviewCollapsed && (
+                <div className="pt-3 border-t border-border space-y-4 animate-fade-in">
+                  {reviewSaved ? (
+                    <div className="space-y-4 font-sans text-xs">
+                      {/* ORIGINAL REVIEW BLOCK */}
+                      {originalReview && (
+                        <div className="space-y-2 border-b border-border/40 pb-3 text-left">
+                          <div className="flex items-center justify-between p-3 bg-success/5 border border-success/15 text-success rounded-lg font-medium">
+                            <span>Done Original Review</span>
+                            <div className="flex items-center gap-0.5 ml-2">
+                              {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < originalReview.rating ? "fill-warning text-warning" : "text-border"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {originalReview.comment && (
+                            <div className="p-3 bg-secondary/30 rounded-xl border border-border text-muted-foreground pl-7 relative leading-relaxed">
+                              <span className="absolute left-2 text-sm text-warning/70 font-semibold select-none leading-none">"</span>
+                              {originalReview.comment}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* BUTTON TO OPEN REVISION FORM */}
-                  {expertReply?.requestRevisionText && !editedReview && (
-                    <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl text-xs space-y-2 text-left animate-pulse mt-2">
-                      <p className="text-muted-foreground font-medium">You can adjust this review based on the expert's request (one-time edit only).</p>
-                      <div className="flex justify-end">
+                      {/* EXPERT RESPONSE BLOCK */}
+                      {(expertReply?.replyText || expertReply?.requestRevisionText) && (
+                        <div className="p-3.5 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs space-y-1 text-left">
+                          <span className="font-semibold text-brand-primary block">Expert Response:</span>
+                          <p className="text-muted-foreground font-medium">{expertReply.replyText || expertReply.requestRevisionText}</p>
+                        </div>
+                      )}
+
+                      {/* CLIENT EDITED REVIEW BLOCK */}
+                      {editedReview && (
+                        <div className="space-y-2 pt-3 border-t border-border/40 text-left">
+                          <div className="flex items-center justify-between p-3 bg-success/10 border border-success/20 text-success rounded-lg font-medium">
+                            <span>Done Edited Review</span>
+                            <div className="flex items-center gap-0.5 ml-2">
+                              {Array.from({ length: 5 }, (_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3.5 h-3.5 ${
+                                    i < editedReview.rating ? "fill-warning text-warning" : "text-border"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {editedReview.comment && (
+                            <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-muted-foreground pl-7 relative leading-relaxed">
+                              <span className="absolute left-2 text-sm text-success/60 font-semibold select-none leading-none">"</span>
+                              {editedReview.comment}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* BUTTON TO OPEN REVISION FORM - ONLY IF NOT EDITED YET */}
+                      {expertReply && !editedReview && (
+                        <div className="p-4 bg-warning-light/30 border border-warning/20 rounded-xl text-xs space-y-2 text-left mt-2">
+                          <p className="text-muted-foreground font-medium">Expert has responded. You can adjust your rating or comment (one-time edit based on feedback).</p>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setRating(originalReview?.rating || 0);
+                                setComment(originalReview?.comment || "");
+                                setReviewSaved(false);
+                              }}
+                              className="px-4 py-1.5 bg-warning-light hover:bg-warning text-primary-foreground rounded-lg font-semibold text-xs shadow-sm transition-colors cursor-pointer"
+                            >
+                              Adjust Review
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+
+                    </div>
+                  ) : (
+                    <div className="space-y-4 font-sans text-left">
+                      {/* Show previous review thread during editing */}
+                      {originalReview && (
+                        <div className="space-y-2 border-b border-border/40 pb-3">
+                          <p className="text-xs text-muted-foreground font-semibold">Your Original Review:</p>
+                          <div className="flex items-center gap-0.5 mb-1">
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${
+                                  i < originalReview.rating ? "fill-warning text-warning" : "text-border"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          {originalReview.comment && (
+                            <p className="text-xs text-muted-foreground italic bg-secondary/20 p-2 rounded-lg border border-border">"{originalReview.comment}"</p>
+                          )}
+                        </div>
+                      )}
+
+                      {expertReply?.requestRevisionText && (
+                        <div className="p-3 bg-warning-light/10 border border-warning/20 rounded-xl text-xs text-left text-muted-foreground">
+                          <span className="font-semibold text-warning">Adjusting review based on Expert's response:</span>
+                          <p className="mt-1 font-medium bg-background/40 p-2 rounded border border-warning/15">"{expertReply.requestRevisionText}"</p>
+                        </div>
+                      )}
+
+                      {/* Stars Row */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-foreground/80 font-medium">Select rating:</span>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const starValue = i + 1;
+                            return (
+                              <button
+                                type="button"
+                                key={i}
+                                onClick={() => setRating(starValue)}
+                                onMouseEnter={() => setHoverRating(starValue)}
+                                onMouseLeave={() => setHoverRating(0)}
+                                className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
+                              >
+                                <Star
+                                  className={`w-6 h-6 transition-all ${
+                                    starValue <= (hoverRating || rating)
+                                      ? "fill-warning text-warning"
+                                      : "text-muted hover:text-warning"
+                                  }`}
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Comment Textarea */}
+                      <div className="space-y-1.5">
+                        <span className="text-xs text-foreground/80 font-medium">Your comment:</span>
+                        <textarea
+                          rows={3}
+                          value={comment}
+                          onChange={(e) => setComment(e.target.value)}
+                          placeholder="Your evaluation comments..."
+                          className="w-full p-3 text-sm border border-input rounded-xl focus:outline-none focus:border-brand-primary text-foreground bg-card"
+                        />
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-1">
+                        {originalReview && (
+                          <button
+                            type="button"
+                            onClick={() => setReviewSaved(true)}
+                            className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium text-sm transition-colors cursor-pointer"
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => {
-                            setRating(originalReview?.rating || 0);
-                            setComment(originalReview?.comment || "");
-                            setReviewSaved(false);
-                          }}
-                          className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-bold text-xs shadow-sm transition-colors cursor-pointer"
+                          onClick={handleSaveReview}
+                          disabled={isSavingReview}
+                          className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          Adjust Review
+                          {isSavingReview ? "Submitting..." : "Submit Review"}
                         </button>
                       </div>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="space-y-4 font-sans text-left">
-                  {/* Show previous review thread during editing */}
-                  {originalReview && (
-                    <div className="space-y-2 border-b border-border/40 pb-3">
-                      <p className="text-xs text-muted-foreground font-semibold">Your Original Review:</p>
-                      <div className="flex items-center gap-0.5 mb-1">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-3.5 h-3.5 ${
-                              i < originalReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      {originalReview.comment && (
-                        <p className="text-xs text-muted-foreground italic bg-secondary/20 p-2 rounded-lg border border-border">"{originalReview.comment}"</p>
-                      )}
-                    </div>
-                  )}
-
-                  {expertReply?.requestRevisionText && (
-                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-left text-muted-foreground">
-                      <span className="font-semibold text-amber-600">Adjusting review based on Expert's response:</span>
-                      <p className="mt-1 font-medium bg-background/40 p-2 rounded border border-amber-500/10">"{expertReply.requestRevisionText}"</p>
-                    </div>
-                  )}
-
-                  {/* Stars Row */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-foreground/80 font-medium">Select new rating:</span>
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: 5 }, (_, i) => {
-                        const starValue = i + 1;
-                        return (
-                          <button
-                            type="button"
-                            key={i}
-                            onClick={() => setRating(starValue)}
-                            onMouseEnter={() => setHoverRating(starValue)}
-                            onMouseLeave={() => setHoverRating(0)}
-                            className="p-0.5 hover:scale-110 transition-transform cursor-pointer"
-                          >
-                            <Star
-                              className={`w-6 h-6 transition-all ${
-                                starValue <= (hoverRating || rating)
-                                  ? "fill-amber-500 text-amber-500"
-                                  : "text-muted hover:text-amber-400"
-                              }`}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Comment Textarea */}
-                  <div className="space-y-1.5">
-                    <span className="text-xs text-foreground/80 font-medium">New comment:</span>
-                    <textarea
-                      rows={3}
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      placeholder="Your evaluation comments..."
-                      className="w-full p-3 text-sm border border-input rounded-xl focus:outline-none focus:border-brand-primary text-foreground bg-card"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-1">
-                    {originalReview && (
-                      <button
-                        type="button"
-                        onClick={() => setReviewSaved(true)}
-                        className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-xl font-medium text-sm transition-colors cursor-pointer"
-                      >
-                        Cancel Edit
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSaveReview}
-                      disabled={isSavingReview}
-                      className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm shadow-sm transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isSavingReview ? "Submitting..." : "Submit Review"}
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -1200,13 +1336,13 @@ export default function ClientProjectDetail() {
         {/* Realtime Submission Timebar */}
         {project?.finalDeliveryStatus === "Final Product Submitted" && project?.finalWorkSubmittedAt && (
           <AnimatedReveal>
-            <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse mb-6">
+            <div className="p-5 bg-success-light border border-success/20 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-success-light text-success rounded-xl flex items-center justify-center flex-shrink-0">
                   <Clock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-foreground text-sm">Overall deliverables submitted (Final handover)</h4>
+                  <h4 className="font-semibold text-foreground text-sm">Overall deliverables submitted (Final handover)</h4>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Submitted at: <span className="font-semibold text-foreground">{new Date(project.finalWorkSubmittedAt).toLocaleString("en-US")}</span>
                   </p>
@@ -1231,9 +1367,9 @@ export default function ClientProjectDetail() {
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(true)}
-                  className={`h-11 px-4 border rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm ${cancelAttemptCount >= 1
-                      ? "border-orange-500 text-white bg-orange-600 hover:bg-orange-700 animate-pulse"
-                      : "border-red-300 text-red-600 bg-red-50 hover:bg-red-100"
+                  className={`h-10 px-4 border rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-pointer transition-all shadow-sm ${cancelAttemptCount >= 1
+                      ? "border-warning text-primary-foreground bg-warning hover:bg-warning/85 animate-pulse"
+                      : "border-destructive/35 text-destructive bg-destructive-light hover:bg-destructive-light"
                     }`}
                 >
                   <Ban className="w-4 h-4" /> {cancelAttemptCount >= 1 ? "Escalate to Dispute" : "Cancel Contract"}
@@ -1243,8 +1379,8 @@ export default function ClientProjectDetail() {
               {!["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase()) && (
                 <>
                   {cancelLocked && (
-                    <span className="h-11 px-4 border border-gray-300 text-gray-500 bg-gray-50 rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
-                      🔒 Cancel Locked
+                    <span className="h-10 px-4 border border-input text-muted-foreground bg-secondary rounded-lg font-semibold text-sm inline-flex items-center gap-2 cursor-not-allowed shadow-sm" title="Cancellation request officially rejected and locked by Admin">
+                      Cancel Locked
                     </span>
                   )}
 
@@ -1252,7 +1388,7 @@ export default function ClientProjectDetail() {
                     <button
                       type="button"
                       onClick={() => setShowExplanationModal(true)}
-                      className="h-11 px-4 border border-red-500 text-white bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
+                      className="h-10 px-4 border border-destructive text-primary-foreground bg-destructive hover:bg-destructive rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-pointer transition-all shadow-sm animate-pulse"
                     >
                       <AlertTriangle className="w-4 h-4" /> Submit Explanation
                     </button>
@@ -1262,7 +1398,7 @@ export default function ClientProjectDetail() {
                     report?.status === "Awaiting Expert" ||
                     ((report?.status === "Awaiting Both" || report?.status === "Awaiting Evidence") && report?.currentRoundClientSubmitted)
                   ) && (
-                      <div className="h-11 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
+                      <div className="h-10 px-4 bg-secondary text-muted-foreground rounded-lg font-semibold text-sm inline-flex items-center gap-1.5 cursor-not-allowed border border-border">
                         <AlertTriangle className="w-4 h-4" /> Awaiting review...
                       </div>
                     )}
@@ -1270,22 +1406,22 @@ export default function ClientProjectDetail() {
               )}
               {allTasksApproved && (
                 <>
-                  {/* View Final Work Button — always visible once final product submitted or accepted */}
+                  {/* View Final Work Button - always visible once final product submitted or accepted */}
                   {(project.finalDeliveryStatus === "Final Product Submitted" || project.finalDeliveryStatus === "Accepted" || project.status === "completed" || project.status === "payment_released") && (
                     <button
                       type="button"
                       onClick={() => setShowFinalWorkModal(true)}
-                      className="h-11 px-5 rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer"
+                      className="h-10 px-4 rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm transition-all bg-primary text-primary-foreground hover:bg-primary-hover cursor-pointer"
                     >
                       View Final Work
                     </button>
                   )}
 
-                  {/* Declined state — waiting resubmit */}
+                  {/* Declined state - waiting resubmit */}
                   {project.finalDeliveryStatus === "Declined" && project.status !== "completed" && (
                     <button
                       disabled
-                      className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                      className="h-10 px-4 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                     >
                       Awaiting Expert resubmission
                     </button>
@@ -1295,26 +1431,26 @@ export default function ClientProjectDetail() {
                   {!project.finalDeliveryStatus && project.status !== "completed" && (
                     <button
                       disabled
-                      className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                      className="h-10 px-4 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                     >
                       View Final Work
                     </button>
                   )}
 
-                  {/* Release Payment Button — only before completed */}
+                  {/* Release Payment Button - only before completed */}
                   {project.status !== "completed" && project.status !== "payment_released" && (
                     project.finalDeliveryStatus === "Accepted" && !isLocked ? (
                       <button
                         type="button"
                         onClick={() => setShowReleaseConfirmModal(true)}
-                        className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
+                        className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 shadow-sm cursor-pointer transition-all"
                       >
                         <CreditCard className="w-4 h-4" /> Release Payment
                       </button>
                     ) : project.finalDeliveryStatus !== "Accepted" && project.status !== "completed" ? (
                       <button
                         disabled
-                        className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+                        className="h-10 px-4 bg-secondary text-muted-foreground border border-border rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
                       >
                         <CreditCard className="w-4 h-4" /> Release Payment
                       </button>
@@ -1325,7 +1461,7 @@ export default function ClientProjectDetail() {
               {(project.status === "completed" || project.status === "payment_released") && (
                 <button
                   disabled
-                  className="h-11 px-5 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
+                  className="h-10 px-4 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Payment Released
                 </button>
@@ -1351,7 +1487,7 @@ export default function ClientProjectDetail() {
 
       {/* Release Payment Confirmation Modal */}
       {showReleaseConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
@@ -1359,7 +1495,7 @@ export default function ClientProjectDetail() {
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Release Payment</h3>
+                <h3 className="text-lg font-semibold text-foreground font-sans">Release Payment</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-sans">Project is 100% completed</p>
               </div>
             </div>
@@ -1386,7 +1522,7 @@ export default function ClientProjectDetail() {
                 type="button"
                 disabled={releaseLoading}
                 onClick={handleReleasePayment}
-                className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 {releaseLoading ? "Processing..." : "Confirm Release"}
               </button>
@@ -1396,16 +1532,16 @@ export default function ClientProjectDetail() {
       )}
 
       {/* View Final Work Modal */}
-      {showFinalWorkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
+      {showFinalWorkModal && createPortal(
+        <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left my-auto">
             {/* Header */}
             <div className="flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border">
               <div className="p-2 bg-muted text-muted-foreground rounded-lg">
                 <Send className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">View Final Work</h3>
+                <h3 className="text-lg font-semibold text-foreground font-sans">View Final Work</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-sans">Review final deliverables submitted by Expert before releasing payment</p>
               </div>
             </div>
@@ -1459,26 +1595,13 @@ export default function ClientProjectDetail() {
                         setTimeout(() => URL.revokeObjectURL(viewUrl), 30000);
                       } catch { window.open(fileInfo.url, "_blank"); }
                     };
-                    const handleDownload = async () => {
-                      try {
-                        const res = await fetch(fileInfo.url, { headers: { Authorization: `Bearer ${getToken()}` } });
-                        const blob = await res.blob();
-                        const dlUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = dlUrl; a.download = fileInfo.name;
-                        document.body.appendChild(a); a.click(); a.remove();
-                        URL.revokeObjectURL(dlUrl);
-                      } catch { window.open(fileInfo.url, "_blank"); }
-                    };
+                    const handleDownload = () => downloadFile(fileInfo.url, fileInfo.name);
                     return (
                       <div className="flex items-center gap-2 mt-1">
                         <FileIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                         <span className="text-accent font-medium break-all text-sm flex-1 truncate" title={fileInfo.name}>
                           {fileInfo.name}
                         </span>
-                        <button type="button" onClick={handleView} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="View file">
-                          <ExternalLink className="w-4 h-4" />
-                        </button>
                         <button type="button" onClick={handleDownload} className="p-1 text-muted-foreground hover:text-brand-primary rounded-md transition-colors cursor-pointer flex-shrink-0" title="Download file">
                           <Download className="w-4 h-4" />
                         </button>
@@ -1500,7 +1623,7 @@ export default function ClientProjectDetail() {
               {showDeclineForm && (
                 <div className="space-y-2 border-t border-border pt-4 animate-slide-up">
                   <label className="block text-foreground/80 font-semibold">
-                    Decline Reason for Final Deliverables <span className="text-red-500">*</span>
+                    Decline Reason for Final Deliverables <span className="text-destructive">*</span>
                   </label>
                   <textarea
                     rows={3}
@@ -1536,7 +1659,7 @@ export default function ClientProjectDetail() {
                         type="button"
                         disabled={actionLoading}
                         onClick={() => setShowDeclineForm(true)}
-                        className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl font-semibold text-sm transition-all cursor-pointer"
+                        className="px-4 py-2 bg-destructive-light hover:bg-destructive-light text-destructive border border-destructive/20 rounded-lg font-medium text-sm transition-all cursor-pointer"
                       >
                         Decline
                       </button>
@@ -1562,9 +1685,9 @@ export default function ClientProjectDetail() {
                             setActionLoading(false);
                           }
                         }}
-                        className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                        className="px-5 py-2 bg-success hover:bg-success/85 text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
                       >
-                        ✓ Accept Final Deliverables
+                        Done Accept Final Deliverables
                       </button>
                     </>
                   ) : (
@@ -1597,7 +1720,7 @@ export default function ClientProjectDetail() {
                           setActionLoading(false);
                         }
                       }}
-                      className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-sm transition-all shadow-sm cursor-pointer"
+                      className="px-5 py-2 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm cursor-pointer"
                     >
                       Submit Decline & Revision Request
                     </button>
@@ -1606,7 +1729,8 @@ export default function ClientProjectDetail() {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Cancel Contract Confirmation Modal */}
       {showCancelModal && (() => {
@@ -1629,18 +1753,18 @@ export default function ClientProjectDetail() {
         const expertPayout = penaltyFee + progressAmount;
         const clientRefund = contractAmount - platformFee - penaltyFee - progressAmount;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
             <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-lg overflow-hidden transform transition-all scale-100 animate-zoom-in text-left">
               {/* Header */}
-              <div className={`flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border ${cancelAttemptCount >= 1 ? "bg-orange-50 border-orange-200" : ""}`}>
-                <div className={`p-2 rounded-lg ${cancelAttemptCount >= 1 ? "bg-orange-100 text-orange-600" : "bg-red-50 text-red-600"}`}>
+              <div className={`flex items-center gap-3 px-6 py-4 bg-secondary/60 border-b border-border ${cancelAttemptCount >= 1 ? "bg-warning-light border-warning/20" : ""}`}>
+                <div className={`p-2 rounded-lg ${cancelAttemptCount >= 1 ? "bg-warning-light text-warning" : "bg-destructive-light text-destructive"}`}>
                   <Ban className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className={`text-lg font-bold font-sans ${cancelAttemptCount >= 1 ? "text-orange-700" : "text-foreground"}`}>
+                  <h3 className={`text-lg font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract"}
                   </h3>
-                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-orange-600/80" : "text-muted-foreground"}`}>
+                  <p className={`text-xs mt-0.5 font-sans ${cancelAttemptCount >= 1 ? "text-warning/80" : "text-muted-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract & split escrow based on progress"}
                   </p>
                 </div>
@@ -1652,27 +1776,27 @@ export default function ClientProjectDetail() {
                   <div className="flex justify-between"><span className="text-muted-foreground">Total Escrow:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span></div>
                   <div className="flex justify-between"><span className="text-muted-foreground">Current Progress:</span><span className="font-semibold text-foreground">{overallProgress}%</span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-orange-500">5% → <MoneyDisplay amount={platformFee} /></span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-red-500">10% → <MoneyDisplay amount={penaltyFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (collected by system):</span><span className="font-semibold text-warning">5% to <MoneyDisplay amount={platformFee} /></span></div>
+                  <div className="flex justify-between"><span className="text-muted-foreground">Cancellation penalty fee:</span><span className="font-semibold text-destructive">10% to <MoneyDisplay amount={penaltyFee} /></span></div>
                   <div className="border-t border-border my-2" />
-                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">Payment to Expert:</span><span className="font-bold text-amber-600"><MoneyDisplay amount={expertPayout} /></span></div>
-                  <div className="flex justify-between text-base"><span className="font-bold text-foreground">You receive (minus 15% fee):</span><span className="font-bold text-green-600"><MoneyDisplay amount={clientRefund} /></span></div>
+                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">Payment to Expert:</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayout} /></span></div>
+                  <div className="flex justify-between text-base"><span className="font-semibold text-foreground">You receive (minus 15% fee):</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefund} /></span></div>
                 </div>
 
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                <div className="p-3 bg-destructive-light border border-destructive/20 rounded-xl text-destructive text-xs">
                   After cancellation, the project will be closed and cannot be continued. This action cannot be undone.
                 </div>
 
                 <div className="space-y-2">
                   <label className="block text-foreground/80 font-semibold text-sm">
-                    Cancellation Reason <span className="text-red-500">*</span>
+                    Cancellation Reason <span className="text-destructive">*</span>
                   </label>
                   <textarea
                     rows={3}
                     placeholder="Why do you want to cancel this contract?"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-red-300 text-foreground text-sm"
+                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-destructive/35 text-foreground text-sm"
                   />
                 </div>
 
@@ -1681,12 +1805,51 @@ export default function ClientProjectDetail() {
                     Attach documents/evidence (Optional)
                   </label>
                   <input
-                    type="text"
-                    placeholder="e.g. evidence.pdf, supporting_docs.docx"
-                    value={evidenceFileName}
-                    onChange={(e) => setEvidenceFileName(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground text-sm"
+                    type="file"
+                    ref={evidenceFileInputRef}
+                    onChange={handleEvidenceFileChange}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar"
                   />
+
+                  {evidenceFile ? (
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 border border-border rounded-xl">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <Paperclip className="w-4 h-4 text-accent flex-shrink-0" />
+                        <div className="truncate">
+                          <p className="text-xs font-semibold text-foreground truncate">{evidenceFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{evidenceFile.size}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEvidenceFile(null);
+                          setEvidenceFileName("");
+                          if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = "";
+                        }}
+                        className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isUploadingEvidence}
+                      onClick={() => evidenceFileInputRef.current?.click()}
+                      className="w-full p-3 border border-dashed border-input rounded-xl hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      {isUploadingEvidence ? (
+                        <span className="animate-pulse">Uploading evidence file...</span>
+                      ) : (
+                        <>
+                          <Paperclip className="w-4 h-4 text-accent" />
+                          <span>Upload document/evidence file (PDF, DOCX, Images, ZIP)</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1699,6 +1862,7 @@ export default function ClientProjectDetail() {
                     setShowCancelModal(false);
                     setCancelReason("");
                     setEvidenceFileName("");
+                    setEvidenceFile(null);
                   }}
                   className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
@@ -1708,37 +1872,39 @@ export default function ClientProjectDetail() {
                   type="button"
                   disabled={cancelLoading}
                   onClick={report?.status === "Returned" ? handleInitiatorRespondRejection : handleCancelContractInit}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white rounded-xl font-bold text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                  className="px-5 py-2 bg-destructive hover:bg-destructive disabled:bg-destructive/45 text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {cancelLoading ? "Processing..." : "Confirm Cancellation"}
                 </button>
               </div>
 
               {/* Send Confirmation Dialog */}
-              {showSendConfirmDialog && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
-                  <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
-                    <h4 className="text-base font-bold text-foreground">Confirm Submission</h4>
-                    <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
-                    <div className="flex justify-end gap-3 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => setShowSendConfirmDialog(false)}
-                        className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
-                      >
-                        Cancel (Decline)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmCancellationSend}
-                        className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm cursor-pointer"
-                      >
-                        Agree (Accept)
-                      </button>
+              {showSendConfirmDialog &&
+                createPortal(
+                  <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-all animate-fade-in font-sans">
+                    <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left transform animate-zoom-in">
+                      <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
+                      <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
+                      <div className="flex justify-end gap-3 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setShowSendConfirmDialog(false)}
+                          className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
+                        >
+                          Cancel (Decline)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmCancellationSend}
+                          className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                        >
+                          Agree (Accept)
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </div>,
+                  document.body
+                )}
             </div>
           </div>
         );
@@ -1750,7 +1916,7 @@ export default function ClientProjectDetail() {
       <Dialog open={showExplanationModal} onOpenChange={setShowExplanationModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto font-sans">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-red-950">
+            <DialogTitle className="text-xl font-semibold text-destructive">
               Submit Response to Report
             </DialogTitle>
           </DialogHeader>
@@ -1811,14 +1977,14 @@ function DeliveryPaymentStepper({ project, overallProgress, role, allTasksApprov
           <div key={step.label} className="flex items-center">
             <div className="flex flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done
-                  ? "bg-success text-white"
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done
+                  ? "bg-success text-primary-foreground"
                   : step.active
                     ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30"
                     : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
               <span
                 className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"
@@ -1839,6 +2005,3 @@ function DeliveryPaymentStepper({ project, overallProgress, role, allTasksApprov
     </div>
   );
 }
-
-
-

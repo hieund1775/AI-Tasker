@@ -1,5 +1,5 @@
-// =============================================================================
-// OwnerDashboard — Statistics dashboard for Owner role.
+﻿// =============================================================================
+// OwnerDashboard - Statistics dashboard for Owner role.
 //
 // Charts:
 //   - Monthly Client/Expert visits (bar chart)
@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import { Users, Briefcase, TrendingUp, AlertTriangle, Shield, ShieldCheck, FileText, Star, Tag } from "lucide-react";
 import { DashboardStats } from "../../components/shared/DashboardStats.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import {
   getOwnerDashboardStats,
@@ -71,7 +72,7 @@ export function OwnerDashboard() {
   });
 
   // -----------------------------------------------------------------------
-  // Fetch all data — uses Promise.allSettled so one failing API doesn't
+  // Fetch all data - uses Promise.allSettled so one failing API doesn't
   // block the others, and the page always renders with fallback values.
   // -----------------------------------------------------------------------
   const fetchData = useCallback(async () => {
@@ -404,14 +405,39 @@ export function OwnerDashboard() {
   // -----------------------------------------------------------------------
   return (
     <>
-      {/* Header */}
-      <div className="relative bg-gradient-to-r from-warning/6 via-warning/3 to-primary/3 rounded-xl border border-border p-6 overflow-hidden">
-        <div className="absolute inset-0 brand-neural opacity-15 pointer-events-none" />
-        <div className="relative">
-          <h1 className="page-title mb-1">Owner Dashboard</h1>
-          <p className="page-subtitle">Platform overview and business metrics.</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Owner Dashboard"
+        subtitle="Platform overview and business metrics."
+        className="mb-6"
+        actions={
+          <div className="page-filter-controls">
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              className="h-10 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+              disabled={loading}
+            >
+              {YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  Year {y}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(Number(e.target.value))}
+              className="h-10 rounded-xl border border-border bg-card px-3 text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
+              disabled={loading}
+            >
+              {MONTHS.map((m, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      />
 
       {/* Error state */}
       {error && (
@@ -419,34 +445,6 @@ export function OwnerDashboard() {
           {error}
         </div>
       )}
-
-      {/* Year / Month filters */}
-      <div className="flex items-center gap-3">
-        <select
-          value={selectedYear}
-          onChange={(e) => setSelectedYear(Number(e.target.value))}
-          className="px-4 py-2 border border-border rounded-lg bg-card text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
-          disabled={loading}
-        >
-          {YEAR_OPTIONS.map((y) => (
-            <option key={y} value={y}>
-              Year {y}
-            </option>
-          ))}
-        </select>
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(Number(e.target.value))}
-          className="px-4 py-2 border border-border rounded-lg bg-card text-sm focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15"
-          disabled={loading}
-        >
-          {MONTHS.map((m, i) => (
-            <option key={i + 1} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {/* Stat cards */}
       {statCards.length > 0 && (
@@ -462,13 +460,13 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={trafficData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="Client" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Expert" fill="#8B5CF6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Client" fill="var(--chart-1)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="Expert" fill="var(--chart-2)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -481,14 +479,14 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={postData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
                 <Bar
                   dataKey="Posts"
-                  fill="#10B981"
+                  fill="var(--chart-3)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
@@ -503,7 +501,7 @@ export function OwnerDashboard() {
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={paymentData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
@@ -518,7 +516,7 @@ export function OwnerDashboard() {
                 <Legend />
                 <Bar
                   dataKey="Revenue"
-                  fill="#F59E0B"
+                  fill="var(--chart-4)"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>

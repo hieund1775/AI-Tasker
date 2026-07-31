@@ -1,34 +1,32 @@
-import { Slot } from "@radix-ui/react-slot";
+﻿import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils.js";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all duration-200 select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-1 aria-invalid:ring-destructive/20 aria-invalid:border-destructive active:scale-95",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-invalid:ring-destructive/20 aria-invalid:border-destructive hover:-translate-y-0.5 active:translate-y-px",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground hover:bg-primary-hover shadow-sm hover:shadow-md",
+          "bg-primary text-primary-foreground shadow-[0_1px_0_color-mix(in_srgb,var(--primary-foreground)_16%,transparent)_inset,0_10px_22px_color-mix(in_srgb,var(--primary)_18%,transparent)] hover:bg-primary-hover hover:shadow-[0_1px_0_color-mix(in_srgb,var(--primary-foreground)_20%,transparent)_inset,0_14px_28px_color-mix(in_srgb,var(--primary)_22%,transparent)]",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/85 shadow-sm",
+          "bg-destructive text-destructive-foreground hover:bg-destructive/85",
         outline:
-          "border border-border bg-background text-foreground hover:bg-secondary hover:text-foreground hover:border-accent/30",
+          "border border-border bg-card/88 text-foreground shadow-[0_1px_0_color-mix(in_srgb,var(--foreground)_5%,transparent)_inset] hover:border-input hover:bg-secondary hover:shadow-[0_10px_22px_color-mix(in_srgb,var(--foreground)_8%,transparent)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-muted/80",
+          "bg-secondary text-secondary-foreground shadow-[0_1px_0_color-mix(in_srgb,var(--foreground)_5%,transparent)_inset] hover:bg-muted",
         success:
-          "bg-success text-success-foreground hover:bg-success/85 shadow-sm",
+          "bg-success text-success-foreground hover:bg-success/85",
         ghost:
-          "text-muted-foreground hover:text-foreground hover:bg-secondary",
+          "text-muted-foreground hover:text-foreground hover:bg-secondary hover:shadow-[0_8px_18px_color-mix(in_srgb,var(--foreground)_6%,transparent)]",
         link: "text-accent underline-offset-4 hover:underline",
-        ai:
-          "bg-accent-gradient text-white shadow-sm hover:shadow-lg hover:shadow-accent/20 hover:brightness-110",
       },
       size: {
-        sm: "h-8 rounded-lg gap-1.5 px-3 text-xs",
-        default: "h-9 rounded-lg gap-2 px-4 text-sm",
-        lg: "h-10 rounded-lg gap-2 px-5 text-sm",
-        xl: "h-11 rounded-xl gap-2.5 px-6 text-sm",
-        icon: "size-9 rounded-lg",
+        sm: "h-9 min-w-20 rounded-lg gap-1.5 px-3.5 text-xs",
+        default: "h-10 min-w-24 rounded-lg gap-2 px-[1.125rem] text-sm",
+        lg: "h-11 min-w-28 rounded-lg gap-2 px-[1.375rem] text-sm",
+        xl: "h-12 min-w-32 rounded-xl gap-2.5 px-6 text-sm",
+        icon: "size-10 rounded-lg",
       },
     },
     defaultVariants: {

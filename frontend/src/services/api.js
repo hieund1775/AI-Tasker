@@ -17,6 +17,73 @@ function clearToken() {
   } catch { }
 }
 
+function looksMojibake(value) {
+  return /(?:\u00c3|\u00c2|\u00e2|\ufffd|\u00c4|\u00e1\u00ba|\u00e1\u00bb|\u00f0\u0178)/.test(value);
+}
+
+const WINDOWS_1252_BYTES = {
+  "\u20ac": 0x80,
+  "\u201a": 0x82,
+  "\u0192": 0x83,
+  "\u201e": 0x84,
+  "\u2026": 0x85,
+  "\u2020": 0x86,
+  "\u2021": 0x87,
+  "\u02c6": 0x88,
+  "\u2030": 0x89,
+  "\u0160": 0x8a,
+  "\u2039": 0x8b,
+  "\u0152": 0x8c,
+  "\u017d": 0x8e,
+  "\u2018": 0x91,
+  "\u2019": 0x92,
+  "\u201c": 0x93,
+  "\u201d": 0x94,
+  "\u2022": 0x95,
+  "\u2013": 0x96,
+  "\u2014": 0x97,
+  "\u02dc": 0x98,
+  "\u2122": 0x99,
+  "\u0161": 0x9a,
+  "\u203a": 0x9b,
+  "\u0153": 0x9c,
+  "\u017e": 0x9e,
+  "\u0178": 0x9f,
+};
+
+function mojibakeByteForChar(char) {
+  return WINDOWS_1252_BYTES[char] ?? (char.charCodeAt(0) & 0xff);
+}
+
+function repairMojibakeString(value) {
+  if (typeof value !== "string" || !looksMojibake(value)) return value;
+
+  try {
+    const bytes = Uint8Array.from(value, mojibakeByteForChar);
+    const repaired = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    return looksMojibake(repaired) ? value : repaired;
+  } catch {
+    return value;
+  }
+}
+
+function normalizeResponseText(value, seen = new WeakSet()) {
+  if (typeof value === "string") return repairMojibakeString(value);
+  if (!value || typeof value !== "object") return value;
+
+  if (seen.has(value)) return value;
+  seen.add(value);
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeResponseText(item, seen));
+  }
+
+  Object.keys(value).forEach((key) => {
+    value[key] = normalizeResponseText(value[key], seen);
+  });
+  return value;
+}
+
 async function request(endpoint, options = {}) {
   let finalEndpoint = endpoint;
   if (options.params) {
@@ -37,7 +104,7 @@ async function request(endpoint, options = {}) {
     body,
     method,
     headers: extraHeaders = {},
-    timeout = 15000, // 15 s — Railway backend needs extra time on cold starts
+    timeout = 15000, // 15s - Railway backend needs extra time on cold starts
     ...rest
   } = options;
 
@@ -82,13 +149,13 @@ async function request(endpoint, options = {}) {
     clearTimeout(timer);
     if (networkError.name === "AbortError") {
       throw new ApiError(
-        "Request timed out — the server did not respond in time.",
+        "Request timed out - the server did not respond in time.",
         0,
         networkError,
       );
     }
     throw new ApiError(
-      "Network error — please check your connection and try again.",
+      "Network error - please check your connection and try again.",
       0,
       networkError,
     );
@@ -118,6 +185,8 @@ async function request(endpoint, options = {}) {
   } else {
     data = await response.text();
   }
+
+  data = normalizeResponseText(data);
 
   if (!response.ok) {
     const message =
@@ -203,7 +272,6 @@ function del(endpoint, options = {}) {
   return request(endpoint, { ...options, method: "DELETE" });
 }
 
-// ── Helpers to save/read use cases from localStorage (backup when BE has not serialized jobRequirements) ──
 export function saveJobUseCases(jobId, useCases) {
   try {
     localStorage.setItem(`aitasker_job_usecases_${jobId}`, JSON.stringify(useCases));
@@ -217,7 +285,6 @@ function loadJobUseCases(jobId) {
   } catch (e) { return null; }
 }
 
-// ── Helpers to save/read job attachments from localStorage (backup when BE has not stored AttachmentUrl) ──
 export function saveJobAttachments(jobId, attachments) {
   try {
     localStorage.setItem(`aitasker_job_attachments_${jobId}`, JSON.stringify(attachments));
@@ -361,7 +428,7 @@ export const api = {
       post("/auth/forgot-password", { email }, { authenticated: false }),
     resetPassword: (token, newPassword) =>
       post("/auth/reset-password", { resetToken: token, newPassword }, { authenticated: false }),
-    verifyEmail: (data) => 
+    verifyEmail: (data) =>
       post("/users/verify-email", data, { authenticated: false }),
     resendVerification: (data) =>
       post("/users/resend-verification", data, { authenticated: false }),
@@ -413,7 +480,7 @@ export const api = {
   },
 
   transactions: {
-    getStats: (userId) => 
+    getStats: (userId) =>
       get(`/users/${userId}/dashboard-stats`).catch(() => ({
         posted: 0, active: 0, completed: 0, proposals: 0, totalSpent: 0
       })),
@@ -427,7 +494,7 @@ export const api = {
     // Retrieve expert profile info
     getProfile: (id) => get(`/Users/${id}/expert-profile`),
 
-    // TODO: Backend endpoint not yet confirmed — placeholder
+    // TODO: Backend endpoint not yet confirmed - placeholder
     getById: (id) => {
       // TODO: Replace with real endpoint e.g. get(`/experts/${id}`) or get(`/Users/${id}`)
       return get(`/Users/${id}`).catch(() => null);
@@ -442,8 +509,8 @@ export const api = {
 
   reviews: {
     createReview: (data) => post("/Reviews", data),
-    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`),
-    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`),
+    getReviewByProject: (projectId) => get(`/Reviews/project/${projectId}`).catch(() => null),
+    getExpertReviews: (expertId) => get(`/Reviews/expert/${expertId}`).catch(() => ({ totalReviews: 0, reviews: [] })),
     updateReview: (reviewId, data) => put(`/Reviews/${reviewId}`, data),
     replyReview: (reviewId, data) => post(`/Reviews/${reviewId}/reply`, data),
   },
@@ -569,7 +636,7 @@ export const api = {
   },
 
   // ===========================================================================
-  // PLACEHOLDER API GROUPS — backend endpoints not yet confirmed.
+  // PLACEHOLDER API GROUPS - backend endpoints not yet confirmed.
   // All functions return null or resolve to null so callers never crash.
   // TODO: Connect each function to its real backend endpoint when available.
   // ===========================================================================
@@ -632,9 +699,9 @@ export const api = {
   },
 
   notifications: {
-    getList: (params) => get(`/notifications${buildQuery(params)}`),
-    markRead: (id) => put(`/notifications/${id}/read`),
-    markAllRead: (params) => put(`/notifications/read-all${buildQuery(params)}`),
+    getList: (params) => get(`/notifications${buildQuery(params)}`).catch(() => []),
+    markRead: (id) => put(`/notifications/${id}/read`).catch(() => null),
+    markAllRead: (params) => put(`/notifications/read-all${buildQuery(params)}`).catch(() => null),
   },
 
   contracts: {
@@ -657,17 +724,20 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
-      // Append actual files if present, or leave empty
+      // Append PortfolioUrl string if available
+      if (data.portfolioUrl && String(data.portfolioUrl).trim() !== "") {
+        formData.append("PortfolioUrl", String(data.portfolioUrl).trim());
+      }
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
-      } else {
-        formData.append("PortfolioUrl", data.portfolioUrl || "");
       }
 
+      // Append AttachmentUrl string if available
+      if (data.attachmentUrl && String(data.attachmentUrl).trim() !== "") {
+        formData.append("AttachmentUrl", String(data.attachmentUrl).trim());
+      }
       if (data.attachment instanceof File) {
         formData.append("Attachment", data.attachment);
-      } else {
-        formData.append("AttachmentUrl", data.attachmentUrl || "");
       }
 
       return post("/Proposals/submit-proposal", formData, { isFormData: true });
@@ -682,16 +752,18 @@ export const api = {
       formData.append("Introduction", data.introduction || "");
       formData.append("Implementation", data.coverLetter || "");
 
+      if (data.portfolioUrl && String(data.portfolioUrl).trim() !== "") {
+        formData.append("PortfolioUrl", String(data.portfolioUrl).trim());
+      }
       if (data.portfolio instanceof File) {
         formData.append("Portfolio", data.portfolio);
-      } else {
-        formData.append("PortfolioUrl", data.portfolioUrl || "");
       }
 
+      if (data.attachmentUrl && String(data.attachmentUrl).trim() !== "") {
+        formData.append("AttachmentUrl", String(data.attachmentUrl).trim());
+      }
       if (data.attachment instanceof File) {
         formData.append("Attachment", data.attachment);
-      } else {
-        formData.append("AttachmentUrl", data.attachmentUrl || "");
       }
 
       return put(`/Proposals/${id}`, formData, { isFormData: true });
@@ -748,6 +820,42 @@ export function enrichFileUrl(url) {
   }
 }
 
+/**
+ * Strips GUIDs, hashes, and timestamp prefixes off filenames,
+ * returning the clean human-readable original filename.
+ */
+export function cleanFileName(name) {
+  if (!name || typeof name !== "string") return "Attachment Document";
+
+  // Check for ?name=OriginalName or ?filename=OriginalName in URL
+  const qsMatch = name.match(/[?&](?:name|filename)=([^&]+)/);
+  if (qsMatch) {
+    try { return decodeURIComponent(qsMatch[1]); } catch (e) { return qsMatch[1]; }
+  }
+
+  let raw = name.split("?")[0].split("/").pop().split("\\").pop() || "Attachment Document";
+  try {
+    raw = decodeURIComponent(raw);
+  } catch (e) {}
+
+  const cleaned = raw
+    .replace(/^([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})_/i, "")
+    .replace(/^[a-f0-9-]{32,38}_/i, "")
+    .replace(/^[a-f0-9]{24,32}_/i, "")
+    .replace(/^\d{10,17}[-_]/, "")
+    .replace(/^\d+[-_]/, "");
+
+  const resultName = cleaned || raw;
+  // If resultName is a raw pure GUID (e.g. 630eb873-b50a-4e9d-aa99-751a337ff95d.docx)
+  const isPureGuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(\.[a-z0-9]+)?$/i.test(resultName);
+  if (isPureGuid) {
+    const ext = resultName.match(/(\.[a-z0-9]+)$/i)?.[1] || ".pdf";
+    return `Proposal_Attachment_Document${ext}`;
+  }
+
+  return resultName;
+}
+
 export function parseProposalWbs(rawImplementation, proposal) {
   let parsed = {};
   try {
@@ -764,7 +872,18 @@ export function parseProposalWbs(rawImplementation, proposal) {
   const finalTasks = rawTasks.length > 0 ? rawTasks : dbTasks;
 
   const tasks = finalTasks.map((t, idx) => {
-    const titleVal = t.title || t.Title || "";
+    let titleVal = t.title || t.Title || "";
+    if (typeof titleVal === "string" && titleVal.trim().startsWith("{")) {
+      try {
+        const parsedT = JSON.parse(titleVal);
+        if (parsedT.tasks && Array.isArray(parsedT.tasks) && parsedT.tasks[0]) {
+          titleVal = parsedT.tasks[0].title || parsedT.tasks[0].Title || "Proposed Task";
+        } else if (parsedT.Title || parsedT.title) {
+          titleVal = parsedT.Title || parsedT.title;
+        }
+      } catch (e) { }
+    }
+
     const ucidMatch = titleVal.match(/\[UCID:(.*?)\]/);
     const useCaseId = ucidMatch ? ucidMatch[1] : (t.useCaseId || t.UseCaseId || null);
     const cleanTitle = titleVal.replace(/\s*\[UCID:.*?\]/, "");

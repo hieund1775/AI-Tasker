@@ -1,14 +1,14 @@
-import { ConfirmationModal } from "../shared/ConfirmationModal.jsx";
+﻿import { ConfirmationModal } from "../shared/ConfirmationModal.jsx";
 
 // =============================================================================
-// ConfirmMiniTasksModal — confirmation dialog shown before locking mini tasks.
+// ConfirmMiniTasksModal - confirmation dialog shown before locking mini tasks.
 //
 // Props:
-//   open        — boolean
-//   onOpenChange — (open: boolean) => void
-//   onBackToEdit — () => void — user wants to go back and edit
-//   onConfirm    — () => void — user confirms and locks mini tasks
-//   loading      — boolean — shows spinner on confirm button
+//   open        - boolean
+//   onOpenChange - (open: boolean) => void
+//   onBackToEdit - () => void - user wants to go back and edit
+//   onConfirm    - () => void - user confirms and locks mini tasks
+//   loading      - boolean - shows spinner on confirm button
 // =============================================================================
 
 export function ConfirmMiniTasksModal({

@@ -1,18 +1,19 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip } from "lucide-react";
+import { ArrowLeft, Send, Star, MapPin, Clock, CheckCircle, Briefcase, Sparkles, Bot, Layers, Target, ReceiptText, Calendar, Paperclip, RotateCcw } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
 import api, { saveJobUseCases, saveJobAttachments } from "../../../services/api.js";
 import { SkillTags } from "../../components/shared/SkillTags.jsx";
 import { FileUploadDropzone } from "../../components/shared/FileUploadDropzone.jsx";
 import { AIClientsUseCasePlanner } from "../../components/ai/AIClientsUseCasePlanner.jsx";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { AnimatedReveal } from "../../components/shared/AnimatedReveal.jsx";
 import { getRecommendedExperts } from "../../lib/recommendationHelper.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
-// ── Timeline unit conversion helpers ──
 const unitToDays = (value, unit) => {
   const n = Number(value) || 0;
   if (unit === "Months") return n * 30;
@@ -56,7 +57,7 @@ export function PostProject() {
     specialization: "",
     title: "",
     description: "",
-    budget: 0,          // number — no $, no commas
+    budget: 0,          // number - no $, no commas
     durationValue: 1,   // number
     durationUnit: "Days", // "Days" | "Months" | "Years"
   });
@@ -84,6 +85,54 @@ export function PostProject() {
   const [useCases, setUseCases] = useState([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
   const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // Auto-restore draft from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = sessionStorage.getItem("post_project_form_draft");
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.formData) setFormData(parsed.formData);
+        if (parsed.selectedSkills) setSelectedSkills(parsed.selectedSkills);
+        if (parsed.useCases && parsed.useCases.length > 0) setUseCases(parsed.useCases);
+        setDraftRestored(true);
+      }
+    } catch (e) {
+      console.error("Failed to restore draft:", e);
+    }
+  }, []);
+
+  // Auto-save draft to sessionStorage on change
+  useEffect(() => {
+    try {
+      if (formData.title || formData.description || selectedSkills.length > 0 || (useCases.length > 0 && useCases[0].title)) {
+        sessionStorage.setItem(
+          "post_project_form_draft",
+          JSON.stringify({ formData, selectedSkills, useCases })
+        );
+      }
+    } catch (e) {
+      console.error("Failed to save draft:", e);
+    }
+  }, [formData, selectedSkills, useCases]);
+
+  const handleClearDraft = () => {
+    sessionStorage.removeItem("post_project_form_draft");
+    setFormData({
+      category: "",
+      specialization: "",
+      title: "",
+      description: "",
+      budget: 0,
+      durationValue: 1,
+      durationUnit: "Days",
+    });
+    setSelectedSkills([]);
+    setUseCases([{ id: `uc-${Date.now()}-1`, title: "", description: "", originalDurationDays: 1 }]);
+    setDraftRestored(false);
+    toast.info("Form draft cleared.");
+  };
 
   // AI Planner sidebar state
   const [rightPanelMode, setRightPanelMode] = useState(null); // null | "recommendations" | "ai_planner"
@@ -122,7 +171,6 @@ export function PostProject() {
     }
   }, []);
 
-  // ── Auto-sync timeline with total use case duration ──
   const totalUseCaseDays = useMemo(() => {
     return useCases.reduce((sum, uc) => sum + (Number(uc.originalDurationDays) || 0), 0);
   }, [useCases]);
@@ -159,6 +207,13 @@ export function PostProject() {
     e.preventDefault();
     setSubmitting(true);
 
+    const budgetNum = Number(formData.budget) || 0;
+    if (budgetNum < 1000) {
+      toast.error("Project budget must be at least $1,000 USD.");
+      setSubmitting(false);
+      return;
+    }
+
     let deadlineDays = unitToDays(formData.durationValue, formData.durationUnit);
 
     // Compute total use case duration
@@ -166,7 +221,7 @@ export function PostProject() {
 
     // Validate: total deadline >= total use case duration
     if (deadlineDays < totalUseCaseDuration) {
-      alert(`Total deadline (${deadlineDays} days) must be at least the sum of use case durations (${totalUseCaseDuration} days). Please increase the deadline or reduce use case durations.`);
+      toast.error(`Total deadline (${deadlineDays} days) must be at least the sum of use case durations (${totalUseCaseDuration} days). Please increase the deadline or reduce use case durations.`);
       setSubmitting(false);
       return;
     }
@@ -277,14 +332,15 @@ export function PostProject() {
       }
 
       if (invitedExpert) {
-        alert("Project invitation successfully sent to the expert!");
+        toast.success("Project invitation successfully sent to the expert.");
       } else {
-        alert("Project posted successfully!");
+        toast.success("Project posted successfully.");
       }
+      sessionStorage.removeItem("post_project_form_draft");
       navigate("/client/my-projects");
     } catch (err) {
       console.error("Failed to post project:", err);
-      alert(err.message || "Failed to post project. Please try again!");
+      toast.error(err.message || "Failed to post project. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -392,13 +448,16 @@ export function PostProject() {
     formData.category !== "" &&
     formData.specialization !== "" &&
     selectedSkills.length > 0 &&
-    Number(formData.budget) > 0 &&
+    Number(formData.budget) >= 1000 &&
     Number(formData.durationValue) > 0 &&
     useCases.every(uc => (uc.title || uc.nameAndDeadline || "").trim() !== "" && uc.description.trim() !== "" && Number(uc.originalDurationDays) > 0) &&
     isDeadlineValid;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <BackButton fallback="/client/dashboard" className="mb-4">
+        Back to Dashboard
+      </BackButton>
       <PageHeader
         title="Post a New AI Project"
         subtitle="Define your user stories, timeline, and budget before matching with an expert."
@@ -418,29 +477,47 @@ export function PostProject() {
         }
       />
 
-      <div className={`grid grid-cols-1 ${rightPanelMode || showRecommendations ? "lg:grid-cols-10 gap-6 items-stretch" : "max-w-3xl mx-auto"}`}>
+      <div className={`mt-6 grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={(rightPanelMode || showRecommendations) ? "lg:col-span-7 flex flex-col" : "w-full"}>
-          <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col h-full space-y-6">
-          <AnimatedReveal>
+          <form ref={formRef} onSubmit={handleSubmit} className="flex h-full flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
+            <div className="flex items-center justify-between gap-3 px-1 py-1 pb-2 border-b border-border/40">
+              <span className="text-xs text-muted-foreground font-medium">Form data auto-saves while typing</span>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="px-3 py-1 bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg text-xs font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer"
+                title="Clear all form fields and start over"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> Clear All Data
+              </button>
+            </div>
+            <AnimatedReveal>
             <SectionCard title="Basic Information" icon={Layers} padding="lg">
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Project Title <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-foreground/80">
+                      Project Title <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-xs text-muted-foreground">{formData.title.length}/100</span>
+                  </div>
                   <input
                     type="text" name="title" id="title"
                     value={formData.title}
                     onChange={(e) => updateField("title", e.target.value)}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
+                    maxLength={100}
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary text-sm"
                     placeholder="e.g., AI Chatbot Development"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground/80 mb-2">
-                    Description <span className="text-red-500">*</span>
-                  </label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium text-foreground/80">
+                      Description <span className="text-destructive">*</span>
+                    </label>
+                    <span className="text-xs text-muted-foreground">{formData.description.length}/3000 (Min 10)</span>
+                  </div>
                   <textarea
                     name="description" id="description"
                     value={formData.description}
@@ -449,8 +526,10 @@ export function PostProject() {
                       e.target.style.height = `${e.target.scrollHeight}px`;
                       updateField("description", e.target.value);
                     }}
+                    minLength={10}
+                    maxLength={3000}
                     rows={4}
-                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden"
+                    className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary resize-none overflow-hidden text-sm"
                     placeholder="Describe your project requirements, goals, and expected outcomes..."
                     required
                   />
@@ -573,19 +652,19 @@ export function PostProject() {
               ) : (
                 <div className="space-y-4">
                   {useCases.map((uc, index) => (
-                    <div key={index} className="p-5 bg-secondary/40 border border-border rounded-xl space-y-3 relative">
+                    <div key={index} className="relative space-y-3 rounded-2xl border border-border/60 bg-background/65 p-4 shadow-sm shadow-foreground/[0.015] sm:p-5">
                       {useCases.length > 1 && (
                         <button
                           type="button"
                           onClick={() => setUseCases(useCases.filter((_, i) => i !== index))}
-                          className="absolute top-2 right-2.5 text-xs font-medium text-muted-foreground hover:text-red-600 transition-colors"
+                          className="absolute top-2 right-2.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
                         >
                           Remove
                         </button>
                       )}
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          User Story Title <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          User Story Title <span className="text-destructive">*</span>
                         </label>
                         <input
                           type="text"
@@ -597,8 +676,8 @@ export function PostProject() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Description <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Description <span className="text-destructive">*</span>
                         </label>
                         <textarea
                           value={uc.description}
@@ -616,8 +695,8 @@ export function PostProject() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                          Duration (days) <span className="text-red-500">*</span>
+                        <label className="block text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                          Duration (days) <span className="text-destructive">*</span>
                         </label>
                         <input
                           type="number" min="1"
@@ -635,7 +714,7 @@ export function PostProject() {
           </AnimatedReveal>
 
           {/* Timeline Summary Box */}
-          <div className="rounded-xl border px-4 py-3 text-sm bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-300">
+          <div className="rounded-2xl border border-accent/20 bg-accent-light/70 px-4 py-3 text-sm text-accent dark:border-accent/30 dark:bg-accent-light dark:text-accent">
             <div className="flex items-center gap-2 font-semibold">
               <Calendar className="w-4 h-4" />
               Timeline Summary
@@ -662,13 +741,20 @@ export function PostProject() {
                     <label className="block text-sm font-medium text-foreground/80 mb-2">Budget</label>
                     <input
                       type="number" name="budget" id="budget"
-                      min="0" step="1"
+                      min="1000" step="1"
                       value={formData.budget || ""}
                       onChange={(e) => updateField("budget", e.target.value === "" ? 0 : Number(e.target.value))}
-                      className="w-full px-4 py-2.5 border border-input rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary"
-                      placeholder="5000"
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary ${
+                        formData.budget > 0 && formData.budget < 1000 ? "border-destructive focus:border-destructive" : "border-input"
+                      }`}
+                      placeholder="1000"
+                      required
                     />
-                    <p className="text-xs text-muted-foreground mt-1">Total budget for this project</p>
+                    {formData.budget > 0 && formData.budget < 1000 ? (
+                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is $1,000 USD</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">Minimum project budget is $1,000 USD</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline (auto from user stories)</label>
@@ -712,11 +798,11 @@ export function PostProject() {
 
 
           {/* Submit & AI Recommend Buttons */}
-          <div className="flex gap-4 pt-2 pb-2">
+          <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/85 p-3 shadow-sm shadow-foreground/[0.025] sm:flex-row sm:p-4">
             <button
               type="submit"
               disabled={submitting || !isFormValid}
-              className={`flex-[7] py-3.5 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-all text-base ${
+              className={`inline-flex h-11 flex-[7] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover shadow-md"
@@ -728,7 +814,7 @@ export function PostProject() {
               type="button"
               onClick={handleRecommendExperts}
               disabled={submitting || !isFormValid}
-              className={`flex-[3] py-3.5 rounded-xl font-semibold inline-flex items-center justify-center gap-2 transition-all ${
+              className={`inline-flex h-11 flex-[3] items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-all ${
                 submitting || !isFormValid
                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                   : "bg-accent-light text-accent hover:bg-accent/10 font-semibold shadow-sm"
@@ -771,13 +857,13 @@ export function PostProject() {
         >
           <div className="flex items-center justify-between mb-5 border-b border-border/60 pb-3">
             <div>
-              <h2 className="text-sm font-bold text-foreground">AI Recommendations</h2>
+              <h2 className="text-sm font-semibold text-foreground">AI Recommendations</h2>
               <p className="text-xs text-muted-foreground mt-0.5 font-medium">Matching experts</p>
             </div>
             <button
               type="button"
               onClick={() => setShowRecommendations(false)}
-              className="text-xs text-muted-foreground hover:text-muted-foreground font-semibold transition-colors"
+              className="text-xs text-muted-foreground hover:text-muted-foreground font-medium transition-colors"
             >
               Close
             </button>
@@ -800,31 +886,27 @@ export function PostProject() {
                     className="bg-card border border-border rounded-xl p-4 hover:border-input transition-all shadow-sm flex flex-col justify-between"
                   >
                     <div>
-                      {/* ── Top: name + rating badge ── */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <h3 className="font-semibold text-foreground text-sm leading-snug truncate">
                           {expert.name}
                         </h3>
-                        <span className="flex-shrink-0 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold inline-flex items-center gap-0.5">
-                          <Star className="w-3 h-3 fill-emerald-500 text-emerald-500" />
+                        <span className="flex-shrink-0 px-2 py-0.5 bg-success-light text-success rounded-full text-xs font-semibold inline-flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-success text-success" />
                           {expert.rating}
                         </span>
                       </div>
 
-                      {/* ── Title + location ── */}
                       <p className="text-[11px] text-muted-foreground mb-2 truncate">
                         {expert.title}
-                        {expert.location ? ` · ${expert.location}` : ""}
+                        {expert.location ? ` - ${expert.location}` : ""}
                       </p>
 
-                      {/* ── Bio ── */}
                       {expert.bio && (
                         <p className="text-sm text-muted-foreground mb-2.5 line-clamp-2 leading-relaxed">
                           {expert.bio}
                         </p>
                       )}
 
-                      {/* ── Skill tags ── */}
                       {expert.skills?.length > 0 && (
                         <div className="mb-2">
                           <SkillTags
@@ -834,7 +916,6 @@ export function PostProject() {
                         </div>
                       )}
 
-                      {/* ── Stats ── */}
                       <div className="flex items-center gap-2 mb-3 text-[11px]">
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
@@ -842,7 +923,7 @@ export function PostProject() {
                           </span>{" "}
                           projects
                         </span>
-                        <span className="text-muted-foreground/60">·</span>
+                        <span className="text-muted-foreground/60">-</span>
                         <span className="text-muted-foreground">
                           <span className="font-semibold text-foreground">
                             {expert.hourlyRate}
@@ -852,11 +933,10 @@ export function PostProject() {
                       </div>
                     </div>
 
-                    {/* ── Action ── */}
                     <button
                       type="button"
                       onClick={() => setSelectedRecommendExpert(expert)}
-                      className="block w-full h-11 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary/60 text-sm font-medium text-center transition-colors mt-auto"
+                      className="block w-full h-10 px-4 border border-input text-foreground/80 rounded-xl hover:bg-secondary/60 text-sm font-medium text-center transition-colors mt-auto"
                     >
                       View Detail
                     </button>
@@ -867,7 +947,7 @@ export function PostProject() {
                   <button
                     type="button"
                     onClick={() => setVisibleCount((prev) => prev + 3)}
-                    className="w-full h-11 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-xl text-sm font-bold transition-colors text-center border border-border mt-2"
+                    className="w-full h-10 px-4 bg-secondary hover:bg-muted text-foreground/80 rounded-lg text-sm font-medium transition-colors text-center border border-border mt-2"
                   >
                     Add Expert
                   </button>
@@ -888,11 +968,11 @@ export function PostProject() {
               <div className="bg-card rounded-2xl border border-border shadow-sm p-4 space-y-6">
                 {/* Avatar + Name Info */}
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0 font-bold text-brand-primary text-lg">
+                  <div className="w-14 h-14 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0 font-semibold text-brand-primary text-lg">
                     {selectedRecommendExpert.name?.split(" ").map((w) => w[0]).join("").toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-sm font-bold text-foreground truncate">{selectedRecommendExpert.name}</h2>
+                    <h2 className="text-sm font-semibold text-foreground truncate">{selectedRecommendExpert.name}</h2>
                     <p className="text-foreground/80 font-medium text-sm truncate">{selectedRecommendExpert.title}</p>
                     <p className="text-muted-foreground text-xs truncate">{selectedRecommendExpert.email}</p>
                   </div>
@@ -920,7 +1000,7 @@ export function PostProject() {
                   )}
                   {selectedRecommendExpert.rating != null && (
                     <span className="inline-flex items-center gap-1.5">
-                      <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                      <Star className="w-3.5 h-3.5 fill-warning text-warning flex-shrink-0" />
                       {selectedRecommendExpert.rating} ({selectedRecommendExpert.clientReviews?.length || 0} reviews)
                     </span>
                   )}
@@ -981,7 +1061,7 @@ export function PostProject() {
                       {selectedRecommendExpert.portfolio.map((item, i) => (
                         <div
                           key={i}
-                          className="border border-border rounded-lg p-2.5 hover:border-blue-200 transition-colors bg-card"
+                          className="border border-border rounded-lg p-2.5 hover:border-accent/25 transition-colors bg-card"
                         >
                           <h4 className="font-medium text-foreground text-sm">{item.title}</h4>
                           <p className="text-xs text-muted-foreground mt-1 leading-normal">
@@ -1013,7 +1093,7 @@ export function PostProject() {
                               {Array.from({ length: review.rating || 0 }, (_, j) => (
                                 <Star
                                   key={j}
-                                  className="w-3 h-3 fill-yellow-400 text-yellow-400"
+                                  className="w-3 h-3 fill-warning text-warning"
                                 />
                               ))}
                             </div>
@@ -1038,7 +1118,7 @@ export function PostProject() {
                       setSelectedRecommendExpert(null);
                       window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
-                    className="w-full h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[15px]"
+                    className="w-full h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-medium transition-colors flex items-center justify-center gap-1.5 shadow-sm text-[15px]"
                   >
                     Invite
                   </button>

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
@@ -7,16 +7,16 @@ import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTime
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// ProjectProgressPanel — overall project progress section with task cards.
+// ProjectProgressPanel - overall project progress section with task cards.
 //
 // Props:
-//   tasks              — array of tasks with progress and status
-//   overallProgress   — 0-100 number
-//   role               — "client" | "expert"
-//   projectId          — parent project ID
-//   onToggleMiniTask   — (taskId, miniTaskId) => void
-//   focusTaskId        — string|null, task to scroll to
-//   loading            — boolean
+//   tasks              - array of tasks with progress and status
+//   overallProgress   - 0-100 number
+//   role               - "client" | "expert"
+//   projectId          - parent project ID
+//   onToggleMiniTask   - (taskId, miniTaskId) => void
+//   focusTaskId        - string|null, task to scroll to
+//   loading            - boolean
 // =============================================================================
 
 export function ProjectProgressPanel({
@@ -97,13 +97,13 @@ export function ProjectProgressPanel({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Overall</span>
-          <span className={`text-4xl font-bold font-mono tracking-tight ${overallProgress >= 100 ? "text-success" :
+        <div className="flex items-baseline gap-2 rounded-xl border border-border bg-secondary/35 px-3 py-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Overall</span>
+          <span className={`text-lg font-semibold font-mono leading-none tracking-tight ${overallProgress >= 100 ? "text-success" :
               overallProgress >= 50 ? "text-accent" :
                 "text-foreground"
             }`}>
-            {overallProgress}<span className="text-lg">%</span>
+            {overallProgress}<span className="text-xs">%</span>
           </span>
         </div>
       </div>
@@ -151,10 +151,10 @@ export function ProjectProgressPanel({
                 <div className="p-4 bg-accent-light/35 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                      <span className="px-2 py-0.5 bg-accent-light text-accent rounded-full text-[10px] font-semibold dark:bg-accent-light dark:text-accent">
                         Client Use Case
                       </span>
-                      <h4 className="font-bold text-foreground text-sm">
+                      <h4 className="font-semibold text-foreground text-sm">
                         {uc.title || uc.nameAndDeadline}
                       </h4>
                     </div>
@@ -167,7 +167,7 @@ export function ProjectProgressPanel({
                   <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground font-medium">Use Case Progress:</span>
-                      <span className="text-xs font-bold text-primary font-mono">{ucProgressPercent}%</span>
+                      <span className="text-xs font-semibold text-primary font-mono">{ucProgressPercent}%</span>
                       <div className="w-20 bg-secondary h-1.5 rounded-full overflow-hidden">
                         <div
                           className="bg-primary h-full rounded-full transition-all duration-500"
@@ -175,7 +175,7 @@ export function ProjectProgressPanel({
                         />
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full font-bold whitespace-nowrap">
+                    <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full font-semibold whitespace-nowrap">
                       {uc.originalDurationDays || 1} days
                     </span>
                   </div>

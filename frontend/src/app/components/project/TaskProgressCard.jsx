@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { createPortal } from "react-dom";
 import {
   CheckCircle2,
   Clock3,
@@ -77,16 +78,16 @@ import { notifyTaskRevisionRequested, notifyTaskApproved, notifyUrgentSubmission
 import { getTaskDeadlineInfo, isTaskOverdue, requestExtension, getExtensionRequest, clearExtensionRequest, extendAllDeadlines, storeExtensionApproval } from "../../lib/taskDeadlineUtils.js";
 
 // =============================================================================
-// TaskProgressCard — individual task/milestone card within the project progress view.
+// TaskProgressCard - individual task/milestone card within the project progress view.
 //
 // Displays high-level summary only (title, status, description, deadline, progress).
 // Mini tasks are shown exclusively in the TaskDetailPage via "View Details".
 //
 // Props:
-//   task              — task object with derived progress and status fields
-//   role              — "client" | "expert"
-//   projectId         — parent project ID (for navigation)
-//   loading           — boolean
+//   task              - task object with derived progress and status fields
+//   role              - "client" | "expert"
+//   projectId         - parent project ID (for navigation)
+//   loading           - boolean
 // =============================================================================
 
 export function TaskProgressCard({
@@ -256,7 +257,7 @@ export function TaskProgressCard({
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap text-left">
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
             <h3 className={`font-semibold text-base ${task.displayStatus === "Done" ? "text-foreground/60" : "text-foreground"
               }`}>
               {task.title}
@@ -317,7 +318,7 @@ export function TaskProgressCard({
 
       {task.miniTasks && task.miniTasks.length > 0 && (
         <div className="mt-3 p-3 bg-secondary/40 border border-border/80 rounded-lg space-y-2 text-left animate-fade-in mb-3">
-          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide block mb-1">Minitask Checklist:</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Minitask Checklist:</span>
           <div className="space-y-2">
             {task.miniTasks.map((mt, mtIdx) => {
               const isMtCompleted = mt.isCompleted || mt.status === "completed" || mt.status === "done";
@@ -367,15 +368,15 @@ export function TaskProgressCard({
 
 
             <div className="flex items-center gap-2">
-              {/* Expert: Evidence submitted → Checklist Completed static */}
+              {/* Expert: Evidence submitted -> Checklist Completed static */}
               {isChecklistCompleted && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-warning-light border border-warning/20 rounded-lg text-xs font-medium text-warning">
                   <CheckCircle2 className="w-4 h-4" />
-                  Evidence Submitted ✓
+                  Evidence Submitted Done
                 </div>
               )}
 
-              {/* Expert: Product requested → Submit Product */}
+              {/* Expert: Product requested -> Submit Product */}
               {productRequested && !isWaitingForApproval && !isDone && (
                 <Button
                   variant="default"
@@ -383,14 +384,14 @@ export function TaskProgressCard({
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                  className="bg-amber-500 text-white hover:bg-amber-600 cursor-pointer flex items-center gap-1.5"
+                  className="bg-warning-light text-primary-foreground hover:bg-warning cursor-pointer flex items-center gap-1.5"
                 >
                   <Send className="w-4 h-4" />
                   Submit Product
                 </Button>
               )}
 
-              {/* Expert: Rework → Resubmit Product */}
+              {/* Expert: Rework -> Resubmit Product */}
               {isRework && (
                 <Button
                   variant="default"
@@ -398,24 +399,24 @@ export function TaskProgressCard({
                   onClick={() =>
                     navigate(`/${role}/projects/${projectId}/tasks/${task.id}`)
                   }
-                  className="bg-orange-500 text-white hover:bg-orange-600 cursor-pointer flex items-center gap-1.5"
+                  className="bg-warning-light text-primary-foreground hover:bg-warning cursor-pointer flex items-center gap-1.5"
                 >
                   <RotateCcw className="w-4 h-4" />
                   Resubmit Product
                 </Button>
               )}
 
-              {/* Expert: Waiting for Approval → static */}
+              {/* Expert: Waiting for Approval -> static */}
               {isWaitingForApproval && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 border border-purple-200 rounded-lg text-xs font-medium text-purple-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-warning-light border border-warning/30 rounded-lg text-xs font-medium text-warning">
                   <Clock3 className="w-4 h-4" />
                   Waiting for Client Approval
                 </div>
               )}
 
-              {/* Expert: Done → completed */}
+              {/* Expert: Done -> completed */}
               {isDone && (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg text-xs font-medium text-green-700">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-success-light border border-success/20 rounded-lg text-xs font-medium text-success">
                   <CheckCircle2 className="w-4 h-4" />
                   Task Completed
                 </div>
@@ -424,7 +425,7 @@ export function TaskProgressCard({
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Client: Checklist Completed or Pending Approval without product → Quick Accept + Request Product */}
+            {/* Client: Checklist Completed or Pending Approval without product -> Quick Accept + Request Product */}
             {(isChecklistCompleted || (isWaitingForApproval && !hasMainProduct)) && !productRequested && (
               <div className="flex items-center justify-end gap-3">
                 <button
@@ -446,29 +447,29 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Checklist Completed & product requested → waiting */}
+            {/* Client: Checklist Completed & product requested -> waiting */}
             {isChecklistCompleted && productRequested && (
-              <div className="flex items-center justify-end p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm font-medium gap-2 shadow-sm">
-                <Clock3 className="w-4 h-4 text-amber-600 animate-pulse" />
+              <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
+                <Clock3 className="w-4 h-4 text-warning animate-pulse" />
                 Waiting for Expert to submit product...
               </div>
             )}
 
-            {/* Client: Waiting for Expert Product → static message */}
+            {/* Client: Waiting for Expert Product -> static message */}
             {isWaitingForExpertProduct && (
-              <div className="flex items-center justify-end p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm font-medium gap-2 shadow-sm">
-                <Clock3 className="w-4 h-4 text-amber-600 animate-pulse" />
+              <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
+                <Clock3 className="w-4 h-4 text-warning animate-pulse" />
                 Waiting for Expert to submit product...
               </div>
             )}
 
-            {/* Client: Waiting For Approval WITH deliverables → View Product */}
-            {isWaitingForApproval && hasMainProduct && (
-              <div className="flex items-center justify-end gap-3">
+            {/* Client: Deliverables submitted -> ALWAYS View Product */}
+            {hasMainProduct && (
+              <div className="flex items-center justify-end gap-3 mt-1">
                 <button
                   type="button"
                   onClick={() => setShowViewProductModal(true)}
-                  className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-medium rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+                  className="h-9 px-4 bg-primary hover:bg-primary-hover text-primary-foreground text-sm font-semibold rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
                 >
                   <FileText className="w-4 h-4" />
                   View Product
@@ -476,18 +477,18 @@ export function TaskProgressCard({
               </div>
             )}
 
-            {/* Client: Rework → static wait message */}
+            {/* Client: Rework -> static wait message */}
             {isRework && (
-              <div className="flex items-center justify-end p-3 bg-orange-50 border border-orange-200 rounded-lg text-sm font-medium gap-2 shadow-sm">
-                <RotateCcw className="w-4 h-4 text-orange-600" />
+              <div className="flex items-center justify-end p-3 bg-warning-light border border-warning/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
+                <RotateCcw className="w-4 h-4 text-warning" />
                 Waiting for Expert to submit new product...
               </div>
             )}
 
-            {/* Client: Done → completed */}
+            {/* Client: Done -> completed */}
             {isDone && (
-              <div className="flex items-center justify-end p-3 bg-green-50 border border-green-200 rounded-lg text-sm font-medium gap-2 shadow-sm">
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              <div className="flex items-center justify-end p-3 bg-success-light border border-success/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
+                <CheckCircle2 className="w-4 h-4 text-success" />
                 Task Completed
               </div>
             )}
@@ -533,13 +534,13 @@ export function TaskProgressCard({
       </div>
 
       {/* Product Deliverables Modal */}
-      {showViewProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
-          <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in">
+      {showViewProductModal && createPortal(
+        <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all animate-fade-in">
+          <div className="bg-card rounded-xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all scale-100 animate-zoom-in my-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary border-b border-border">
               <div className="text-left">
-                <h3 className="text-lg font-bold text-foreground">Deliverables for: {task.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground">Deliverables for: {task.title}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Details of files and links provided by the expert</p>
               </div>
               <button
@@ -554,7 +555,7 @@ export function TaskProgressCard({
             <div className="px-6 py-6 space-y-6 max-h-[60vh] overflow-y-auto">
               {/* Task-level deliverables */}
               <div className="space-y-3">
-                <h4 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2 text-left">
+                <h4 className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2 text-left">
                   <FileText className="w-4 h-4 text-primary" />
                   Main Deliverable of Milestone
                 </h4>
@@ -587,15 +588,6 @@ export function TaskProgressCard({
                               {resolved.name}
                             </span>
                             <div className="flex items-center gap-1 flex-shrink-0">
-                              <a
-                                href={resolved.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                                title="View file"
-                              >
-                                <ExternalLink className="w-4 h-4" />
-                              </a>
                               <button
                                 type="button"
                                 onClick={() => downloadFileBlob(resolved.url, resolved.name)}
@@ -621,7 +613,7 @@ export function TaskProgressCard({
                   <button
                     type="button"
                     onClick={handleDeclineFromModal}
-                    className="px-5 py-2.5 bg-destructive-light hover:bg-destructive/10 text-destructive font-bold rounded-lg text-sm transition-colors border border-destructive/20 flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 bg-destructive-light hover:bg-destructive/10 text-destructive font-semibold rounded-lg text-sm transition-colors border border-destructive/20 flex items-center gap-1.5 cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                     Decline
@@ -629,7 +621,7 @@ export function TaskProgressCard({
                   <button
                     type="button"
                     onClick={handleApproveTask}
-                    className="px-5 py-2.5 bg-success hover:bg-success/90 text-success-foreground font-bold rounded-lg text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-5 py-2.5 bg-success hover:bg-success/90 text-success-foreground font-semibold rounded-lg text-sm transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <Check className="w-4 h-4" />
                     Accept
@@ -639,14 +631,15 @@ export function TaskProgressCard({
                 <button
                   type="button"
                   onClick={() => setShowViewProductModal(false)}
-                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground font-bold rounded-lg text-sm transition-colors border border-border cursor-pointer"
+                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground font-semibold rounded-lg text-sm transition-colors border border-border cursor-pointer"
                 >
                   Close
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

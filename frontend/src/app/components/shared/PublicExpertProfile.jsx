@@ -19,18 +19,19 @@ import { api } from "../../../services/api.js";
 import { safeArray, safeNumberFormat } from "../../lib/safety.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
 
 /**
- * PublicExpertProfile — unified expert profile component.
+ * PublicExpertProfile - unified expert profile component.
  *
  * Supports three viewer roles:
- *   "client"  — shows Hire/Invite + Send Message buttons
- *   "expert"  — shows Edit Profile button (own profile)
- *   "public"  — no private actions (read-only)
+ *   "client"  - shows Hire/Invite + Send Message buttons
+ *   "expert"  - shows Edit Profile button (own profile)
+ *   "public"  - no private actions (read-only)
  *
  * Props:
- *   viewerRole   — "client" | "expert" | "public"
- *   expertId     — optional expert ID (for client/public views)
+ *   viewerRole   - "client" | "expert" | "public"
+ *   expertId     - optional expert ID (for client/public views)
  */
 
 export function PublicExpertProfile({ viewerRole = "public", expertId }) {
@@ -183,16 +184,20 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               const startDate = formatDate(startDateRaw);
               const endDate = formatDate(endDateRaw);
 
-              // 1. Original review
+              // 1. Original review (check project_review_original_ backup first to preserve initial review rating)
               const dbReview = dbReviewsList.find(r => r.projectId === pId);
               let review = null;
-              if (dbReview) {
+              const rawOrig = localStorage.getItem(`project_review_original_${pId}`);
+              if (rawOrig) {
+                try { review = JSON.parse(rawOrig); } catch (e) {}
+              }
+              if (!review && dbReview) {
                 review = {
                   rating: dbReview.rating,
                   comment: dbReview.comment,
                   createdAt: dbReview.createdAt
                 };
-              } else {
+              } else if (!review) {
                 const rawReview = localStorage.getItem(`project_review_${pId}`);
                 if (rawReview) {
                   try {
@@ -362,7 +367,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
       navigate(`/client/my-projects?projectId=${project.id}&view=details&inviteSuccess=true&expertName=${encodeURIComponent(expert.name || "Expert")}`);
     } catch (err) {
       console.error("Failed to send invitation:", err);
-      alert(err.message || "Failed to send invitation. Please try again.");
+      toast.error(err.message || "Failed to send invitation. Please try again.");
     } finally {
       setInviteLoading(false);
     }
@@ -460,10 +465,10 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               {/* Avatar + Name Info */}
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl font-bold text-brand-primary">{initials}</span>
+                  <span className="text-xl font-semibold text-brand-primary">{initials}</span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+                  <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
                   <p className="text-muted-foreground text-sm">{expert.email}</p>
                 </div>
               </div>
@@ -549,7 +554,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                   )}
                   {expert.rating != null && (
                     <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <Star className="w-4 h-4 fill-warning text-warning" />
                       {expert.rating} ({expert.reviews || 0} reviews)
                     </span>
                   )}
@@ -615,7 +620,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 label: "Cancel",
                 value: stats.cancel,
                 icon: XCircle,
-                color: "text-red-500 bg-red-500/10",
+                color: "text-destructive bg-destructive-light0/10",
               },
               {
                 label: "Report",
@@ -648,7 +653,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                   {stat.label}
                 </p>
-                <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+                <p className="text-xl font-semibold text-foreground mt-0.5">{stat.value}</p>
               </div>
             ))}
           </div>
@@ -681,7 +686,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 <div className="p-2 bg-success/10 text-success rounded-lg">
                   <CheckCircle className="w-5 h-5" />
                 </div>
-                <h2 className="text-lg font-bold text-foreground font-sans">
+                <h2 className="text-lg font-semibold text-foreground font-sans">
                   Completed Projects
                 </h2>
               </div>
@@ -708,12 +713,12 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             {proj.title}
                           </h3>
                           {proj.review && (
-                            <div className="flex items-center gap-0.5 flex-shrink-0 bg-amber-500/10 px-2.5 py-1 rounded-lg">
+                            <div className="flex items-center gap-0.5 flex-shrink-0 bg-warning-light/10 px-2.5 py-1 rounded-lg">
                               {Array.from({ length: 5 }, (_, i) => (
                                 <Star
                                   key={i}
                                   className={`w-3.5 h-3.5 ${
-                                    i < proj.review.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                    i < proj.review.rating ? "fill-warning text-warning" : "text-border"
                                   }`}
                                 />
                               ))}
@@ -729,11 +734,11 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                           <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
                             <div>
                               <span className="font-semibold text-foreground/80">Category:</span>{" "}
-                              <span>{proj.category || "—"}</span>
+                              <span>{proj.category || "-"}</span>
                             </div>
                             {proj.specialization && (
                               <>
-                                <span className="text-border">•</span>
+                                <span className="text-border">-</span>
                                 <div>
                                   <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
                                   <span>{proj.specialization}</span>
@@ -742,10 +747,10 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             )}
                             {(proj.startDate || proj.endDate) && (
                               <>
-                                <span className="text-border">•</span>
+                                <span className="text-border">-</span>
                                 <div>
                                   <span className="font-semibold text-foreground/80">Duration:</span>{" "}
-                                  <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
+                                  <span>{proj.startDate || "-"} to {proj.endDate || "-"}</span>
                                 </div>
                               </>
                             )}
@@ -767,7 +772,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
 
                         {proj.review?.comment && (
                           <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                            <span className="absolute left-2 text-base text-amber-500/70 font-semibold select-none leading-none">“</span>
+                            <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">"</span>
                             {proj.review.comment}
                             {(proj.review.createdAt || proj.review.date) && (
                               <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
@@ -778,22 +783,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                         )}
 
                         {/* Show Expert response */}
-                        {interactions[proj.id] && (
+                        {interactions[proj.id] && (interactions[proj.id].replyText || interactions[proj.id].requestRevisionText) && (
                           <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
-                            {interactions[proj.id].replyText && (
-                              <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-bold text-brand-primary block">Expert Response (Thank You):</span>
-                                <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
-                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                              </div>
-                            )}
-                            {interactions[proj.id].requestRevisionText && (
-                              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-bold text-amber-600 block">Expert Response & Revision Request:</span>
-                                <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
-                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                              </div>
-                            )}
+                            <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                              <span className="font-semibold text-brand-primary block">Expert Response:</span>
+                              <p className="text-muted-foreground">{interactions[proj.id].replyText || interactions[proj.id].requestRevisionText}</p>
+                              <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                            </div>
                           </div>
                         )}
 
@@ -806,12 +802,12 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                                 Edited Review
                               </span>
                               <div className="h-px bg-success/20 flex-1" />
-                              <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">
+                              <div className="flex items-center gap-0.5 bg-warning-light/10 px-2 py-0.5 rounded">
                                 {Array.from({ length: 5 }, (_, i) => (
                                   <Star
                                     key={i}
                                     className={`w-3 h-3 ${
-                                      i < proj.editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                      i < proj.editedReview.rating ? "fill-warning text-warning" : "text-border"
                                     }`}
                                   />
                                 ))}
@@ -819,7 +815,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                             </div>
                             {proj.editedReview.comment && (
                               <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                                <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                                <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">"</span>
                                 {proj.editedReview.comment}
                               </div>
                             )}
@@ -863,7 +859,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
         {showInvitePanel && (
           <div className="lg:col-span-4 bg-card rounded-2xl border border-border shadow-sm p-6 flex flex-col justify-between h-fit min-h-[400px]">
             <div>
-              <h2 className="text-lg font-bold text-foreground mb-4 pb-2 border-b border-border/60">
+              <h2 className="text-lg font-semibold text-foreground mb-4 pb-2 border-b border-border/60">
                 List All Projects
               </h2>
               {openPosts.length === 0 ? (
