@@ -82,7 +82,7 @@ export async function createReport(payload) {
     try {
       const authData = JSON.parse(
         sessionStorage.getItem("aitasker_user_info") ||
-          localStorage.getItem("aitasker_user_info") ||
+          sessionStorage.getItem("user") ||
           "{}",
       );
       reporterId = authData?.id;

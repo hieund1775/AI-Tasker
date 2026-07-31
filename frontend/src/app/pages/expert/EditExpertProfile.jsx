@@ -139,14 +139,11 @@ export function EditExpertProfile() {
         completeExpertProfile(apiPayload),
       ]);
 
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.name.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
       }
 
       // Save dropped fields to localStorage as fallback

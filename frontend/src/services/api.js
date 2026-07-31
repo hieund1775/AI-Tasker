@@ -7,9 +7,7 @@ function getToken() {
   try {
     return (
       sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
-      localStorage.getItem(TOKEN_STORAGE_KEY) ||
-      sessionStorage.getItem("token") ||
-      localStorage.getItem("token")
+      sessionStorage.getItem("token")
     );
   } catch {
     return null;
@@ -61,13 +59,9 @@ function resolveProposalExpertId(expertId) {
 
 function clearToken() {
   try {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    localStorage.removeItem("aitasker_user_info");
     sessionStorage.removeItem("aitasker_user_info");
-    localStorage.removeItem("token");
     sessionStorage.removeItem("token");
-    localStorage.removeItem("user");
     sessionStorage.removeItem("user");
   } catch { }
 }
@@ -491,8 +485,8 @@ export const api = {
       let userId = null;
       try {
         const userInfo =
-          localStorage.getItem("aitasker_user_info") ||
-          sessionStorage.getItem("aitasker_user_info");
+          sessionStorage.getItem("aitasker_user_info") ||
+          sessionStorage.getItem("user");
         if (userInfo) {
           const parsed = JSON.parse(userInfo);
           userId = parsed?.id || parsed?.Id;

@@ -348,7 +348,7 @@ export function AdminReportDetail() {
 
   const handleDefaultSettle = useCallback(async () => {
     setActionLoading(true);
-    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info") || "{}")?.id;
+    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || sessionStorage.getItem("user") || "{}")?.id;
     try {
       if (report.status === "Awaiting Expert") {
         await stopProject(report?.projectId, {
@@ -527,7 +527,7 @@ export function AdminReportDetail() {
       return;
     }
     setActionLoading(true);
-    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info") || "{}")?.id;
+    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || sessionStorage.getItem("user") || "{}")?.id;
     try {
       const disputeId = localStorage.getItem(`dispute_id_for_report_${id}`) || id;
       await stopProject(report?.projectId, {
@@ -582,7 +582,7 @@ export function AdminReportDetail() {
       return;
     }
     setActionLoading(true);
-    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info") || "{}")?.id;
+    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || sessionStorage.getItem("user") || "{}")?.id;
     try {
       const disputeId = localStorage.getItem(`dispute_id_for_report_${id}`) || id;
       await stopProject(report?.projectId, {
@@ -642,7 +642,7 @@ export function AdminReportDetail() {
   // -----------------------------------------------------------------------
   const handleAcceptReport = useCallback(async () => {
     setActionLoading(true);
-    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info") || "{}")?.id;
+    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || sessionStorage.getItem("user") || "{}")?.id;
     try {
       await acceptReport(id, report);
       // Pause project as disputed
@@ -838,7 +838,7 @@ export function AdminReportDetail() {
       return;
     }
     setActionLoading(true);
-    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info") || "{}")?.id;
+    const staffId = user?.id || user?.Id || JSON.parse(sessionStorage.getItem("aitasker_user_info") || sessionStorage.getItem("user") || "{}")?.id;
     try {
       const isCancellation = report?.reportType === "cancellation" || report?.disputeType === "cancellation";
       if (isCancellation) {

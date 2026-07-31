@@ -88,8 +88,8 @@ export function EditClientProfile() {
         bio: formData.bio.trim(),
       });
 
-      // 3. Update fullName in auth localStorage
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      // 3. Update current tab auth session only
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.fullName.trim();
@@ -97,9 +97,6 @@ export function EditClientProfile() {
         u.email = formData.email.trim();
         u.phoneNumber = formData.phone.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
         window.dispatchEvent(new Event("aitasker_auth_sync"));
       }
 

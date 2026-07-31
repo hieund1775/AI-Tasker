@@ -185,10 +185,10 @@ export function AuthProvider({ children }) {
     try {
       const storedToken =
         sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
-        localStorage.getItem(TOKEN_STORAGE_KEY);
+        sessionStorage.getItem("token");
       const storedUser =
         sessionStorage.getItem(USER_STORAGE_KEY) ||
-        localStorage.getItem(USER_STORAGE_KEY);
+        sessionStorage.getItem("user");
 
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -198,6 +198,8 @@ export function AuthProvider({ children }) {
       if (!payload) {
         sessionStorage.removeItem(TOKEN_STORAGE_KEY);
         sessionStorage.removeItem(USER_STORAGE_KEY);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return;
       }
@@ -227,6 +229,8 @@ export function AuthProvider({ children }) {
     } catch {
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   }, []);
@@ -239,17 +243,14 @@ export function AuthProvider({ children }) {
     function handleUnauthorized() {
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
 
     const handleStorageChange = (e) => {
       // Ignore login tracking data updates so active tab session is preserved
       if (e.key === "aitasker_user_logins") return;
-      if (e.key === TOKEN_STORAGE_KEY && !e.newValue) {
-        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-        sessionStorage.removeItem(USER_STORAGE_KEY);
-        dispatch({ type: AUTH_ACTIONS.LOGOUT });
-      }
     };
 
     window.addEventListener("auth:unauthorized", handleUnauthorized);
@@ -262,11 +263,8 @@ export function AuthProvider({ children }) {
 
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
     try {
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
-      localStorage.removeItem("token");
       sessionStorage.removeItem("token");
-      localStorage.removeItem("user");
       sessionStorage.removeItem("user");
     } catch (e) {}
 
@@ -290,7 +288,6 @@ export function AuthProvider({ children }) {
       if (tokenUserId) finalUser.id = tokenUserId;
     }
     try {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
       sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
       window.dispatchEvent(new Event("aitasker_auth_sync"));
     } catch (e) {}
@@ -377,7 +374,6 @@ export function AuthProvider({ children }) {
         await api.auth.completeProfile(state.user?.id, profileData);
         const updatedUser = { ...state.user, hasProfile: true };
         try {
-          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
           sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
           window.dispatchEvent(new Event("aitasker_auth_sync"));
         } catch (e) {}
@@ -399,13 +395,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     try {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
-      localStorage.removeItem("token");
       sessionStorage.removeItem("token");
-      localStorage.removeItem("user");
       sessionStorage.removeItem("user");
       window.dispatchEvent(new Event("aitasker_auth_sync"));
     } catch (e) {}
@@ -439,15 +431,11 @@ export function useAuth() {
   try {
     const rawUser =
       sessionStorage.getItem(USER_STORAGE_KEY) ||
-      localStorage.getItem(USER_STORAGE_KEY) ||
-      sessionStorage.getItem("user") ||
-      localStorage.getItem("user");
+      sessionStorage.getItem("user");
     const user = rawUser ? JSON.parse(rawUser) : null;
     const token =
       sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
       sessionStorage.getItem("token") ||
-      localStorage.getItem(TOKEN_STORAGE_KEY) ||
-      localStorage.getItem("token") ||
       null;
     return {
       user,
