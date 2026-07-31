@@ -74,6 +74,26 @@ function getJwtName(payload) {
   return payload?.name || payload?.[CLAIM_NAME] || "";
 }
 
+function hasTextValue(value) {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return text.length > 0 && !["not updated", "no introduction yet"].includes(text.toLowerCase());
+}
+
+function isExpertProfileComplete(userDetails) {
+  const profile = userDetails?.expertProfile || userDetails?.ExpertProfile;
+  if (!profile) return false;
+
+  const skills = profile.skills || profile.Skills || [];
+  return (
+    hasTextValue(profile.jobTitle || profile.JobTitle) &&
+    hasTextValue(profile.major || profile.Major || profile.specialization || profile.Specialization) &&
+    hasTextValue(profile.bio || profile.Bio) &&
+    Array.isArray(skills) &&
+    skills.length > 0
+  );
+}
+
 
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 const USER_STORAGE_KEY = "aitasker_user_info";
@@ -300,7 +320,7 @@ export function AuthProvider({ children }) {
         if (normalizedRole === "expert" && userId) {
           try {
             const userDetails = await api.users.getById(userId);
-            hasCompletedProfile = !!(userDetails && userDetails.expertProfile);
+            hasCompletedProfile = isExpertProfileComplete(userDetails);
           } catch (_err) {
             hasCompletedProfile = false;
           }

@@ -33,6 +33,8 @@ export function Header() {
   const { role, isAuthenticated, logout, user } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const userThemeKey = user?.id || user?.Id || user?.email || user?.Email || null;
+  const isProfileLockedExpert =
+    isAuthenticated && role === "expert" && user?.hasProfile === false;
 
   const handleThemeChange = (mode) => {
     if (isAuthenticated && userThemeKey) saveAccountTheme(userThemeKey, mode);
@@ -56,6 +58,11 @@ export function Header() {
 
   // Load notifications from API
   useEffect(() => {
+    if (isProfileLockedExpert) {
+      setNotifications([]);
+      return;
+    }
+
     if (isAuthenticated && user?.id) {
       let stopped = false;
       let retryAfter = 0;
@@ -118,7 +125,7 @@ export function Header() {
     } else {
       setNotifications([]);
     }
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, isProfileLockedExpert, location.pathname]);
 
   const unreadCount = notifications.filter((n) => n.isUnread).length;
 
@@ -192,7 +199,7 @@ export function Header() {
       <div className="mx-auto w-full max-w-[var(--layout-max)] px-[var(--page-gutter)]">
         <div className="flex h-[4.75rem] items-center justify-between gap-5">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+          <Link to={isProfileLockedExpert ? "/expert/profile/edit" : "/"} className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
             <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-primary-foreground font-bold text-base">AI</span>
             </div>
@@ -208,7 +215,7 @@ export function Header() {
           </Link>
 
           {/* Navigation Link Items - desktop only */}
-          {isAuthenticated && role && (
+          {isAuthenticated && role && !isProfileLockedExpert && (
             <nav className="hidden flex-1 items-center justify-center gap-12 md:flex">
               {role !== "admin" && role !== "owner" && role !== "staff" && (
                 <Link
@@ -249,6 +256,12 @@ export function Header() {
           <div className="flex items-center gap-2.5">
             {isAuthenticated ? (
               <>
+                {isProfileLockedExpert && (
+                  <div className="hidden rounded-xl border border-warning/25 bg-warning-light px-3 py-2 text-sm font-semibold text-warning sm:block">
+                    Complete your expert profile to continue
+                  </div>
+                )}
+
                 {/* Theme Toggle Dropdown */}
                 <div className="relative flex items-center justify-center" ref={themeDropdownRef}>
                   <button
@@ -298,6 +311,7 @@ export function Header() {
                 </div>
 
                 {/* Notification Bell */}
+                {!isProfileLockedExpert && (
                 <div className="relative flex items-center justify-center" ref={dropdownRef}>
                   <button
                     type="button"
@@ -385,9 +399,10 @@ export function Header() {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Wallet shortcut */}
-                {walletPath && (
+                {walletPath && !isProfileLockedExpert && (
                   <Link
                     to={walletPath}
                     className="relative flex items-center justify-center rounded-xl p-2 text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
@@ -428,12 +443,12 @@ export function Header() {
                       </div>
                       <div className="p-1.5">
                         <Link
-                          to={`/${role}/profile`}
+                          to={isProfileLockedExpert ? "/expert/profile/edit" : `/${role}/profile`}
                           onClick={() => setShowAccountMenu(false)}
                           className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
                         >
                           <User className="h-4 w-4 text-muted-foreground" />
-                          <span>Profile</span>
+                          <span>{isProfileLockedExpert ? "Complete Profile" : "Profile"}</span>
                         </Link>
                       </div>
                       <div className="border-t border-border p-1.5">

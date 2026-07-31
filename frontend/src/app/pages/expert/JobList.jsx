@@ -372,7 +372,7 @@ export function JobList() {
             </p>
           </div>
           <Link
-            to="/expert/edit-profile"
+            to="/expert/profile/edit"
             className="whitespace-nowrap h-10 px-4 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
           >
             Create Profile
