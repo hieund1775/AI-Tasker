@@ -797,15 +797,15 @@ export default function ClientProjectDetail() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans">
-      <BackButton fallback="/client/my-projects" className="mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 font-sans space-y-6">
+      <BackButton fallback="/client/my-projects" className="mb-0">
         Back to My Projects
       </BackButton>
-      <div className="grid min-h-[14rem] gap-6 rounded-2xl border border-border/70 bg-card/85 p-5 shadow-sm shadow-foreground/[0.025] lg:grid-cols-2 lg:items-stretch lg:gap-0 lg:p-6">
+      <div className="grid min-h-[14rem] gap-7 rounded-2xl border border-border/70 bg-card/85 p-5 shadow-sm shadow-foreground/[0.025] lg:grid-cols-2 lg:items-stretch lg:gap-8 lg:p-6">
         <PageHeader
           title="Project Workspace"
           subtitle="Track progress, review deliverables, and manage escrow safely."
-          className="flex min-h-[12rem] flex-col justify-center rounded-none border-0 bg-transparent p-0 pr-0 shadow-none lg:pr-8"
+          className="flex min-h-[12rem] flex-col justify-center rounded-none border-0 bg-transparent p-0 shadow-none"
           compact
           divider={false}
           badge={
@@ -816,16 +816,18 @@ export default function ClientProjectDetail() {
                 status = "inprogress";
                 label = "In Progress";
               }
-              let colorClasses = "bg-accent-light text-accent";
+              let colorClasses = "bg-brand-primary-light text-brand-primary border border-brand-primary/25";
               if (report?.status === "Resolved") {
                 label = "End a quarrel";
-                colorClasses = "bg-success/15 text-success border border-success/20";
+                colorClasses = "bg-success-light text-success border border-success/25";
               } else if (status === "completed") {
-                colorClasses = "bg-success/15 text-success border border-success/20";
+                colorClasses = "bg-success-light text-success border border-success/25";
               } else if (status === "cancelled" || status === "canceled") {
-                colorClasses = "bg-success/15 text-success border border-success/20";
+                colorClasses = "bg-destructive-light text-destructive border border-destructive/25";
               } else if (status === "disputed") {
-                colorClasses = "bg-destructive/15 text-destructive border border-destructive/20 animate-pulse";
+                colorClasses = "bg-destructive-light text-destructive border border-destructive/25 animate-pulse";
+              } else if (status === "pending_escrow" || status === "awaiting_cancellation" || status === "waiting_review" || status === "needs_revision") {
+                colorClasses = "bg-warning-light text-warning border border-warning/25";
               }
               return (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize ${colorClasses}`}>
@@ -859,7 +861,7 @@ export default function ClientProjectDetail() {
             </svg>
           }
         />
-        <div className="flex min-h-[12rem] flex-col justify-center pt-5 lg:pl-8 lg:pt-0">
+        <div className="flex min-h-[12rem] flex-col justify-center pt-2 lg:pt-0">
           <DeliveryPaymentStepper project={project} overallProgress={overallProgress} role="client" allTasksApproved={allTasksApproved} embedded />
         </div>
       </div>
@@ -1111,7 +1113,7 @@ export default function ClientProjectDetail() {
         {/* Evaluation / Review Section (Always present on completed projects, collapsible) */}
         {project?.status === "completed" && (
           <AnimatedReveal>
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 text-left space-y-4 mb-6 mt-6 transition-all">
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6 text-left space-y-4 transition-all">
               {/* Header with Collapse/Expand toggle */}
               <div
                 onClick={handleToggleReviewCollapse}
@@ -1339,7 +1341,7 @@ export default function ClientProjectDetail() {
         {/* Realtime Submission Timebar */}
         {project?.finalDeliveryStatus === "Final Product Submitted" && project?.finalWorkSubmittedAt && (
           <AnimatedReveal>
-            <div className="p-5 bg-success-light border border-success/20 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse mb-6">
+            <div className="p-5 bg-success-light border border-success/20 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-success-light text-success rounded-xl flex items-center justify-center flex-shrink-0">
                   <Clock className="w-5 h-5" />

@@ -338,11 +338,10 @@ export function ClientDashboard() {
 
   // ---- Render --------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="Client Dashboard"
         subtitle="Manage your AI projects and find experts"
-        className="mb-6"
         actions={
           <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -362,7 +361,7 @@ export function ClientDashboard() {
       />
 
       {/* Hero Welcome Banner */}
-      <div className="relative bg-gradient-to-br from-accent/[0.06] via-accent/[0.02] to-warning/[0.04] rounded-2xl border border-border/50 shadow-sm p-6 mb-8 overflow-hidden group">
+      <div className="relative bg-gradient-to-br from-accent/[0.06] via-accent/[0.02] to-warning/[0.04] rounded-2xl border border-border/50 shadow-sm p-6 overflow-hidden group">
         <div className="absolute inset-0 brand-neural opacity-10 pointer-events-none" />
         {/* Subtle animated shimmer on hover */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1200 pointer-events-none" />
@@ -383,7 +382,7 @@ export function ClientDashboard() {
       </div>
 
       {/* Stats Row */}
-      <DashboardStats stats={dashboardStats} size="sm" className="mb-8" />
+      <DashboardStats stats={dashboardStats} size="sm" />
 
       {/* My Projects Section */}
       <section className="bg-card rounded-xl border border-border">

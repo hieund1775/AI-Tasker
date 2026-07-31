@@ -2,18 +2,17 @@
 // AdminDisputes - Dispute report list page for Admin/Owner.
 //
 // Shows all dispute reports with:
-//   - Status filter (Pending, Accepted, Rejected, Under Review, Resolved, Closed)
+//   - Status filter for report workflow statuses from /Reports
 //   - Search
 //   - View detail button -> /admin/disputes/:id
 //   - Status badge per report
 // =============================================================================
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link } from "react-router";
-import { Search, Eye, Filter, AlertTriangle, CheckCircle2, Clock, BarChart3 } from "lucide-react";
+import { Eye } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
-import { BackButton } from "../../components/shared/BackButton.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { getReports } from "../../../services/reportService.js";
@@ -32,26 +31,22 @@ const REPORT_STATUS_CONFIG = {
   "Awaiting Evidence": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Evidence" },
   "Awaiting Both": { color: "bg-warning-light text-warning border border-warning/20", label: "Awaiting Both" },
   Returned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Returned" },
+  Accepted: { color: "bg-brand-primary-light text-brand-primary border border-brand-primary/20", label: "Accepted" },
   Resolved: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
-  Accepted: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   cancel_done: { color: "bg-success-light text-success border border-success/20", label: "Resolved" },
   Rejected: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Rejected" },
 };
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "Pending", label: "Pending Admin" },
+const REPORT_STATUS_FILTER_OPTIONS = [
+  { value: "Pending Admin", label: "Pending Admin", values: ["Pending Admin", "Pending"] },
   { value: "Awaiting Expert", label: "Awaiting Expert" },
   { value: "Awaiting Client", label: "Awaiting Client" },
   { value: "Awaiting Partner", label: "Awaiting Partner" },
   { value: "Awaiting Evidence", label: "Awaiting Evidence" },
   { value: "Awaiting Both", label: "Awaiting Both" },
   { value: "Returned", label: "Returned" },
-  {
-    value: "Resolved",
-    label: "Resolved",
-    values: ["Resolved", "Accepted", "cancel_done"],
-  },
+  { value: "Accepted", label: "Accepted" },
+  { value: "Resolved", label: "Resolved", values: ["Resolved", "cancel_done"] },
   { value: "Rejected", label: "Rejected" },
 ];
 
@@ -64,8 +59,6 @@ export function AdminDisputes() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
 
   // Fetch reports
   const fetchReports = useCallback(async () => {
@@ -97,36 +90,33 @@ export function AdminDisputes() {
     return () => window.removeEventListener("aitasker_db_update", handleUpdate);
   }, [fetchReports]);
 
-  // Apply filters locally whenever search/status/allReports change
-  useEffect(() => {
-    let filtered = [...allReports];
-    if (statusFilter) {
-      filtered = filtered.filter(r => {
-        const status = r.status || "";
-        if (statusFilter === "Pending") {
-          return status === "Pending" || status === "Pending Admin";
-        }
-        const option = STATUS_OPTIONS.find((opt) => opt.value === statusFilter);
-        const acceptedValues = option?.values?.length ? option.values : [statusFilter];
-        return acceptedValues.some((value) => status.toLowerCase() === String(value).toLowerCase());
+  const reportStatusFilterOptions = useMemo(() => {
+    const present = new Set(allReports.map((report) => report.status).filter(Boolean));
+    const options = REPORT_STATUS_FILTER_OPTIONS.filter((option) => {
+      const values = option.values?.length ? option.values : [option.value];
+      return values.some((value) => present.has(value));
+    });
+
+    allReports.forEach((report) => {
+      const status = report.status;
+      if (!status) return;
+      const known = REPORT_STATUS_FILTER_OPTIONS.some((option) => {
+        const values = option.values?.length ? option.values : [option.value];
+        return values.includes(status);
       });
-    }
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(r => 
-        (r.projectTitle && r.projectTitle.toLowerCase().includes(term)) ||
-        (r.reportName && r.reportName.toLowerCase().includes(term)) ||
-        (r.reason && r.reason.toLowerCase().includes(term)) ||
-        (r.id && r.id.toLowerCase().includes(term))
-      );
-    }
-    setReports(filtered);
-  }, [statusFilter, searchTerm, allReports]);
+      if (!known && !options.some((option) => option.value === status)) {
+        options.push({ value: status, label: status });
+      }
+    });
+
+    return options;
+  }, [allReports]);
 
   const columns = [
     {
       key: "projectTitle",
       label: "Project Name",
+      sortable: false,
       render: (val, row) => (
         <span className="font-semibold text-foreground text-sm">{val || row.reportName || "-"}</span>
       ),
@@ -134,6 +124,7 @@ export function AdminDisputes() {
     {
       key: "disputeType",
       label: "Dispute Type",
+      sortable: false,
       filterOptions: [
         { value: "financial", label: "Financial Dispute" },
         { value: "cancellation", label: "Cancellation Request" },
@@ -172,6 +163,7 @@ export function AdminDisputes() {
     {
       key: "reporter",
       label: "Reporter",
+      sortable: false,
       render: (val, row) => {
         const isClientReporter = row.reporterRole === "client";
         return (
@@ -184,6 +176,7 @@ export function AdminDisputes() {
     {
       key: "accused",
       label: "Accused",
+      sortable: false,
       render: (val, row) => {
         const isClientReporter = row.reporterRole === "client";
         return (
@@ -196,6 +189,7 @@ export function AdminDisputes() {
     {
       key: "amount",
       label: "Escrow Amount",
+      sortable: false,
       render: (val, row) => (
         <span className="font-semibold text-brand-primary text-sm">
           <MoneyDisplay amount={row.escrowAmount || row.amount || 0} />
@@ -203,8 +197,10 @@ export function AdminDisputes() {
       ),
     },
     {
-      key: "actualStatus",
+      key: "status",
       label: "Status",
+      sortable: false,
+      filterOptions: reportStatusFilterOptions,
       render: (val, row) => (
         <StatusBadge status={row.status} config={REPORT_STATUS_CONFIG} />
       ),
@@ -224,7 +220,7 @@ export function AdminDisputes() {
     <div className="space-y-6">
       <PageHeader
         title="Report Progress"
-        subtitle="Review and track progress reports between Clients and Experts."
+        subtitle="Review and track progress reports between clients and experts."
       />
 
       {/* Error state */}
@@ -243,13 +239,13 @@ export function AdminDisputes() {
           </div>
           <div className="bg-card rounded-xl border border-warning/20 dark:border-warning/30 p-4 text-center">
             <p className="text-2xl font-semibold text-warning dark:text-warning">
-              {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner").length}
+              {allReports.filter(r => r.status === "Pending" || r.status === "Pending Admin" || r.status === "Awaiting Expert" || r.status === "Awaiting Client" || r.status === "Awaiting Evidence" || r.status === "Awaiting Both" || r.status === "Awaiting Partner" || r.status === "Accepted").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Active</p>
           </div>
           <div className="bg-card rounded-xl border border-success/20 dark:border-success/30 p-4 text-center">
             <p className="text-2xl font-semibold text-success dark:text-success">
-              {allReports.filter(r => r.status === "Resolved" || r.status === "Accepted" || r.status === "cancel_done").length}
+              {allReports.filter(r => r.status === "Resolved" || r.status === "cancel_done").length}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Resolved</p>
           </div>
@@ -261,36 +257,6 @@ export function AdminDisputes() {
           </div>
         </div>
       )}
-
-      {/* Filter row */}
-      <div className="page-filter-toolbar">
-        <div className="page-filter-search">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by report name, project..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-input-background pl-9 pr-4 text-sm focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
-          />
-        </div>
-        <div className="page-filter-controls">
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-10 rounded-xl border border-input bg-card pl-9 pr-4 text-sm appearance-none focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/15"
-            >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
 
       {/* Table */}
       <DataTable
@@ -304,7 +270,7 @@ export function AdminDisputes() {
             className="px-3 py-1.5 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover text-xs font-medium inline-flex items-center gap-1.5 transition"
           >
             <Eye className="w-3.5 h-3.5" />
-            View Detail
+            View Details
           </Link>
         )}
       />

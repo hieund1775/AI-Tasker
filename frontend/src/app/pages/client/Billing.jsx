@@ -20,6 +20,7 @@ import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notifyEscrowFunded } from "../../../services/notificationHelper.js";
 import { setDepositTime, calculateTaskDeadlines } from "../../lib/taskDeadlineUtils.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,6 +113,18 @@ function sortTransactions(rows, sortState) {
     });
     return sortState.dir === "asc" ? result : -result;
   });
+}
+
+function SignedTransactionAmount({ amount }) {
+  const value = Number(amount ?? 0);
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  const tone = value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-muted-foreground";
+
+  return (
+    <span className={`font-semibold tabular-nums ${tone}`}>
+      {sign}{formatCurrency(Math.abs(value))}
+    </span>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -849,18 +862,17 @@ export function Billing() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/client/dashboard" className="mb-0">Back to Dashboard</BackButton>
       <PageHeader
         title="Billing & Payments"
         subtitle="Manage your wallet, escrow payments, and transaction history."
-        className="mb-6"
       />
 
       {/* Feedback banner */}
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
+          className={`p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
             ? "bg-success-light text-success border border-success/20"
             : "bg-destructive-light text-destructive border border-destructive/20"
             }`}
@@ -870,7 +882,7 @@ export function Billing() {
       )}
 
       {/* Wallet cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -920,7 +932,7 @@ export function Billing() {
 
       {/* Active projects with escrow */}
       {data?.activeProjects?.length > 0 && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+        <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="p-6 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
           </div>
@@ -943,7 +955,7 @@ export function Billing() {
 
       {/* Deposit to escrow */}
       {isEscrowRedirect && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+        <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Deposit to Escrow</h2>
           </div>
@@ -1176,8 +1188,8 @@ export function Billing() {
                           <span>{displayDesc}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                        {isNoCompensation ? "-" : <MoneyDisplay amount={displayAmount} />}
+                      <td className="px-6 py-4 text-right text-sm">
+                        {isNoCompensation ? "-" : <SignedTransactionAmount amount={displayAmount} />}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium uppercase ${badgeClass}`}>

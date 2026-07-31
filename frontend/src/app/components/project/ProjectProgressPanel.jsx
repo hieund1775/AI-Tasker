@@ -151,7 +151,7 @@ export function ProjectProgressPanel({
                 <div className="p-4 bg-accent-light/35 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-accent-light text-accent rounded-full text-[10px] font-semibold dark:bg-accent-light dark:text-accent">
+                      <span className="px-2 py-0.5 bg-brand-primary-light text-brand-primary border border-brand-primary/20 rounded-full text-[10px] font-semibold">
                         Client Use Case
                       </span>
                       <h4 className="font-semibold text-foreground text-sm">

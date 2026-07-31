@@ -105,7 +105,7 @@ export function CreateAdmin() {
       <button
         type="button"
         onClick={() => navigate("/owner/dashboard")}
-        className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground/80 transition"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Dashboard
@@ -121,7 +121,7 @@ export function CreateAdmin() {
         {/* Feedback */}
         {feedback && (
           <div
-            className={`mb-6 p-4 rounded-xl text-sm font-medium ${
+            className={`mb-4 p-4 rounded-xl text-sm font-medium ${
               createdAdmin
                 ? "bg-success-light border border-success/20 text-success"
                 : "bg-destructive-light border border-destructive/20 text-destructive"

@@ -102,13 +102,12 @@ export function EditOwnerProfile() {
 
   // ---- Render ----
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/owner/profile" className="mb-4">Back to Profile</BackButton>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/owner/profile" className="mb-0">Back to Profile</BackButton>
 
       <PageHeader
         title="Edit Owner Profile"
         subtitle="Update your owner profile information."
-        className="mb-6"
       />
 
       <form

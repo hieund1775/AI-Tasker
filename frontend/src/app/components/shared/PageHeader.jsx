@@ -36,7 +36,7 @@ export function PageHeader({
       <div
         className={cn(
           "flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between",
-          compact ? "mb-4" : "mb-6",
+          divider ? (compact ? "mb-3" : "mb-4") : "mb-0",
         )}
       >
         <div className="flex-1 min-w-0">
@@ -61,7 +61,7 @@ export function PageHeader({
       </div>
 
       {/* Gradient divider */}
-      {divider && <div className="gradient-divider mt-1" />}
+      {divider && <div className="gradient-divider" />}
     </div>
   );
 }

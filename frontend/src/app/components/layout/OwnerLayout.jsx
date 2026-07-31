@@ -19,8 +19,8 @@ export function OwnerLayout() {
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-4rem)] w-full max-w-[100vw] overflow-x-hidden">
       {/* LEFT SIDEBAR MENU (VERTICAL NAVBAR) */}
-      <aside className="hidden md:block w-[17rem] border-r border-border/70 bg-sidebar/85 backdrop-blur-xl flex-shrink-0">
-        <div className="sticky top-16 p-4 flex flex-col gap-1.5 overflow-y-auto h-[calc(100vh-4rem)]">
+      <aside className="sticky top-16 hidden h-[calc(100vh-4rem)] w-[17rem] flex-shrink-0 self-start overflow-hidden border-r border-border/70 bg-sidebar/85 backdrop-blur-xl md:block">
+        <div className="flex h-full flex-col gap-1.5 overflow-y-auto p-4">
           <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-[0.14em] mb-4 px-3 mt-2">Owner Menu</h3>
           {menuItems.map((link, i) => {
             const Icon = link.icon;

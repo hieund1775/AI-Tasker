@@ -165,11 +165,10 @@ export function ProposalStatus() {
   });
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
       <PageHeader
         title="My Proposals"
         subtitle="Track your submitted proposals and their status"
-        className="mb-6"
         actions={proposals.length > 0 ? (
           <div className="page-filter-controls">
             <span className="text-sm font-semibold text-muted-foreground">Status:</span>
@@ -216,7 +215,7 @@ export function ProposalStatus() {
           </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {filteredProposals.map((proposal, i) => {
             const statusCfg = getStatusConfig(proposal.status);
             const StatusIcon = statusCfg.icon;

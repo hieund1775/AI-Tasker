@@ -568,11 +568,10 @@ export function ExpertDashboard() {
 
   // ---- Render --------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <PageHeader
         title="Expert Dashboard"
         subtitle="Manage your contracts and discover new opportunities"
-        className="mb-6"
         actions={
           <div className="flex items-center gap-3">
           <Link
@@ -588,7 +587,7 @@ export function ExpertDashboard() {
       {/* ================================================================== */}
       {/* Stats Row                                                          */}
       {/* ================================================================== */}
-      <DashboardStats stats={dashboardStats} size="sm" className="mb-6" />
+      <DashboardStats stats={dashboardStats} size="sm" />
 
       {/* ================================================================== */}
       {/* Two-Column Dashboard                                               */}

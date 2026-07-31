@@ -454,8 +454,8 @@ export function PostProject() {
     isDeadlineValid;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <BackButton fallback="/client/dashboard" className="mb-4">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <BackButton fallback="/client/dashboard" className="mb-0">
         Back to Dashboard
       </BackButton>
       <PageHeader
@@ -477,7 +477,7 @@ export function PostProject() {
         }
       />
 
-      <div className={`mt-6 grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
+      <div className={`grid grid-cols-1 ${rightPanelMode || showRecommendations ? "items-stretch gap-6 lg:grid-cols-10" : "mx-auto max-w-4xl"}`}>
         <div className={(rightPanelMode || showRecommendations) ? "lg:col-span-7 flex flex-col" : "w-full"}>
           <form ref={formRef} onSubmit={handleSubmit} className="flex h-full flex-col space-y-5 rounded-2xl border border-border/60 bg-card/35 p-3 shadow-sm shadow-foreground/[0.02] sm:p-5">
             <div className="flex items-center justify-between gap-3 px-1 py-1 pb-2 border-b border-border/40">

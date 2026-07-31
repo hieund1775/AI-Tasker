@@ -171,8 +171,8 @@ export function ExpertProjectDetail() {
   // -----------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 shadow-sm">
@@ -195,8 +195,8 @@ export function ExpertProjectDetail() {
   // -----------------------------------------------------------------------
   if (error === "load_failed") {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -216,8 +216,8 @@ export function ExpertProjectDetail() {
   // -----------------------------------------------------------------------
   if (error === "not_found" || !project) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -236,16 +236,16 @@ export function ExpertProjectDetail() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/expert/dashboard" className="mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/expert/dashboard" className="mb-0">
         Back
       </BackButton>
 
       {/* ---- Dispute banner ---- */}
-      {isDisputed && <DisputeBanner className="mb-6" />}
+      {isDisputed && <DisputeBanner />}
 
       {/* ---- Project header ---- */}
-      <div className="bg-card rounded-xl border border-border p-8 shadow-sm mb-8">
+      <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-foreground mb-4">

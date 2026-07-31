@@ -110,8 +110,8 @@ export function CreateContract() {
   // ---- Loading ----
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/my-projects" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/my-projects" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-2xl border border-border p-12 shadow-sm text-center">
@@ -127,8 +127,8 @@ export function CreateContract() {
   // ---- Missing data ----
   if (!project || !proposal || !expert) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/my-projects" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/my-projects" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
@@ -158,8 +158,8 @@ export function CreateContract() {
       : "N/A";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/my-projects" className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/client/my-projects" className="mb-0">
         Back
       </BackButton>
 

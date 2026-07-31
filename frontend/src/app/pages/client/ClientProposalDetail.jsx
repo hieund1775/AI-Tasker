@@ -139,8 +139,8 @@ export function ClientProposalDetail() {
   // ---- Not found ----
   if (!proposal) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/my-projects" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/my-projects" className="mb-0">
           Back to My Projects
         </BackButton>
         <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
@@ -171,8 +171,8 @@ export function ClientProposalDetail() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/my-projects" className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/client/my-projects" className="mb-0">
         Back to My Projects
       </BackButton>
 

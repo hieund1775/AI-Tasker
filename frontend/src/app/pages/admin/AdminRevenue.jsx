@@ -234,6 +234,7 @@ export function AdminRevenue() {
     {
       key: "type",
       label: "Type",
+      sortable: false,
       filterOptions: [
         { value: "System Platform Fee", label: "System Platform Fee" },
         { value: "Penalty & Fee", label: "Penalty & Fee" },
@@ -243,14 +244,17 @@ export function AdminRevenue() {
     {
       key: "client",
       label: "Client",
+      sortable: false,
     },
     {
       key: "expert",
       label: "Expert",
+      sortable: false,
     },
     {
       key: "project",
       label: "Project",
+      sortable: false,
     },
     {
       key: "amount",
@@ -264,11 +268,11 @@ export function AdminRevenue() {
       ),
     },
     {
-      key: "date",
+      key: "rawDate",
       label: "Date & Time",
       className: "text-right whitespace-nowrap",
-      render: (_, row) => {
-        const parsed = parseDateAndTime(row.rawDate);
+      render: (val) => {
+        const parsed = parseDateAndTime(val);
         if (!parsed) return <span className="text-muted-foreground">-</span>;
         return (
           <div className="flex flex-col items-end">
@@ -288,7 +292,7 @@ export function AdminRevenue() {
       />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {
             label: "Total Realized Revenue (SystemWallet)",
