@@ -86,8 +86,54 @@ function parseMiniTasksFromText(text, clientUseCases = []) {
 }
 
 // =============================================================================
-function mapPayloadToProposalFormat(payload, clientUseCases = []) {
+function extractMiniTasksFromAiPayload(payload) {
   if (!Array.isArray(payload)) return [];
+  return payload.flatMap((task) => {
+    const nestedMiniTasks = task.MiniTasks || task.miniTasks;
+    if (Array.isArray(nestedMiniTasks) && nestedMiniTasks.length > 0) {
+      return nestedMiniTasks.map((mt) => ({
+        title: mt.Title || mt.title || "",
+        description: mt.Description || mt.description || "",
+      }));
+    }
+
+    return [{
+      title: task.Title || task.title || "",
+      description: task.Description || task.description || "",
+    }];
+  }).filter((mt) => mt.title.trim());
+}
+
+function mapPayloadToProposalFormat(payload, clientUseCases = [], requestedCount = null) {
+  if (!Array.isArray(payload)) return [];
+  if (requestedCount) {
+    const firstTask = payload[0] || {};
+    let matchedUseCase = clientUseCases[0];
+    const taskTitleLower = (firstTask.Title || firstTask.title || "").toLowerCase();
+    for (const uc of clientUseCases) {
+      const ucTitleLower = (uc.title || uc.nameAndDeadline || "").toLowerCase();
+      if (taskTitleLower.includes(ucTitleLower) || ucTitleLower.includes(taskTitleLower)) {
+        matchedUseCase = uc;
+        break;
+      }
+    }
+    const useCaseId = matchedUseCase?.id || `uc-fb-${Date.now()}-0`;
+    const useCaseTitle = matchedUseCase?.title || matchedUseCase?.nameAndDeadline || firstTask.Title || firstTask.title || "Use Case";
+    const miniTasks = extractMiniTasksFromAiPayload(payload);
+
+    if (miniTasks.length === 0) return [];
+    return [{
+      useCaseId,
+      useCaseTitle,
+      tasks: [{
+        taskId: useCaseId,
+        taskTitle: useCaseTitle,
+        miniTasks,
+        requestedCount,
+      }],
+    }];
+  }
+
   return payload.map((task, idx) => {
     let matchedUseCase = clientUseCases[0];
     const taskTitleLower = (task.Title || task.title || "").toLowerCase();
@@ -110,7 +156,7 @@ function mapPayloadToProposalFormat(payload, clientUseCases = []) {
           miniTasks: (task.MiniTasks || task.miniTasks || []).map(mt => ({
             title: mt.Title || mt.title || "",
             description: ""
-          }))
+          })).filter((mt) => mt.title.trim()),
         }
       ]
     };
@@ -215,8 +261,9 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       setContextSummary(newContextSummary);
 
       let parsedUseCases = [];
+      const requestedCount = autoPrompt?.requestedCount || null;
       if (payload && Array.isArray(payload)) {
-        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases);
+        parsedUseCases = mapPayloadToProposalFormat(payload, clientUseCases, requestedCount);
       }
 
       const plan = parsedUseCases.length > 0 ? {
@@ -246,14 +293,17 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo]);
+  }, [input, loading, messages, contextSummary, clientUseCases, jobPostId, expertId, projectInfo, autoPrompt]);
 
   // Auto-trigger prompt if autoPrompt changes
   useEffect(() => {
     if (autoPrompt) {
+      const qtyInstruction = autoPrompt.requestedCount
+        ? `\nMini-task quantity: exactly ${autoPrompt.requestedCount}. Return one task block whose MiniTasks array contains exactly ${autoPrompt.requestedCount} item(s).`
+        : "";
       const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
 User Story: ${autoPrompt.title}
-Description: ${autoPrompt.description}`;
+Description: ${autoPrompt.description}${qtyInstruction}`;
       handleSend(promptText);
       if (clearAutoPrompt) {
         clearAutoPrompt();

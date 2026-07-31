@@ -98,17 +98,43 @@ export function SendProposal() {
   const [generatingUseCases, setGeneratingUseCases] = useState({});
   const [minitaskCounts, setMinitaskCounts] = useState({});
 
+  const getRequestedMiniTaskCount = (useCaseId) => {
+    const rawValue = minitaskCounts[useCaseId];
+    const parsed = Number.parseInt(rawValue, 10);
+    if (!Number.isFinite(parsed) || parsed < 1) return null;
+    return Math.min(parsed, 20);
+  };
+
+  const extractMiniTasksFromAiPayload = (payload) => {
+    if (!Array.isArray(payload)) return [];
+    return payload.flatMap((task) => {
+      const nestedMiniTasks = task.MiniTasks || task.miniTasks;
+      if (Array.isArray(nestedMiniTasks) && nestedMiniTasks.length > 0) {
+        return nestedMiniTasks.map((mt) => ({
+          title: mt.Title || mt.title || "",
+          description: mt.Description || mt.description || "",
+        }));
+      }
+
+      return [{
+        title: task.Title || task.title || "",
+        description: task.Description || task.description || "",
+      }];
+    }).filter((mt) => mt.title.trim());
+  };
+
   const handleGenerateMiniTaskForUseCase = async (uc) => {
     const ucId = uc.id;
-    const requestedCount = minitaskCounts[ucId];
+    const requestedCount = getRequestedMiniTaskCount(ucId);
     const countInstruction = requestedCount
-      ? `CRITICAL RULE: You MUST return EXACTLY ${requestedCount} minitask(s). Do NOT generate more or less than ${requestedCount}. Your JSON payload array MUST contain exactly ${requestedCount} item(s).`
+      ? `CRITICAL RULE: Return EXACTLY ${requestedCount} mini-task(s) for this one user story. The payload must contain ONE task object and its MiniTasks array must contain exactly ${requestedCount} item(s). Do not return more or fewer.`
       : "Generate a detailed list of minitasks.";
 
     setGeneratingUseCases((prev) => ({ ...prev, [ucId]: "loading" }));
     setAutoPrompt({
       title: uc.title || uc.nameAndDeadline || "User Story",
       description: uc.description || "",
+      requestedCount,
     });
     const promptText = `Please generate detailed tasks and mini-tasks breakdown for this specific User Story:
 User Story: ${uc.title || uc.nameAndDeadline || ""}
@@ -130,22 +156,20 @@ Description: ${uc.description || ""}
 
       const payload = response?.payload || response?.Payload;
       if (payload && Array.isArray(payload) && payload.length > 0) {
-        const mappedTasks = payload.map((task) => ({
+        const generatedMiniTasks = extractMiniTasksFromAiPayload(payload);
+        const mappedTasks = [{
           useCaseId: uc.id,
           useCaseTitle: uc.title || uc.nameAndDeadline || "Use Case",
           tasks: [
             {
               taskId: uc.id,
               taskTitle: uc.title || uc.nameAndDeadline || "Task",
-              miniTasks: (task.MiniTasks || task.miniTasks || []).map((mt) => ({
-                title: mt.Title || mt.title || "",
-                description: "",
-              })),
+              miniTasks: generatedMiniTasks,
             },
           ],
-        }));
+        }];
 
-        if (mappedTasks.length > 0) {
+        if (generatedMiniTasks.length > 0) {
           handleApplyAITasks({ useCases: mappedTasks });
         }
       }
@@ -367,6 +391,11 @@ Please use this background information to write a personalized and highly releva
   const [loading, setLoading] = useState(true);
   const [existingProposal, setExistingProposal] = useState(null);
 
+  const isResubmittableProposalStatus = (status) =>
+    ["declined", "rejected", "withdrawn", "expired"].includes(
+      String(status || "").toLowerCase(),
+    );
+
   useEffect(() => {
     if (!projectId || !user?.id) return;
     setLoading(true);
@@ -405,12 +434,14 @@ Please use this background information to write a personalized and highly releva
         setTasks(buildTasksFromUseCases(job));
 
         // Find existing proposal for this jobPostId (with robust PascalCase fallbacks)
-        const foundProp = proposalsList.find(
-          (p) =>
-            String(
-              p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id,
-            ) === String(projectId),
-        );
+        const foundProp = proposalsList.find((p) => {
+          const proposalJobId =
+            p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+          return (
+            String(proposalJobId) === String(projectId) &&
+            !isResubmittableProposalStatus(p.status || p.Status)
+          );
+        });
         if (foundProp) {
           setExistingProposal(foundProp);
           let parsedCoverLetter = {};
@@ -606,7 +637,12 @@ Please use this background information to write a personalized and highly releva
         for (const taskBlock of ucBlock.tasks || []) {
           if (!taskBlock.miniTasks?.length) continue;
 
-          const generatedMiniTasks = taskBlock.miniTasks.map((mt) => ({
+          const miniTasksForApply = (taskBlock.miniTasks || []).filter((mt) =>
+            String(mt.title || "").trim(),
+          );
+          if (!miniTasksForApply.length) continue;
+
+          const generatedMiniTasks = miniTasksForApply.map((mt) => ({
             id: `mt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             taskId: taskBlock.taskId || `task-fb-${ucBlock.useCaseId}`,
             title: mt.title,
@@ -626,14 +662,9 @@ Please use this background information to write a personalized and highly releva
           }
 
           if (idx !== -1) {
-            const hasRealContent = nextTasks[idx].miniTasks.some((mt) =>
-              mt.title?.trim(),
-            );
             nextTasks[idx] = {
               ...nextTasks[idx],
-              miniTasks: hasRealContent
-                ? [...nextTasks[idx].miniTasks, ...generatedMiniTasks]
-                : generatedMiniTasks,
+              miniTasks: generatedMiniTasks,
             };
           } else {
             // ponytail: no matching task exists - create fallback under the use case
@@ -891,10 +922,14 @@ Please use this background information to write a personalized and highly releva
               .getByExpert(user.id)
               .catch(() => []);
             const activeProp = list.find(
-              (p) =>
-                String(
-                  p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id,
-                ) === String(projectId),
+              (p) => {
+                const proposalJobId =
+                  p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+                return (
+                  String(proposalJobId) === String(projectId) &&
+                  !isResubmittableProposalStatus(p.status || p.Status)
+                );
+              },
             );
             const activeId = activeProp?.id || activeProp?.Id;
             if (activeId) {
@@ -1371,12 +1406,28 @@ Please use this background information to write a personalized and highly releva
                                         placeholder="Auto"
                                         title="Leave empty for AI to decide automatically"
                                         value={minitaskCounts[uc.id] || ""}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                          const rawValue = e.target.value;
+                                          const nextValue =
+                                            rawValue === ""
+                                              ? ""
+                                              : String(
+                                                  Math.min(
+                                                    20,
+                                                    Math.max(
+                                                      1,
+                                                      Number.parseInt(
+                                                        rawValue,
+                                                        10,
+                                                      ) || 1,
+                                                    ),
+                                                  ),
+                                                );
                                           setMinitaskCounts((prev) => ({
                                             ...prev,
-                                            [uc.id]: e.target.value,
-                                          }))
-                                        }
+                                            [uc.id]: nextValue,
+                                          }));
+                                        }}
                                         className="w-14 h-8 text-xs px-2 border border-border rounded-md bg-background focus:ring-1 focus:ring-brand-primary"
                                       />
                                     </div>
