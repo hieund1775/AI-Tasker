@@ -77,8 +77,10 @@ namespace AITasker_Modular.Modules.AdminModule
                 // 1. Lấy dữ liệu thống kê của hệ thống từ tầng Service
                 var serviceData = await _adminService.GetOwnerDashboardAsync(requesterId);
 
-                // 2. Đọc số dư két sắt tổng thực tế trong DB
-                var systemWallet = await _context.SystemWallets
+                // 2. Đọc số dư ví Fee của Owner và ví Escrow tổng của sàn
+                var ownerFeeWallet = await _context.SystemWallets
+                    .FirstOrDefaultAsync(w => w.Id == Guid.Parse("88888888-8888-8888-8888-888888888888"));
+                var systemEscrowWallet = await _context.SystemWallets
                     .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
                 // 3. Kéo ra TOÀN BỘ giao dịch thu phế/phạt hủy đơn để đối soát kế toán
@@ -110,8 +112,9 @@ namespace AITasker_Modular.Modules.AdminModule
                 return Ok(new
                 {
                     Statistics = serviceData,
-                    TotalPlatformRevenue = systemWallet?.TotalBalance ?? 0m,
-                    RevenueUpdatedAt = systemWallet?.UpdatedAt,
+                    TotalPlatformRevenue = ownerFeeWallet?.TotalBalance ?? 0m,
+                    TotalEscrowBalance = systemEscrowWallet?.TotalBalance ?? 0m,
+                    RevenueUpdatedAt = ownerFeeWallet?.UpdatedAt,
                     TransactionHistories = transactionHistories
                 });
 

@@ -183,6 +183,30 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        // 1. Seed Escrow Vault SystemWallet (Holds escrow balance locked across projects)
+        var systemEscrowWalletId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        if (!await db.SystemWallets.AnyAsync(sw => sw.Id == systemEscrowWalletId))
+        {
+            db.SystemWallets.Add(new SystemWallet
+            {
+                Id = systemEscrowWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        // 2. Seed Owner Fee SystemWallet (Stores platform fee income belonging to Owner)
+        var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        if (!await db.SystemWallets.AnyAsync(sw => sw.Id == ownerFeeWalletId))
+        {
+            db.SystemWallets.Add(new SystemWallet
+            {
+                Id = ownerFeeWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
         // Seed Test Users (Client & Expert & Owner)
         var clientId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         var expertId = Guid.Parse("22222222-2222-2222-2222-222222222222");

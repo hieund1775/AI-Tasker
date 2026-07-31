@@ -156,13 +156,56 @@ public class UserService : IUserService
         if (!Guid.TryParse(userId, out var userGuid))
             throw new ArgumentException("Invalid user ID format.", nameof(userId));
 
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+        if (user == null)
+            throw new InvalidOperationException($"User not found for ID: {userId}");
+
+        var isOwner = string.Equals(user.Role, "Owner", StringComparison.OrdinalIgnoreCase);
+
         var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userGuid);
         if (wallet == null)
-            throw new InvalidOperationException($"Wallet not found for user ID: {userId}");
-        if (wallet.Balance < amount)
-            throw new InvalidOperationException("Insufficient balance.");
+        {
+            wallet = new Wallet
+            {
+                UserId = userGuid,
+                Balance = 0,
+                EscrowBalance = 0,
+                TotalEarned = 0
+            };
+            _context.Wallets.Add(wallet);
+        }
 
-        wallet.Balance -= amount;
+        var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        var ownerFeeWallet = await _context.SystemWallets
+            .FirstOrDefaultAsync(w => w.Id == ownerFeeWalletId);
+        if (ownerFeeWallet == null)
+        {
+            ownerFeeWallet = new SystemWallet
+            {
+                Id = ownerFeeWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.SystemWallets.Add(ownerFeeWallet);
+        }
+
+        if (isOwner)
+        {
+            var availableBalance = Math.Max(wallet.Balance, ownerFeeWallet.TotalBalance);
+            if (availableBalance < amount)
+                throw new InvalidOperationException("Insufficient fee balance in Owner wallet.");
+
+            ownerFeeWallet.TotalBalance -= amount;
+            ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
+            wallet.Balance = ownerFeeWallet.TotalBalance;
+        }
+        else
+        {
+            if (wallet.Balance < amount)
+                throw new InvalidOperationException("Insufficient balance.");
+
+            wallet.Balance -= amount;
+        }
 
         var resolvedBankCode = !string.IsNullOrWhiteSpace(bankCode) ? bankCode : "VISA (ZaloPay)";
         var description = $"Rút tiền về thẻ/tài khoản ({resolvedBankCode})" +
@@ -183,6 +226,19 @@ public class UserService : IUserService
             Description = description
         };
         _context.TransactionLogs.Add(log);
+
+        if (isOwner)
+        {
+            _context.SystemTransactionLogs.Add(new SystemTransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = Guid.Empty,
+                Amount = amount,
+                Type = "OwnerWithdraw",
+                Description = $"Owner rút tiền két sắt sàn ({resolvedBankCode}) - STK/Thẻ: {bankAccountNumber}",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
 
         await _context.SaveChangesAsync();
         return wallet.Balance;

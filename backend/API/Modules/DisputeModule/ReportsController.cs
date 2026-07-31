@@ -247,14 +247,17 @@ public class ReportsController : ControllerBase
             decimal penaltyAmount = totalBudget * 0.10m;
             decimal totalPlatformIncome = report.PlatformFee + penaltyAmount;
 
-            // 3. NẠP TIỀN VÀO KẾT SẮT DOANH THU TỔNG: Bốc dòng TOTAL cố định (Hiệu năng O(1))
-            var systemWallet = await _context.SystemWallets
-                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
-            if (systemWallet != null)
+            // 3. NẠP TIỀN VÀO VÍ FEE CỦA OWNER (SystemWallet 88888888-8888-8888-8888-888888888888)
+            var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+            var ownerFeeWallet = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == ownerFeeWalletId);
+            if (ownerFeeWallet == null)
             {
-                systemWallet.TotalBalance += totalPlatformIncome;
-                systemWallet.UpdatedAt = DateTime.UtcNow;
+                ownerFeeWallet = new SystemWallet { Id = ownerFeeWalletId, TotalBalance = 0m, UpdatedAt = DateTime.UtcNow };
+                _context.SystemWallets.Add(ownerFeeWallet);
             }
+            ownerFeeWallet.TotalBalance += totalPlatformIncome;
+            ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
 
             // 4. CHI CHIẾT HÓA ĐƠN ĐỐI SOÁT: Thêm dòng nhật ký dòng tiền cho hệ thống
             var log = new SystemTransactionLog

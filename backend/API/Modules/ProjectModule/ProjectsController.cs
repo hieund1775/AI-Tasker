@@ -217,14 +217,17 @@ namespace AITasker_Modular.Modules.ProjectModule
             expertWallet.Balance += expertNetPay;
             expertWallet.TotalEarned += expertNetPay;
 
-            // Thu phí sàn vào SystemWallet
-            var systemWallet = await _context.SystemWallets
-                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
-            if (systemWallet != null)
+            // Thu phí sàn vào Ví Fee của Owner (SystemWallet 88888888-8888-8888-8888-888888888888)
+            var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+            var ownerFeeWallet = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == ownerFeeWalletId);
+            if (ownerFeeWallet == null)
             {
-                systemWallet.TotalBalance += platformFee;
-                systemWallet.UpdatedAt = DateTime.UtcNow;
+                ownerFeeWallet = new SystemWallet { Id = ownerFeeWalletId, TotalBalance = 0m, UpdatedAt = DateTime.UtcNow };
+                _context.SystemWallets.Add(ownerFeeWallet);
             }
+            ownerFeeWallet.TotalBalance += platformFee;
+            ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
 
             // Cập nhật dự án
             project.EscrowBalance = 0;
