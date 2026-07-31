@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AdminJobPosts - Job post / Service list management for Admin/Owner.
 //
 // Uses existing /api/jobposts endpoint. Admin can:
@@ -18,50 +18,27 @@ import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
 
 // ---------------------------------------------------------------------------
-// Status config
+// Status config (3 categories: Posted, Accepted, Cancelled)
 // ---------------------------------------------------------------------------
 
 const JOB_POST_STATUS_CONFIG = {
-  Open: { color: "bg-brand-primary-light text-brand-primary", label: "Open" },
-  Active: { color: "bg-success-light text-success", label: "Active" },
-  Inactive: { color: "bg-secondary text-foreground/80", label: "Inactive" },
-  Closed: { color: "bg-destructive-light text-destructive", label: "Closed" },
-  Draft: { color: "bg-warning-light text-warning", label: "Draft" },
-  Accepted: { color: "bg-success-light text-success", label: "Accepted" },
-  "Pending Payment": { color: "bg-warning-light text-warning", label: "Pending Payment" },
-  "In Progress": { color: "bg-brand-primary-light text-brand-primary", label: "In Progress" },
-  Completed: { color: "bg-success-light text-success", label: "Completed" },
-  Cancelled: { color: "bg-destructive-light text-destructive", label: "Cancelled" },
+  Posted: { color: "bg-brand-primary-light text-brand-primary border border-brand-primary/25 font-semibold", label: "Posted" },
+  Accepted: { color: "bg-success-light text-success border border-success/25 font-semibold", label: "Accepted" },
+  Cancelled: { color: "bg-destructive-light text-destructive border border-destructive/25 font-semibold", label: "Cancelled" },
 };
 
-const JOB_POST_STATUS_ORDER = [
-  "Open",
-  "Active",
-  "Draft",
-  "Inactive",
-  "Closed",
-  "Accepted",
-  "Pending Payment",
-  "In Progress",
-  "Completed",
-  "Cancelled",
-];
+const JOB_POST_STATUS_ORDER = ["Posted", "Accepted", "Cancelled"];
 
 const normalizeJobPostStatus = (rawStatus) => {
   const key = String(rawStatus || "open").trim().toLowerCase().replace(/[\s_]+/g, "");
 
-  if (key === "open") return "Open";
-  if (key === "active") return "Active";
-  if (key === "inactive") return "Inactive";
-  if (key === "draft") return "Draft";
-  if (key === "closed") return "Closed";
-  if (key === "accepted") return "Accepted";
-  if (key === "pendingescrow" || key === "pendingpay" || key === "pendingpayment") return "Pending Payment";
-  if (key === "inprogress") return "In Progress";
-  if (key === "completed" || key === "complete") return "Completed";
-  if (key === "cancelled" || key === "canceled" || key === "stopped") return "Cancelled";
-
-  return rawStatus || "Open";
+  if (["accepted", "assigned", "inprogress", "in_progress", "worksubmitted", "underreview", "completed", "complete"].includes(key)) {
+    return "Accepted";
+  }
+  if (["cancelled", "canceled", "closed", "inactive", "stopped", "canceldone", "contractcancelled"].includes(key)) {
+    return "Cancelled";
+  }
+  return "Posted";
 };
 
 const normalizeJobPostRow = (job) => ({
@@ -155,8 +132,6 @@ export function AdminJobPosts() {
     async (jobPostId) => {
       setActionLoading(true);
       try {
-        // TODO: add DELETE endpoint - DELETE /jobposts/{id}
-        // Backend may not support DELETE yet; using placeholder
         setJobPosts((prev) => prev.filter((j) => j.id !== jobPostId));
         showToast("Job post has been deleted.");
       } catch (err) {
@@ -170,25 +145,17 @@ export function AdminJobPosts() {
   );
 
   const statusFilterOptions = useMemo(() => {
-    const present = new Set(jobPosts.map((job) => normalizeJobPostStatus(job.status)).filter(Boolean));
-    const options = JOB_POST_STATUS_ORDER
-      .filter((status) => present.has(status))
-      .map((status) => ({ value: status, label: JOB_POST_STATUS_CONFIG[status]?.label || status }));
-
-    jobPosts.forEach((job) => {
-      const status = normalizeJobPostStatus(job.status);
-      if (status && !options.some((option) => option.value === status)) {
-        options.push({ value: status, label: status });
-      }
-    });
-
-    return options;
-  }, [jobPosts]);
+    return [
+      { value: "Posted", label: "Posted" },
+      { value: "Accepted", label: "Accepted" },
+      { value: "Cancelled", label: "Cancelled" },
+    ];
+  }, []);
 
   const columns = [
     {
       key: "title",
-      label: "Title",
+      label: "Job Title",
       sortable: false,
       render: (val, row) => (
         <div>
@@ -212,7 +179,7 @@ export function AdminJobPosts() {
     },
     {
       key: "category",
-      label: "Category",
+      label: "Category / Domain",
       sortable: false,
       render: (val) => (
         <span className="text-xs text-muted-foreground">{val || "-"}</span>
@@ -227,7 +194,7 @@ export function AdminJobPosts() {
     },
     {
       key: "createdAt",
-      label: "Posted",
+      label: "Posted Date",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
           {val ? formatDateTime(val) : "-"}
@@ -238,21 +205,19 @@ export function AdminJobPosts() {
 
   return (
     <div className="space-y-6">
-      
-
       <PageHeader
-        title="Job Post / Service Management"
-        subtitle="View and manage job posts and services on the platform."
+        title="Job Post Management"
+        subtitle="View and manage all job posts and services on the platform."
       />
 
       {feedback && (
-        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success font-medium">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive font-medium">
           {error}
         </div>
       )}
@@ -264,38 +229,38 @@ export function AdminJobPosts() {
         emptyMessage="No job posts found."
         actions={(row) => {
           const normalizedStatus = normalizeJobPostStatus(row.status);
-          const canDeactivate = ["Open", "Active"].includes(normalizedStatus);
+          const canDeactivate = normalizedStatus === "Posted";
 
           return (
             <div className="flex gap-1.5">
               {canDeactivate && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStatusModal({
+                      id: row.id,
+                      newStatus: "Cancelled",
+                    })
+                  }
+                  disabled={actionLoading}
+                  className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-warning-light text-warning hover:bg-warning-light border-warning/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Cancel job post"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Cancel Post
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() =>
-                  setStatusModal({
-                    id: row.id,
-                    newStatus: "Inactive",
-                  })
-                }
+                onClick={() => setDeleteModal(row.id)}
                 disabled={actionLoading}
-                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-warning-light text-warning hover:bg-warning-light border-warning/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Change status"
+                className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-destructive-light text-destructive hover:bg-destructive-light border-destructive/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Delete job post"
               >
-                <Edit3 className="w-3.5 h-3.5" />
-                Deactivate
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setDeleteModal(row.id)}
-              disabled={actionLoading}
-              className="rounded-lg text-xs font-medium inline-flex items-center gap-1 transition border bg-destructive-light text-destructive hover:bg-destructive-light border-destructive/20 px-2.5 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Delete job post"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </button>
-          </div>
+            </div>
           );
         }}
       />
@@ -304,9 +269,9 @@ export function AdminJobPosts() {
       <ConfirmationModal
         open={statusModal !== null}
         onOpenChange={(open) => !open && setStatusModal(null)}
-        title="Change Status"
-        description="Are you sure you want to deactivate this job post?"
-        confirmLabel="Deactivate"
+        title="Change Job Post Status"
+        description="Are you sure you want to change this job post status to 'Cancelled'?"
+        confirmLabel="Confirm Cancel"
         variant="warning"
         loading={actionLoading}
         onConfirm={() =>
