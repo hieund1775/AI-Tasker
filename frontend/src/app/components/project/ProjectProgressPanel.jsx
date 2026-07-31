@@ -67,6 +67,7 @@ export function ProjectProgressPanel({
   // the user back to the same task while they are scrolling to other tasks.
   useEffect(() => {
     if (!focusTaskId || lastScrolledFocusTaskIdRef.current === focusTaskId) return;
+    if (window.location.hash === "#project-progress") return;
 
     const timer = setTimeout(() => {
       const target = taskRefs.current[focusTaskId];
@@ -121,9 +122,12 @@ export function ProjectProgressPanel({
   ).length;
 
   return (
-    <div id="project-progress" className="bg-card rounded-xl border border-border p-6 space-y-6 scroll-mt-28">
+    <div className="bg-card rounded-xl border border-border p-6 space-y-6">
       {/* Overall progress header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4">
+      <div
+        id="project-progress"
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4 scroll-mt-28"
+      >
         <div>
           <h2 className="text-xl font-semibold text-foreground">Project Progress</h2>
           <p className="text-sm text-muted-foreground">
