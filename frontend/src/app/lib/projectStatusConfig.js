@@ -38,24 +38,24 @@ export const STATUS_LABELS = {
 // ---------------------------------------------------------------------------
 
 export const STATUS_BADGE_CLASSES = {
-  reviewing_proposals: "bg-warning-light text-warning",
-  in_progress: "bg-brand-primary-light text-brand-primary",
-  waiting_review: "bg-warning-light text-warning",
-  needs_revision: "bg-warning-light text-warning",
-  completed: "bg-brand-green/10 text-brand-green",
-  cancelled: "bg-destructive-light text-destructive",
-  contract_cancelled: "bg-destructive-light text-destructive border border-destructive/20",
-  pending_escrow: "bg-warning-light text-warning border border-warning/20",
-  disputed: "bg-destructive-light0/10 text-destructive border border-destructive/20 font-semibold",
+  reviewing_proposals: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
+  in_progress: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
+  waiting_review: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  needs_revision: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  completed: "bg-success-light text-success border border-success/25 font-semibold",
+  cancelled: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  contract_cancelled: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  pending_escrow: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  disputed: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
   "disputed-card": "bg-card border border-border hover:border-border/80",
-  awaiting_cancellation: "bg-warning-light text-warning border border-warning/20 font-semibold",
-  cancel_done: "bg-destructive-light text-destructive border border-destructive/20",
-  settled_dispute: "bg-success-light text-success border border-success/20 font-semibold",
+  awaiting_cancellation: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  cancel_done: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  settled_dispute: "bg-success-light text-success border border-success/25 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
 export function getStatusBadgeClass(key) {
-  return STATUS_BADGE_CLASSES[key] || "bg-secondary text-foreground/80";
+  return STATUS_BADGE_CLASSES[key] || "bg-secondary text-foreground/80 border border-border";
 }
 
 /** Convenience: get the display label for a key, with fallback. */
@@ -271,24 +271,24 @@ export function deriveProjectDisplayStatus(project, options) {
 // ---------------------------------------------------------------------------
 
 export const TASK_STATUS_CONFIG = {
-  "Not Started":         { className: "bg-secondary text-muted-foreground",   label: "Not Started" },
-  "In Progress":         { className: "bg-brand-primary-light text-brand-primary",   label: "In Progress" },
-  "Pending Review":      { className: "bg-warning-light text-warning", label: "Waiting for Client Review" },
-  "Waiting For Approval":{ className: "bg-warning-light text-warning", label: "Waiting For Approval" },
-  "Checklist Completed": { className: "bg-warning-light text-warning border border-warning/20", label: "Checklist Completed" },
-  "Waiting for Expert Product": { className: "bg-warning-light text-warning border border-warning/20", label: "Waiting for Expert Product" },
-  "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
-  "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
-  "Needs Revision":      { className: "bg-destructive-light text-destructive border border-destructive/20", label: "Decline" },
-  "Decline":             { className: "bg-destructive-light text-destructive border border-destructive/20", label: "Decline" },
-  "Rework":              { className: "bg-warning-light text-warning border border-warning/35", label: "Rework" },
-  "Reopen Requested":    { className: "bg-destructive-light text-destructive",     label: "Reopen Requested" },
-  "Cancelled":           { className: "bg-destructive-light text-destructive",     label: "Cancelled" },
+  "Not Started":         { className: "bg-secondary text-muted-foreground border border-border font-semibold",   label: "Not Started" },
+  "In Progress":         { className: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",   label: "In Progress" },
+  "Pending Review":      { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting for Client Review" },
+  "Waiting For Approval":{ className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting For Approval" },
+  "Checklist Completed": { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Checklist Completed" },
+  "Waiting for Expert Product": { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting for Expert Product" },
+  "Completed":           { className: "bg-success-light text-success border border-success/25 font-semibold",  label: "Completed" },
+  "Done":                { className: "bg-success-light text-success border border-success/25 font-semibold",  label: "Done" },
+  "Needs Revision":      { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold", label: "Decline" },
+  "Decline":             { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold", label: "Decline" },
+  "Rework":              { className: "bg-warning-light text-warning border border-warning/35 font-semibold", label: "Rework" },
+  "Reopen Requested":    { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",     label: "Reopen Requested" },
+  "Cancelled":           { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",     label: "Cancelled" },
 };
 
 /** Get the badge class for a task-level display status. */
 export function getTaskStatusClass(status) {
-  return TASK_STATUS_CONFIG[status]?.className || "bg-secondary text-foreground/80";
+  return TASK_STATUS_CONFIG[status]?.className || "bg-secondary text-foreground/80 border border-border";
 }
 
 /** Get the display label for a task-level display status. */
@@ -302,15 +302,15 @@ export function getTaskStatusLabel(status) {
 
 export const DEADLINE_STATUS_CONFIG = {
   normal: {
-    className: "bg-brand-primary-light text-brand-primary",
+    className: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
     label: "Due in X days",
   },
   warning: {
-    className: "bg-warning-light text-warning",
+    className: "bg-warning-light text-warning border border-warning/25 font-semibold",
     label: "Due soon",
   },
   overdue: {
-    className: "bg-destructive-light text-destructive",
+    className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
     label: "Overdue",
   },
 };

@@ -76,7 +76,7 @@ export function HowItWorks() {
 
   return (
     <section className="relative overflow-hidden bg-secondary/35 px-4 py-[var(--section-y)] sm:px-6 lg:px-8">
-      <div className="relative mx-auto max-w-[1180px]">
+      <div className="relative mx-auto w-full max-w-[var(--layout-max)]">
         <motion.div
           ref={ref}
           initial={false}

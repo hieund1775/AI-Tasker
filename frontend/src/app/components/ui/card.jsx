@@ -18,7 +18,7 @@ function CardHeader({ className, ...props }) {
     <div
       data-slot="card-header"
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 pt-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2.5 px-7 pt-7 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-7",
         className,
       )}
       {...props}
@@ -63,7 +63,7 @@ function CardContent({ className, ...props }) {
   return (
     <div
       data-slot="card-content"
-      className={cn("px-6 [&:last-child]:pb-6", className)}
+      className={cn("px-7 [&:last-child]:pb-7", className)}
       {...props}
     />
   );
@@ -73,7 +73,7 @@ function CardFooter({ className, ...props }) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center gap-3 px-6 pb-6 [.border-t]:pt-6", className)}
+      className={cn("flex items-center gap-3.5 px-7 pb-7 [.border-t]:pt-7", className)}
       {...props}
     />
   );

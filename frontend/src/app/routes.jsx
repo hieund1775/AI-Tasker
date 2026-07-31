@@ -1,4 +1,4 @@
-﻿import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { RootLayout } from "./components/layout/RootLayout.jsx";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute.jsx";
 
@@ -93,60 +93,67 @@ export const router = createBrowserRouter([
         children: [
           // ----- Client routes (role=client only) -----
           {
+            path: "client",
             element: <ProtectedRoute role="client" />,
             children: [
-              { path: "client/dashboard", Component: ClientDashboard },
-              { path: "client/post-project", Component: PostProject },
-              { path: "client/my-projects", Component: MyProjectsList },
-              { path: "client/projects/:id", Component: ProjectDetail },
-              { path: "client/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
-              { path: "client/projects/:projectId/proposals", Component: ProposalReview },
-              { path: "client/experts", Component: ExpertList },
-              { path: "client/experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
-              { path: "client/profile", Component: ClientProfile },
-              { path: "client/profile/edit", Component: EditClientProfile },
-              { path: "client/billing", Component: Billing },
+              { index: true, element: <Navigate to="/client/dashboard" replace /> },
+              { path: "dashboard", Component: ClientDashboard },
+              { path: "post-project", Component: PostProject },
+              { path: "my-projects", Component: MyProjectsList },
+              { path: "projects/:id", Component: ProjectDetail },
+              { path: "projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
+              { path: "projects/:projectId/proposals", Component: ProposalReview },
+              { path: "experts", Component: ExpertList },
+              { path: "experts/:id", element: <PublicExpertProfile viewerRole="client" /> },
+              { path: "profile", Component: ClientProfile },
+              { path: "profile/edit", Component: EditClientProfile },
+              { path: "billing", Component: Billing },
+              { path: "proposals/:id", element: <ProposalReviewLegacyRedirect /> },
             ],
           },
 
           // ----- Expert routes (role=expert only) -----
           {
+            path: "expert",
             element: <ProtectedRoute role="expert" />,
             children: [
-              { path: "expert/dashboard", Component: ExpertDashboard },
-              { path: "expert/find-jobs", Component: JobList },
-              { path: "expert/jobs", Component: JobList },
-              { path: "expert/jobs/:id", Component: JobDetail },
-              { path: "expert/jobs/:id/proposal", Component: SendProposal },
-              { path: "expert/proposals", Component: ProposalStatus },
-              { path: "expert/proposals/:id", Component: ProposalDetail },
-              { path: "expert/projects/:id", Component: ExpertProjectDetail },
-              { path: "expert/projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
-              { path: "expert/profile", Component: ExpertProfile },
-              { path: "expert/profile/edit", Component: EditExpertProfile },
-              { path: "expert/wallet", Component: ExpertWallet },
+              { index: true, element: <Navigate to="/expert/dashboard" replace /> },
+              { path: "dashboard", Component: ExpertDashboard },
+              { path: "find-jobs", Component: JobList },
+              { path: "jobs", Component: JobList },
+              { path: "jobs/:id", Component: JobDetail },
+              { path: "jobs/:id/proposal", Component: SendProposal },
+              { path: "proposals", Component: ProposalStatus },
+              { path: "proposals/:id", Component: ProposalDetail },
+              { path: "projects/:id", Component: ExpertProjectDetail },
+              { path: "projects/:projectId/tasks/:taskId", Component: TaskDetailPage },
+              { path: "profile", Component: ExpertProfile },
+              { path: "profile/edit", Component: EditExpertProfile },
+              { path: "wallet", Component: ExpertWallet },
             ],
           },
 
           // ----- Admin routes (role=admin only) -----
           {
+            path: "admin",
             element: <ProtectedRoute roles={["admin", "staff"]} />,
             children: [
               {
                 element: <AdminLayout />,
                 children: [
-                  { path: "admin/dashboard", Component: AdminDashboard },
-                  { path: "admin/users", Component: AdminUsers },
-                  { path: "admin/disputes", Component: AdminDisputes },
-                  { path: "admin/disputes/:id", Component: AdminReportDetail },
-                  { path: "admin/projects", Component: AdminProjects },
-                  { path: "admin/reviews", Component: AdminReviews },
-                  { path: "admin/job-posts", Component: AdminJobPosts },
-                  { path: "admin/category-tags", Component: AdminCategoryTags },
-                  { path: "admin/revenue", Component: AdminRevenue },
-                  { path: "admin/profile", Component: AdminProfile },
-                  { path: "admin/profile-client/:id", Component: ClientProfile },
-                  { path: "admin/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
+                  { index: true, element: <Navigate to="/admin/dashboard" replace /> },
+                  { path: "dashboard", Component: AdminDashboard },
+                  { path: "users", Component: AdminUsers },
+                  { path: "disputes", Component: AdminDisputes },
+                  { path: "disputes/:id", Component: AdminReportDetail },
+                  { path: "projects", Component: AdminProjects },
+                  { path: "reviews", Component: AdminReviews },
+                  { path: "job-posts", Component: AdminJobPosts },
+                  { path: "category-tags", Component: AdminCategoryTags },
+                  { path: "revenue", Component: AdminRevenue },
+                  { path: "profile", Component: AdminProfile },
+                  { path: "profile-client/:id", Component: ClientProfile },
+                  { path: "profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
                 ],
               }
             ],
@@ -154,25 +161,27 @@ export const router = createBrowserRouter([
 
           // ----- Owner routes (role=owner only) -----
           {
+            path: "owner",
             element: <ProtectedRoute role="owner" />,
             children: [
               {
                 element: <OwnerLayout />,
                 children: [
-                  { path: "owner/dashboard", Component: OwnerDashboard },
-                  { path: "owner/create-admin", Component: CreateAdmin },
-                  { path: "owner/revenue", Component: OwnerRevenue },
-                  { path: "owner/disputes/:id", Component: AdminReportDetail },
-                  { path: "owner/profile", Component: OwnerProfile },
-                  { path: "owner/profile-client/:id", Component: ClientProfile },
-                  { path: "owner/profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
+                  { index: true, element: <Navigate to="/owner/dashboard" replace /> },
+                  { path: "dashboard", Component: OwnerDashboard },
+                  { path: "create-admin", Component: CreateAdmin },
+                  { path: "revenue", Component: OwnerRevenue },
+                  { path: "disputes/:id", Component: AdminReportDetail },
+                  { path: "profile", Component: OwnerProfile },
+                  { path: "profile-client/:id", Component: ClientProfile },
+                  { path: "profile-expert/:id", element: <PublicExpertProfile viewerRole="public" /> },
                   // Owner-specific management pages (reuse Admin components)
-                  { path: "owner/users", Component: OwnerUsers },
-                  { path: "owner/projects", Component: OwnerProjects },
-                  { path: "owner/reports", Component: OwnerReports },
-                  { path: "owner/reviews", Component: OwnerReviews },
-                  { path: "owner/job-posts", Component: OwnerJobPosts },
-                  { path: "owner/category-tags", Component: OwnerCategoryTags },
+                  { path: "users", Component: OwnerUsers },
+                  { path: "projects", Component: OwnerProjects },
+                  { path: "reports", Component: OwnerReports },
+                  { path: "reviews", Component: OwnerReviews },
+                  { path: "job-posts", Component: OwnerJobPosts },
+                  { path: "category-tags", Component: OwnerCategoryTags },
                 ],
               }
             ],
@@ -189,17 +198,9 @@ export const router = createBrowserRouter([
           // Payment result redirect from ZaloPay
           { path: "wallet", Component: PaymentResult },
 
-          // ----- Legacy redirect -----
-          {
-            path: "client/proposals/:id",
-            element: <ProposalReviewLegacyRedirect />,
-          },
-
           // ----- Friendly redirects for common navigation paths -----
           { path: "my-projects", element: <Navigate to="/client/my-projects" replace /> },
           { path: "messages", element: <Navigate to="/messenger" replace /> },
-          { path: "admin", element: <Navigate to="/admin/dashboard" replace /> },
-          { path: "owner", element: <Navigate to="/owner/dashboard" replace /> },
 
           // ----- Catch-all 404 -----
           { path: "*", Component: NotFound },

@@ -47,6 +47,9 @@ export function LoginPage() {
           timestamp: new Date().getTime()
         });
         localStorage.setItem("aitasker_user_logins", JSON.stringify(logins));
+        try {
+          window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        } catch (e) {}
       } catch (e) {
         console.warn("Failed to record login event:", e);
       }

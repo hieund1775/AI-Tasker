@@ -3,24 +3,24 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils.js";
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-lg border px-2.5 py-0.5 text-xs font-semibold w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none transition-colors",
+  "inline-flex items-center justify-center rounded-lg border px-3 py-1 text-xs font-semibold w-fit whitespace-nowrap shrink-0 [&>svg]:size-3.5 gap-1.5 [&>svg]:pointer-events-none [&>svg]:stroke-[2.35] transition-colors",
   {
     variants: {
       variant: {
         default:
-          "border-transparent bg-primary text-primary-foreground",
+          "border-transparent bg-primary text-primary-foreground shadow-sm shadow-foreground/10",
         secondary:
-          "border-transparent bg-secondary text-secondary-foreground",
+          "border-border/75 bg-secondary text-secondary-foreground",
         destructive:
-          "border-transparent bg-destructive/10 text-destructive",
+          "border-destructive/25 bg-destructive/15 text-destructive",
         success:
-          "border-transparent bg-success/10 text-success",
+          "border-success/25 bg-success/15 text-success",
         warning:
-          "border-transparent bg-warning/10 text-warning",
+          "border-warning/25 bg-warning/15 text-warning",
         outline:
-          "border-border text-muted-foreground",
+          "border-border text-foreground bg-card/70",
         accent:
-          "border-transparent bg-accent/10 text-accent",
+          "border-accent/30 bg-accent/15 text-accent",
       },
     },
     defaultVariants: {

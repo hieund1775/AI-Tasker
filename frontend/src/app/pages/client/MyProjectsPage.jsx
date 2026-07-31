@@ -51,17 +51,17 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-accent-light text-accent border-accent/25";
+  let badgeClass = "bg-brand-primary-light text-brand-primary border-brand-primary/25 font-semibold";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-success-light0/10 text-success border-success/20";
+    badgeClass = "bg-success-light text-success border-success/25 font-semibold";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-destructive-light0/10 text-destructive border-destructive/20";
+    badgeClass = "bg-destructive-light text-destructive border-destructive/25 font-semibold";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-destructive-light0/10 text-destructive border border-destructive/20 font-semibold";
+    badgeClass = "bg-destructive-light text-destructive border border-destructive/25 font-semibold";
   } else {
     const hasProjectRecord = !!project.projectId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -71,7 +71,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-warning-light/10 text-warning border-warning/20";
+      badgeClass = "bg-warning-light text-warning border-warning/25 font-semibold";
     }
   }
 
@@ -476,7 +476,7 @@ export function MyProjectsList() {
     setActionLoading(true);
     try {
       await api.proposals.updateStatus(proposalId, "Declined");
-      toast.success("Proposal has been declined successfully!");
+      toast.success("Proposal declined successfully.");
       
       // Update local state immediately
       setProposalsList((prev) => prev.filter((p) => p.id !== proposalId));
@@ -526,7 +526,7 @@ export function MyProjectsList() {
         console.warn("Failed to update job post metadata, continuing anyway:", jobUpdateErr);
       }
       
-      toast.success("Proposal has been accepted successfully! Please set up escrow to start the project.");
+      toast.success("Proposal accepted successfully. Please set up escrow to start the project.");
 
       // Notify selected expert + reject others
       const otherProposals = proposalsList.filter(prop => prop.id !== p.id);
@@ -919,7 +919,7 @@ export function MyProjectsList() {
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
                                     <span className="font-semibold text-foreground text-sm">
-                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                      User story: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
                                   <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
@@ -945,10 +945,10 @@ export function MyProjectsList() {
                                         <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Minitasks */}
+                                      {/* Mini-tasks */}
                                       {task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
                                             <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                           ))}
@@ -972,10 +972,10 @@ export function MyProjectsList() {
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Minitasks */}
+                            {/* Mini-tasks */}
                             {task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
                                   <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                 ))}
@@ -1286,7 +1286,7 @@ export function MyProjectsList() {
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
                                     <span className="font-semibold text-foreground text-sm">
-                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                      User story: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
                                   <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
@@ -1312,10 +1312,10 @@ export function MyProjectsList() {
                                         <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Minitasks */}
+                                      {/* Mini-tasks */}
                                       {false && task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
                                             <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                           ))}
@@ -1339,10 +1339,10 @@ export function MyProjectsList() {
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Minitasks */}
+                            {/* Mini-tasks */}
                             {false && task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
                                   <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                 ))}

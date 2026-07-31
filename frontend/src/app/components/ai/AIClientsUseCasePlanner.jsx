@@ -202,7 +202,7 @@ export function AIClientsUseCasePlanner({
       console.error("Backend AI chat failed:", err);
       const aiMsg = {
         role: "ai",
-        text: "Sorry, an error occurred while connecting to the AI Backend. (Error code: " + (err.message || "Unknown") + ")",
+        text: "Sorry, an error occurred while connecting to the AI service. (Error code: " + (err.message || "Unknown") + ")",
         timestamp: Date.now()
       };
       setMessages((prev) => [...prev, aiMsg]);
@@ -234,9 +234,9 @@ export function AIClientsUseCasePlanner({
       {/* Header */}
       <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-secondary/50">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">AI User Story Planner</h2>
+          <h2 className="text-sm font-semibold text-foreground">AI user story planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-            Plan User Stories from Document & Chat
+            Plan user stories from documents and chat
           </p>
         </div>
         <button
@@ -262,7 +262,7 @@ export function AIClientsUseCasePlanner({
           {messages.length === 0 && !loading && (
             <div className="text-center py-8 px-4">
               <MessageSquare className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground font-medium">Please send a message or upload a document to automatically generate Use Cases.</p>
+              <p className="text-sm text-muted-foreground font-medium">Send a message or upload a document to automatically generate use cases.</p>
               <p className="text-xs text-muted-foreground/60 mt-1 italic">Example: "I want to build a customer support chatbot with RAG"</p>
             </div>
           )}
@@ -290,7 +290,7 @@ export function AIClientsUseCasePlanner({
 
                     <div className="space-y-2">
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Proposed Use Cases:
+                        Proposed use cases:
                       </p>
                       {msg.plan.useCases.map((uc, index) => (
                         <div key={index} className="bg-secondary/60 border border-border rounded-lg p-2.5 text-xs space-y-1">
@@ -310,7 +310,7 @@ export function AIClientsUseCasePlanner({
               <div className="bg-card border border-border rounded-xl rounded-bl-md px-4 py-2.5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Bot className="w-4 h-4 text-brand-primary animate-pulse" />
-                  <span className="text-sm text-muted-foreground font-medium">AI is analyzing document & requirements...</span>
+                  <span className="text-sm text-muted-foreground font-medium">AI is analyzing the document and requirements...</span>
                 </div>
               </div>
             </div>
@@ -333,7 +333,7 @@ export function AIClientsUseCasePlanner({
               }`}
           >
             <Sparkles className="w-4 h-4" />
-            {applied ? "Applied Use Cases to Form" : "Apply these Use Cases"}
+            {applied ? "Applied use cases to the form" : "Apply these use cases"}
           </button>
         </div>
       )}

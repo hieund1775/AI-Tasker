@@ -41,7 +41,7 @@ export function ExpertUseCaseUpdatePage() {
     }
     try {
       await handleUpdateTask(taskId, { title: editingTaskTitle.trim() });
-      toast.success("Task name updated successfully!");
+      toast.success("Task name updated successfully.");
       setEditingTaskId(null);
     } catch (err) {
       toast.error("Failed to update task name.");
@@ -55,7 +55,7 @@ export function ExpertUseCaseUpdatePage() {
     }
     try {
       await handleUpdateMiniTask(taskId, miniTaskId, { title: editingMiniTaskTitle.trim() });
-      toast.success("Milestone name updated successfully!");
+      toast.success("Milestone name updated successfully.");
       setEditingMiniTaskId(null);
     } catch (err) {
       toast.error("Failed to update milestone name.");
@@ -73,7 +73,7 @@ export function ExpertUseCaseUpdatePage() {
     }
     try {
       await handleUpdateTask(taskId, { evidence: textVal });
-      toast.success(explicitText === "" ? "Handover evidence reset." : "Handover evidence updated successfully!");
+      toast.success(explicitText === "" ? "Handover evidence reset." : "Handover evidence updated successfully.");
       setIsEditingEvidence(prev => ({ ...prev, [taskId]: false }));
       if (explicitText !== null) {
         setEvidenceTextMap(prev => ({ ...prev, [taskId]: "" }));
@@ -131,14 +131,14 @@ export function ExpertUseCaseUpdatePage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <EmptyState
           icon={AlertCircle}
-          title="Use Case Not Found"
-          description="The requested project or Use Case does not exist."
+          title="Use case not found"
+          description="The requested project or use case does not exist."
           action={
             <button
               onClick={() => navigate(`/expert/projects/${projectId}`)}
               className="h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-sm transition-all"
             >
-              Back to Project
+              Back to project
             </button>
           }
         />
@@ -152,13 +152,13 @@ export function ExpertUseCaseUpdatePage() {
   const handleSubmitProduct = async (e) => {
     e.preventDefault();
     if (!productLink.trim()) {
-      toast.error("Please provide deliverables product link.");
+      toast.error("Please provide a deliverables link.");
       return;
     }
     setSubmitting(true);
     try {
       await handleUseCaseSubmitProduct(useCaseIndex, productLink.trim(), productFile.trim(), productImage.trim());
-      toast.success("Use Case deliverables submitted successfully!");
+      toast.success("Use case deliverables submitted successfully.");
     } catch (err) {
       toast.error("Failed to submit deliverables.");
     } finally {
@@ -171,7 +171,7 @@ export function ExpertUseCaseUpdatePage() {
     setSubmitting(true);
     try {
       await handleUseCaseSubmitForReview(useCaseIndex);
-      toast.success("Requested Use Case review!");
+      toast.success("Use case review requested.");
     } catch (err) {
       toast.error("Failed to request review.");
     } finally {
@@ -186,7 +186,7 @@ export function ExpertUseCaseUpdatePage() {
         onClick={() => navigate(`/expert/projects/${projectId}`)}
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors font-medium cursor-pointer"
       >
-        <ArrowLeft className="w-4 h-4" /> Back to Project
+        <ArrowLeft className="w-4 h-4" /> Back to project
       </button>
 
       <div className="space-y-6">
@@ -195,7 +195,7 @@ export function ExpertUseCaseUpdatePage() {
           <div className="flex justify-between items-start gap-4 flex-wrap">
             <div className="space-y-1">
               <span className="text-[10px] font-semibold text-brand-primary bg-brand-primary-light px-2.5 py-0.5 rounded-full uppercase tracking-wide">
-                Use Case #{useCaseIndex + 1}
+                Use case #{useCaseIndex + 1}
               </span>
               <h1 className="text-xl font-semibold text-foreground mt-1">
                 {uc.nameAndDeadline || uc.name}
@@ -213,7 +213,7 @@ export function ExpertUseCaseUpdatePage() {
               )}
               {uc.status === "waiting_client_review" && (
                 <span className="text-xs font-semibold text-accent bg-accent-light px-2.5 py-1 rounded-lg border border-accent/25 uppercase tracking-wide animate-pulse">
-                  Awaiting Approval
+                  Awaiting approval
                 </span>
               )}
               {uc.status === "rework" && (
@@ -236,7 +236,7 @@ export function ExpertUseCaseUpdatePage() {
           {/* Overall progress bar */}
           <div className="space-y-1 pt-2">
             <div className="flex justify-between text-xs text-muted-foreground font-medium">
-              <span>Use Case Progress Status</span>
+              <span>Use case progress</span>
               <span className="font-semibold text-brand-primary">{uc.progress}%</span>
             </div>
             <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
@@ -253,7 +253,7 @@ export function ExpertUseCaseUpdatePage() {
           <div className="p-4 bg-destructive-light text-destructive rounded-xl border border-destructive/20 text-sm text-left flex gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <strong className="block font-semibold mb-0.5">Revision Request from Client:</strong>
+              <strong className="block font-semibold mb-0.5">Revision request from client:</strong>
               <p className="italic text-destructive font-medium font-sans">"{uc.declineReason}"</p>
             </div>
           </div>
@@ -262,11 +262,11 @@ export function ExpertUseCaseUpdatePage() {
         {/* Tasks and Milestones Checklist */}
         <div className="bg-card rounded-2xl border border-border p-6 shadow-sm text-left space-y-4">
           <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-brand-primary" /> Tasks & Milestones List
+            <CheckSquare className="w-5 h-5 text-brand-primary" /> Tasks and milestones
           </h2>
 
           {ucTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground/70 italic py-4">No tasks found for this Use Case.</p>
+            <p className="text-sm text-muted-foreground/70 italic py-4">No tasks found for this use case.</p>
           ) : (
             <div className="space-y-4">
               {ucTasks.map((task, tIdx) => {
@@ -326,12 +326,12 @@ export function ExpertUseCaseUpdatePage() {
                                    "font-semibold text-foreground text-sm",
                                    isTaskCompleted && "text-muted-foreground/60"
                                  )}>
-                                  Task {tIdx + 1}: {task.title || "No Title"}
+                                  Task {tIdx + 1}: {task.title || "No title"}
                                 </h4>
                               </button>
                             ) : (
                               <h4 className="font-semibold text-foreground text-sm">
-                                Task {tIdx + 1}: {task.title || "No Title"}
+                                Task {tIdx + 1}: {task.title || "No title"}
                               </h4>
                             )}
                             <button
@@ -455,10 +455,10 @@ export function ExpertUseCaseUpdatePage() {
                           <div className="p-3.5 bg-accent-light border border-accent/25 rounded-xl space-y-2.5">
                             <h4 className="text-xs font-semibold text-primary flex items-center gap-1.5 font-sans">
                               <Info className="w-4 h-4 text-accent shrink-0" />
-                              Handover Evidence (Evidence Constraint)
+                              Handover evidence
                             </h4>
                             <p className="text-[11px] text-accent leading-normal font-sans">
-                              All milestones are checked. The system requires you to provide handover info (such as Git commit SHA, report link, or short explanation) to set it ready for client review:
+                              All milestones are checked. Provide handover information, such as a Git commit SHA, report link, or short explanation, so it is ready for client review:
                             </p>
                             <div className="flex gap-2">
                               <input
@@ -480,7 +480,7 @@ export function ExpertUseCaseUpdatePage() {
                         ) : (
                           <div className="p-3 bg-success-light border border-success/20 rounded-xl text-xs text-success flex items-center justify-between gap-3">
                             <div className="min-w-0">
-                              <span className="font-semibold block">Done Submitted handover evidence:</span>
+                              <span className="font-semibold block">Submitted handover evidence:</span>
                               <span className="font-mono text-[11px] block mt-0.5 break-all bg-card/50 px-2 py-1 rounded border border-success/20">{task.evidence}</span>
                             </div>
                             <button
@@ -505,12 +505,12 @@ export function ExpertUseCaseUpdatePage() {
         {(uc.status === "submit_product" || uc.status === "rework") && isReadyToSubmit && (
           <div className="bg-card rounded-2xl border border-warning/20 p-6 shadow-sm text-left space-y-4">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Send className="w-5 h-5 text-warning animate-pulse" /> Submit Use Case Product
+              <Send className="w-5 h-5 text-warning animate-pulse" /> Submit use case deliverables
             </h2>
             <form onSubmit={handleSubmitProduct} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-foreground uppercase mb-1">
-                  Product Link <span className="text-destructive">*</span>
+                  Product link <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
@@ -537,7 +537,7 @@ export function ExpertUseCaseUpdatePage() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-foreground uppercase mb-1">
-                    Demo Image / Screenshot URL
+                    Demo image / screenshot URL
                   </label>
                   <input
                     type="text"
@@ -554,7 +554,7 @@ export function ExpertUseCaseUpdatePage() {
                 disabled={submitting}
                 className="w-full h-10 bg-brand-primary hover:bg-brand-primary-hover text-primary-foreground rounded-lg font-medium text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <Send className="w-4 h-4" /> {submitting ? "Submitting..." : "Submit Use Case Deliverables"}
+                <Send className="w-4 h-4" /> {submitting ? "Submitting..." : "Submit use case deliverables"}
               </button>
             </form>
           </div>
@@ -565,12 +565,12 @@ export function ExpertUseCaseUpdatePage() {
           <div className="bg-card rounded-2xl border border-border p-6 shadow-sm text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="space-y-1">
               <h3 className="font-semibold text-foreground text-sm flex items-center gap-1.5">
-                <Info className="w-4 h-4 text-brand-primary" /> Request Use Case Review
+                <Info className="w-4 h-4 text-brand-primary" /> Request use case review
               </h3>
               <p className="text-xs text-muted-foreground">
                 {!isReadyToSubmit
-                  ? "All tasks/milestones in this Use Case must be 100% completed to trigger review request."
-                  : "Tasks are ready. Send request for client review."}
+                  ? "All tasks and milestones in this use case must be 100% complete before you can request a review."
+                  : "Tasks are ready. Send a request for client review."}
               </p>
             </div>
 

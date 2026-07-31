@@ -213,11 +213,11 @@ export function CreateContract() {
             </div>
           </section>
 
-          {/* ---- Use Cases ---- */}
+          {/* ---- Use cases ---- */}
           {useCases.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
-                Use Cases
+                Use cases
               </h2>
               <div className="space-y-3">
                 {useCases.map((uc, idx) => (

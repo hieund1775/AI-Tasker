@@ -314,8 +314,12 @@ public class UsersController : ControllerBase
 
         try
         {
-            var newBalance = await _userService.WithdrawAsync(userId, dto.Amount);
-            return Ok(new { message = "Withdrawal successful.", balance = newBalance });
+            var bankCode = !string.IsNullOrWhiteSpace(dto.BankCode) ? dto.BankCode : "VISA (ZaloPay)";
+            var accountNumber = !string.IsNullOrWhiteSpace(dto.CardNumber) ? dto.CardNumber : dto.BankAccountNumber;
+            var accountName = !string.IsNullOrWhiteSpace(dto.CardHolderName) ? dto.CardHolderName : dto.BankAccountName;
+
+            var newBalance = await _userService.WithdrawAsync(userId, dto.Amount, bankCode, accountNumber, accountName);
+            return Ok(new { message = "Withdrawal to Visa card via ZaloPay successful.", balance = newBalance });
         }
         catch (Exception ex)
         {
@@ -423,6 +427,11 @@ public class SetUserActiveDto
 public class TransactionDto
 {
     public decimal Amount { get; set; }
+    public string? BankCode { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? CardNumber { get; set; }
+    public string? BankAccountName { get; set; }
+    public string? CardHolderName { get; set; }
 }
 
 public class RefreshTokenDto

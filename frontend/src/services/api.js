@@ -5,7 +5,12 @@ const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 
 function getToken() {
   try {
-    return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    return (
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token")
+    );
   } catch {
     return null;
   }
@@ -13,7 +18,10 @@ function getToken() {
 
 function clearToken() {
   try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem("aitasker_user_info");
+    sessionStorage.removeItem("aitasker_user_info");
   } catch { }
 }
 
@@ -435,7 +443,9 @@ export const api = {
     refreshToken: () => {
       let userId = null;
       try {
-        const userInfo = sessionStorage.getItem("aitasker_user_info");
+        const userInfo =
+          localStorage.getItem("aitasker_user_info") ||
+          sessionStorage.getItem("aitasker_user_info");
         if (userInfo) {
           const parsed = JSON.parse(userInfo);
           userId = parsed?.id || parsed?.Id;

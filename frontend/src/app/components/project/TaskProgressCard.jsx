@@ -123,7 +123,7 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Milestone approved successfully!");
+      toast.success("Milestone approved successfully.");
       setShowViewProductModal(false);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
@@ -173,7 +173,7 @@ export function TaskProgressCard({
         taskId: task.id,
       }).catch(() => { });
 
-      toast.success("Declined and revision feedback sent successfully!");
+      toast.success("Declined and revision feedback sent successfully.");
       setShowDeclineForm(false);
       setIsDeclineUnlocked(false);
       setDeclineReason("");
@@ -306,7 +306,7 @@ export function TaskProgressCard({
           <div className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-success" />
             <span>
-              {task.completedMiniTasks}/{task.totalMiniTasks} Minitasks
+              {task.completedMiniTasks}/{task.totalMiniTasks} mini-tasks
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -318,7 +318,7 @@ export function TaskProgressCard({
 
       {task.miniTasks && task.miniTasks.length > 0 && (
         <div className="mt-3 p-3 bg-secondary/40 border border-border/80 rounded-lg space-y-2 text-left animate-fade-in mb-3">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Minitask Checklist:</span>
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Mini-task checklist:</span>
           <div className="space-y-2">
             {task.miniTasks.map((mt, mtIdx) => {
               const isMtCompleted = mt.isCompleted || mt.status === "completed" || mt.status === "done";
@@ -328,7 +328,7 @@ export function TaskProgressCard({
                     "font-medium leading-tight",
                     isMtCompleted ? "text-foreground/55" : "text-foreground"
                   )}>
-                    {mt.title || `Minitask #${mtIdx + 1}`}
+                    {mt.title || `Mini-task #${mtIdx + 1}`}
                   </span>
                   <div className="flex-shrink-0">
                     {isMtCompleted ? (
@@ -487,7 +487,7 @@ export function TaskProgressCard({
 
             {/* Client: Done -> completed */}
             {isDone && (
-              <div className="flex items-center justify-end p-3 bg-success-light border border-success/20 rounded-lg text-sm font-medium gap-2 shadow-sm">
+              <div className="self-end inline-flex items-center px-3 py-1.5 bg-success-light border border-success/25 rounded-lg text-sm font-semibold gap-2 shadow-sm text-success">
                 <CheckCircle2 className="w-4 h-4 text-success" />
                 Task Completed
               </div>
@@ -565,7 +565,7 @@ export function TaskProgressCard({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {task.productLink && (
                       <div className="flex flex-col p-3 bg-primary-light rounded-lg border border-primary/10 hover:bg-primary-light/80 transition-colors text-left">
-                        <span className="text-xs font-semibold text-primary uppercase">Product Link</span>
+                        <span className="text-xs font-semibold text-primary uppercase">Product link</span>
                         <a
                           href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                           target="_blank"

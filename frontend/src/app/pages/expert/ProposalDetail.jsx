@@ -311,7 +311,7 @@ export function ProposalDetail() {
                               <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-foreground text-sm">
-                                    UserStory: {uc.title || uc.nameAndDeadline}
+                                    User story: {uc.title || uc.nameAndDeadline}
                                   </span>
                                 </div>
                                 <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
@@ -337,10 +337,10 @@ export function ProposalDetail() {
                                       <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                     </div>
 
-                                    {/* Minitasks */}
+                                    {/* Mini-tasks */}
                                     {task.miniTasks && task.miniTasks.length > 0 && (
                                       <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                         {task.miniTasks.map((mt, mtIdx) => (
                                           <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                                         ))}
@@ -365,10 +365,10 @@ export function ProposalDetail() {
                             <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                           </div>
 
-                          {/* Minitasks */}
+                          {/* Mini-tasks */}
                           {task.miniTasks && task.miniTasks.length > 0 && (
                             <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                               {task.miniTasks.map((mt, mtIdx) => (
                                 <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
                               ))}

@@ -30,15 +30,15 @@ export function AIPlannerCard({
         {/* Content */}
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold text-foreground">
-            AI MiniTask Planner
+            AI mini-task planner
           </h3>
 
           {!aiMode ? (
             <>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Upload notes or describe your technical approach. AI will generate
-                detailed MiniTasks under the Client's existing Tasks. Client Use
-                Cases and Tasks will remain unchanged.
+                detailed mini-tasks under the client's existing tasks. Client use
+                cases and tasks will remain unchanged.
               </p>
               <button
                 type="button"
@@ -47,7 +47,7 @@ export function AIPlannerCard({
                 className="mt-4 h-10 min-h-10 px-4 text-base font-semibold rounded-lg bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover transition-colors inline-flex items-center gap-1.5 shadow-sm"
               >
                 <Sparkles className="w-4 h-4" />
-                Generate MiniTasks
+                Generate mini-tasks
               </button>
             </>
           ) : (
@@ -62,7 +62,7 @@ export function AIPlannerCard({
                 disabled={disabled}
                 className="mt-3 text-sm text-brand-primary hover:text-brand-primary-hover hover:underline transition-colors inline-flex items-center gap-1"
               >
-                Close AI Planner
+                Close AI planner
               </button>
             </>
           )}

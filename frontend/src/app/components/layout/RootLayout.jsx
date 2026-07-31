@@ -55,7 +55,7 @@ export function RootLayout() {
     }, 1000);
   }, [executeImmediateLogout]);
 
-  // Event-driven ban listener (No background API polling)
+  // Automatically sync between tabs when localStorage changes (status overrides, audit logs, escrow) & event-driven ban listener
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 

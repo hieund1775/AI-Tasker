@@ -6,7 +6,7 @@ export function FeaturedExperts() {
 
   return (
     <section id="experts" className="bg-card px-4 py-[var(--section-y)] sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1180px]">
+      <div className="mx-auto w-full max-w-[var(--layout-max)]">
         <div className="mb-16 text-center">
           <h2 className="text-3xl font-semibold text-foreground tracking-tight mb-3">Featured Experts</h2>
           <p className="text-base text-muted-foreground max-w-md mx-auto">Connect with top-rated AI professionals</p>

@@ -139,10 +139,14 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  useEffect(() => {
+  const restoreSession = useCallback(() => {
     try {
-      const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-      const storedUser = sessionStorage.getItem(USER_STORAGE_KEY);
+      const storedToken =
+        sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+        localStorage.getItem(TOKEN_STORAGE_KEY);
+      const storedUser =
+        sessionStorage.getItem(USER_STORAGE_KEY) ||
+        localStorage.getItem(USER_STORAGE_KEY);
 
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -184,18 +188,40 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    restoreSession();
+  }, [restoreSession]);
+
+  useEffect(() => {
     function handleUnauthorized() {
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
+
+    const handleStorageChange = (e) => {
+      // Ignore login tracking data updates so active tab session is preserved
+      if (e.key === "aitasker_user_logins") return;
+      if (e.key === TOKEN_STORAGE_KEY && !e.newValue) {
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+        sessionStorage.removeItem(USER_STORAGE_KEY);
+        dispatch({ type: AUTH_ACTIONS.LOGOUT });
+      }
+    };
+
     window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () =>
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    try {
+      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } catch (e) {}
+
     let finalUser = user;
     if (!finalUser) {
       const payload = decodeJwtPayload(token);
@@ -210,7 +236,12 @@ export function AuthProvider({ children }) {
     } else if (finalUser && finalUser.role) {
       finalUser.role = finalUser.role.toLowerCase();
     }
-    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+    try {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+      sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+      window.dispatchEvent(new Event("aitasker_auth_sync"));
+    } catch (e) {}
+
     dispatch({
       type: AUTH_ACTIONS.LOGIN_SUCCESS,
       payload: { token, user: finalUser, usingDemo },
@@ -292,7 +323,11 @@ export function AuthProvider({ children }) {
       try {
         await api.auth.completeProfile(state.user?.id, profileData);
         const updatedUser = { ...state.user, hasProfile: true };
-        sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+        try {
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+          sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+          window.dispatchEvent(new Event("aitasker_auth_sync"));
+        } catch (e) {}
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
@@ -310,8 +345,13 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    sessionStorage.removeItem(USER_STORAGE_KEY);
+    try {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(USER_STORAGE_KEY);
+      window.dispatchEvent(new Event("aitasker_auth_sync"));
+    } catch (e) {}
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 
@@ -340,9 +380,18 @@ export function useAuth() {
 
   // Safe fallback if called outside AuthProvider context or during hot reload
   try {
-    const rawUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    const rawUser =
+      localStorage.getItem(USER_STORAGE_KEY) ||
+      sessionStorage.getItem(USER_STORAGE_KEY) ||
+      localStorage.getItem("user") ||
+      sessionStorage.getItem("user");
     const user = rawUser ? JSON.parse(rawUser) : null;
-    const token = sessionStorage.getItem("token") || localStorage.getItem("token") || null;
+    const token =
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem("token") ||
+      sessionStorage.getItem("token") ||
+      null;
     return {
       user,
       token,

@@ -1,4 +1,4 @@
-﻿import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet } from "react-router";
 import { useAuth } from "../../hooks/useAuth.js";
 
 /**
@@ -49,15 +49,18 @@ export function ProtectedRoute({ role, roles, children }) {
     }
   }
 
-  // EXCEPTION: Admin/Owner/Staff are authorized to inspect Client & Expert project and proposal routes
   const normalizedUserRole = userRole?.toLowerCase();
-  if (["owner", "admin", "staff"].includes(normalizedUserRole)) {
-    return children ? children : <Outlet />;
-  }
 
   // Role check - normalize to lowercase for case-insensitive comparison
-  if (allowedRoles && !allowedRoles.map(r => r.toLowerCase()).includes(normalizedUserRole)) {
-    return <Navigate to="/unauthorized" replace />;
+  if (allowedRoles) {
+    const allowedLower = allowedRoles.map((r) => r.toLowerCase());
+    const isAllowed = allowedLower.includes(normalizedUserRole);
+    // EXCEPTION: Admin/Owner/Staff are authorized to inspect Client & Expert management routes
+    const isManagementOverride = ["owner", "admin", "staff"].includes(normalizedUserRole);
+
+    if (!isAllowed && !isManagementOverride) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
 
   // Authorised - render the route's content

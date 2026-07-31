@@ -92,7 +92,7 @@ export function ExpertProfile() {
         [projId]: payload
       }));
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      toast.success(interactionType === "revision" ? "Revision request sent to client!" : "Response saved successfully!");
+      toast.success(interactionType === "revision" ? "Revision request sent to client." : "Response saved successfully.");
       setReplyText("");
       setRevisionReason("");
       setActiveReplyProjectId(null);
@@ -509,7 +509,7 @@ export function ExpertProfile() {
             label: "Cancel",
             value: stats.cancel,
             icon: XCircle,
-            color: "text-destructive bg-destructive-light0/10",
+            color: "text-destructive bg-destructive-light",
           },
           {
             label: "Report",

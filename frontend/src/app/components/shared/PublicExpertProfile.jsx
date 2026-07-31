@@ -620,7 +620,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                 label: "Cancel",
                 value: stats.cancel,
                 icon: XCircle,
-                color: "text-destructive bg-destructive-light0/10",
+                color: "text-destructive bg-destructive-light",
               },
               {
                 label: "Report",

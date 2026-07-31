@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // OwnerDashboard - Statistics dashboard for Owner role.
 //
 // Charts:
@@ -360,6 +360,18 @@ export function OwnerDashboard() {
 
   useEffect(() => {
     fetchData();
+
+    const handleUpdate = () => {
+      fetchData();
+    };
+
+    window.addEventListener("aitasker_db_update", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+
+    return () => {
+      window.removeEventListener("aitasker_db_update", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+    };
   }, [fetchData]);
 
   // -----------------------------------------------------------------------
