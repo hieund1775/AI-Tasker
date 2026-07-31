@@ -66,23 +66,13 @@ builder.Services.AddSwaggerGen(c =>
 // --- CẤU HÌNH CORS ĐỒNG BỘ: MỞ RỘNG THÊM CỔNG 8080 VÀ CHO PHÉP WEBHOOK TỰ DO ---
 builder.Services.AddCors(options =>
 {
-    // Giữ nguyên Policy cũ của nhóm để không lỗi code FrontEnd của các bạn
-    options.AddPolicy("AllowLocalhost5173",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
-
-    // Thêm Policy mở rộng cho cổng test của Minh để thông mạch trình duyệt lập tức
     options.AddPolicy("AllowAllTest",
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.SetIsOriginAllowed(_ => true)
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 

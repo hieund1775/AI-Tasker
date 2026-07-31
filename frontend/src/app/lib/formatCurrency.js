@@ -18,7 +18,7 @@
  * @param {string} locale   - BCP 47 locale tag (default "en-US")
  * @returns {string} Formatted currency string, or empty string if input is invalid
  */
-export function formatCurrency(amount, currency = "VND", locale = "vi-VN") {
+export function formatCurrency(amount, currency = "VND", locale = "en-US") {
   // Guard against non-numeric values
   if (amount === null || amount === undefined || amount === "") {
     return "";

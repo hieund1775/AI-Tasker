@@ -95,48 +95,64 @@ namespace AITasker_Modular.Modules.AdminModule
                 }
 
                 // 3. Auto-sync Active Escrow Total into SystemWallet 11111111-1111-1111-1111-111111111111
-                var activeStatuses = new[] { "In Progress", "InProgress", "Work Submitted", "Under Review", "Revision Requested", "Awaiting Cancellation", "Accepted", "Assigned" };
-                var activeEscrowSum = await _context.Projects
-                    .Where(p => activeStatuses.Contains(p.Status))
-                    .SumAsync(p => (decimal?)p.EscrowBalance) ?? 0m;
-
-                systemEscrowWallet.TotalBalance = activeEscrowSum;
-                systemEscrowWallet.UpdatedAt = DateTime.UtcNow;
-
-                // Auto-sync Owner Fee Wallet if uninitialized
-                var totalLoggedRevenue = await _context.SystemTransactionLogs.SumAsync(l => (decimal?)l.Amount) ?? 0m;
-                if (ownerFeeWallet.TotalBalance < totalLoggedRevenue)
+                try
                 {
-                    ownerFeeWallet.TotalBalance = totalLoggedRevenue;
-                    ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
+                    var activeStatuses = new[] { "In Progress", "InProgress", "Work Submitted", "Under Review", "Revision Requested", "Awaiting Cancellation", "Accepted", "Assigned" };
+                    var activeEscrowSum = await _context.Projects
+                        .Where(p => activeStatuses.Contains(p.Status))
+                        .SumAsync(p => (decimal?)p.EscrowBalance) ?? 0m;
+
+                    systemEscrowWallet.TotalBalance = activeEscrowSum;
+                    systemEscrowWallet.UpdatedAt = DateTime.UtcNow;
+
+                    // Auto-sync Owner Fee Wallet if uninitialized
+                    var totalLoggedRevenue = await _context.SystemTransactionLogs.SumAsync(l => (decimal?)l.Amount) ?? 0m;
+                    if (ownerFeeWallet.TotalBalance < totalLoggedRevenue)
+                    {
+                        ownerFeeWallet.TotalBalance = totalLoggedRevenue;
+                        ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GetOwnerDashboard] Warning: Auto-sync system wallets skipped: {ex.Message}");
                 }
 
-                await _context.SaveChangesAsync();
-
                 // 4. Kéo ra TOÀN BỘ giao dịch thu phế/phạt hủy đơn để đối soát kế toán
-                var financeLogs = await _context.SystemTransactionLogs
-                    .OrderByDescending(l => l.CreatedAt)
-                    .ToListAsync();
-
-                var projectIds = financeLogs.Select(l => l.ProjectId).Distinct().ToList();
-                var projects = await _context.Projects
-                    .Include(p => p.JobPost)
-                    .Where(p => projectIds.Contains(p.Id))
-                    .ToListAsync();
-
-                var projectEscrows = projects.ToDictionary(p => p.Id, p => p.EscrowBalance);
-                var projectOriginalEscrows = projects.ToDictionary(p => p.Id, p => p.JobPost?.Budget ?? 0m);
-
-                var transactionHistories = financeLogs.Select(l => new
+                var transactionHistories = new List<object>();
+                try
                 {
-                    l.Id,
-                    l.ProjectId,
-                    OriginalEscrowBalance = projectOriginalEscrows.TryGetValue(l.ProjectId, out var oeb) ? oeb : 0m,
-                    Fee = l.Amount,
-                    l.Type,
-                    l.Description,
-                    l.CreatedAt
-                }).ToList();
+                    var financeLogs = await _context.SystemTransactionLogs
+                        .OrderByDescending(l => l.CreatedAt)
+                        .ToListAsync();
+
+                    var projectIds = financeLogs.Select(l => l.ProjectId).Distinct().ToList();
+                    var projects = await _context.Projects
+                        .Include(p => p.JobPost)
+                        .Where(p => projectIds.Contains(p.Id))
+                        .ToListAsync();
+
+                    var projectOriginalEscrows = projects
+                        .GroupBy(p => p.Id)
+                        .ToDictionary(g => g.Key, g => g.First().JobPost?.Budget ?? 0m);
+
+                    transactionHistories = financeLogs.Select(l => (object)new
+                    {
+                        l.Id,
+                        l.ProjectId,
+                        OriginalEscrowBalance = projectOriginalEscrows.TryGetValue(l.ProjectId, out var oeb) ? oeb : 0m,
+                        Fee = l.Amount,
+                        l.Type,
+                        l.Description,
+                        l.CreatedAt
+                    }).ToList();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[GetOwnerDashboard] Warning: Building transaction logs skipped: {ex.Message}");
+                }
 
                 // 5. Trộn hai nguồn dữ liệu lại để Frontend hiển thị toàn diện
                 return Ok(new
@@ -150,6 +166,11 @@ namespace AITasker_Modular.Modules.AdminModule
 
             }
             catch (UnauthorizedAccessException ex) { return Forbid(ex.Message); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[GetOwnerDashboard] Error: {ex.Message}");
+                return StatusCode(500, new { Message = "Internal Server Error loading owner dashboard.", Details = ex.Message });
+            }
         }
     }
 
