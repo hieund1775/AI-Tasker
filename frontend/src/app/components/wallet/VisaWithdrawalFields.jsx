@@ -33,11 +33,6 @@ export function isValidVisaWithdrawalCard(card) {
 }
 
 export function VisaWithdrawalFields({ amount, balance, card, onChange }) {
-  const numericAmount = Number(amount);
-  const shouldShow = numericAmount > 0 && numericAmount <= Number(balance || 0);
-
-  if (!shouldShow) return null;
-
   const update = (key, value) => {
     const nextValue =
       key === "cardNumber" ? formatCardNumber(value) :
