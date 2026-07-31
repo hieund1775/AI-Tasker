@@ -191,6 +191,11 @@ public class UserService : IUserService
 
         if (isOwner)
         {
+            var ownerFeeWallet1 = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("88888888-8888-8888-8888-888888888888"));
+            var ownerFeeWallet2 = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
             var totalLoggedRevenue = await _context.SystemTransactionLogs
                 .SumAsync(l => (decimal?)l.Amount) ?? 0m;
 
@@ -199,15 +204,21 @@ public class UserService : IUserService
                 .SumAsync(t => (decimal?)t.Amount) ?? 0m;
 
             var netLoggedRevenue = Math.Max(0m, totalLoggedRevenue - totalFeeWithdrawals);
-            var effectiveRevenue = Math.Max(ownerFeeWallet.TotalBalance, netLoggedRevenue);
+            var wallet1Balance = ownerFeeWallet1?.TotalBalance ?? 0m;
+            var wallet2Balance = ownerFeeWallet2?.TotalBalance ?? 0m;
+
+            var effectiveRevenue = Math.Max(wallet1Balance, Math.Max(wallet2Balance, netLoggedRevenue));
             var availableBalance = Math.Max(wallet.Balance, effectiveRevenue);
 
             if (availableBalance < amount)
                 throw new InvalidOperationException("Insufficient fee balance in Owner wallet.");
 
-            ownerFeeWallet.TotalBalance = availableBalance - amount;
-            ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
-            wallet.Balance = ownerFeeWallet.TotalBalance;
+            var remaining = availableBalance - amount;
+
+            if (ownerFeeWallet1 != null) { ownerFeeWallet1.TotalBalance = remaining; ownerFeeWallet1.UpdatedAt = DateTime.UtcNow; }
+            if (ownerFeeWallet2 != null) { ownerFeeWallet2.TotalBalance = remaining; ownerFeeWallet2.UpdatedAt = DateTime.UtcNow; }
+
+            wallet.Balance = remaining;
         }
         else
         {

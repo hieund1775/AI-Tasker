@@ -77,13 +77,43 @@ namespace AITasker_Modular.Modules.AdminModule
                 // 1. Lấy dữ liệu thống kê của hệ thống từ tầng Service
                 var serviceData = await _adminService.GetOwnerDashboardAsync(requesterId);
 
-                // 2. Đọc số dư ví Fee của Owner và ví Escrow tổng của sàn
                 var ownerFeeWallet = await _context.SystemWallets
                     .FirstOrDefaultAsync(w => w.Id == Guid.Parse("88888888-8888-8888-8888-888888888888"));
                 var systemEscrowWallet = await _context.SystemWallets
                     .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
-                // 3. Kéo ra TOÀN BỘ giao dịch thu phế/phạt hủy đơn để đối soát kế toán
+                if (ownerFeeWallet == null)
+                {
+                    ownerFeeWallet = new SystemWallet { Id = Guid.Parse("88888888-8888-8888-8888-888888888888"), TotalBalance = 0m, UpdatedAt = DateTime.UtcNow };
+                    _context.SystemWallets.Add(ownerFeeWallet);
+                }
+
+                if (systemEscrowWallet == null)
+                {
+                    systemEscrowWallet = new SystemWallet { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), TotalBalance = 0m, UpdatedAt = DateTime.UtcNow };
+                    _context.SystemWallets.Add(systemEscrowWallet);
+                }
+
+                // 3. Auto-sync Active Escrow Total into SystemWallet 11111111-1111-1111-1111-111111111111
+                var activeStatuses = new[] { "In Progress", "InProgress", "Work Submitted", "Under Review", "Revision Requested", "Awaiting Cancellation", "Accepted", "Assigned" };
+                var activeEscrowSum = await _context.Projects
+                    .Where(p => activeStatuses.Contains(p.Status))
+                    .SumAsync(p => (decimal?)p.EscrowBalance) ?? 0m;
+
+                systemEscrowWallet.TotalBalance = activeEscrowSum;
+                systemEscrowWallet.UpdatedAt = DateTime.UtcNow;
+
+                // Auto-sync Owner Fee Wallet if uninitialized
+                var totalLoggedRevenue = await _context.SystemTransactionLogs.SumAsync(l => (decimal?)l.Amount) ?? 0m;
+                if (ownerFeeWallet.TotalBalance < totalLoggedRevenue)
+                {
+                    ownerFeeWallet.TotalBalance = totalLoggedRevenue;
+                    ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
+                }
+
+                await _context.SaveChangesAsync();
+
+                // 4. Kéo ra TOÀN BỘ giao dịch thu phế/phạt hủy đơn để đối soát kế toán
                 var financeLogs = await _context.SystemTransactionLogs
                     .OrderByDescending(l => l.CreatedAt)
                     .ToListAsync();
@@ -108,13 +138,13 @@ namespace AITasker_Modular.Modules.AdminModule
                     l.CreatedAt
                 }).ToList();
 
-                // 4. Trộn hai nguồn dữ liệu lại để Frontend hiển thị toàn diện
+                // 5. Trộn hai nguồn dữ liệu lại để Frontend hiển thị toàn diện
                 return Ok(new
                 {
                     Statistics = serviceData,
-                    TotalPlatformRevenue = ownerFeeWallet?.TotalBalance ?? 0m,
-                    TotalEscrowBalance = systemEscrowWallet?.TotalBalance ?? 0m,
-                    RevenueUpdatedAt = ownerFeeWallet?.UpdatedAt,
+                    TotalPlatformRevenue = ownerFeeWallet.TotalBalance,
+                    TotalEscrowBalance = systemEscrowWallet.TotalBalance,
+                    RevenueUpdatedAt = ownerFeeWallet.UpdatedAt,
                     TransactionHistories = transactionHistories
                 });
 
