@@ -59,20 +59,28 @@ export function ProjectProgressPanel({
   project = null,
 }) {
   const taskRefs = useRef({});
+  const lastScrolledFocusTaskIdRef = useRef(null);
   const orderedTasks = orderTasksByCompletion(tasks);
 
-  // Scroll to focused task when focusTaskId changes
+  // Scroll to focused task once when returning from a task action page.
+  // Do not depend on `tasks`; data refreshes after submit can otherwise pull
+  // the user back to the same task while they are scrolling to other tasks.
   useEffect(() => {
-    if (focusTaskId && taskRefs.current[focusTaskId]) {
-      const timer = setTimeout(() => {
-        taskRefs.current[focusTaskId]?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [focusTaskId, tasks]);
+    if (!focusTaskId || lastScrolledFocusTaskIdRef.current === focusTaskId) return;
+
+    const timer = setTimeout(() => {
+      const target = taskRefs.current[focusTaskId];
+      if (!target) return;
+
+      lastScrolledFocusTaskIdRef.current = focusTaskId;
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [focusTaskId]);
 
   if (loading) {
     return (
