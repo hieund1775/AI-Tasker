@@ -17,6 +17,7 @@ import { VisaWithdrawalFields, emptyVisaWithdrawalCard, isValidVisaWithdrawalCar
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { formatCurrency } from "../../lib/formatCurrency.js";
+import { toast } from "sonner";
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -59,6 +60,28 @@ const typeLabels = {
   report_request: "reported request",
   verdict: "reported request",
 };
+
+function isReportLikeDeposit(tx) {
+  const lowerType = (tx.type ?? tx.Type ?? "").toLowerCase();
+  if (lowerType !== "deposit" && lowerType !== "manualdeposit") return false;
+  const text = [
+    tx.description,
+    tx.Description,
+    tx.projectStatus,
+    tx.ProjectStatus,
+    tx.status,
+    tx.Status,
+    tx.id,
+    tx.Id,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return /\b(report|reported|dispute|refund|verdict|compensation)\b/.test(text);
+}
+
+function getTransactionTypeLabel(tx, lowerType) {
+  if (isReportLikeDeposit(tx)) return typeLabels.report_request;
+  return typeLabels[lowerType] || tx.type;
+}
 
 const transactionSortColumns = [
   { key: "type", label: "Type", align: "left", sortable: false },
@@ -367,6 +390,12 @@ export function ExpertWallet() {
               const tId = t.id || t.Id;
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
+              const txReport = projIdLower ? projectReportMap.get(projIdLower) : null;
+              const isReportResolvedTx = txReport && (
+                txReport.adminNote ||
+                localStorage.getItem(`report_status_${projIdLower}`) ||
+                ["resolved", "accepted"].includes(String(txReport.status || "").toLowerCase())
+              );
 
               // Skip ALL transactions for cancelled/reported projects - we'll insert clean rows instead
               if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
@@ -407,6 +436,7 @@ export function ExpertWallet() {
                   type: lType,
                   createdAt: tDate,
                   projectTitle: tTitle,
+                  description: t.description || t.Description,
                 });
                 myTransactions.push({
                   id: `fee-${tId}`,
@@ -415,15 +445,17 @@ export function ExpertWallet() {
                   type: "platform_fee",
                   createdAt: tDate,
                   projectTitle: tTitle,
+                  description: "systemfee",
                 });
               } else {
                 myTransactions.push({
                   id: tId,
                   projectId: projId,
                   amount: tAmount,
-                  type: lType,
+                  type: (lType === "deposit" || lType === "manualdeposit") && isReportResolvedTx ? "report_request" : lType,
                   createdAt: tDate,
                   projectTitle: tTitle,
+                  description: t.description || t.Description,
                 });
               }
             });
@@ -750,7 +782,9 @@ export function ExpertWallet() {
         cardHolderName: withdrawCard.cardHolderName.trim(),
       });
 
-      setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
+      const successMessage = res?.message || "Withdrawal successful!";
+      setFeedback({ type: "success", message: successMessage });
+      toast.success(successMessage);
       setShowWithdrawModal(false);
       setWithdrawAmount("");
       setWithdrawCard(emptyVisaWithdrawalCard);
@@ -767,6 +801,7 @@ export function ExpertWallet() {
         type: "error",
         message: err?.message || "Withdrawal failed. Please try again later."
       });
+      toast.error(err?.message || "Withdrawal failed. Please try again later.");
       setShowWithdrawModal(false);
       setWithdrawAmount("");
       setWithdrawCard(emptyVisaWithdrawalCard);
@@ -986,7 +1021,8 @@ export function ExpertWallet() {
 
                   // Process description display as requested
                   let displayDesc = tx.description;
-                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
+                  if (isReportLikeDeposit(tx)) displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : "report successful";
+                  else if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
                   else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
                   else if (lowerType === "verdict") displayDesc = "report successful";
                   else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
@@ -1005,7 +1041,7 @@ export function ExpertWallet() {
                   return (
                     <tr key={tx.id} className="hover:bg-secondary/50">
                       <td className="px-6 py-4 text-sm text-foreground font-medium uppercase">
-                        {typeLabels[lowerType] || tx.type}
+                        {getTransactionTypeLabel(tx, lowerType)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col text-sm text-muted-foreground">

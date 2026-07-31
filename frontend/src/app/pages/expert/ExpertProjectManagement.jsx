@@ -925,7 +925,11 @@ export default function ExpertProjectDetail() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] items-start gap-5 bg-secondary/60 p-5 rounded-xl font-sans">
+              <div className={`grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] items-start gap-5 p-5 rounded-xl font-sans ${
+                project.status === "completed"
+                  ? "border border-success/25 bg-success-light/55"
+                  : "bg-secondary/60"
+              }`}>
                 <div className="min-w-0 space-y-3">
                   <p className="text-sm text-foreground/80">
                     {project.status === "completed" ? (
@@ -1004,7 +1008,7 @@ export default function ExpertProjectDetail() {
                   {project.status === "completed" ? (
                     <button
                       disabled
-                      className="h-10 px-6 bg-success-light text-success border border-success/25 rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0"
+                      className="h-10 px-6 bg-success text-success-foreground border border-success rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed shrink-0 shadow-sm"
                     >
                       Done Completed
                     </button>

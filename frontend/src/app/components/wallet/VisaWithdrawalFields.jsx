@@ -1,5 +1,7 @@
 import { CreditCard } from "lucide-react";
 
+const withdrawalBankOptions = ["VISA (ZaloPay)", "MASTERCARD (ZaloPay)"];
+
 export const emptyVisaWithdrawalCard = {
   bankCode: "VISA (ZaloPay)",
   cardHolderName: "",
@@ -16,10 +18,15 @@ function formatCardNumber(value) {
 
 export function isValidVisaWithdrawalCard(card) {
   const cardNumber = onlyDigits(card?.cardNumber);
+  const isVisa = card?.bankCode === "VISA (ZaloPay)";
+  const isMastercard = card?.bankCode === "MASTERCARD (ZaloPay)";
+  const matchesCardType =
+    (isVisa && cardNumber.startsWith("4")) ||
+    (isMastercard && /^5[1-5]/.test(cardNumber));
 
   return (
     card?.cardHolderName?.trim().length >= 2 &&
-    cardNumber.startsWith("4") &&
+    matchesCardType &&
     cardNumber.length >= 13 &&
     cardNumber.length <= 19
   );
@@ -47,9 +54,21 @@ export function VisaWithdrawalFields({ amount, balance, card, onChange }) {
           <CreditCard className="h-4 w-4 text-brand-primary" />
           Withdrawal destination
         </div>
-        <span className="rounded-md border border-brand-primary/25 bg-card px-2.5 py-1 text-xs font-semibold text-brand-primary">
-          VISA (ZaloPay)
-        </span>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Withdrawal Channel</label>
+        <select
+          value={card.bankCode}
+          onChange={(e) => update("bankCode", e.target.value)}
+          className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring"
+          required
+        >
+          {withdrawalBankOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
       </div>
       <div>
         <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Cardholder Name</label>
@@ -64,20 +83,20 @@ export function VisaWithdrawalFields({ amount, balance, card, onChange }) {
         />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Visa Card Number</label>
+        <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Card Number</label>
         <input
           type="text"
           inputMode="numeric"
           value={card.cardNumber}
           onChange={(e) => update("cardNumber", e.target.value)}
-          placeholder="4xxx xxxx xxxx xxxx"
+          placeholder={card.bankCode === "MASTERCARD (ZaloPay)" ? "5xxx xxxx xxxx xxxx" : "4xxx xxxx xxxx xxxx"}
           autoComplete="cc-number"
           className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring"
           required
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        The withdrawal will be sent to this Visa card through ZaloPay.
+        The withdrawal will be sent to this card through ZaloPay.
       </p>
     </div>
   );

@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Upload, X, FileText } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
@@ -122,11 +122,10 @@ export function ReportForm({
     [validate, onSubmit, project, reason, description, disputeType, desiredResolution, evidence],
   );
 
-  const addEvidence = useCallback(() => {
-    setEvidence((prev) => {
-      if (prev.length >= 1) return prev;
-      return [{ id: Date.now().toString(), name: "", note: "", file: null }];
-    });
+  const addEvidenceFromFiles = useCallback((newFiles) => {
+    const f = newFiles[0] || null;
+    if (!f) return;
+    setEvidence([{ id: Date.now().toString(), name: f.name, note: "", file: f }]);
   }, []);
 
   const removeEvidence = useCallback((id) => {
@@ -295,29 +294,20 @@ export function ReportForm({
           <label className="block text-sm font-medium text-foreground/80">
             {isResponse ? "Documents / Evidence (Max 1 file - Optional)" : "Evidence (Max 1 file - Optional)"}
           </label>
-          {evidence.length < 1 && (
-            <button
-              type="button"
-              onClick={addEvidence}
-              disabled={isLoading}
-              className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium inline-flex items-center gap-1 cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Add Evidence
-            </button>
-          )}
         </div>
         {errors.evidence && (
           <p className="mb-2 text-xs text-destructive">{errors.evidence}</p>
         )}
 
         {evidence.length === 0 && (
-          <div className="border-2 border-dashed border-input rounded-xl p-6 text-center">
-            <Upload className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No evidence added yet. Click &quot;Add Evidence&quot; to upload 1 screenshot or document.
-            </p>
-          </div>
+          <FileUploadDropzone
+            files={[]}
+            onFilesChange={addEvidenceFromFiles}
+            multiple={false}
+            maxFiles={1}
+            disabled={isLoading}
+            helperText="Click this area to upload 1 screenshot or document."
+          />
         )}
 
         <div className="space-y-4">

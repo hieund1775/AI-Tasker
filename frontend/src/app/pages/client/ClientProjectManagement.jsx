@@ -1477,7 +1477,7 @@ export default function ClientProjectDetail() {
               {(project.status === "completed" || project.status === "payment_released") && (
                 <button
                   disabled
-                  className="h-10 px-4 bg-success/10 text-success border border-success/20 rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2"
+                  className="h-10 px-4 bg-success text-success-foreground border border-success rounded-lg font-semibold text-base cursor-not-allowed inline-flex items-center gap-2 shadow-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" /> Payment Released
                 </button>
