@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
   FileText,
-  DollarSign,
+  Banknote,
   Calendar,
   User,
   Briefcase,
@@ -211,7 +211,7 @@ export function ClientProposalDetail() {
                 )}
                 {project?.budget != null && (
                   <span className="inline-flex items-center gap-1.5">
-                    <DollarSign className="w-4 h-4 text-muted-foreground/70" />
+                    <Banknote className="w-4 h-4 text-muted-foreground/70" />
                     Budget:{" "}
                     <span className="font-medium text-foreground">
                       <MoneyDisplay amount={project.budget} />

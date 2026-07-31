@@ -5,16 +5,15 @@
  * Form state must always store raw numbers - never formatted strings.
  *
  * Usage:
- *   formatCurrency(5000)          // "$5,000.00" (en-US)
- *   formatCurrency(5000, "EUR")  // "EUR 5,000.00"
- *   formatCurrency(5000, "USD", "de-DE")  // "5.000,00 $" (German locale)
+ *   formatCurrency(5000)          // "5,000"
+ *   formatCurrency(5000, "VND")  // "5,000"
  */
 
 /**
  * Format a numeric amount as a currency string for display.
  *
- * @param {number} amount   - Raw numeric value (e.g. 5000, not "$5,000")
- * @param {string} currency - ISO 4217 currency code (default "USD")
+ * @param {number} amount   - Raw numeric value (e.g. 5000, not "5,000 VND")
+ * @param {string} currency - ISO 4217 currency code (default "VND")
  * @param {string} locale   - BCP 47 locale tag (default "en-US")
  * @returns {string} Formatted currency string, or empty string if input is invalid
  */
@@ -74,7 +73,7 @@ export function formatCompactCurrency(amount, locale = "en-US") {
 
 /**
  * Parse a currency string back to a number (for cleaning up user input).
- * Handles "$5,000.00", "5,000", "5000", "EUR 1.234,56", etc.
+ * Handles "5,000 VND", "5,000", "5000", "1.234,56 VND", etc.
  *
  * @param {string} value - Raw input that may contain currency symbols/formatting
  * @returns {number} Clean numeric value, or 0 if unparseable
@@ -86,8 +85,8 @@ export function parseCurrencyInput(value) {
 
   const str = String(value);
 
-  // Remove currency symbols, whitespace
-  let cleaned = str.replace(/[$\u20ac\u00a3\u00a5\u20a9\u20b9]/g, "").trim();
+  // Remove currency text/symbols and whitespace.
+  let cleaned = str.replace(/[^\d,.-]/g, "").trim();
 
   // Detect European format (e.g. "1.234,56" where comma is decimal separator)
   // If there's a comma followed by exactly 2 digits at the end, treat comma as decimal

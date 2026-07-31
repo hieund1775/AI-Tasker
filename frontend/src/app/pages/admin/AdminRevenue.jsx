@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, BarChart3 } from "lucide-react";
+import { TrendingUp, Banknote, BarChart3 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
@@ -324,7 +324,7 @@ export function AdminRevenue() {
           {
             label: "In Escrow (Active Projects)",
             value: <MoneyDisplay amount={Math.abs(s.escrowHeld)} />,
-            icon: DollarSign,
+            icon: Banknote,
             color: "text-warning bg-warning-light",
             desc: "Total escrow funds locked in active projects",
           },

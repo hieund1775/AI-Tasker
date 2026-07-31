@@ -1,5 +1,5 @@
 ﻿import { Link, Outlet, useLocation } from "react-router";
-import { Users, Briefcase, FileText, Tag, DollarSign, LayoutDashboard } from "lucide-react";
+import { Users, Briefcase, FileText, Tag, Banknote, LayoutDashboard } from "lucide-react";
 
 export function AdminLayout() {
   const location = useLocation();
@@ -11,7 +11,7 @@ export function AdminLayout() {
     { label: "Project Management", to: "/admin/projects", icon: Briefcase },
     { label: "Job Post Management", to: "/admin/job-posts", icon: FileText },
     { label: "Skills & Categories", to: "/admin/category-tags", icon: Tag },
-    { label: "Revenue Report", to: "/admin/revenue", icon: DollarSign },
+    { label: "Revenue Report", to: "/admin/revenue", icon: Banknote },
   ];
 
   return (
