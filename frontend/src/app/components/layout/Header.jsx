@@ -184,20 +184,20 @@ export function Header() {
   const walletPath = role === "client" ? "/client/billing" : role === "expert" ? "/expert/wallet" : null;
 
   // Common nav link style
-  const navLinkClass = "inline-flex h-10 items-center rounded-xl px-3.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
-  const activeNavClass = "inline-flex h-10 items-center rounded-xl bg-secondary px-3.5 text-sm font-semibold text-foreground shadow-inner shadow-foreground/[0.025]";
+  const navLinkClass = "inline-flex h-12 min-w-[11.25rem] items-center justify-center rounded-xl px-8 text-lg font-semibold text-muted-foreground transition-colors hover:bg-secondary/70 hover:text-foreground";
+  const activeNavClass = "inline-flex h-12 min-w-[11.25rem] items-center justify-center rounded-xl bg-secondary px-8 text-lg font-bold text-foreground shadow-inner shadow-foreground/[0.025]";
 
   return (
     <header className="bg-background/82 backdrop-blur-xl border-b border-border/70 sticky top-0 z-50 select-none shadow-sm shadow-foreground/[0.025]">
-      <div className="mx-auto max-w-[1180px] px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+      <div className="mx-auto w-full max-w-[var(--layout-max)] px-3 sm:px-4 lg:px-5">
+        <div className="flex h-[4.75rem] items-center justify-between gap-5">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold text-sm">AI</span>
+          <Link to="/" className="flex items-center gap-3 flex-shrink-0 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40">
+            <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-sm">
+              <span className="text-primary-foreground font-bold text-base">AI</span>
             </div>
             <span className="flex flex-col justify-center leading-none">
-              <span className="text-lg font-semibold text-foreground tracking-tight">Tasker</span>
+              <span className="text-[1.35rem] font-semibold text-foreground tracking-tight">Tasker</span>
               {isAuthenticated && currentRoleMeta && (
                 <span className="mt-1 hidden items-center gap-1.5 text-[10px] font-medium text-muted-foreground sm:inline-flex">
                   <span className={`h-1.5 w-1.5 rounded-full ${currentRoleMeta.dot}`} />
@@ -209,7 +209,7 @@ export function Header() {
 
           {/* Navigation Link Items - desktop only */}
           {isAuthenticated && role && (
-            <nav className="hidden items-center gap-3 md:flex">
+            <nav className="hidden flex-1 items-center justify-center gap-12 md:flex">
               {role !== "admin" && role !== "owner" && role !== "staff" && (
                 <Link
                   to={`/${role}/dashboard`}
@@ -246,7 +246,7 @@ export function Header() {
           )}
 
           {/* Right Side Control Toolbar */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             {isAuthenticated ? (
               <>
                 {/* Theme Toggle Dropdown */}

@@ -197,7 +197,7 @@ export function ProposalCard({
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
                               {isClient && (
-                                <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client Task</span>
+                                <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client task</span>
                               )}
                               {isProposed && (
                                 <span className="px-1.5 py-0.5 bg-warning-light text-warning rounded text-[10px] font-semibold">Pending Approval</span>
@@ -233,7 +233,7 @@ export function ProposalCard({
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{task.title || `Task #${i + 1}`}</span>
                           {task.source === "client" || task.source === "client_use_case_fallback" ? (
-                            <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client Task</span>
+                            <span className="px-1.5 py-0.5 bg-accent-light text-accent rounded text-[10px] font-semibold">Client task</span>
                           ) : null}
                           <span className="text-xs text-muted-foreground">{task.price != null ? `${task.price?.toLocaleString()}` : ""}{task.completionDays ? ` - ${task.completionDays}d` : ""}</span>
                         </div>

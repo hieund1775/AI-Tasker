@@ -77,7 +77,7 @@ export function CreateAdmin() {
           password: formData.password,
         });
         setCreatedAdmin(result);
-        setFeedback("Admin account created successfully!");
+        setFeedback("Admin account created successfully.");
         setFormData({ fullName: "", email: "", phoneNumber: "", password: "", confirmPassword: "" });
       } catch (err) {
         setFeedback(err.message || "Error creating Admin account.");

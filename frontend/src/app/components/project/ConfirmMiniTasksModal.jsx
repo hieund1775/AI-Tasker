@@ -22,10 +22,10 @@ export function ConfirmMiniTasksModal({
     <ConfirmationModal
       open={open}
       onOpenChange={onOpenChange}
-      title="Confirm Mini Tasks"
-      description="Are you sure you want to confirm these Mini Tasks? After confirmation you cannot edit them unless the Client requests a reopen."
-      confirmLabel="Confirm & Save"
-      cancelLabel="Back To Edit"
+      title="Confirm mini-tasks"
+      description="Are you sure you want to confirm these mini-tasks? After confirmation, you cannot edit them unless the client requests a reopen."
+      confirmLabel="Confirm and save"
+      cancelLabel="Back to edit"
       variant="default"
       loading={loading}
       onConfirm={onConfirm}

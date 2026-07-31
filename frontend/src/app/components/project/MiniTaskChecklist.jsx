@@ -146,8 +146,8 @@ export function MiniTaskChecklist({
 
   if (!miniTasks || miniTasks.length === 0) {
     const defaultMessages = {
-      expert: "Create mini tasks to start tracking your work.",
-      client: "Expert has not created mini tasks yet.",
+      expert: "Create mini-tasks to start tracking your work.",
+      client: "The expert has not created mini-tasks yet.",
     };
     return (
       <div className="py-4 text-center">
@@ -216,14 +216,14 @@ export function MiniTaskChecklist({
         productFile: finalProductFile,
       });
 
-      toast.success("MiniTask updated successfully!");
+      toast.success("Mini-task updated successfully.");
       setEditingId(null);
       setSelectedFile(null);
       setExistingFileObj(null);
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update MiniTask.");
+      toast.error("Failed to update mini-task.");
     } finally {
       setUploadingFile(false);
     }
@@ -234,7 +234,7 @@ export function MiniTaskChecklist({
       {allComplete && (
         <div className="flex items-center gap-2 text-sm text-success font-medium mb-2 px-1">
           <CheckSquare className="w-4 h-4" />
-          All {miniTasks.length} mini tasks completed
+          All {miniTasks.length} mini-tasks completed
         </div>
       )}
       {miniTasks.map((mini, idx) => {
@@ -317,7 +317,7 @@ export function MiniTaskChecklist({
               <div className="flex-1 min-w-0 space-y-3 p-3 bg-secondary rounded-lg border border-border text-left">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
-                    MiniTask Title
+                    Mini-task title
                   </label>
                   <input
                     type="text"
@@ -330,7 +330,7 @@ export function MiniTaskChecklist({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
-                      Product Link
+                      Product link
                     </label>
                     <input
                       type="text"
@@ -470,7 +470,7 @@ export function MiniTaskChecklist({
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-medium transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Product Link</span>
+                          <span>Product link</span>
                         </a>
                       )}
 

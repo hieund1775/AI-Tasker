@@ -419,30 +419,3 @@ export function useAuth() {
     };
   }
 }
-    return {
-      user,
-      token,
-      isAuthenticated: !!user,
-      loading: false,
-      error: null,
-      login: async () => {},
-      logout: async () => {},
-      register: async () => {},
-      clearError: () => {},
-      completeExpertProfile: async () => {},
-    };
-  } catch (e) {
-    return {
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      loading: false,
-      error: null,
-      login: async () => {},
-      logout: async () => {},
-      register: async () => {},
-      clearError: () => {},
-      completeExpertProfile: async () => {},
-    };
-  }
-}

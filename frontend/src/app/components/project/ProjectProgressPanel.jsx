@@ -89,7 +89,7 @@ export function ProjectProgressPanel({
         <div>
           <h2 className="text-xl font-semibold text-foreground">Project Progress</h2>
           <p className="text-sm text-muted-foreground">
-            Progress is automatically calculated from completed Minitasks.
+            Progress is automatically calculated from completed mini-tasks.
           </p>
           {tasks.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
@@ -166,7 +166,7 @@ export function ProjectProgressPanel({
                   {/* Use Case Milestone Progress & Duration */}
                   <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium">Use Case Progress:</span>
+                      <span className="text-xs text-muted-foreground font-medium">Use case progress:</span>
                       <span className="text-xs font-semibold text-primary font-mono">{ucProgressPercent}%</span>
                       <div className="w-20 bg-secondary h-1.5 rounded-full overflow-hidden">
                         <div

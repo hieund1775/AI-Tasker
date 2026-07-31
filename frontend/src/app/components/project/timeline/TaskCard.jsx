@@ -64,7 +64,7 @@ export function TaskCard({
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <CheckCircle2 className="w-4 h-4" />
                   {completedMiniTasks}/{totalMiniTasks}{" "}
-                  mini tasks
+                  mini-tasks
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock3 className="w-4 h-4" />

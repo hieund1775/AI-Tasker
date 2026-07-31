@@ -253,7 +253,7 @@ export default function ExpertProjectDetail() {
           userId: user?.id || user?.Id
         });
       }
-      toast.success("Response explanation submitted successfully!");
+      toast.success("Response explanation submitted successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error(err.message || "Failed to submit response explanation.");
@@ -540,56 +540,64 @@ export default function ExpertProjectDetail() {
       <BackButton fallback="/expert/dashboard" className="mb-6">
         Back to Home
       </BackButton>
-      <PageHeader
-        title="Project Workspace"
-        subtitle="Complete tasks, submit deliverables, and track project progress."
-        badge={
-          project?.status ? (() => {
-            let status = project.status.toLowerCase();
-            let label = project.status;
-            if (status === "awaiting_cancellation" && report && (report.status === "Pending Admin" || report.status === "Pending")) {
-              status = "inprogress";
-              label = "In Progress";
-            }
-            let colorClasses = "bg-accent-light text-accent";
-            if (report?.status === "Resolved") {
-              label = "End a quarrel";
-              colorClasses = "bg-success/15 text-success border border-success/20";
-            } else if (status === "completed") {
-              colorClasses = "bg-success/15 text-success border border-success/20";
-            } else if (status === "cancelled" || status === "canceled") {
-              colorClasses = "bg-success/15 text-success border border-success/20";
-            } else if (status === "disputed") {
-              colorClasses = "bg-destructive/15 text-destructive border border-destructive/20 animate-pulse";
-            }
-            return (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize ${colorClasses}`}>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {label}
-              </span>
-            );
-          })() : null
-        }
-        illustration={
-          <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="10" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.25" />
-            <rect x="60" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.35" />
-            <rect x="110" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.2" />
-            <rect x="160" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.15" />
-            <line x1="30" y1="38" x2="30" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            <line x1="80" y1="38" x2="80" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            <line x1="130" y1="38" x2="130" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            <line x1="180" y1="38" x2="180" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
-            <circle cx="30" cy="68" r="5" fill="currentColor" opacity="0.4" />
-            <circle cx="80" cy="68" r="5" fill="currentColor" opacity="0.3" />
-            <circle cx="130" cy="68" r="5" fill="currentColor" opacity="0.2" />
-            <circle cx="180" cy="68" r="5" fill="currentColor" opacity="0.1" />
-            <line x1="35" y1="68" x2="75" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
-            <line x1="85" y1="68" x2="125" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
-            <line x1="135" y1="68" x2="175" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
-          </svg>
-        }
-      />
+      <div className="grid min-h-[14rem] gap-6 rounded-2xl border border-border/70 bg-card/85 p-5 shadow-sm shadow-foreground/[0.025] lg:grid-cols-2 lg:items-stretch lg:gap-0 lg:p-6">
+        <PageHeader
+          title="Project Workspace"
+          subtitle="Complete tasks, submit deliverables, and track project progress."
+          className="flex min-h-[12rem] flex-col justify-center rounded-none border-0 bg-transparent p-0 pr-0 shadow-none lg:pr-8"
+          compact
+          divider={false}
+          badge={
+            project?.status ? (() => {
+              let status = project.status.toLowerCase();
+              let label = project.status;
+              if (status === "awaiting_cancellation" && report && (report.status === "Pending Admin" || report.status === "Pending")) {
+                status = "inprogress";
+                label = "In Progress";
+              }
+              let colorClasses = "bg-accent-light text-accent";
+              if (report?.status === "Resolved") {
+                label = "End a quarrel";
+                colorClasses = "bg-success/15 text-success border border-success/20";
+              } else if (status === "completed") {
+                colorClasses = "bg-success/15 text-success border border-success/20";
+              } else if (status === "cancelled" || status === "canceled") {
+                colorClasses = "bg-success/15 text-success border border-success/20";
+              } else if (status === "disputed") {
+                colorClasses = "bg-destructive/15 text-destructive border border-destructive/20 animate-pulse";
+              }
+              return (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold capitalize ${colorClasses}`}>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {label}
+                </span>
+              );
+            })() : null
+          }
+          illustration={
+            <svg width="220" height="120" viewBox="0 0 220 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.25" />
+              <rect x="60" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.35" />
+              <rect x="110" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.2" />
+              <rect x="160" y="30" width="40" height="8" rx="4" fill="currentColor" opacity="0.15" />
+              <line x1="30" y1="38" x2="30" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+              <line x1="80" y1="38" x2="80" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+              <line x1="130" y1="38" x2="130" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+              <line x1="180" y1="38" x2="180" y2="60" stroke="currentColor" strokeWidth="0.5" opacity="0.3" />
+              <circle cx="30" cy="68" r="5" fill="currentColor" opacity="0.4" />
+              <circle cx="80" cy="68" r="5" fill="currentColor" opacity="0.3" />
+              <circle cx="130" cy="68" r="5" fill="currentColor" opacity="0.2" />
+              <circle cx="180" cy="68" r="5" fill="currentColor" opacity="0.1" />
+              <line x1="35" y1="68" x2="75" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+              <line x1="85" y1="68" x2="125" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+              <line x1="135" y1="68" x2="175" y2="68" stroke="currentColor" strokeWidth="0.5" opacity="0.25" />
+            </svg>
+          }
+        />
+        <div className="flex min-h-[12rem] flex-col justify-center pt-5 lg:pl-8 lg:pt-0">
+          <ExpertDeliveryStepper project={project} overallProgress={overallProgress} allTasksApproved={allTasksApproved} embedded />
+        </div>
+      </div>
 
       <div className="space-y-6">
         {/* Dispute banner */}
@@ -828,11 +836,6 @@ export default function ExpertProjectDetail() {
             The project contract was successfully cancelled. Escrow funds split based on project progress ({project?.contractCancellation?.progressPercent || 0}%). Project is now read-only.
           </div>
         )}
-
-        {/* Delivery & Payment Stepper */}
-        <AnimatedReveal>
-          <ExpertDeliveryStepper project={project} overallProgress={overallProgress} allTasksApproved={allTasksApproved} />
-        </AnimatedReveal>
 
         {/* Project header */}
         <AnimatedReveal delay={1}>
@@ -1076,7 +1079,7 @@ export default function ExpertProjectDetail() {
                     }
                   }
                   await handleSubmitProjectFinalWork(trimmedLink, finalProjectFile);
-                  toast.success("Final deliverables submitted successfully!");
+                  toast.success("Final deliverables submitted successfully.");
                   // Notify client that expert submitted final work
                   notifyFinalWorkSubmitted({
                     clientUserId: client?.id || project?.clientId || project?.ClientId,
@@ -1371,7 +1374,7 @@ export default function ExpertProjectDetail() {
 // Expert Delivery Stepper
 // ---------------------------------------------------------------------------
 
-function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved }) {
+function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved, embedded = false }) {
   const finalStatus = project?.finalDeliveryStatus || "";
   const isCompleted = project?.status === "completed";
 
@@ -1383,23 +1386,23 @@ function ExpertDeliveryStepper({ project, overallProgress, allTasksApproved }) {
   ];
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
-      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Delivery & Payment Progress</h3>
-      <div className="flex flex-wrap items-center gap-0">
+    <div className={embedded ? "h-full" : "bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6"}>
+      <h3 className="text-lg font-semibold text-foreground mb-5">Delivery & Payment Progress</h3>
+      <div className={embedded ? "flex w-full items-start" : "flex flex-wrap items-start gap-y-4"}>
         {steps.map((step, i) => (
-          <div key={step.label} className="flex items-center">
-            <div className="flex flex-col items-center">
+          <div key={step.label} className={embedded ? "flex min-w-0 flex-1 items-start" : "flex items-center"}>
+            <div className="flex min-w-0 flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-success text-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-brand-primary text-brand-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
                 {step.done ? "Done" : i + 1}
               </div>
-              <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
+              <span className={`mt-2 font-medium leading-tight text-center ${embedded ? "max-w-[6.25rem] text-xs" : "max-w-[7rem] text-sm"} ${step.done ? "text-brand-primary" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
             </div>
-            {i < steps.length - 1 && <div className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-success" : "bg-muted"}`} />}
+            {i < steps.length - 1 && <div className={`${embedded ? "h-0.5 min-w-6 flex-1 mx-2 mt-5" : "w-6 sm:w-10 h-0.5 mx-1 mt-5"} transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />}
           </div>
         ))}
       </div>

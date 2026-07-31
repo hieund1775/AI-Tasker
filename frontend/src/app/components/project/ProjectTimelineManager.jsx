@@ -121,7 +121,7 @@ export function ProjectTimelineManager({ role, projectId }) {
           <div className="flex-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-light text-primary rounded-full text-xs font-medium mb-4">
               <Bot className="w-4 h-4" />
-              AI Project Timeline Manager
+              AI project timeline manager
             </div>
 
             <h1 className="text-3xl font-semibold text-foreground">
@@ -129,8 +129,8 @@ export function ProjectTimelineManager({ role, projectId }) {
             </h1>
 
             <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
-              AI divides the project into main tasks and mini tasks. Overall
-              progress is calculated from average mini task completion.
+              AI divides the project into main tasks and mini-tasks. Overall
+              progress is calculated from average mini-task completion.
             </p>
 
             {/* Stats */}
@@ -138,7 +138,7 @@ export function ProjectTimelineManager({ role, projectId }) {
               {deadlineInfo && (
                 <>
                   <div className="bg-secondary rounded-xl px-4 py-2.5">
-                    <p className="text-xs text-muted-foreground mb-1">Project Deadline</p>
+                    <p className="text-xs text-muted-foreground mb-1">Project deadline</p>
                     <p className="font-semibold text-foreground">
                       {deadlineInfo.formattedDate || "N/A"}
                     </p>
@@ -184,14 +184,14 @@ export function ProjectTimelineManager({ role, projectId }) {
                 onClick={() => setShowExtensionForm((current) => !current)}
               >
                 {hasPendingExtension
-                  ? "Extension Request Pending"
-                  : "Request Project Extension"}
+                  ? "Extension request pending"
+                  : "Request project extension"}
               </Button>
 
               <Button asChild variant="default" fullWidth>
                 <Link to={chatUrl}>
                   <MessageSquare className="w-4 h-4" />
-                  Message Client
+                  Message client
                 </Link>
               </Button>
             </div>
@@ -220,7 +220,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         {/* Overall progress bar */}
         <div>
           <div className="flex justify-between mb-3">
-            <span className="text-sm font-medium text-foreground">Overall Progress</span>
+            <span className="text-sm font-medium text-foreground">Overall progress</span>
             <span className="font-semibold text-foreground">
               {overallProgress}%
             </span>
@@ -232,7 +232,7 @@ export function ProjectTimelineManager({ role, projectId }) {
             />
           </div>
           <p className="text-sm text-muted-foreground mt-3">
-            Overall progress = average mini task completion.
+            Overall progress = average mini-task completion.
           </p>
         </div>
       </div>

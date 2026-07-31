@@ -81,14 +81,14 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-accent-light text-accent border-accent/25";
+  let badgeClass = "bg-brand-primary-light text-brand-primary border-brand-primary/25 font-semibold";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-success-light0/10 text-success border-success/20";
+    badgeClass = "bg-success-light text-success border-success/25 font-semibold";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-destructive-light0/10 text-destructive border-destructive/20";
+    badgeClass = "bg-destructive-light text-destructive border-destructive/25 font-semibold";
   } else if (status === "disputed") {
     label = "Disputed";
     badgeClass = "bg-destructive-light text-destructive border border-destructive/20 font-semibold";
@@ -101,7 +101,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-warning-light/10 text-warning border-warning/20";
+      badgeClass = "bg-warning-light text-warning border-warning/25 font-semibold";
     }
   }
 
@@ -184,7 +184,7 @@ export function ClientDashboard() {
       });
       setShowExplanationForm(false);
       setExplainingReport(null);
-      toast.success("Submitted response explanation successfully!");
+      toast.success("Response explanation submitted successfully.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error(err.message || "Failed to submit response explanation.");

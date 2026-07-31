@@ -972,7 +972,7 @@ Please use this background information to write a personalized and highly releva
       </BackButton>
       <PageHeader
         title="Build Your Proposal"
-        subtitle="Break down the client's user stories into tasks, mini tasks, timeline, and pricing."
+        subtitle="Break down the client's user stories into tasks, mini-tasks, timeline, and pricing."
         badge={
           project ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-brand-primary-light text-brand-primary rounded-full text-xs font-medium">
@@ -1075,7 +1075,7 @@ Please use this background information to write a personalized and highly releva
               fill="currentColor"
               opacity="0.35"
             >
-              Mini Task
+              Mini-task
             </text>
             <rect
               x="135"
@@ -1096,7 +1096,7 @@ Please use this background information to write a personalized and highly releva
               fill="currentColor"
               opacity="0.35"
             >
-              Mini Task
+              Mini-task
             </text>
             <line
               x1="95"
@@ -1247,7 +1247,7 @@ Please use this background information to write a personalized and highly releva
             <AnimatedReveal delay={2}>
               <SectionCard
                 title="User Story & Task Breakdown"
-                subtitle="Client User Stories and Tasks are read-only. Add pricing, duration, and MiniTasks. Proposed Tasks require Client approval."
+                subtitle="Client user stories and tasks are read-only. Add pricing, duration, and mini-tasks. Proposed tasks require client approval."
                 padding="lg"
               >
                 {Array.isArray(project?.useCases) &&
@@ -1266,7 +1266,7 @@ Please use this background information to write a personalized and highly releva
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <div className="flex items-center gap-2">
                                 <span className="font-semibold text-foreground text-sm">
-                                  UserStory: {uc.title || uc.nameAndDeadline}
+                                  User story: {uc.title || uc.nameAndDeadline}
                                 </span>
                               </div>
                               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
@@ -1346,10 +1346,10 @@ Please use this background information to write a personalized and highly releva
                                   <div className="flex items-center gap-2">
                                     <div
                                       className="flex items-center gap-1.5"
-                                      title="Optional: Number of minitasks you want the AI to generate"
+                                      title="Optional: Number of mini-tasks you want the AI to generate"
                                     >
                                       <span className="text-xs font-medium text-muted-foreground">
-                                        Minitask Qty:
+                                        Mini-task qty:
                                       </span>
                                       <input
                                         type="number"
@@ -1383,7 +1383,7 @@ Please use this background information to write a personalized and highly releva
                                       >
                                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                                       </svg>
-                                      Generate Minitask
+                                      Generate mini-task
                                     </button>
                                   </div>
                                 );
@@ -1415,7 +1415,7 @@ Please use this background information to write a personalized and highly releva
                                   {/* Task Title Row with Remove Button */}
                                   <div className="flex items-center gap-3">
                                     <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                                      Task Title
+                                      Task title
                                     </span>
                                     <textarea
                                       value={task.title}
@@ -1475,7 +1475,7 @@ Please use this background information to write a personalized and highly releva
                                   {/* Mini Tasks (Child Tasks) Checklist */}
                                   <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
                                     <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                                      Minitask
+                                      Mini-task
                                     </span>
                                     {task.miniTasks.map((mini, mIdx) => (
                                       <div
@@ -1531,7 +1531,7 @@ Please use this background information to write a personalized and highly releva
                                       }}
                                       className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
                                     >
-                                      + Add Minitask
+                                      + Add mini-task
                                     </button>
                                   </div>
                                 </div>
@@ -1566,7 +1566,7 @@ Please use this background information to write a personalized and highly releva
                               }
                               className="h-10 px-4 bg-warning-light hover:bg-warning-light text-warning border border-warning/20 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5 w-full justify-center dark:bg-warning-light dark:hover:bg-warning-light dark:border-warning/30 dark:text-warning"
                             >
-                              + Add Proposed Task
+                              + Add proposed task
                             </button>
                           </div>
                         </div>
@@ -1587,7 +1587,7 @@ Please use this background information to write a personalized and highly releva
                           {/* Task Title Row with Remove Button */}
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">
-                              Task Title #{tIdx + 1}
+                              Task title #{tIdx + 1}
                             </span>
                             <textarea
                               value={task.title}
@@ -1639,7 +1639,7 @@ Please use this background information to write a personalized and highly releva
                           {/* Mini Tasks (Child Tasks) Checklist */}
                           <div className="space-y-2 pl-4 border-l-2 border-brand-primary/20">
                             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                              Minitask
+                              Mini-task
                             </span>
                             {task.miniTasks.map((mini, mIdx) => (
                               <div
@@ -1694,7 +1694,7 @@ Please use this background information to write a personalized and highly releva
                               }}
                               className="h-8 px-3 text-xs font-semibold text-brand-primary hover:text-brand-primary-hover hover:bg-brand-primary-light rounded-lg transition-colors inline-flex items-center gap-1 mt-1"
                             >
-                              + Add Minitask
+                              + Add mini-task
                             </button>
                           </div>
                         </div>

@@ -236,7 +236,7 @@ export function AIPlannerPanel({ onClose, projectInfo = {}, onApplyTasks, existi
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI backend call failed:", err);
-      const errMsg = err?.message || "Cannot connect to AI backend.";
+      const errMsg = err?.message || "Cannot connect to the AI service.";
       const aiMsg = {
         role: "ai",
         text: `Error while calling AI: ${errMsg}\nPlease try again later.`,
@@ -329,7 +329,7 @@ Description: ${autoPrompt.description}`;
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err) {
       console.error("AI regenerate failed:", err);
-      const errMsg = err?.message || "Cannot connect to AI backend.";
+      const errMsg = err?.message || "Cannot connect to the AI service.";
       const aiMsg = {
         role: "ai",
         text: `Error while regenerating plan: ${errMsg}\nPlease try again later.`,
@@ -345,9 +345,9 @@ Description: ${autoPrompt.description}`;
     <div className="h-full flex flex-col">
       <div className="shrink-0 flex items-center justify-between border-b border-border px-4 py-2.5 bg-gradient-to-r from-accent/6 via-accent/3 to-primary/3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">AI MiniTask Planner</h2>
+          <h2 className="text-sm font-semibold text-foreground">AI mini-task planner</h2>
           <p className="text-xs text-muted-foreground mt-0.5 font-medium">
-            Generate MiniTasks under existing Client Tasks
+            Generate mini-tasks under existing client tasks
           </p>
         </div>
         <button
@@ -374,7 +374,7 @@ Description: ${autoPrompt.description}`;
               <AIProjectIllustration size="sm" className="mx-auto mb-3" />
               <MessageSquare className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">Ask AI to generate your project plan.</p>
-              <p className="text-sm text-muted-foreground/60 mt-1">Try: "Generate MiniTasks for all use cases"</p>
+              <p className="text-sm text-muted-foreground/60 mt-1">Try: "Generate mini-tasks for all use cases"</p>
             </div>
           )}
 
@@ -410,7 +410,7 @@ Description: ${autoPrompt.description}`;
           <div className="bg-gradient-to-br from-accent/8 via-accent/4 to-card rounded-xl border border-accent/15 p-4 space-y-3 shrink-0">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-accent" />
-              <span className="text-sm font-semibold text-accent">AI Generated MiniTasks</span>
+              <span className="text-sm font-semibold text-accent">AI-generated mini-tasks</span>
             </div>
 
             <div className="space-y-3 max-h-[240px] overflow-y-auto">
@@ -446,7 +446,7 @@ Description: ${autoPrompt.description}`;
                   }`}
               >
                 <CheckCircle className="w-3.5 h-3.5" />
-                {applied ? "Applied" : "Apply MiniTasks"}
+                {applied ? "Applied" : "Apply mini-tasks"}
               </button>
               <button
                 type="button"
@@ -463,7 +463,7 @@ Description: ${autoPrompt.description}`;
                 className="h-10 min-h-10 px-4 text-sm font-semibold rounded-lg text-accent hover:text-accent-hover hover:bg-accent-light transition-colors inline-flex items-center gap-1.5"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                Continue Chat
+                Continue chat
               </button>
             </div>
           </div>
@@ -480,7 +480,7 @@ Description: ${autoPrompt.description}`;
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Describe technical approach - AI will generate MiniTasks..."
+            placeholder="Describe the technical approach. AI will generate mini-tasks..."
             disabled={loading}
             className="flex-1 h-10 px-4 border border-border rounded-lg bg-background text-sm placeholder:text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring disabled:opacity-50 transition-shadow"
           />
