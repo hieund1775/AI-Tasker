@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   Wallet,
@@ -274,8 +274,8 @@ export function Billing() {
             const report = projectReportMap.get(projIdLower);
             const isCancelledOrResolved =
               hasVerdict ||
-              !!report ||
-              ["cancelled", "cancel_done", "stopped", "contract_cancelled", "resolved", "disputed"].includes(localStatus);
+              ["cancelled", "cancel_done", "stopped", "contract_cancelled", "resolved"].includes(localStatus) ||
+              (report && ["resolved", "accepted"].includes(String(report.status || "").toLowerCase()));
 
             if (isCancelledOrResolved) {
               const splits = getCancellationPayouts(p);
@@ -412,6 +412,24 @@ export function Billing() {
           // Insert rows for each cancelled/disputed project - dispute verdict vs cancellation negotiation
           function addVerdictRows(projIdLower, split, tDate) {
             const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+            const report = projectReportMap.get(projIdLower);
+            const isCancellationReport = (report?.reportType || report?.disputeType || "").toLowerCase() === "cancellation";
+
+            if (isCancellationReport) {
+              if (split?.clientRefund > 0) {
+                myTransactions.push({
+                  id: `cancel-refund-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.clientRefund,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split?.title || "Project",
+                });
+              }
+              return;
+            }
+
             const escrowRow = cancelledEscrowDepositRows.get(projIdLower);
             if (escrowRow) {
               myTransactions.push(escrowRow);
@@ -427,9 +445,7 @@ export function Billing() {
               });
             }
 
-            const report = projectReportMap.get(projIdLower);
             const isReportResolvedByAdmin = report && (
-              report.reportType !== "cancellation" ||
               report.adminNote ||
               localStorage.getItem(`report_status_${projIdLower}`) ||
               ["Resolved", "Accepted"].includes(report.status)
@@ -497,7 +513,7 @@ export function Billing() {
               } catch (e) { }
             }
 
-            // Cancellation negotiation fallback (normal cancellation flow - do not change)
+            // Cancellation negotiation fallback (normal cancellation flow)
             if (split?.clientRefund > 0) {
               myTransactions.push({
                 id: `cancel-refund-${projIdLower}`,

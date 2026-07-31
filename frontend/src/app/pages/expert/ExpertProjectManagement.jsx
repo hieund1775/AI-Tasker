@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Send, AlertTriangle, CheckCircle2, Ban, Clock, X, Upload, File as FileIcon, Info, Paperclip, Download } from "lucide-react";
 import { useProjectProgress } from "../../hooks/useProjectProgress.js";
@@ -9,6 +10,7 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import api, { enrichFileUrl } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { createReport, uploadEvidenceFiles } from "../../../services/reportService.js";
 import { cancelProjectContract } from "../../../services/escrowService.js";
 import {
@@ -74,6 +76,44 @@ export default function ExpertProjectDetail() {
 
   // New Cancellation Negotiation states
   const [evidenceFileName, setEvidenceFileName] = useState("");
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
+  const evidenceFileInputRef = useRef(null);
+
+  const handleEvidenceFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingEvidence(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const result = await api.post("/JobPosts/upload-file", formData, { isFormData: true });
+      const uploadedUrl = result?.fileUrl || result?.url || (typeof result === "string" ? result : "");
+      const finalUrl = uploadedUrl ? enrichFileUrl(uploadedUrl) : URL.createObjectURL(file);
+
+      setEvidenceFileName(uploadedUrl || file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: finalUrl,
+        rawUrl: uploadedUrl || file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } catch (err) {
+      console.warn("Evidence upload fallback:", err);
+      setEvidenceFileName(file.name);
+      setEvidenceFile({
+        name: file.name,
+        size: (file.size / 1024).toFixed(1) + " KB",
+        url: URL.createObjectURL(file),
+        rawUrl: file.name,
+      });
+      toast.success(`Attached evidence file: ${file.name}`);
+    } finally {
+      setIsUploadingEvidence(false);
+    }
+  };
+
   const [showSendConfirmDialog, setShowSendConfirmDialog] = useState(false);
   const [showPartnerRejectForm, setShowPartnerRejectForm] = useState(false);
   const [partnerRejectReason, setPartnerRejectReason] = useState("");
@@ -202,8 +242,12 @@ export default function ExpertProjectDetail() {
         if (Array.isArray(explanationData.evidence) && explanationData.evidence.length > 0) {
           evidenceUrl = await uploadEvidenceFiles(explanationData.evidence);
         }
+        const combinedExplanation = (explanationData.reason && explanationData.description && explanationData.reason !== explanationData.description)
+          ? `${explanationData.reason}\n\n${explanationData.description}`
+          : (explanationData.description || explanationData.reason || "");
         await api.put(`/reports/${report.id}/partner-submit-response?userId=${user?.id || user?.Id}`, {
-          explanation: explanationData.description || explanationData.reason || "",
+          reason: explanationData.reason || "",
+          explanation: combinedExplanation,
           desiredResolution: explanationData.desiredResolution || "",
           evidenceUrl: evidenceUrl,
           userId: user?.id || user?.Id
@@ -230,20 +274,29 @@ export default function ExpertProjectDetail() {
     setCancelLoading(true);
     const finalReason = cancelAttemptCount >= 1 ? `[ESCALATED BINDING DISPUTE] ${cancelReason}` : cancelReason;
     try {
+      const targetProjId = project?.id || project?.Id || currentProjectId;
+      const reporterUserId = user?.id || user?.Id;
       await api.reports.create({
-        projectId: currentProjectId,
-        reporterId: user.id,
+        projectId: targetProjId,
+        reporterId: reporterUserId,
         reporterRole: "expert",
         reason: finalReason,
         description: finalReason,
-        evidenceUrl: evidenceFileName || "",
+        evidenceUrl: evidenceFile?.rawUrl || evidenceFile?.url || evidenceFileName || "",
         reportType: searchParams.get("reportType") === "overdue" ? "overdue" : "cancellation",
         disputeType: searchParams.get("reportType") === "overdue" ? "overdue" : "cancellation",
       });
+
+      // Save local fallback status
+      try {
+        localStorage.setItem(`project_status_override_${String(targetProjId).toLowerCase()}`, "Awaiting_Cancellation");
+      } catch (e) {}
+
       setShowCancelModal(false);
       setShowSendConfirmDialog(false);
       setCancelReason("");
       setEvidenceFileName("");
+      setEvidenceFile(null);
       toast.success("Contract cancellation request sent for Admin review.");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
       retry();
@@ -915,22 +968,7 @@ export default function ExpertProjectDetail() {
                                 <div className="flex items-center gap-1 ml-1 border-l border-border pl-1.5">
                                   <button
                                     type="button"
-                                    onClick={async () => {
-                                      try {
-                                        const response = await fetch(fileInfo.url);
-                                        const blob = await response.blob();
-                                        const dlUrl = URL.createObjectURL(blob);
-                                        const a = document.createElement("a");
-                                        a.href = dlUrl;
-                                        a.download = fileInfo.name;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        a.remove();
-                                        URL.revokeObjectURL(dlUrl);
-                                      } catch {
-                                        window.open(fileInfo.url, "_blank");
-                                      }
-                                    }}
+                                    onClick={() => downloadFile(fileInfo.url, fileInfo.name)}
                                     className="inline-flex items-center gap-1 p-1 px-1.5 hover:bg-card rounded text-primary hover:text-primary-hover font-medium transition-colors text-[11px] cursor-pointer"
                                     title="Download original file"
                                   >
@@ -1196,12 +1234,51 @@ export default function ExpertProjectDetail() {
                     Attach documents/evidence (Optional)
                   </label>
                   <input
-                    type="text"
-                    placeholder="e.g. evidence.pdf, error_report.docx"
-                    value={evidenceFileName}
-                    onChange={(e) => setEvidenceFileName(e.target.value)}
-                    className="w-full p-3 border border-input rounded-[10px] focus:outline-none focus:border-brand-primary text-foreground text-sm"
+                    type="file"
+                    ref={evidenceFileInputRef}
+                    onChange={handleEvidenceFileChange}
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.rar"
                   />
+
+                  {evidenceFile ? (
+                    <div className="flex items-center justify-between p-3 bg-secondary/50 border border-border rounded-xl">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <Paperclip className="w-4 h-4 text-accent flex-shrink-0" />
+                        <div className="truncate">
+                          <p className="text-xs font-semibold text-foreground truncate">{evidenceFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{evidenceFile.size}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEvidenceFile(null);
+                          setEvidenceFileName("");
+                          if (evidenceFileInputRef.current) evidenceFileInputRef.current.value = "";
+                        }}
+                        className="p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={isUploadingEvidence}
+                      onClick={() => evidenceFileInputRef.current?.click()}
+                      className="w-full p-3 border border-dashed border-input rounded-xl hover:bg-secondary/40 text-muted-foreground hover:text-foreground text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      {isUploadingEvidence ? (
+                        <span className="animate-pulse">Uploading evidence file...</span>
+                      ) : (
+                        <>
+                          <Paperclip className="w-4 h-4 text-accent" />
+                          <span>Upload document/evidence file (PDF, DOCX, Images, ZIP)</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1214,6 +1291,7 @@ export default function ExpertProjectDetail() {
                     setShowCancelModal(false);
                     setCancelReason("");
                     setEvidenceFileName("");
+                    setEvidenceFile(null);
                   }}
                   className="px-4 py-2 border border-input text-foreground/80 rounded-xl hover:bg-secondary font-semibold text-sm transition-all cursor-pointer"
                 >
@@ -1230,30 +1308,32 @@ export default function ExpertProjectDetail() {
               </div>
 
               {/* Send Confirmation Dialog */}
-              {showSendConfirmDialog && (
-                <div data-modal-overlay className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-all animate-fade-in">
-                  <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left">
-                    <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
-                    <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
-                    <div className="flex justify-end gap-3 mt-4">
-                      <button
-                        type="button"
-                        onClick={() => setShowSendConfirmDialog(false)}
-                        className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
-                      >
-                        Cancel (Decline)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleConfirmCancellationSend}
-                        className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
-                      >
-                        Agree (Accept)
-                      </button>
+              {showSendConfirmDialog &&
+                createPortal(
+                  <div data-modal-overlay className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-all animate-fade-in font-sans">
+                    <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-sm overflow-hidden p-6 text-left transform animate-zoom-in">
+                      <h4 className="text-base font-semibold text-foreground">Confirm Submission</h4>
+                      <p className="text-sm text-muted-foreground mt-2 font-medium">Are you sure you want to submit this contract cancellation request for Admin review?</p>
+                      <div className="flex justify-end gap-3 mt-5">
+                        <button
+                          type="button"
+                          onClick={() => setShowSendConfirmDialog(false)}
+                          className="px-4 py-1.5 border border-input text-foreground/80 rounded-lg text-xs font-semibold hover:bg-secondary transition-all cursor-pointer"
+                        >
+                          Cancel (Decline)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmCancellationSend}
+                          className="px-4 py-1.5 bg-destructive hover:bg-destructive text-primary-foreground rounded-lg text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                        >
+                          Agree (Accept)
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  </div>,
+                  document.body
+                )}
             </div>
           </div>
         );

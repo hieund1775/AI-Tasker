@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router";
 import { api } from "../../services/api.js";
 import { toast } from "sonner";
@@ -41,7 +41,16 @@ export function deriveTaskDisplayStatus(task) {
 
 export function useProjectProgress(projectId, role) {
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth?.user;
+  } catch (e) {
+    const rawUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+    if (rawUser) {
+      try { user = JSON.parse(rawUser); } catch (err) {}
+    }
+  }
   const [project, setProject] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [expert, setExpert] = useState(null);
@@ -516,13 +525,21 @@ export function useProjectProgress(projectId, role) {
         explanation: "Product submitted by Expert."
       });
       await api.projects.submitTask(taskId, notesValue);
+      let cleanFileName = productFile || "N/A";
+      if (typeof productFile === "string" && productFile.trim().startsWith("{")) {
+        try {
+          const parsed = JSON.parse(productFile);
+          cleanFileName = parsed.name || parsed.originalName || parsed.url || productFile;
+        } catch {}
+      }
+
       addTaskAuditEntry({
         projectId,
         taskId,
         action: "task_submitted_for_review",
         actor: "Expert",
         actorName: user?.fullName || "Expert",
-        details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${productFile || "N/A"}`
+        details: `Submitted product link/file. Link: ${productLink || "N/A"}, File: ${cleanFileName}`
       });
       triggerUpdate();
       return true;

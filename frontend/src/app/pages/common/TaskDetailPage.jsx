@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import {
   ArrowLeft,
@@ -943,9 +943,9 @@ export default function TaskDetailPage() {
                   </div>
                 )}
 
-                {/* 2. Waiting For Approval WITH deliverables: Render View Product */}
-                {isWaitingForApproval && hasMainProduct && (
-                  <div className="flex justify-end">
+                {/* 2. Deliverables submitted: ALWAYS Render View Product button */}
+                {hasMainProduct && (
+                  <div className="flex justify-end mt-2">
                     <Button
                       variant="default"
                       size="default"
@@ -1149,15 +1149,6 @@ export default function TaskDetailPage() {
                                   {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
                                 </span>
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                  <a
-                                    href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                    title="View file"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1209,15 +1200,6 @@ export default function TaskDetailPage() {
                                           {(() => { const r = resolveProductFile(mt.productFile); return r ? r.name : mt.productFile; })()}
                                         </span>
                                         <div className="flex items-center gap-1 flex-shrink-0">
-                                          <a
-                                            href={(() => { const r = resolveProductFile(mt.productFile); return r ? r.url : "#"; })()}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                            title="View file"
-                                          >
-                                            <ExternalLink className="w-3 h-3" />
-                                          </a>
                                           <button
                                             type="button"
                                             onClick={(e) => {

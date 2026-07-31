@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AdminProjects - Project list management for Admin/Owner.
 //
 // Shows all platform projects with:
@@ -16,7 +16,8 @@ import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { STATUS_LABELS } from "../../lib/projectStatusConfig.js";
-import api, { enrichFileUrl, parseProposalWbs } from "../../../services/api.js";
+import api, { enrichFileUrl, parseProposalWbs, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 
 const PROJECT_STATUS_FILTER_OPTIONS = [
   { value: "reviewing_proposals", label: STATUS_LABELS.reviewing_proposals },
@@ -188,22 +189,7 @@ export function AdminProjects() {
   const handleDownloadFile = async (e, rawUrl, fileName) => {
     e.preventDefault();
     if (!rawUrl || rawUrl === "#") return;
-    const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
-    const cleanName = (fileName || rawUrl.split("/").pop() || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-    try {
-      const res = await fetch(fileUrl);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = cleanName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    } catch {
-      window.open(fileUrl, "_blank");
-    }
+    downloadFile(rawUrl, fileName);
   };
 
   const columns = [
@@ -438,7 +424,7 @@ export function AdminProjects() {
                           {files.map((file, idx) => {
                             const rawUrl = typeof file === "string" ? file : (file.url || file.Url || "#");
                             const fileName = (typeof file === "object" ? file.name : null) || rawUrl.split("/").pop() || "Attachment";
-                            const cleanName = fileName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                            const cleanName = cleanFileName(fileName);
                             return (
                               <button
                                 key={idx}
@@ -622,7 +608,7 @@ export function AdminProjects() {
                             {atts.map((att, aIdx) => {
                               const rawUrl = typeof att === "string" ? att : (att.url || att.Url || "#");
                               const rawName = (typeof att === "object" ? att.name : null) || rawUrl.split("/").pop() || "Attachment";
-                              const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
+                              const cleanName = cleanFileName(rawName);
                               return (
                                 <button
                                   key={aIdx}

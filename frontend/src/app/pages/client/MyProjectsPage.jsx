@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
   Briefcase,
@@ -19,7 +19,8 @@ import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { toast } from "sonner";
-import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { notifyProposalDecision } from "../../../services/notificationHelper.js";
 
 import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getOverallProgress } from "../../lib/projectTimelineStore.js";
@@ -381,12 +382,11 @@ export function MyProjectsList() {
               const fileUrl = enrichFileUrl(rawPath);
               const exists = attachments.some(a => a.url === fileUrl || a.url === rawPath);
               if (!exists) {
-                const rawName = rawPath.split("/").pop() || fallbackTitle;
-                const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawName);
+                const cleanName = cleanFileName(rawPath) || fallbackTitle;
+                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawPath);
                 attachments.push({
                   id: `${idPrefix}-${Date.now()}`,
-                  name: cleanName || rawName,
+                  name: cleanName,
                   type: isImg ? "image/png" : "document",
                   fileType: isImg ? "image/png" : "document",
                   url: fileUrl
@@ -778,27 +778,13 @@ export function MyProjectsList() {
                   {uniqueFiles.map((file, idx) => {
                     const rawUrl = typeof file === "string" ? file : (file.url || file.Url || "#");
                     const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
-                    const rawFileName = (typeof file === "object" ? file.name : null) || rawUrl.split("/").pop() || "Attachment";
-                    const cleanName = rawFileName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                    const finalName = cleanName || rawFileName;
+                    const rawFileName = (typeof file === "object" ? file.name : null) || rawUrl;
+                    const finalName = cleanFileName(rawFileName);
 
-                    const handleDownloadFile = async (e) => {
+                    const handleDownloadFile = (e) => {
                       e.preventDefault();
                       if (!fileUrl || fileUrl === "#") return;
-                      try {
-                        const res = await fetch(fileUrl);
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = blobUrl;
-                        a.download = finalName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(blobUrl);
-                      } catch (err) {
-                        window.open(fileUrl, "_blank");
-                      }
+                      downloadFile(fileUrl, finalName);
                     };
 
                     return (
@@ -889,7 +875,16 @@ export function MyProjectsList() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-0.5 font-medium">Estimated Duration</p>
-                  <p className="font-semibold text-foreground">{proposal.durationDays} days</p>
+                  <p className="font-semibold text-foreground">
+                    {(Number(proposal?.durationDays) || 0) +
+                      (Number(
+                        localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                        localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                        localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                        0
+                      ) || 0)}{" "}
+                    days
+                  </p>
                 </div>
               </div>
 
@@ -1019,29 +1014,12 @@ export function MyProjectsList() {
                       {proposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
                         let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
-                        if (!rawName && typeof rawUrl === "string") {
-                          rawName = rawUrl.split("/").pop() || "Attachment";
-                        }
-                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                        const finalName = cleanName || rawName;
+                        const finalName = cleanFileName(rawName || rawUrl);
 
-                        const handleDownloadFile = async (e) => {
+                        const handleDownloadFile = (e) => {
                           e.preventDefault();
                           if (!rawUrl || rawUrl === "#") return;
-                          try {
-                            const res = await fetch(rawUrl);
-                            const blob = await res.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = blobUrl;
-                            a.download = finalName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
-                          } catch (err) {
-                            window.open(rawUrl, "_blank");
-                          }
+                          downloadFile(rawUrl, finalName);
                         };
 
                         return (
@@ -1264,7 +1242,16 @@ export function MyProjectsList() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-0.5 font-medium">Estimated Duration</p>
-                  <p className="font-semibold text-foreground">{viewedProposal.durationDays} days</p>
+                  <p className="font-semibold text-foreground">
+                    {(Number(viewedProposal?.durationDays) || 0) +
+                      (Number(
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.projectId}`) ||
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.project?.id}`) ||
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.jobPostId}`) ||
+                        0
+                      ) || 0)}{" "}
+                    days
+                  </p>
                 </div>
               </div>
 
@@ -1394,29 +1381,12 @@ export function MyProjectsList() {
                       {viewedProposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
                         let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
-                        if (!rawName && typeof rawUrl === "string") {
-                          rawName = rawUrl.split("/").pop() || "Attachment";
-                        }
-                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                        const finalName = cleanName || rawName;
+                        const finalName = cleanFileName(rawName || rawUrl);
 
-                        const handleDownloadFile = async (e) => {
+                        const handleDownloadFile = (e) => {
                           e.preventDefault();
                           if (!rawUrl || rawUrl === "#") return;
-                          try {
-                            const res = await fetch(rawUrl);
-                            const blob = await res.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = blobUrl;
-                            a.download = finalName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
-                          } catch (err) {
-                            window.open(rawUrl, "_blank");
-                          }
+                          downloadFile(rawUrl, finalName);
                         };
 
                         return (

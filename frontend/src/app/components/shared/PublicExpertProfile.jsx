@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import {
   ArrowLeft,
@@ -184,16 +184,20 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
               const startDate = formatDate(startDateRaw);
               const endDate = formatDate(endDateRaw);
 
-              // 1. Original review
+              // 1. Original review (check project_review_original_ backup first to preserve initial review rating)
               const dbReview = dbReviewsList.find(r => r.projectId === pId);
               let review = null;
-              if (dbReview) {
+              const rawOrig = localStorage.getItem(`project_review_original_${pId}`);
+              if (rawOrig) {
+                try { review = JSON.parse(rawOrig); } catch (e) {}
+              }
+              if (!review && dbReview) {
                 review = {
                   rating: dbReview.rating,
                   comment: dbReview.comment,
                   createdAt: dbReview.createdAt
                 };
-              } else {
+              } else if (!review) {
                 const rawReview = localStorage.getItem(`project_review_${pId}`);
                 if (rawReview) {
                   try {
@@ -779,22 +783,13 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
                         )}
 
                         {/* Show Expert response */}
-                        {interactions[proj.id] && (
+                        {interactions[proj.id] && (interactions[proj.id].replyText || interactions[proj.id].requestRevisionText) && (
                           <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
-                            {interactions[proj.id].replyText && (
-                              <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-semibold text-brand-primary block">Expert Response (Thank You):</span>
-                                <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
-                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                              </div>
-                            )}
-                            {interactions[proj.id].requestRevisionText && (
-                              <div className="p-3 bg-warning-light/10 border border-warning/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                                <span className="font-semibold text-warning block">Expert Response & Revision Request:</span>
-                                <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
-                                <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                              </div>
-                            )}
+                            <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                              <span className="font-semibold text-brand-primary block">Expert Response:</span>
+                              <p className="text-muted-foreground">{interactions[proj.id].replyText || interactions[proj.id].requestRevisionText}</p>
+                              <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                            </div>
                           </div>
                         )}
 

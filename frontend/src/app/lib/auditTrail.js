@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // Audit Trail - centralized audit log management for task and project activity.
 //
 // All functions now mock or delegate to C# backend
@@ -104,6 +104,20 @@ export function formatAuditMessage(entry) {
     urgent_submission_requested: `Requested urgent submission for this task`,
   };
   const base = actionMessages[entry.action] || entry.action;
-  if (entry.details) return `${base} - ${entry.details}`;
+  if (entry.details) {
+    let cleanDetails = entry.details;
+    if (typeof cleanDetails === "string" && cleanDetails.includes("File: {")) {
+      cleanDetails = cleanDetails.replace(/File:\s*\{[^}]*\}/g, (match) => {
+        try {
+          const jsonStr = match.replace(/^File:\s*/, "");
+          const parsed = JSON.parse(jsonStr);
+          return `File: ${parsed.name || parsed.originalName || parsed.url || "Attached File"}`;
+        } catch {
+          return match;
+        }
+      });
+    }
+    return `${base} - ${cleanDetails}`;
+  }
   return base;
 }

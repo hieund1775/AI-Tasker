@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import api from "../../services/api.js";
 import { getProjectAuditLogs, formatAuditMessage } from "../lib/auditTrail.js";
@@ -79,9 +79,9 @@ export function useProjectTimeline(role, projectId) {
   }, [projectId, activityVersion]);
 
   useEffect(() => {
-    const isActive = project && ["active", "in_progress", "in progress"].includes((project.status || "").toLowerCase());
+    const isActive = project && ["active", "in_progress", "in progress", "disputed"].includes((project.status || "").toLowerCase());
     if (!isActive) return;
-    const interval = setInterval(() => setTick((t) => t + 1), 10000); // every 10s
+    const interval = setInterval(() => setTick((t) => t + 1), 1000); // tick every 1s for live countdown
     return () => clearInterval(interval);
   }, [project?.status, project?.id]);
 

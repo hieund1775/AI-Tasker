@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router";
+import { Link } from "react-router";
 import {
   MessageSquare,
   CheckCircle,
@@ -10,6 +10,8 @@ import {
   Download,
 } from "lucide-react";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
+import { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 
 // =============================================================================
 // ProposalCard - renders a single proposal for the client's proposal review.
@@ -123,33 +125,19 @@ export function ProposalCard({
                 <div className="flex flex-wrap gap-2">
                   {proposal.attachments.map((att, idx) => {
                     const rawUrl = typeof att === "string" ? att : (att.url || att.Url || att.path || att.Path || "#");
-                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl ? `http://localhost:5186${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}` : "#");
+                    const fileUrl = rawUrl.startsWith("http") ? rawUrl : (rawUrl && rawUrl !== "#" ? enrichFileUrl(rawUrl) : "#");
 
                     let fileName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
                     if (!fileName && typeof rawUrl === "string") {
-                      const baseName = rawUrl.split("/").pop() || "Attachment";
-                      fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                      if (!fileName) fileName = baseName;
+                      fileName = cleanFileName(rawUrl);
+                    } else if (fileName) {
+                      fileName = cleanFileName(fileName);
                     }
 
-                    const handleDownloadFile = async (e) => {
+                    const handleDownloadFile = (e) => {
                       e.preventDefault();
                       if (!fileUrl || fileUrl === "#") return;
-                      try {
-                        const res = await fetch(fileUrl);
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = blobUrl;
-                        a.download = fileName || "Proposal_Attachment";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(blobUrl);
-                      } catch (err) {
-                        console.warn("Direct blob download failed, falling back to window.open:", err);
-                        window.open(fileUrl, "_blank");
-                      }
+                      downloadFile(fileUrl, fileName || "Proposal_Attachment");
                     };
 
                     return (
@@ -314,7 +302,15 @@ export function ProposalCard({
               <MoneyDisplay amount={proposal.bidAmount} />
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Duration: {proposal.durationDays || proposal.estimatedDays || 0} days
+              Duration:{" "}
+              {(Number(proposal.durationDays || proposal.estimatedDays || 0)) +
+                (Number(
+                  localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                  localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                  localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                  0
+                ) || 0)}{" "}
+              days
             </p>
           </div>
 
