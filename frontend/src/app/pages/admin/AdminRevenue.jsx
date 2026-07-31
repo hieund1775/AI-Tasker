@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, BarChart3 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
@@ -37,7 +37,7 @@ const parseDateAndTime = (str) => {
 export function AdminRevenue() {
   const { user } = useAuth();
   const role = (user?.role || user?.Role || "").toLowerCase();
-  const isOwnerOrAdmin = role === "owner" || role === "admin";
+  const isOwnerOrAdmin = role === "owner" || role === "admin" || role === "staff";
 
   const [data, setData] = useState(DEFAULT_DATA);
   const [loading, setLoading] = useState(true);

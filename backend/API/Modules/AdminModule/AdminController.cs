@@ -66,25 +66,24 @@ namespace AITasker_Modular.Modules.AdminModule
         [HttpGet("owner/system-dashboard")]
         public async Task<IActionResult> GetOwnerDashboard()
         {
-            var (ownerIdStr, errorResult) = await this.ValidateOwnerAsync(_userService);
+            var (requesterIdStr, errorResult) = await this.ValidateStaffOrOwnerAsync(_userService);
             if (errorResult != null)
                 return errorResult;
 
-            var ownerId = Guid.Parse(ownerIdStr!);
+            var requesterId = Guid.Parse(requesterIdStr!);
 
             try
             {
-                // 1. Lấy dữ liệu mockup/thống kê cũ của hệ thống từ tầng Service
-                var serviceData = await _adminService.GetOwnerDashboardAsync(ownerId);
+                // 1. Lấy dữ liệu thống kê của hệ thống từ tầng Service
+                var serviceData = await _adminService.GetOwnerDashboardAsync(requesterId);
 
-                // 2. Đọc số dư két sắt tổng thực tế trong DB (Hiệu năng O(1))
+                // 2. Đọc số dư két sắt tổng thực tế trong DB
                 var systemWallet = await _context.SystemWallets
                     .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
 
-                // 3. Kéo ra 50 giao dịch thu phế/phạt hủy đơn mới nhất để đối soát kế toán
+                // 3. Kéo ra TOÀN BỘ giao dịch thu phế/phạt hủy đơn để đối soát kế toán
                 var financeLogs = await _context.SystemTransactionLogs
                     .OrderByDescending(l => l.CreatedAt)
-                    .Take(50)
                     .ToListAsync();
 
                 var projectIds = financeLogs.Select(l => l.ProjectId).Distinct().ToList();
