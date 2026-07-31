@@ -55,10 +55,7 @@ export function ProtectedRoute({ role, roles, children }) {
   if (allowedRoles) {
     const allowedLower = allowedRoles.map((r) => r.toLowerCase());
     const isAllowed = allowedLower.includes(normalizedUserRole);
-    // EXCEPTION: Admin/Owner/Staff are authorized to inspect Client & Expert management routes
-    const isManagementOverride = ["owner", "admin", "staff"].includes(normalizedUserRole);
-
-    if (!isAllowed && !isManagementOverride) {
+    if (!isAllowed) {
       return <Navigate to="/unauthorized" replace />;
     }
   }

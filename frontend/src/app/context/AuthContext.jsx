@@ -52,6 +52,28 @@ function decodeJwtPayload(token) {
   }
 }
 
+const CLAIM_USER_ID = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+const CLAIM_ROLE = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+const CLAIM_EMAIL = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+const CLAIM_NAME = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
+
+function getJwtUserId(payload) {
+  return payload?.sub || payload?.nameid || payload?.[CLAIM_USER_ID] || "";
+}
+
+function getJwtRole(payload) {
+  const role = payload?.role || payload?.[CLAIM_ROLE] || "";
+  return role ? String(role).toLowerCase() : "";
+}
+
+function getJwtEmail(payload) {
+  return payload?.email || payload?.[CLAIM_EMAIL] || "";
+}
+
+function getJwtName(payload) {
+  return payload?.name || payload?.[CLAIM_NAME] || "";
+}
+
 
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 const USER_STORAGE_KEY = "aitasker_user_info";
@@ -164,15 +186,17 @@ export function AuthProvider({ children }) {
         user = JSON.parse(storedUser);
         if (user) {
           const rawRole = user.role || user.Role || "";
-          user.role = rawRole ? rawRole.toLowerCase() : "client";
-          user.id = user.id || user.Id || "";
+          const tokenRole = getJwtRole(payload);
+          const tokenUserId = getJwtUserId(payload);
+          user.role = tokenRole || (rawRole ? rawRole.toLowerCase() : "client");
+          user.id = tokenUserId || user.id || user.Id || "";
         }
       } else {
         user = {
-          id: payload.sub,
-          email: payload.email,
-          name: payload.name,
-          role: payload.role ? payload.role.toLowerCase() : "client",
+          id: getJwtUserId(payload),
+          email: getJwtEmail(payload),
+          name: getJwtName(payload),
+          role: getJwtRole(payload) || "client",
           hasProfile: true,
         };
       }
@@ -220,6 +244,10 @@ export function AuthProvider({ children }) {
     try {
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
       sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
     } catch (e) {}
 
     let finalUser = user;
@@ -233,8 +261,13 @@ export function AuthProvider({ children }) {
           role: payload.role ? payload.role.toLowerCase() : "client",
           hasProfile: true,
         };
-    } else if (finalUser && finalUser.role) {
-      finalUser.role = finalUser.role.toLowerCase();
+    } else if (finalUser) {
+      const payload = decodeJwtPayload(token);
+      const tokenRole = getJwtRole(payload);
+      const tokenUserId = getJwtUserId(payload);
+      if (tokenRole) finalUser.role = tokenRole;
+      else if (finalUser.role) finalUser.role = finalUser.role.toLowerCase();
+      if (tokenUserId) finalUser.id = tokenUserId;
     }
     try {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
@@ -350,6 +383,10 @@ export function AuthProvider({ children }) {
       localStorage.removeItem(USER_STORAGE_KEY);
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
+      localStorage.removeItem("token");
+      sessionStorage.removeItem("token");
+      localStorage.removeItem("user");
+      sessionStorage.removeItem("user");
       window.dispatchEvent(new Event("aitasker_auth_sync"));
     } catch (e) {}
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -381,16 +418,16 @@ export function useAuth() {
   // Safe fallback if called outside AuthProvider context or during hot reload
   try {
     const rawUser =
-      localStorage.getItem(USER_STORAGE_KEY) ||
       sessionStorage.getItem(USER_STORAGE_KEY) ||
-      localStorage.getItem("user") ||
-      sessionStorage.getItem("user");
+      localStorage.getItem(USER_STORAGE_KEY) ||
+      sessionStorage.getItem("user") ||
+      localStorage.getItem("user");
     const user = rawUser ? JSON.parse(rawUser) : null;
     const token =
-      localStorage.getItem(TOKEN_STORAGE_KEY) ||
       sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
-      localStorage.getItem("token") ||
       sessionStorage.getItem("token") ||
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem("token") ||
       null;
     return {
       user,

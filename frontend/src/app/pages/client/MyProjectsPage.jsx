@@ -27,6 +27,24 @@ import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBa
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
 
+const CLIENT_ACCEPTED_PROPOSAL_STATUSES = new Set([
+  "accepted",
+  "pending_pay",
+  "pending_escrow",
+  "in_progress",
+  "active",
+  "completed",
+]);
+
+function canClientViewProposalMiniTasks(status) {
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  return CLIENT_ACCEPTED_PROPOSAL_STATUSES.has(normalizedStatus);
+}
+
 export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
   const projId = project.projectId || project.id || project.Id;
@@ -426,7 +444,7 @@ export function MyProjectsList() {
         );
 
         if (!cancelled) {
-          const accepted = enrichedList.find(p => ["accepted", "pending_escrow", "pending_pay", "in_progress", "completed", "active"].includes(p.status?.toLowerCase()));
+          const accepted = enrichedList.find(p => canClientViewProposalMiniTasks(p.status));
           if (accepted) {
             setProposal(accepted);
           } else {
@@ -946,7 +964,7 @@ export function MyProjectsList() {
                                       </div>
 
                                       {/* Mini-tasks */}
-                                      {task.miniTasks && task.miniTasks.length > 0 && (
+                                      {canClientViewProposalMiniTasks(proposal.status) && task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
@@ -973,7 +991,7 @@ export function MyProjectsList() {
                             </div>
 
                             {/* Mini-tasks */}
-                            {task.miniTasks && task.miniTasks.length > 0 && (
+                            {canClientViewProposalMiniTasks(proposal.status) && task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (
@@ -1313,7 +1331,7 @@ export function MyProjectsList() {
                                       </div>
 
                                       {/* Mini-tasks */}
-                                      {false && task.miniTasks && task.miniTasks.length > 0 && (
+                                      {canClientViewProposalMiniTasks(viewedProposal.status) && task.miniTasks && task.miniTasks.length > 0 && (
                                         <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                           <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                           {task.miniTasks.map((mt, mtIdx) => (
@@ -1340,7 +1358,7 @@ export function MyProjectsList() {
                             </div>
 
                             {/* Mini-tasks */}
-                            {false && task.miniTasks && task.miniTasks.length > 0 && (
+                            {canClientViewProposalMiniTasks(viewedProposal.status) && task.miniTasks && task.miniTasks.length > 0 && (
                               <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
                                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
                                 {task.miniTasks.map((mt, mtIdx) => (

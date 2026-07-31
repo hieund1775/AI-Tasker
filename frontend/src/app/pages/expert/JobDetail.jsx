@@ -24,8 +24,11 @@ import { toast } from "sonner";
 import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 const isResubmittableProposalStatus = (status) =>
-  ["declined", "rejected", "withdrawn", "expired"].includes(
-    String(status || "").toLowerCase(),
+  ["decline", "declined", "rejected", "withdrawn", "expired"].includes(
+    String(status || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_"),
   );
 
 export function JobDetail() {

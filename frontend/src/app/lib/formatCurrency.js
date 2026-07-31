@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Currency formatting utilities.
  *
  * All functions in this module are for DISPLAY ONLY.

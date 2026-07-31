@@ -392,9 +392,32 @@ Please use this background information to write a personalized and highly releva
   const [existingProposal, setExistingProposal] = useState(null);
 
   const isResubmittableProposalStatus = (status) =>
-    ["declined", "rejected", "withdrawn", "expired"].includes(
-      String(status || "").toLowerCase(),
+    ["decline", "declined", "rejected", "withdrawn", "expired"].includes(
+      String(status || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_"),
     );
+
+  const getProposalId = (proposal) =>
+    proposal?.id || proposal?.Id || proposal?.data?.id || proposal?.data?.Id || null;
+
+  const findLatestProposalForCurrentJob = async () => {
+    const list = await api.proposals.getByExpert(user.id).catch(() => []);
+    const matching = list
+      .filter((p) => {
+        const proposalJobId =
+          p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+        return String(proposalJobId) === String(projectId);
+      })
+      .sort((a, b) => {
+        const bTime = new Date(b.createdAt || b.CreatedAt || 0).getTime();
+        const aTime = new Date(a.createdAt || a.CreatedAt || 0).getTime();
+        return (Number.isFinite(bTime) ? bTime : 0) - (Number.isFinite(aTime) ? aTime : 0);
+      });
+
+    return matching[0] || null;
+  };
 
   useEffect(() => {
     if (!projectId || !user?.id) return;
@@ -434,16 +457,19 @@ Please use this background information to write a personalized and highly releva
         setTasks(buildTasksFromUseCases(job));
 
         // Find existing proposal for this jobPostId (with robust PascalCase fallbacks)
-        const foundProp = proposalsList.find((p) => {
+        const matchingProposals = proposalsList.filter((p) => {
           const proposalJobId =
             p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
+          return String(proposalJobId) === String(projectId);
+        });
+        const foundProp = matchingProposals.find((p) => {
           return (
-            String(proposalJobId) === String(projectId) &&
             !isResubmittableProposalStatus(p.status || p.Status)
           );
         });
+        setExistingProposal(foundProp || null);
+
         if (foundProp) {
-          setExistingProposal(foundProp);
           let parsedCoverLetter = {};
           try {
             parsedCoverLetter = JSON.parse(foundProp.coverLetter);
@@ -702,6 +728,11 @@ Please use this background information to write a personalized and highly releva
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user?.id) return;
+    if (String(user?.role || "").toLowerCase() !== "expert") {
+      toast.error("Only expert accounts can submit proposals.");
+      navigate("/unauthorized", { replace: true });
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -904,7 +935,10 @@ Please use this background information to write a personalized and highly releva
             expertId: user.id,
             ...proposalPayload,
           });
-          finalPropId = created?.id || created?.Id;
+          finalPropId = getProposalId(created);
+          if (!finalPropId) {
+            finalPropId = getProposalId(await findLatestProposalForCurrentJob());
+          }
           // Notify client that a new proposal arrived
           notifyNewProposal({
             clientUserId: project?.clientId,
@@ -913,34 +947,7 @@ Please use this background information to write a personalized and highly releva
             jobPostId: projectId,
           }).catch(() => { });
         } catch (createErr) {
-          // If backend rejects create because an active proposal already exists in DB, fetch and update it!
-          if (
-            createErr.message?.toLowerCase().includes("active proposal") ||
-            createErr.status === 400
-          ) {
-            const list = await api.proposals
-              .getByExpert(user.id)
-              .catch(() => []);
-            const activeProp = list.find(
-              (p) => {
-                const proposalJobId =
-                  p.jobPostId || p.JobPostId || p.jobPost?.id || p.JobPost?.Id;
-                return (
-                  String(proposalJobId) === String(projectId) &&
-                  !isResubmittableProposalStatus(p.status || p.Status)
-                );
-              },
-            );
-            const activeId = activeProp?.id || activeProp?.Id;
-            if (activeId) {
-              await api.proposals.update(activeId, proposalPayload);
-              finalPropId = activeId;
-            } else {
-              throw createErr;
-            }
-          } else {
-            throw createErr;
-          }
+          throw createErr;
         }
       }
 
