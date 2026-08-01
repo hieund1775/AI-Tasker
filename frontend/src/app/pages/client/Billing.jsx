@@ -9,13 +9,21 @@ import {
   CheckCircle,
   PlusCircle,
   Send,
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { VisaWithdrawalFields, emptyVisaWithdrawalCard, isValidVisaWithdrawalCard } from "../../components/wallet/VisaWithdrawalFields.jsx";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 import { notifyEscrowFunded } from "../../../services/notificationHelper.js";
 import { setDepositTime, calculateTaskDeadlines } from "../../lib/taskDeadlineUtils.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
+import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,6 +48,28 @@ const typeLabels = {
   report_request: "reported request",
   verdict: "report",
 };
+
+function isReportLikeDeposit(tx) {
+  const lowerType = (tx.type ?? tx.Type ?? "").toLowerCase();
+  if (lowerType !== "deposit" && lowerType !== "manualdeposit") return false;
+  const text = [
+    tx.description,
+    tx.Description,
+    tx.projectStatus,
+    tx.ProjectStatus,
+    tx.status,
+    tx.Status,
+    tx.id,
+    tx.Id,
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  return /\b(report|reported|dispute|refund|verdict|compensation)\b/.test(text);
+}
+
+function getTransactionTypeLabel(tx, lowerType) {
+  if (isReportLikeDeposit(tx)) return typeLabels.report_request;
+  return typeLabels[lowerType] || tx.type;
+}
 
 const typeIcons = {
   escrow_deposit: Shield,
@@ -66,6 +96,92 @@ const statusColors = {
   failed: "bg-destructive/10 text-destructive",
 };
 
+const transactionSortColumns = [
+  { key: "type", label: "Type", align: "left", sortable: false },
+  { key: "description", label: "Description", align: "left", sortable: false },
+  { key: "amount", label: "Amount", align: "right", sortable: false },
+  { key: "status", label: "Status", align: "right", sortable: false },
+  { key: "date", label: "Date", align: "right", sortable: true },
+];
+
+function getTransactionSortValue(tx, key) {
+  const lowerType = tx.type?.toLowerCase();
+  if (key === "type") return typeLabels[lowerType] || tx.type || "";
+  if (key === "description") return tx.projectTitle || tx.description || "";
+  if (key === "amount") return Number(tx.amount ?? tx.Amount ?? 0) || 0;
+  if (key === "status") return tx.status || tx.projectStatus || "";
+  if (key === "date") {
+    const rawStr = tx.createdAt || "";
+    const dateValue = new Date(rawStr + (rawStr && typeof rawStr === "string" && !rawStr.endsWith("Z") && !rawStr.match(/[+-]\d{2}:\d{2}$/) ? "Z" : "")).getTime();
+    return Number.isFinite(dateValue) ? dateValue : 0;
+  }
+  return "";
+}
+
+function sortTransactions(rows, sortState) {
+  if (!sortState.key || !sortState.dir) return rows;
+
+  return [...rows].sort((a, b) => {
+    const aVal = getTransactionSortValue(a, sortState.key);
+    const bVal = getTransactionSortValue(b, sortState.key);
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    const bothNumeric = Number.isFinite(aNum) && Number.isFinite(bNum) && aVal !== "" && bVal !== "";
+
+    if (bothNumeric) {
+      return sortState.dir === "asc" ? aNum - bNum : bNum - aNum;
+    }
+
+    const result = String(aVal ?? "").localeCompare(String(bVal ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return sortState.dir === "asc" ? result : -result;
+  });
+}
+
+function getClientTransactionDisplayStatus(tx) {
+  const projId = tx.projectId;
+  const projIdLower = projId ? String(projId).toLowerCase() : "";
+  const dbStatus = (tx.projectStatus || "").toLowerCase();
+  let localStatus = projIdLower ? (localStorage.getItem(`project_status_${projIdLower}`) || "").toLowerCase() : "";
+  const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
+  const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === projIdLower);
+  if (isReleasedLocally) localStatus = "completed";
+  if (!localStatus) localStatus = dbStatus;
+
+  const hasDisputeVerdict = projIdLower && (() => {
+    const verdict = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+    if (!verdict) return false;
+    try { return !!JSON.parse(verdict); } catch (e) { return false; }
+  })();
+  if (hasDisputeVerdict && ["cancelled", "stopped", "cancel_done"].includes(localStatus)) {
+    localStatus = "done";
+  }
+
+  const lowerType = tx.type?.toLowerCase();
+  const isEscrowDeposit = lowerType === "escrow_deposit" || lowerType === "escrowdeposit";
+  if (isEscrowDeposit) {
+    if (localStatus === "completed" || localStatus === "done") return "done";
+    if (["cancelled", "stopped", "cancel_done", "resolved", "disputed"].includes(localStatus)) return "cancel";
+    return "in progress";
+  }
+  if (lowerType === "cancel") return tx.status || "done";
+  return "done";
+}
+
+function SignedTransactionAmount({ amount }) {
+  const value = Number(amount ?? 0);
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  const tone = value > 0 ? "text-success" : value < 0 ? "text-destructive" : "text-muted-foreground";
+
+  return (
+    <span className={`font-semibold tabular-nums ${tone}`}>
+      {sign}{formatCurrency(Math.abs(value))}
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -86,6 +202,8 @@ export function Billing() {
   const [selectedProject, setSelectedProject] = useState(location.state?.projectId || "");
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [transactionSort, setTransactionSort] = useState({ key: null, dir: null });
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState("");
 
   // Deposit via ZaloPay
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -95,7 +213,29 @@ export function Billing() {
   // Withdrawal
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawCard, setWithdrawCard] = useState(emptyVisaWithdrawalCard);
   const [withdrawLoading, setWithdrawLoading] = useState(false);
+
+  const handleTransactionSort = (key) => {
+    if (key !== "date") return;
+    setTransactionSort((prev) => {
+      if (prev.key !== key) return { key, dir: "asc" };
+      if (prev.dir === "asc") return { key, dir: "desc" };
+      return { key: null, dir: null };
+    });
+  };
+
+  const transactionStatusOptions = [
+    { value: "", label: "All" },
+    { value: "done", label: "Done" },
+    { value: "in progress", label: "In Progress" },
+    { value: "cancel", label: "Cancel" },
+  ];
+  const filteredTransactions = (data?.transactions || []).filter((tx) => {
+    if (!transactionStatusFilter) return true;
+    return getClientTransactionDisplayStatus(tx).toLowerCase() === transactionStatusFilter;
+  });
+  const sortedTransactions = sortTransactions(filteredTransactions, transactionSort);
 
   useEffect(() => {
     const currentUserId = user?.id || user?.Id;
@@ -216,8 +356,8 @@ export function Billing() {
             const report = projectReportMap.get(projIdLower);
             const isCancelledOrResolved =
               hasVerdict ||
-              !!report ||
-              ["cancelled", "cancel_done", "stopped", "contract_cancelled", "resolved", "disputed"].includes(localStatus);
+              ["cancelled", "cancel_done", "stopped", "contract_cancelled", "resolved"].includes(localStatus) ||
+              (report && ["resolved", "accepted"].includes(String(report.status || "").toLowerCase()));
 
             if (isCancelledOrResolved) {
               const splits = getCancellationPayouts(p);
@@ -289,6 +429,12 @@ export function Billing() {
               const tId = t.id || t.Id;
               const tDate = t.createdAt ?? t.CreatedAt;
               const tTitle = t.projectTitle || t.ProjectTitle || null;
+              const txReport = projIdLower ? projectReportMap.get(projIdLower) : null;
+              const isReportResolvedTx = txReport && (
+                txReport.adminNote ||
+                localStorage.getItem(`report_status_${projIdLower}`) ||
+                ["resolved", "accepted"].includes(String(txReport.status || "").toLowerCase())
+              );
 
               if (projIdLower && cancelledProjectSplits.has(projIdLower)) {
                 cancelledProjIdsInDb.add(projIdLower);
@@ -342,18 +488,37 @@ export function Billing() {
                   id: tId,
                   projectId: projId,
                   amount: tAmount,
-                  type: lType,
+                  type: (lType === "deposit" || lType === "manualdeposit") && isReportResolvedTx ? "report_request" : lType,
                   createdAt: tDate,
                   projectTitle: tTitle,
                   projectStatus: projIdLower ? dbProjectStatusMap.get(projIdLower) : "",
+                  description: t.description || t.Description,
                 });
               }
             });
           }
 
-          // Insert rows for each cancelled/disputed project — dispute verdict vs cancellation negotiation
+          // Insert rows for each cancelled/disputed project - dispute verdict vs cancellation negotiation
           function addVerdictRows(projIdLower, split, tDate) {
             const dvRaw = localStorage.getItem(`dispute_verdict_${projIdLower}`);
+            const report = projectReportMap.get(projIdLower);
+            const isCancellationReport = (report?.reportType || report?.disputeType || "").toLowerCase() === "cancellation";
+
+            if (isCancellationReport) {
+              if (split?.clientRefund > 0) {
+                myTransactions.push({
+                  id: `cancel-refund-${projIdLower}`,
+                  projectId: projIdLower,
+                  amount: split.clientRefund,
+                  type: "cancel",
+                  status: "done",
+                  createdAt: tDate,
+                  projectTitle: split?.title || "Project",
+                });
+              }
+              return;
+            }
+
             const escrowRow = cancelledEscrowDepositRows.get(projIdLower);
             if (escrowRow) {
               myTransactions.push(escrowRow);
@@ -369,9 +534,7 @@ export function Billing() {
               });
             }
 
-            const report = projectReportMap.get(projIdLower);
             const isReportResolvedByAdmin = report && (
-              report.reportType !== "cancellation" ||
               report.adminNote ||
               localStorage.getItem(`report_status_${projIdLower}`) ||
               ["Resolved", "Accepted"].includes(report.status)
@@ -439,7 +602,7 @@ export function Billing() {
               } catch (e) { }
             }
 
-            // Cancellation negotiation fallback (Luồng huỷ thông thường - KHÔNG ĐỤNG VÀO)
+            // Cancellation negotiation fallback (normal cancellation flow)
             if (split?.clientRefund > 0) {
               myTransactions.push({
                 id: `cancel-refund-${projIdLower}`,
@@ -637,16 +800,27 @@ export function Billing() {
     e.preventDefault();
     const amount = Number(withdrawAmount);
     if (!amount || amount <= 0 || amount > (data?.wallet?.balance || 0)) return;
+    if (!isValidVisaWithdrawalCard(withdrawCard)) {
+      setFeedback({ type: "error", message: "Please enter valid Visa card details before withdrawing." });
+      return;
+    }
 
     setWithdrawLoading(true);
     setFeedback(null);
     try {
       const resolvedUserId = user?.id || user?.Id;
-      const res = await api.payments.withdraw(resolvedUserId, amount);
+      const res = await api.payments.withdraw(resolvedUserId, amount, {
+        bankCode: withdrawCard.bankCode,
+        cardNumber: withdrawCard.cardNumber.replace(/\D/g, ""),
+        cardHolderName: withdrawCard.cardHolderName.trim(),
+      });
 
-      setFeedback({ type: "success", message: res?.message || "Withdrawal successful!" });
+      const successMessage = res?.message || "Withdrawal successful!";
+      setFeedback({ type: "success", message: successMessage });
+      toast.success(successMessage);
       setShowWithdrawModal(false);
       setWithdrawAmount("");
+      setWithdrawCard(emptyVisaWithdrawalCard);
 
       try {
         localStorage.setItem("aitasker_wallet_updated", Date.now().toString());
@@ -660,8 +834,10 @@ export function Billing() {
         type: "error",
         message: err?.message || "Withdrawal failed. Please try again later."
       });
+      toast.error(err?.message || "Withdrawal failed. Please try again later.");
       setShowWithdrawModal(false);
       setWithdrawAmount("");
+      setWithdrawCard(emptyVisaWithdrawalCard);
     } finally {
       setWithdrawLoading(false);
     }
@@ -756,7 +932,7 @@ export function Billing() {
     try {
       await api.payments.releaseEscrow({ transactionId });
     } catch {
-      // Demo — no visual change needed
+      // Demo - no visual change needed
     }
   };
 
@@ -775,15 +951,17 @@ export function Billing() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/dashboard" className="mb-4">Back to Dashboard</BackButton>
-      <h1 className="text-2xl font-bold text-foreground mb-2">Billing &amp; Payments</h1>
-      <p className="text-muted-foreground mb-8">Manage your wallet, escrow payments, and transaction history.</p>
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/client/dashboard" className="mb-0">Back to Dashboard</BackButton>
+      <PageHeader
+        title="Billing & Payments"
+        subtitle="Manage your wallet, escrow payments, and transaction history."
+      />
 
       {/* Feedback banner */}
       {feedback && (
         <div
-          className={`mb-6 p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
+          className={`p-4 rounded-xl text-sm font-medium ${feedback.type === "success"
             ? "bg-success-light text-success border border-success/20"
             : "bg-destructive-light text-destructive border border-destructive/20"
             }`}
@@ -793,7 +971,7 @@ export function Billing() {
       )}
 
       {/* Wallet cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
             <div className="flex items-center gap-3">
@@ -802,7 +980,7 @@ export function Billing() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Available Balance</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-semibold text-foreground">
                   <MoneyDisplay amount={data?.wallet?.balance ?? 0} />
                 </p>
               </div>
@@ -811,14 +989,14 @@ export function Billing() {
               <button
                 type="button"
                 onClick={() => setShowDepositModal(true)}
-                className="px-3.5 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 bg-success text-success-foreground rounded-lg hover:opacity-90 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <PlusCircle className="w-3.5 h-3.5" /> Deposit
               </button>
               <button
                 type="button"
                 onClick={() => setShowWithdrawModal(true)}
-                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                className="px-3.5 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm"
               >
                 <Send className="w-3.5 h-3.5" /> Withdraw
               </button>
@@ -826,14 +1004,14 @@ export function Billing() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm md:justify-self-end md:w-full">
+          <div className="flex items-center gap-3 mb-4 md:justify-end md:text-right">
+            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center md:order-2">
               <Shield className="w-5 h-5 text-accent" />
             </div>
-            <div>
+            <div className="md:order-1">
               <p className="text-sm text-muted-foreground">In Escrow</p>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-semibold text-foreground">
                 <MoneyDisplay amount={data?.wallet?.escrowBalance ?? 0} />
               </p>
             </div>
@@ -843,7 +1021,7 @@ export function Billing() {
 
       {/* Active projects with escrow */}
       {data?.activeProjects?.length > 0 && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+        <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="p-6 border-b border-border">
             <h2 className="text-lg font-semibold text-foreground">Active Projects</h2>
           </div>
@@ -866,7 +1044,7 @@ export function Billing() {
 
       {/* Deposit to escrow */}
       {isEscrowRedirect && (
-        <div className="bg-card rounded-xl border border-border shadow-sm mb-8">
+        <div className="bg-card rounded-xl border border-border shadow-sm">
           <div className="p-6 border-b border-border flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">Deposit to Escrow</h2>
           </div>
@@ -908,12 +1086,10 @@ export function Billing() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount</label>
-                  <input
-                    type="number"
+                  <MoneyInput
                     min="1"
-                    step="1"
                     value={depositAmount || ""}
-                    onChange={(e) => setDepositAmount(e.target.value === "" ? 0 : Number(e.target.value))}
+                    onValueChange={(value) => setDepositAmount(value === "" ? 0 : value)}
                     className={`w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium ${isEscrowRedirect ? "bg-muted cursor-not-allowed text-muted-foreground" : "bg-card text-foreground"}`}
                     placeholder="500"
                     required
@@ -924,7 +1100,7 @@ export function Billing() {
                   <button
                     type="submit"
                     disabled={submitting || !depositAmount || depositAmount <= 0 || !selectedProject}
-                    className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
+                    className="h-10 px-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
                   >
                     {submitting ? "Processing..." : "Confirm Escrow"}
                   </button>
@@ -932,7 +1108,7 @@ export function Billing() {
                     <button
                       type="button"
                       onClick={() => setShowDepositForm(false)}
-                      className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-colors"
+                      className="h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-medium transition-colors"
                     >
                       Cancel
                     </button>
@@ -946,8 +1122,22 @@ export function Billing() {
 
       {/* Transaction history */}
       <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+        <div className="flex flex-col gap-3 border-b border-border p-6 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
+            <select
+              value={transactionStatusFilter}
+              onChange={(event) => setTransactionStatusFilter(event.target.value)}
+              className="h-10 rounded-xl border border-input bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
+            >
+              {transactionStatusOptions.map((option) => (
+                <option key={option.value || "all"} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {!data?.transactions?.length ? (
@@ -962,15 +1152,44 @@ export function Billing() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Type</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="text-right px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</th>
+                  {transactionSortColumns.map((col) => (
+                    <th
+                      key={col.key}
+                      className={`${col.align === "right" ? "text-right" : "text-left"} px-6 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider`}
+                    >
+                      {col.sortable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleTransactionSort(col.key)}
+                          className={`inline-flex items-center gap-1.5 transition-colors hover:text-foreground ${col.align === "right" ? "justify-end ml-auto" : ""}`}
+                          title={transactionSort.key === col.key && transactionSort.dir === "asc" ? "Sort Z-A" : transactionSort.key === col.key && transactionSort.dir === "desc" ? "Clear sort" : "Sort A-Z"}
+                        >
+                          {col.label}
+                          {transactionSort.key === col.key ? (
+                            transactionSort.dir === "asc" ? (
+                              <ChevronUp className="h-3.5 w-3.5 text-brand-primary" />
+                            ) : (
+                              <ChevronDown className="h-3.5 w-3.5 text-brand-primary" />
+                            )
+                          ) : (
+                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-45" />
+                          )}
+                        </button>
+                      ) : (
+                        <span>{col.label}</span>
+                      )}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {data.transactions.map((tx) => {
+                {sortedTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={transactionSortColumns.length} className="px-6 py-10 text-center text-sm text-muted-foreground">
+                      No transactions match the selected status.
+                    </td>
+                  </tr>
+                ) : sortedTransactions.map((tx) => {
                   const projId = tx.projectId;
                   const projIdLower = projId ? String(projId).toLowerCase() : "";
                   const dbStatus = (tx.projectStatus || "").toLowerCase();
@@ -1057,7 +1276,8 @@ export function Billing() {
 
                   // Process description display as requested
                   let displayDesc = tx.description;
-                  if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
+                  if (isReportLikeDeposit(tx)) displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : "report successful";
+                  else if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
                   else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
                   else if (lowerType === "verdict") displayDesc = "report successful";
                   else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
@@ -1073,15 +1293,15 @@ export function Billing() {
                   return (
                     <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="text-sm text-foreground font-medium">{typeLabels[lowerType] || tx.type}</span>
+                        <span className="text-sm text-foreground font-medium">{getTransactionTypeLabel(tx, lowerType)}</span>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">
                         <div className="flex flex-col">
                           <span>{displayDesc}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-right text-sm font-medium text-foreground">
-                        {isNoCompensation ? "-" : <MoneyDisplay amount={displayAmount} />}
+                      <td className="px-6 py-4 text-right text-sm">
+                        {isNoCompensation ? "-" : <SignedTransactionAmount amount={displayAmount} />}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium uppercase ${badgeClass}`}>
@@ -1090,8 +1310,8 @@ export function Billing() {
                       </td>
                       <td className="px-6 py-4 text-right text-sm text-muted-foreground">
                         <div className="flex flex-col items-end">
-                          <span className="font-semibold text-foreground text-sm">{dateStr}</span>
-                          <span className="text-xs text-muted-foreground mt-0.5 font-normal">{timeStr}</span>
+                          <span className="text-sm font-semibold leading-none text-foreground">{dateStr}</span>
+                          <span className="-mt-px text-[11px] font-medium leading-none tracking-wide text-muted-foreground">{timeStr}</span>
                         </div>
                       </td>
                     </tr>
@@ -1105,9 +1325,9 @@ export function Billing() {
 
       {/* Deposit Modal */}
       {showDepositModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <PlusCircle className="w-5 h-5 text-success" /> Deposit funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -1116,12 +1336,10 @@ export function Billing() {
             <form onSubmit={handleWalletDeposit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-muted-foreground mb-2">Amount (VND)</label>
-                <input
-                  type="number"
+                <MoneyInput
                   min="1000"
-                  step="1000"
                   value={walletDepositAmount}
-                  onChange={(e) => setWalletDepositAmount(e.target.value)}
+                  onValueChange={setWalletDepositAmount}
                   placeholder="e.g. 50000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
@@ -1131,7 +1349,7 @@ export function Billing() {
                 <button
                   type="submit"
                   disabled={depositLoading || !walletDepositAmount || Number(walletDepositAmount) < 1000}
-                  className="flex-1 h-11 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  className="flex-1 h-10 bg-success text-success-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {depositLoading ? "Processing..." : "Deposit via ZaloPay"}
                 </button>
@@ -1141,7 +1359,7 @@ export function Billing() {
                     setShowDepositModal(false);
                     setWalletDepositAmount("");
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>
@@ -1153,9 +1371,9 @@ export function Billing() {
 
       {/* Withdraw Modal */}
       {showWithdrawModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div data-modal-overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Send className="w-5 h-5 text-primary" /> Withdraw funds
             </h3>
             <p className="text-sm text-muted-foreground">
@@ -1164,23 +1382,27 @@ export function Billing() {
             <form onSubmit={handleWalletWithdraw} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-muted-foreground mb-2">Withdrawal Amount (VND)</label>
-                <input
-                  type="number"
+                <MoneyInput
                   min="1"
-                  step="1"
                   max={data?.wallet?.balance || 0}
                   value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  onValueChange={setWithdrawAmount}
                   placeholder="e.g. 20000"
                   className="w-full px-4 py-2 border border-input rounded-lg bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-ring font-medium"
                   required
                 />
               </div>
+              <VisaWithdrawalFields
+                amount={withdrawAmount}
+                balance={data?.wallet?.balance || 0}
+                card={withdrawCard}
+                onChange={setWithdrawCard}
+              />
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
-                  disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0)}
-                  className="flex-1 h-11 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold transition-all"
+                  disabled={withdrawLoading || !withdrawAmount || Number(withdrawAmount) <= 0 || Number(withdrawAmount) > (data?.wallet?.balance || 0) || !isValidVisaWithdrawalCard(withdrawCard)}
+                  className="flex-1 h-10 bg-primary text-primary-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-all"
                 >
                   {withdrawLoading ? "Processing..." : "Withdraw"}
                 </button>
@@ -1189,8 +1411,9 @@ export function Billing() {
                   onClick={() => {
                     setShowWithdrawModal(false);
                     setWithdrawAmount("");
+                    setWithdrawCard(emptyVisaWithdrawalCard);
                   }}
-                  className="px-5 h-11 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
+                  className="px-5 h-10 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>

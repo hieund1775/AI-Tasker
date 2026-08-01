@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminReviews — Review list management for Admin/Owner.
+﻿// =============================================================================
+// AdminReviews - Review list management for Admin/Owner.
 //
 // Shows all platform reviews with:
 //   - Search by content/user
@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, EyeOff, Trash2, Filter } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
@@ -19,13 +20,13 @@ import api from "../../../services/api.js";
 // ---------------------------------------------------------------------------
 
 const REVIEW_STATUS_CONFIG = {
-  Visible: { color: "bg-green-100 text-green-700", label: "Visible" },
-  Hidden: { color: "bg-yellow-100 text-yellow-700", label: "Hidden" },
-  Deleted: { color: "bg-red-100 text-red-700", label: "Deleted" },
+  Visible: { color: "bg-success-light text-success", label: "Visible" },
+  Hidden: { color: "bg-warning-light text-warning", label: "Hidden" },
+  Deleted: { color: "bg-destructive-light text-destructive", label: "Deleted" },
 };
 
 const REVIEW_STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
+  { value: "", label: "All" },
   { value: "Visible", label: "Visible" },
   { value: "Hidden", label: "Hidden" },
   { value: "Deleted", label: "Deleted" },
@@ -53,7 +54,7 @@ export function AdminReviews() {
       const result = await api.get("/reviews");
       setReviews(Array.isArray(result) ? result : result?.data || []);
     } catch (err) {
-      // API not ready yet — show empty state gracefully
+      // API not ready yet - show empty state gracefully
       setReviews([]);
     } finally {
       setLoading(false);
@@ -117,9 +118,9 @@ export function AdminReviews() {
       label: "Content",
       render: (val, row) => (
         <div className="max-w-xs">
-          <p className="text-sm text-foreground line-clamp-2">{val || "—"}</p>
+          <p className="text-sm text-foreground line-clamp-2">{val || "-"}</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {row.reviewerName || "—"} → {row.targetName || "—"}
+            {row.reviewerName || "-"} to {row.targetName || "-"}
           </p>
         </div>
       ),
@@ -128,15 +129,15 @@ export function AdminReviews() {
       key: "rating",
       label: "Rating",
       filterOptions: [
-        { value: "5", label: "5 ⭐" },
-        { value: "4", label: "4 ⭐" },
-        { value: "3", label: "3 ⭐" },
-        { value: "2", label: "2 ⭐" },
-        { value: "1", label: "1 ⭐" },
+        { value: "5", label: "5 stars" },
+        { value: "4", label: "4 stars" },
+        { value: "3", label: "3 stars" },
+        { value: "2", label: "2 stars" },
+        { value: "1", label: "1 star" },
       ],
       render: (val) => (
         <span className="text-sm font-medium">
-          {val != null ? `${val} ⭐` : "—"}
+          {val != null ? `${val} stars` : "-"}
         </span>
       ),
     },
@@ -160,7 +161,7 @@ export function AdminReviews() {
       label: "Created",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -168,21 +169,19 @@ export function AdminReviews() {
 
   return (
     <div className="space-y-6">
-      
-
-      <h1 className="text-2xl font-bold text-foreground mb-2">Review Management</h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage violating reviews on the platform.
-      </p>
+      <PageHeader
+        title="Review Management"
+        subtitle="View and manage violating reviews on the platform."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -199,7 +198,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setHideModal(row.id)}
                 disabled={actionLoading}
-                className="px-3 py-1.5 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 bg-warning-light text-warning hover:bg-warning-light border border-warning/20 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Hide review"
               >
                 <EyeOff className="w-3.5 h-3.5" />
@@ -211,7 +210,7 @@ export function AdminReviews() {
                 type="button"
                 onClick={() => setDeleteModal(row.id)}
                 disabled={actionLoading}
-                className="px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 border border-red-200 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
+                className="px-3 py-1.5 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 transition"
                 title="Delete review"
               >
                 <Trash2 className="w-3.5 h-3.5" />

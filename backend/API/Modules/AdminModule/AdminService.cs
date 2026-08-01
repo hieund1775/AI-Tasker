@@ -59,8 +59,13 @@ namespace AITasker_Modular.Modules.AdminModule
 
         public async Task<object> GetOwnerDashboardAsync(Guid ownerId)
         {
-            var owner = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId && x.Role.ToLower() == "owner");
-            if (owner == null) throw new UnauthorizedAccessException("Access to sensitive data is denied.");
+            var user = await _context.Users.FirstOrDefaultAsync(x => x.Id == ownerId);
+            if (user == null || (!string.Equals(user.Role, "owner", StringComparison.OrdinalIgnoreCase) 
+                             && !string.Equals(user.Role, "admin", StringComparison.OrdinalIgnoreCase) 
+                             && !string.Equals(user.Role, "staff", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new UnauthorizedAccessException("Access to sensitive data is denied.");
+            }
 
             var totalStaffs = await _context.Users.Where(x => x.Role == "Staff").CountAsync();
             var totalProjects = await _context.Projects.CountAsync();

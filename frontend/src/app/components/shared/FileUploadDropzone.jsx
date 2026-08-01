@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+﻿import { useState, useRef, useCallback } from "react";
 import { Upload, X, FileText, Image, File as LucideFileIcon, AlertCircle } from "lucide-react";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 
-// ── Default accepted file types ──
 const DEFAULT_ACCEPT_MIME = [
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -16,7 +16,6 @@ const DEFAULT_ACCEPT_MIME = [
 
 const DEFAULT_ACCEPT_EXT = ".pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.svg,.zip";
 
-// ── Type icon helpers ──
 function getFileIcon(file) {
   if (!file) return FileText;
   const type = file.type || "";
@@ -38,15 +37,15 @@ function getFileColor(file) {
   const type = file.type || "";
   const name = (file.name || "").toLowerCase();
   if (type.startsWith("image/") || /\.(png|jpe?g|webp|svg|gif)$/.test(name))
-    return "text-green-500";
-  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-red-500";
+    return "text-success";
+  if (type === "application/pdf" || /\.pdf$/.test(name)) return "text-destructive";
   if (
     type ===
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
     /\.docx?$/.test(name)
   )
-    return "text-blue-500";
-  if (/\.zip$/.test(name) || type.includes("zip")) return "text-amber-500";
+    return "text-accent";
+  if (/\.zip$/.test(name) || type.includes("zip")) return "text-warning";
   return "text-muted-foreground";
 }
 
@@ -58,18 +57,18 @@ function formatFileSize(bytes) {
 }
 
 /**
- * FileUploadDropzone — Reusable drag & drop + browse file upload.
+ * FileUploadDropzone - Reusable drag & drop + browse file upload.
  *
  * Props:
- *   files       — array of File objects currently selected
- *   onFilesChange — callback(File[]) when files are added or removed
- *   disabled    — disable all interactions
- *   multiple    — allow multiple files (default true)
- *   accept      — accepted MIME types / extensions (default: PDF, DOCX, TXT, images, ZIP)
- *   maxFiles    — optional cap on total files
- *   error       — optional error message string (displays red border + text)
- *   label       — optional section label above the dropzone
- *   helperText  — optional description below the dropzone
+ *   files       - array of File objects currently selected
+ *   onFilesChange - callback(File[]) when files are added or removed
+ *   disabled    - disable all interactions
+ *   multiple    - allow multiple files (default true)
+ *   accept      - accepted MIME types / extensions (default: PDF, DOCX, TXT, images, ZIP)
+ *   maxFiles    - optional cap on total files
+ *   error       - optional error message string (displays red border + text)
+ *   label       - optional section label above the dropzone
+ *   helperText  - optional description below the dropzone
  */
 export function FileUploadDropzone({
   files = [],
@@ -83,6 +82,7 @@ export function FileUploadDropzone({
   helperText,
 }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [sizeError, setSizeError] = useState("");
   const dragCounter = useRef(0);
   const fileInputRef = useRef(null);
 
@@ -97,7 +97,6 @@ export function FileUploadDropzone({
   const canAddMore =
     !maxFiles || files.length < maxFiles;
 
-  // ── Drag handlers ──
   const handleDragEnter = useCallback(
     (e) => {
       e.preventDefault();
@@ -134,6 +133,12 @@ export function FileUploadDropzone({
 
       const droppedFiles = Array.from(e.dataTransfer.files || []);
       if (droppedFiles.length === 0) return;
+      const validation = validateUploadFiles(droppedFiles);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        return;
+      }
+      setSizeError("");
 
       if (multiple) {
         const combined = [...files, ...droppedFiles];
@@ -145,7 +150,6 @@ export function FileUploadDropzone({
     [disabled, canAddMore, files, multiple, maxFiles, onFilesChange],
   );
 
-  // ── Browse ──
   const handleBrowse = useCallback(() => {
     fileInputRef.current?.click();
   }, []);
@@ -154,6 +158,13 @@ export function FileUploadDropzone({
     (e) => {
       const selected = Array.from(e.target.files || []);
       if (selected.length === 0) return;
+      const validation = validateUploadFiles(selected);
+      if (!validation.valid) {
+        setSizeError(getFileSizeErrorMessage(validation.oversized[0]));
+        e.target.value = "";
+        return;
+      }
+      setSizeError("");
 
       if (multiple) {
         const combined = [...files, ...selected];
@@ -168,7 +179,6 @@ export function FileUploadDropzone({
     [files, multiple, maxFiles, onFilesChange],
   );
 
-  // ── Remove ──
   const removeFile = useCallback(
     (index) => {
       onFilesChange(files.filter((_, i) => i !== index));
@@ -176,7 +186,6 @@ export function FileUploadDropzone({
     [files, onFilesChange],
   );
 
-  // ── Render ──
   const FileIcon = ({ file }) => {
     const Icon = getFileIcon(file);
     return <Icon className={`w-4 h-4 flex-shrink-0 ${getFileColor(file)}`} />;
@@ -202,7 +211,7 @@ export function FileUploadDropzone({
         disabled={disabled || !canAddMore}
       />
 
-      {/* Drop zone — hidden when file exists and maxFiles === 1 or !canAddMore */}
+      {/* Drop zone - hidden when file exists and maxFiles === 1 or !canAddMore */}
       {(files.length === 0 || (canAddMore && maxFiles !== 1)) && (
         <div
           onDragEnter={handleDragEnter}
@@ -223,15 +232,15 @@ export function FileUploadDropzone({
             ${disabled || !canAddMore ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
             ${isDragging
               ? "border-brand-primary bg-brand-primary-light/30"
-              : error
-                ? "border-red-300 bg-red-50/20"
+              : error || sizeError
+                ? "border-destructive/35 bg-destructive-light"
                 : "border-input hover:border-brand-primary/50 hover:bg-secondary/60"
             }
           `}
         >
           <Upload
             className={`w-8 h-8 mx-auto mb-2 ${
-              isDragging ? "text-brand-primary" : error ? "text-red-300" : "text-muted-foreground/60"
+              isDragging ? "text-brand-primary" : error || sizeError ? "text-destructive/55" : "text-muted-foreground/60"
             }`}
           />
           <p className="text-sm font-semibold text-foreground/80">
@@ -245,7 +254,7 @@ export function FileUploadDropzone({
               handleBrowse();
             }}
             disabled={disabled || !canAddMore}
-            className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-[14px] text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+            className="mt-2 h-10 min-h-10 px-4 bg-card border border-input rounded-lg text-sm font-semibold text-foreground/80 hover:bg-secondary/60 transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
           >
             <Upload className="w-3.5 h-3.5" />
             Browse Files
@@ -254,15 +263,15 @@ export function FileUploadDropzone({
       )}
 
       {/* Error message */}
-      {error && (
-        <p className="flex items-center gap-1.5 text-xs text-red-500">
+      {(error || sizeError) && (
+        <p className="flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="w-3.5 h-3.5" />
-          {error}
+          {error || sizeError}
         </p>
       )}
 
       {/* Helper text */}
-      {helperText && !error && (
+      {helperText && !error && !sizeError && (
         <p className="text-xs text-muted-foreground">{helperText}</p>
       )}
 
@@ -291,7 +300,7 @@ export function FileUploadDropzone({
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="w-7 h-7 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
+                  className="w-7 h-7 text-muted-foreground hover:text-destructive hover:bg-destructive-light rounded-[8px] transition-colors inline-flex items-center justify-center flex-shrink-0 ml-2"
                   title="Remove file"
                 >
                   <X className="w-3.5 h-3.5" />

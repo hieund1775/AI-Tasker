@@ -1,7 +1,7 @@
-// =============================================================================
-// CollaborationIllustration — Client ↔ Expert collaboration visual.
+﻿// =============================================================================
+// CollaborationIllustration - Client to Expert collaboration visual.
 // Shows two avatar cards connected by bridge with project icon.
-// Props: size — "sm" (200x120) | "md" (320x180)
+// Props: size - "sm" (200x120) | "md" (320x180)
 // =============================================================================
 
 const SIZES = {
@@ -46,7 +46,7 @@ export function CollaborationIllustration({ size = "md", className = "" }) {
           strokeWidth="1.2"
         />
         <text x="0" y="1" textAnchor="middle" dominantBaseline="middle" fontSize="10" fill="var(--accent)">
-          ◈
+          *
         </text>
       </g>
 
@@ -89,7 +89,7 @@ export function CollaborationIllustration({ size = "md", className = "" }) {
         {/* Person icon */}
         <text x="0" y={-s.cardH * 0.43} textAnchor="middle" dominantBaseline="middle"
           fontSize={s.cardW * 0.22} fill="var(--primary)" opacity="0.6">
-          👤
+          User
         </text>
         <text x="0" y={-s.cardH * 0.12} textAnchor="middle" fontSize={s.cardW * 0.14}
           fill="var(--foreground)" fontWeight="600">Client</text>
@@ -113,7 +113,7 @@ export function CollaborationIllustration({ size = "md", className = "" }) {
         {/* Star/sparkle icon */}
         <text x="0" y={-s.cardH * 0.43} textAnchor="middle" dominantBaseline="middle"
           fontSize={s.cardW * 0.22} fill="var(--accent)">
-          ✦
+          *
         </text>
         <text x="0" y={-s.cardH * 0.12} textAnchor="middle" fontSize={s.cardW * 0.14}
           fill="var(--foreground)" fontWeight="600">Expert</text>

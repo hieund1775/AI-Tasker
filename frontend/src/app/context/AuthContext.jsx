@@ -52,6 +52,48 @@ function decodeJwtPayload(token) {
   }
 }
 
+const CLAIM_USER_ID = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier";
+const CLAIM_ROLE = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
+const CLAIM_EMAIL = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress";
+const CLAIM_NAME = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name";
+
+function getJwtUserId(payload) {
+  return payload?.sub || payload?.nameid || payload?.[CLAIM_USER_ID] || "";
+}
+
+function getJwtRole(payload) {
+  const role = payload?.role || payload?.[CLAIM_ROLE] || "";
+  return role ? String(role).toLowerCase() : "";
+}
+
+function getJwtEmail(payload) {
+  return payload?.email || payload?.[CLAIM_EMAIL] || "";
+}
+
+function getJwtName(payload) {
+  return payload?.name || payload?.[CLAIM_NAME] || "";
+}
+
+function hasTextValue(value) {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return text.length > 0 && !["not updated", "no introduction yet"].includes(text.toLowerCase());
+}
+
+function isExpertProfileComplete(userDetails) {
+  const profile = userDetails?.expertProfile || userDetails?.ExpertProfile;
+  if (!profile) return false;
+
+  const skills = profile.skills || profile.Skills || [];
+  return (
+    hasTextValue(profile.jobTitle || profile.JobTitle) &&
+    hasTextValue(profile.major || profile.Major || profile.specialization || profile.Specialization) &&
+    hasTextValue(profile.bio || profile.Bio) &&
+    Array.isArray(skills) &&
+    skills.length > 0
+  );
+}
+
 
 const TOKEN_STORAGE_KEY = "aitasker_auth_token";
 const USER_STORAGE_KEY = "aitasker_user_info";
@@ -139,10 +181,14 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  useEffect(() => {
+  const restoreSession = useCallback(() => {
     try {
-      const storedToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
-      const storedUser = sessionStorage.getItem(USER_STORAGE_KEY);
+      const storedToken =
+        sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+        sessionStorage.getItem("token");
+      const storedUser =
+        sessionStorage.getItem(USER_STORAGE_KEY) ||
+        sessionStorage.getItem("user");
 
       if (!storedToken) {
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
@@ -152,6 +198,8 @@ export function AuthProvider({ children }) {
       if (!payload) {
         sessionStorage.removeItem(TOKEN_STORAGE_KEY);
         sessionStorage.removeItem(USER_STORAGE_KEY);
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
         dispatch({ type: AUTH_ACTIONS.LOGOUT });
         return;
       }
@@ -160,15 +208,17 @@ export function AuthProvider({ children }) {
         user = JSON.parse(storedUser);
         if (user) {
           const rawRole = user.role || user.Role || "";
-          user.role = rawRole ? rawRole.toLowerCase() : "client";
-          user.id = user.id || user.Id || "";
+          const tokenRole = getJwtRole(payload);
+          const tokenUserId = getJwtUserId(payload);
+          user.role = tokenRole || (rawRole ? rawRole.toLowerCase() : "client");
+          user.id = tokenUserId || user.id || user.Id || "";
         }
       } else {
         user = {
-          id: payload.sub,
-          email: payload.email,
-          name: payload.name,
-          role: payload.role ? payload.role.toLowerCase() : "client",
+          id: getJwtUserId(payload),
+          email: getJwtEmail(payload),
+          name: getJwtName(payload),
+          role: getJwtRole(payload) || "client",
           hasProfile: true,
         };
       }
@@ -179,23 +229,45 @@ export function AuthProvider({ children }) {
     } catch {
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
   }, []);
 
   useEffect(() => {
+    restoreSession();
+  }, [restoreSession]);
+
+  useEffect(() => {
     function handleUnauthorized() {
       sessionStorage.removeItem(TOKEN_STORAGE_KEY);
       sessionStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
       dispatch({ type: AUTH_ACTIONS.LOGOUT });
     }
+
+    const handleStorageChange = (e) => {
+      // Ignore login tracking data updates so active tab session is preserved
+      if (e.key === "aitasker_user_logins") return;
+    };
+
     window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () =>
+    window.addEventListener("storage", handleStorageChange);
+    return () => {
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, []);
 
   const handleAuthSuccess = useCallback((token, user, usingDemo = false) => {
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    try {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+    } catch (e) {}
+
     let finalUser = user;
     if (!finalUser) {
       const payload = decodeJwtPayload(token);
@@ -207,10 +279,19 @@ export function AuthProvider({ children }) {
           role: payload.role ? payload.role.toLowerCase() : "client",
           hasProfile: true,
         };
-    } else if (finalUser && finalUser.role) {
-      finalUser.role = finalUser.role.toLowerCase();
+    } else if (finalUser) {
+      const payload = decodeJwtPayload(token);
+      const tokenRole = getJwtRole(payload);
+      const tokenUserId = getJwtUserId(payload);
+      if (tokenRole) finalUser.role = tokenRole;
+      else if (finalUser.role) finalUser.role = finalUser.role.toLowerCase();
+      if (tokenUserId) finalUser.id = tokenUserId;
     }
-    sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+    try {
+      sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(finalUser));
+      window.dispatchEvent(new Event("aitasker_auth_sync"));
+    } catch (e) {}
+
     dispatch({
       type: AUTH_ACTIONS.LOGIN_SUCCESS,
       payload: { token, user: finalUser, usingDemo },
@@ -222,7 +303,7 @@ export function AuthProvider({ children }) {
     async (email, password) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       // -------------------------------------------------------------------
-      // REAL API MODE — call backend, no demo fallback
+      // REAL API MODE - call backend, no demo fallback
       // -------------------------------------------------------------------
       try {
         const response = await apiLogin(email, password);
@@ -236,7 +317,7 @@ export function AuthProvider({ children }) {
         if (normalizedRole === "expert" && userId) {
           try {
             const userDetails = await api.users.getById(userId);
-            hasCompletedProfile = !!(userDetails && userDetails.expertProfile);
+            hasCompletedProfile = isExpertProfileComplete(userDetails);
           } catch (_err) {
             hasCompletedProfile = false;
           }
@@ -292,7 +373,10 @@ export function AuthProvider({ children }) {
       try {
         await api.auth.completeProfile(state.user?.id, profileData);
         const updatedUser = { ...state.user, hasProfile: true };
-        sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+        try {
+          sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+          window.dispatchEvent(new Event("aitasker_auth_sync"));
+        } catch (e) {}
         dispatch({
           type: AUTH_ACTIONS.LOGIN_SUCCESS,
           payload: {
@@ -310,8 +394,13 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    sessionStorage.removeItem(USER_STORAGE_KEY);
+    try {
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      sessionStorage.removeItem(USER_STORAGE_KEY);
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      window.dispatchEvent(new Event("aitasker_auth_sync"));
+    } catch (e) {}
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
   }, []);
 
@@ -336,6 +425,42 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
-  return context;
+  if (context) return context;
+
+  // Safe fallback if called outside AuthProvider context or during hot reload
+  try {
+    const rawUser =
+      sessionStorage.getItem(USER_STORAGE_KEY) ||
+      sessionStorage.getItem("user");
+    const user = rawUser ? JSON.parse(rawUser) : null;
+    const token =
+      sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
+      sessionStorage.getItem("token") ||
+      null;
+    return {
+      user,
+      token,
+      isAuthenticated: !!user,
+      loading: false,
+      error: null,
+      login: async () => {},
+      logout: async () => {},
+      register: async () => {},
+      clearError: () => {},
+      completeExpertProfile: async () => {},
+    };
+  } catch (e) {
+    return {
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      loading: false,
+      error: null,
+      login: async () => {},
+      logout: async () => {},
+      register: async () => {},
+      clearError: () => {},
+      completeExpertProfile: async () => {},
+    };
+  }
 }

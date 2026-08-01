@@ -1,20 +1,17 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import {
   User,
-  MapPin,
-  Calendar,
   Edit,
   Briefcase,
   CheckCircle2,
   Clock,
-  BarChart3,
   FileText,
   ArrowLeft,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
-import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 /**
  * Resolve the client user from auth. Returns the auth user directly.
@@ -48,15 +45,6 @@ export function ClientProfile() {
         ]);
 
         if (!cancelled && apiUser) {
-          let profile = {};
-          try {
-            profile = JSON.parse(apiUser.status);
-          } catch (e) {
-            profile = {
-              bio: apiUser.status || "",
-            };
-          }
-
           const clientJobs = Array.isArray(allJobPosts) ? allJobPosts.filter(j => j.clientId === targetId) : [];
           
           let proposalsCount = 0;
@@ -69,27 +57,13 @@ export function ClientProfile() {
             console.error("Failed to load proposals for client stats:", err);
           }
 
-          const c = {
-            fullName: apiUser.fullName || apiUser.name || apiUser.email?.split("@")[0] || "User",
-            email: apiUser.email,
-            createdAt: apiUser.createdAt,
-            profile: {
-              company: profile.companyName || "",
-              phone: profile.phone || "",
-              location: profile.location || "",
-              website: profile.website || "",
-              industry: profile.industry || "",
-              bio: profile.bio || "",
-            }
-          };
+          const c = buildClientProfileFromUser(apiUser);
           setClient(c);
 
           const posted = clientJobs.length;
-          const active = clientProjects.filter(p => p.status?.toLowerCase() === "inprogress").length;
-          const completed = clientProjects.filter(p => p.status?.toLowerCase() === "completed").length;
-          const totalSpent = clientProjects.reduce((sum, p) => sum + (p.escrowBalance || 0), 0);
-
-          setStats({ posted, active, completed, proposals: proposalsCount, totalSpent });
+          const active = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "inprogress").length;
+          const completed = clientProjects.filter(p => String(p.status || "").toLowerCase().replace(/[\s_-]+/g, "") === "completed").length;
+          setStats({ posted, active, completed, proposals: proposalsCount });
         }
       } catch (err) {
         console.error("Failed to load client profile details:", err);
@@ -135,7 +109,7 @@ export function ClientProfile() {
           {isOwnProfile && (
             <Link
               to="/client/profile/edit"
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2"
             >
               <Edit className="w-4 h-4" /> Edit Profile
             </Link>
@@ -174,19 +148,16 @@ export function ClientProfile() {
           <ArrowLeft className="w-4 h-4" /> {backLink.label}
         </Link>
       )}
-      {/* ── Profile header card ── */}
+      {/* Profile header */}
       <div className="bg-card rounded-2xl border border-border shadow-sm p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-brand-primary-light rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-brand-primary">{initials}</span>
+              <span className="text-xl font-semibold text-brand-primary">{initials}</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
-              {client.profile?.company && (
-                <p className="text-secondary-foreground font-medium">{client.profile.company}</p>
-              )}
+              <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
               <p className="text-muted-foreground text-base">{client.email}</p>
             </div>
           </div>
@@ -194,25 +165,16 @@ export function ClientProfile() {
           {isOwnProfile && (
             <Link
               to="/client/profile/edit"
-              className="h-11 px-5 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+              className="h-10 px-4 border border-input rounded-xl hover:bg-secondary text-[15px] font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
             >
               <Edit className="w-4 h-4" /> Edit Profile
             </Link>
           )}
         </div>
 
-        {/* ── Profile Information ── */}
+        {/* Profile information */}
         <div className="mt-8 pt-8 border-t border-border-light space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Starred Fields */}
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Company Name *</span>
-              <span className="text-sm text-foreground font-semibold">{client.profile?.company || ""}</span>
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contact Person *</span>
-              <span className="text-sm text-foreground font-semibold">{displayName || ""}</span>
-            </div>
             <div>
               <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Email Address *</span>
               <span className="text-sm text-foreground font-semibold">{client.email || ""}</span>
@@ -222,48 +184,12 @@ export function ClientProfile() {
               <span className="text-sm text-foreground font-semibold">{client.profile?.phone || ""}</span>
             </div>
           </div>
-
-          <div className="border-t border-border-light pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Optional Fields */}
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Location</span>
-              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.location || ""}</span>
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Website</span>
-              {client.profile?.website ? (
-                <a
-                  href={client.profile.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-brand-primary hover:underline font-semibold"
-                >
-                  {client.profile.website}
-                </a>
-              ) : (
-                <span className="text-sm text-secondary-foreground font-medium"></span>
-              )}
-            </div>
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">Industry</span>
-              <span className="text-sm text-secondary-foreground font-medium">{client.profile?.industry || ""}</span>
-            </div>
-          </div>
-
-          <div className="border-t border-border-light pt-6">
-            <div>
-              <span className="block text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bio / About</span>
-              <p className="text-base text-foreground leading-relaxed min-h-[40px] whitespace-pre-wrap">
-                {client.profile?.bio || ""}
-              </p>
-            </div>
-          </div>
         </div>
       </div>
 
-      {/* ── Statistics cards ── */}
+      {/* Statistics cards */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             {
               label: "Projects Posted",
@@ -289,12 +215,6 @@ export function ClientProfile() {
               icon: FileText,
               color: "text-chart-4 bg-muted",
             },
-            {
-              label: "Total Spent",
-              value: <MoneyDisplay amount={stats.totalSpent} />,
-              icon: BarChart3,
-              color: "text-brand-green bg-success-light",
-            },
           ].map((stat, i) => (
             <div
               key={i}
@@ -308,7 +228,7 @@ export function ClientProfile() {
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
                 {stat.label}
               </p>
-              <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+              <p className="text-xl font-semibold text-foreground mt-0.5">{stat.value}</p>
             </div>
           ))}
         </div>

@@ -129,12 +129,15 @@ public class InteractionService : IInteractionService
 
                     if (fee > 0)
                     {
-                        var systemWallet = await _context.SystemWallets.FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
-                        if (systemWallet != null)
+                        var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+                        var ownerFeeWallet = await _context.SystemWallets.FirstOrDefaultAsync(w => w.Id == ownerFeeWalletId);
+                        if (ownerFeeWallet == null)
                         {
-                            systemWallet.TotalBalance += fee;
-                            systemWallet.UpdatedAt = DateTime.UtcNow;
+                            ownerFeeWallet = new SystemWallet { Id = ownerFeeWalletId, TotalBalance = 0m, UpdatedAt = DateTime.UtcNow };
+                            _context.SystemWallets.Add(ownerFeeWallet);
                         }
+                        ownerFeeWallet.TotalBalance += fee;
+                        ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
 
                         _context.SystemTransactionLogs.Add(new SystemTransactionLog
                         {

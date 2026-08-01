@@ -31,6 +31,7 @@ import { EmptyState } from "../../components/shared/EmptyState.jsx";
 import { getDeadlineStatusClass } from "../../lib/projectStatusConfig.js";
 import { getDeadlineInfo } from "../../lib/projectTimelineStore.js";
 import { getTaskDeadlineInfo, isTaskOverdue } from "../../lib/taskDeadlineUtils.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { cn } from "../../lib/utils.js";
 import { safeArray, safeDateFormat, safeDateTimeFormat } from "../../lib/safety.js";
 import { toast } from "sonner";
@@ -47,7 +48,6 @@ import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
 import { BackButton } from "../../components/shared/BackButton.jsx";
 
-// ── Helper to parse productFile (supports JSON format { url, name, size } or legacy plain text) ──
 function resolveProductFile(productFile) {
   if (!productFile) return null;
   if (typeof productFile === "object" && (productFile.url || productFile.path)) {
@@ -97,7 +97,7 @@ async function downloadFileBlob(rawUrl, fileName) {
 }
 
 // =============================================================================
-// TaskDetailPage — dedicated task detail page for both client and expert.
+// TaskDetailPage - dedicated task detail page for both client and expert.
 //
 // Route: /client/projects/:projectId/tasks/:taskId
 //        /expert/projects/:projectId/tasks/:taskId
@@ -160,6 +160,7 @@ export default function TaskDetailPage() {
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
   const [productFileObject, setProductFileObject] = useState(null);
+  const [productFileError, setProductFileError] = useState("");
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
 
   // Client view product modal state
@@ -176,7 +177,7 @@ export default function TaskDetailPage() {
   const safeTasks = safeArray(tasks);
   const task = safeTasks.find((t) => t.id === taskId);
 
-  // Derived miniTasks — declared early because handlers below reference it
+  // Derived miniTasks - declared early because handlers below reference it
   const miniTasks = safeArray(task?.miniTasks);
 
   // ---- Evidence submission handler ----
@@ -190,17 +191,20 @@ export default function TaskDetailPage() {
       });
       if (success) {
         toast.success("Handover evidence submitted! Task is now Checklist Completed.");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
+          replace: true,
+        });
       } else {
         toast.error("Failed to submit evidence.");
       }
       setShowEvidenceModal(false);
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
     } catch (err) {
       toast.error("Failed to submit evidence.");
     } finally {
       setEvidenceSubmitting(false);
     }
-  }, [taskId, handleSubmitHandoverEvidence]);
+  }, [taskId, role, projectId, navigate, handleSubmitHandoverEvidence]);
 
   // ---- Handlers ----
 
@@ -234,8 +238,9 @@ export default function TaskDetailPage() {
       }
       const success = await handleSubmitProduct(taskId, productLinkInput.trim(), productFileValue);
       if (success) {
-        toast.success("Product submitted successfully!");
+        toast.success("Deliverables submitted successfully.");
         setShowProductModal(false);
+        setProductFileError("");
 
         notifyTaskSubmittedForReview({
           clientUserId: project?.clientId || project?.ClientId || client?.id,
@@ -271,7 +276,7 @@ export default function TaskDetailPage() {
           taskId,
         }).catch(() => { });
         // Redirect back to project progress
-        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
           replace: true,
         });
       } else {
@@ -309,6 +314,26 @@ export default function TaskDetailPage() {
     }
   }, [taskId, projectId, handleApproveTask, project, client, task]);
 
+  const handleQuickAcceptClick = useCallback(async () => {
+    setApproveLoading(true);
+    try {
+      const success = await handleQuickAccept(taskId);
+      if (success) {
+        toast.success("Task accepted! (Quick Accept)");
+        window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
+          replace: true,
+        });
+      } else {
+        toast.error("Failed to accept task.");
+      }
+    } catch (err) {
+      toast.error("Failed to accept task.");
+    } finally {
+      setApproveLoading(false);
+    }
+  }, [taskId, role, projectId, navigate, handleQuickAccept]);
+
   const handleRevisionClick = useCallback(async () => {
     if (!revisionFeedback.trim()) {
       toast.error("Please provide feedback for the revision request.");
@@ -332,7 +357,7 @@ export default function TaskDetailPage() {
           projectId,
           taskId,
         }).catch(() => { });
-        toast.success("Revision requested for selected mini tasks. Expert can now edit them.");
+        toast.success("Revision requested for selected mini-tasks. The expert can now edit them.");
       } else {
         await handleRequestRevision(taskId, revisionFeedback.trim());
         notifyTaskRevisionRequested({
@@ -363,7 +388,7 @@ export default function TaskDetailPage() {
     setReopenLoading(true);
     try {
       await handleRequestReopen(taskId);
-      toast.success("Reopen requested. Expert can now edit mini tasks.");
+      toast.success("Reopen requested. The expert can now edit mini-tasks.");
     } catch (err) {
       toast.error("Failed to request reopen.");
     } finally {
@@ -427,7 +452,7 @@ export default function TaskDetailPage() {
   const isDisputed = project?.status?.toLowerCase() === "disputed";
   const isProjectClosed = ["completed", "cancelled", "cancel_done", "stopped", "terminated"].includes((project?.status || "").toLowerCase());
 
-  // Deadline info for badge — use computed deadline from taskDeadlineUtils
+  // Deadline info for badge - use computed deadline from taskDeadlineUtils
   const taskDeadlineData = projectId ? getTaskDeadlineInfo(projectId, taskId, null) : null;
   const computedDeadline = taskDeadlineData?.deadline || task?.deadline;
   const deadlineInfo = computedDeadline ? getDeadlineInfo(computedDeadline) : null;
@@ -446,7 +471,7 @@ export default function TaskDetailPage() {
   // Client can request revision: task is waiting for approval
   const canRequestRevision = isClient && isWaitingForApproval && !isDisputed && !isProjectClosed;
 
-  // Client can request reopen when task is Done — DEPRECATED: completed tasks are now permanently locked
+  // Client can request reopen when task is Done - DEPRECATED: completed tasks are now permanently locked
   const canRequestReopen = false;
 
   // Client can request urgent submission: task is not Done, not waiting for approval, and overdue/close to deadline
@@ -454,7 +479,7 @@ export default function TaskDetailPage() {
   const canRequestUrgent = isClient && !isDone && !isWaitingForApproval && isOverdueOrClose && !isDisputed;
   const urgentAlreadySent = task?.urgentRequest === true;
 
-  // Task is locked (Done) — no modifications allowed
+  // Task is locked (Done) - no modifications allowed
   const isTaskLocked = isDone;
 
   // ---- Loading state ----
@@ -510,9 +535,9 @@ export default function TaskDetailPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen">
-      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-6">
-        Back to Project
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-screen space-y-6">
+      <BackButton fallback={`/${role}/projects/${projectId}`} className="mb-0">
+        Back to project
       </BackButton>
 
       <PageHeader
@@ -536,7 +561,7 @@ export default function TaskDetailPage() {
               </div>
             )}
             {isDone && (
-              <div className="px-4 py-2 bg-success/10 text-success rounded-lg text-sm font-medium flex items-center gap-2 border border-success/20">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success-light px-3 py-1.5 text-sm font-semibold text-success">
                 <Lock className="w-4 h-4" /> Task Completed
               </div>
             )}
@@ -545,50 +570,48 @@ export default function TaskDetailPage() {
         compact
       />
 
-      {/* Task stats row */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
-          <p className="font-semibold text-foreground text-sm">
-            {task.completedMiniTasks}/{task.totalMiniTasks} completed
-          </p>
-        </div>
-        <div className="bg-card rounded-xl border border-border p-3 text-center">
-          <p className="text-xs text-muted-foreground mb-0.5">Progress</p>
-          <p className="font-semibold text-foreground text-sm">{task.progress}%</p>
+      <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6">
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-center">
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-foreground">Task Progress</h3>
+            <div className="grid w-full grid-cols-2 gap-3">
+              <div className="rounded-xl border border-border bg-secondary/35 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Tasks</p>
+                <p className="font-semibold text-foreground text-sm">
+                  {task.completedMiniTasks}/{task.totalMiniTasks} completed
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-secondary/35 p-3 text-center">
+                <p className="text-xs text-muted-foreground mb-0.5">Progress</p>
+                <p className="font-semibold text-foreground text-sm">{task.progress}%</p>
+              </div>
+            </div>
+
+          </div>
+
+          <TaskAcceptanceStepper
+            displayStatus={displayStatus}
+            isWaitingForApproval={isWaitingForApproval}
+            isDone={isDone}
+            hasMainProduct={hasMainProduct}
+            task={task}
+          />
         </div>
       </div>
-
-      {/* Progress bar */}
-      <div className="w-full bg-secondary h-2 rounded-full overflow-hidden mb-6">
-        <div
-          className={cn("h-full rounded-full transition-all duration-500", task.progress > 0 ? "bg-brand-primary" : "bg-muted")}
-          style={{ width: `${task.progress}%` }}
-        />
-      </div>
-
-      {/* Task acceptance stepper */}
-      <TaskAcceptanceStepper
-        displayStatus={displayStatus}
-        isWaitingForApproval={isWaitingForApproval}
-        isDone={isDone}
-        hasMainProduct={hasMainProduct}
-        task={task}
-      />
 
       {/* Deliverables Panel */}
       {hasMainProduct && (
-        <div className="bg-card rounded-xl border border-border p-4 mb-6 text-left shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-4 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            <h3 className="text-xs font-bold text-foreground/85 font-sans uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-foreground/85 font-sans uppercase tracking-wider">
               Submitted Deliverables
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {task.productLink && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Product Link</span>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product link</span>
                 <a
                   href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                   target="_blank"
@@ -602,7 +625,7 @@ export default function TaskDetailPage() {
             )}
             {task.productFile && (
               <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border/80 text-left">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase font-sans">Attached File</span>
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Attached File</span>
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <span className="text-xs text-foreground/80 font-mono truncate">
                     {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
@@ -638,23 +661,23 @@ export default function TaskDetailPage() {
 
       {/* Status info banner */}
       {isReopenRequested && (
-        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-warning">
-              Reopen Requested
+              Reopen requested
             </p>
             <p className="text-xs text-warning mt-1">
               {isExpert
-                ? "The client has requested changes. You can now edit the mini tasks and confirm them again."
-                : "You have requested a revision. The expert can now edit the mini tasks."}
+                ? "The client has requested changes. You can now edit the mini-tasks and confirm them again."
+                : "You have requested a revision. The expert can now edit the mini-tasks."}
             </p>
           </div>
         </div>
       )}
 
       {isNeedsRevision && (
-        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-warning-light border border-warning/20 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-warning">
@@ -668,11 +691,11 @@ export default function TaskDetailPage() {
       )}
 
       {isExpert && isWaitingForApproval && task?.urgentRequest !== true && (
-        <div className="bg-accent-light border border-accent/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-accent-light border border-accent/20 rounded-lg p-4 flex items-start gap-3">
           <Clock3 className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-accent">
-              Waiting for Client Approval
+              Waiting for client approval
             </p>
             <p className="text-xs text-accent mt-1">
               You have submitted this task for client review. The client will approve or request changes.
@@ -683,11 +706,11 @@ export default function TaskDetailPage() {
 
       {/* Urgent request banner (Expert sees this) */}
       {isExpert && task?.urgentRequest === true && (
-        <div className="bg-destructive-light border border-destructive/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-destructive-light border border-destructive/20 rounded-lg p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-destructive">
-              Urgent Request
+              Urgent request
             </p>
             <p className="text-xs text-destructive mt-1">
               Client is requesting product urgently. Please submit deliverables to proceed.
@@ -707,11 +730,11 @@ export default function TaskDetailPage() {
       )}
 
       {isTaskLocked && (
-        <div className="bg-success-light border border-success/20 rounded-lg p-4 mb-6 flex items-start gap-3">
+        <div className="bg-success-light border border-success/20 rounded-lg p-4 flex items-start gap-3">
           <Lock className="w-5 h-5 text-success flex-shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-success">
-              Task Completed — Locked
+              Task completed - locked
             </p>
             <p className="text-xs text-success/80 mt-1">
               This task has been approved and is now locked. No further modifications can be made.
@@ -722,10 +745,10 @@ export default function TaskDetailPage() {
 
       {/* Revision request modal (Provide Revision Reason directly) */}
       {showRevisionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-bold text-foreground mb-2">
-              Provide Revision Reason
+            <h3 className="text-lg font-semibold text-foreground mb-2">
+              Provide revision reason
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
               Describe what needs to be changed. This will be shown to the expert.
@@ -763,7 +786,7 @@ export default function TaskDetailPage() {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Submit Revision Request
+                    Submit revision request
                   </>
                 )}
               </button>
@@ -772,8 +795,8 @@ export default function TaskDetailPage() {
         </div>
       )}
 
-      {/* Mini tasks section */}
-      <div className="bg-card rounded-lg border border-border p-6 mb-8 space-y-4">
+      {/* Mini-tasks section */}
+      <div className="bg-card rounded-lg border border-border p-6 space-y-4">
         <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Task: {task?.title}</h2>
@@ -785,7 +808,7 @@ export default function TaskDetailPage() {
           </div>
         </div>
 
-        {/* Mini task checklist */}
+        {/* Mini-task checklist */}
         <MiniTaskChecklist
           miniTasks={miniTasks}
           editable={canToggleMiniTasks}
@@ -795,25 +818,24 @@ export default function TaskDetailPage() {
           compact={false}
         />
 
-        {/* Client: No mini tasks message */}
+        {/* Client: No mini-tasks message */}
         {isClient && !hasMiniTasks && (
           <div className="py-4 text-center">
             <p className="text-sm text-muted-foreground italic">
-              Mini tasks will be generated from the accepted proposal.
+              Mini-tasks will be generated from the accepted proposal.
             </p>
           </div>
         )}
 
-        {/* Expert: No mini tasks message */}
+        {/* Expert: No mini-tasks message */}
         {isExpert && !hasMiniTasks && (
           <div className="py-4 text-center">
             <p className="text-sm text-muted-foreground italic">
-              Mini tasks are generated from the accepted proposal. Contact the client if tasks are missing.
+              Mini-tasks are generated from the accepted proposal. Contact the client if tasks are missing.
             </p>
           </div>
         )}
 
-        {/* ── Bottom action bar (Submit Product / Approve / Request Product / View Product) ── */}
         {((isExpert && !isDone) || isClient) && (
           <div className="pt-4 border-t border-border">
             {/* Expert actions: Submit Evidence / Submit Product */}
@@ -824,7 +846,6 @@ export default function TaskDetailPage() {
                     <Button
                       variant="default"
                       size="default"
-                      fullWidth
                       disabled={isWaitingForApproval}
                       onClick={() => {
                         setProductLinkInput(task.productLink || "");
@@ -832,7 +853,7 @@ export default function TaskDetailPage() {
                         setProductFileObject(null);
                         setShowProductModal(true);
                       }}
-                      className="flex-1 bg-amber-500 text-white hover:bg-amber-600 font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="mx-auto w-fit min-w-0 border border-brand-primary/45 bg-brand-primary-light px-4 text-brand-primary shadow-sm hover:border-brand-primary hover:bg-brand-primary hover:text-brand-primary-foreground font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-5 h-5" />
                       {isWaitingForApproval ? "Waiting for Client approval" : "Submit Product"}
@@ -844,25 +865,25 @@ export default function TaskDetailPage() {
                       fullWidth
                       disabled={!allComplete || isWaitingForApproval || displayStatus === "Checklist Completed"}
                       onClick={() => setShowEvidenceModal(true)}
-                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      {allComplete && !task?.handoverEvidence ? "Submit Handover Evidence" : displayStatus === "Checklist Completed" ? "Evidence Submitted ✓" : "Complete Mini Tasks First"}
+                      {allComplete && !task?.handoverEvidence ? "Submit handover evidence" : displayStatus === "Checklist Completed" ? "Evidence submitted" : "Complete mini-tasks first"}
                     </Button>
                   )}
                 </div>
                 {!allComplete && task?.urgentRequest !== true && task?.productRequested !== true && task?.status !== "waiting_expert_product" && (
                   <p className="text-xs text-muted-foreground text-center">
-                    Complete 100% of Mini Tasks to unlock evidence submission.
+                    Complete 100% of mini-tasks to unlock evidence submission.
                   </p>
                 )}
                 {(task?.urgentRequest === true || task?.productRequested === true) && (
-                  <p className="text-xs text-red-500 font-semibold text-center animate-pulse">
+                  <p className="text-xs text-destructive font-semibold text-center animate-pulse">
                     Client has requested product delivery! Submit Product is now unlocked.
                   </p>
                 )}
                 {(task?.status === "waiting_expert_product" || displayStatus === "Waiting for Expert Product") && (
-                  <p className="text-xs text-amber-600 font-semibold text-center animate-pulse">
+                  <p className="text-xs text-warning font-semibold text-center animate-pulse">
                     Client requested revisions! Please submit updated deliverables above.
                   </p>
                 )}
@@ -880,24 +901,9 @@ export default function TaskDetailPage() {
                       size="default"
                       fullWidth
                       loading={approveLoading}
-                      onClick={async () => {
-                        setApproveLoading(true);
-                        try {
-                          const success = await handleQuickAccept(taskId);
-                          if (success) {
-                            toast.success("Task accepted! (Quick Accept)");
-                            window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-                          } else {
-                            toast.error("Failed to accept task.");
-                          }
-                        } catch (err) {
-                          toast.error("Failed to accept task.");
-                        } finally {
-                          setApproveLoading(false);
-                        }
-                      }}
+                      onClick={handleQuickAcceptClick}
                       icon={!approveLoading ? ThumbsUp : undefined}
-                      className="flex-1 cursor-pointer font-bold bg-brand-green hover:bg-brand-green/90 text-white border-brand-green"
+                      className="flex-1 cursor-pointer font-semibold bg-brand-green hover:bg-brand-green/90 text-primary-foreground border-brand-green"
                     >
                       {approveLoading ? "Processing..." : "Quick Accept"}
                     </Button>
@@ -923,7 +929,7 @@ export default function TaskDetailPage() {
                         }
                       }}
                       icon={!urgentLoading ? AlertTriangle : undefined}
-                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 cursor-pointer font-bold"
+                      className="flex-1 bg-warning-light hover:bg-warning text-primary-foreground border-warning cursor-pointer font-semibold"
                     >
                       {urgentLoading ? "Sending..." : "Request Product"}
                     </Button>
@@ -932,28 +938,28 @@ export default function TaskDetailPage() {
 
                 {/* 1b. Waiting for Expert Product: Show static wait message */}
                 {task.displayStatus === "Waiting for Expert Product" && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                    <p className="text-yellow-700 font-medium text-sm">
-                      ⏳ Waiting for Expert to submit product...
+                  <div className="bg-warning-light border border-warning/20 rounded-lg p-4 text-center">
+                    <p className="text-warning font-medium text-sm">
+                      Waiting for Expert to submit product...
                     </p>
                   </div>
                 )}
                 {((task.displayStatus === "Checklist Completed") || (isWaitingForApproval && !hasMainProduct)) && task.urgentRequest === true && (
-                  <div className="flex items-center justify-center p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-850 text-base font-semibold gap-2 shadow-sm font-sans">
-                    <Clock3 className="w-5 h-5 text-amber-600 animate-pulse" />
+                  <div className="flex items-center justify-center p-4 bg-warning-light border border-warning/20 rounded-2xl text-warning text-base font-semibold gap-2 shadow-sm font-sans">
+                    <Clock3 className="w-5 h-5 text-warning animate-pulse" />
                     Waiting for Expert submission...
                   </div>
                 )}
 
-                {/* 2. Waiting For Approval WITH deliverables: Render View Product */}
-                {isWaitingForApproval && hasMainProduct && (
-                  <div className="flex justify-end">
+                {/* 2. Deliverables submitted: ALWAYS Render View Product button */}
+                {hasMainProduct && (
+                  <div className="flex justify-end mt-2">
                     <Button
                       variant="default"
                       size="default"
                       fullWidth
                       onClick={() => setShowViewProductModalClient(true)}
-                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-11 rounded-lg cursor-pointer"
+                      className="flex-1 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center justify-center gap-2 h-10 rounded-lg cursor-pointer"
                     >
                       <FileText className="w-4 h-4" />
                       View Product
@@ -968,14 +974,14 @@ export default function TaskDetailPage() {
 
       {/* Urgent request confirmation modal */}
       {showUrgentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-start gap-3 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-destructive-light flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-foreground mb-1">
+                <h3 className="text-lg font-semibold text-foreground mb-1">
                   Send Urgent Request?
                 </h3>
                 <p className="text-sm text-muted-foreground">
@@ -1008,14 +1014,14 @@ export default function TaskDetailPage() {
 
       {/* Decline Feedbacks Panel */}
       {isNeedsRevision && task.declineReason && (
-        <div className="bg-red-50 border-2 border-red-300 rounded-xl p-5 mb-8 text-left shadow-sm">
+        <div className="bg-destructive-light border-2 border-destructive/35 rounded-xl p-5 text-left shadow-sm">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-            <h3 className="text-lg font-bold text-red-800">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <h3 className="text-lg font-semibold text-destructive">
               Decline Reason
             </h3>
           </div>
-          <p className="text-sm font-semibold text-red-700 leading-relaxed bg-card border border-red-200 rounded-lg p-4 font-sans">
+          <p className="text-sm font-semibold text-destructive leading-relaxed bg-card border border-destructive/20 rounded-lg p-4 font-sans">
             {task.declineReason}
           </p>
         </div>
@@ -1023,9 +1029,9 @@ export default function TaskDetailPage() {
 
       {/* Submit Product Modal */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/55">
           <div className="bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6 text-left">
-            <h3 className="text-lg font-bold text-foreground mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               Submit Deliverables
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
@@ -1034,7 +1040,7 @@ export default function TaskDetailPage() {
             <div className="space-y-4 mb-6">
               <div>
                 <label className="block text-sm font-semibold text-foreground/80 mb-1">
-                  Product Link
+                  Product link
                 </label>
                 <input
                   type="text"
@@ -1057,16 +1063,36 @@ export default function TaskDetailPage() {
                     type="file"
                     onChange={(e) => {
                       const file = e.target.files[0];
+                      if (file) {
+                        const validation = validateUploadFiles([file]);
+                        if (!validation.valid) {
+                          const message = getFileSizeErrorMessage(file);
+                          toast.error(message);
+                          setProductFileError(message);
+                          setProductFileObject(null);
+                          e.target.value = "";
+                          return;
+                        }
+                      }
+                      setProductFileError("");
                       setProductFileObject(file || null);
                     }}
                     className="hidden"
                   />
                 </label>
+                {productFileError && (
+                  <p className="mt-1.5 text-xs font-medium text-destructive">
+                    {productFileError}
+                  </p>
+                )}
                 {productFileObject && (
                   <button
                     type="button"
-                    onClick={() => setProductFileObject(null)}
-                    className="mt-1 text-xs text-red-500 hover:text-red-700 font-medium"
+                    onClick={() => {
+                      setProductFileObject(null);
+                      setProductFileError("");
+                    }}
+                    className="mt-1 text-xs text-destructive hover:text-destructive font-medium"
                   >
                     Remove file
                   </button>
@@ -1080,6 +1106,7 @@ export default function TaskDetailPage() {
                 onClick={() => {
                   setShowProductModal(false);
                   setProductFileObject(null);
+                  setProductFileError("");
                 }}
                 disabled={productSubmitLoading}
               >
@@ -1091,7 +1118,7 @@ export default function TaskDetailPage() {
                 onClick={handleProductSubmit}
                 loading={productSubmitLoading}
                 disabled={productSubmitLoading || (!productLinkInput.trim() && !productFileObject)}
-                className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-11 rounded-lg"
+                className="bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-semibold h-10 rounded-lg"
               >
                 {productSubmitLoading ? "Submitting..." : "Submit"}
               </Button>
@@ -1102,12 +1129,12 @@ export default function TaskDetailPage() {
 
       {/* Client View Product Modal */}
       {showViewProductModalClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-all">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-2xl overflow-hidden text-left">
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground font-sans">Deliverables for: {task?.title}</h3>
+                <h3 className="text-lg font-semibold text-foreground font-sans">Deliverables for: {task?.title}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-sans">Details of deliverables provided by the expert</p>
               </div>
               <button
@@ -1127,11 +1154,11 @@ export default function TaskDetailPage() {
                   <div className="space-y-4">
                     {(task?.productLink || task?.productFile) && (
                       <div className="p-4 bg-muted/40 rounded-xl border border-border/80 text-left space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
+                        <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider">Main Task Deliverables</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {task?.productLink && (
                             <div className="flex flex-col p-3 bg-secondary/60 rounded-xl border border-border text-left">
-                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Handover Product Link</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase font-sans">Handover product link</span>
                               <a
                                 href={task.productLink.startsWith("http") ? task.productLink : `https://${task.productLink}`}
                                 target="_blank"
@@ -1151,15 +1178,6 @@ export default function TaskDetailPage() {
                                   {(() => { const r = resolveProductFile(task.productFile); return r ? r.name : task.productFile; })()}
                                 </span>
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                  <a
-                                    href={(() => { const r = resolveProductFile(task.productFile); return r ? r.url : "#"; })()}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                    title="View file"
-                                  >
-                                    <ExternalLink className="w-4 h-4" />
-                                  </a>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -1181,17 +1199,17 @@ export default function TaskDetailPage() {
 
                     {task?.miniTasks?.some(mt => mt.productLink || mt.productFile) && (
                       <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
+                        <h4 className="text-xs font-semibold text-foreground/80 uppercase tracking-wider text-left">Mini-Task Deliverables</h4>
                         <div className="space-y-2">
                           {task.miniTasks
                             .filter(mt => mt.productLink || mt.productFile)
                             .map((mt, idx) => (
                               <div key={mt.id || idx} className="p-3.5 bg-muted/40 rounded-xl border border-border/80 text-left space-y-2">
-                                <p className="text-xs font-bold text-foreground">{mt.title}</p>
+                                <p className="text-xs font-semibold text-foreground">{mt.title}</p>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                   {mt.productLink && (
                                     <div className="flex flex-col p-2.5 bg-secondary/60 rounded-lg border border-border">
-                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product Link</span>
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase font-sans">Product link</span>
                                       <a
                                         href={mt.productLink.startsWith("http") ? mt.productLink : `https://${mt.productLink}`}
                                         target="_blank"
@@ -1211,15 +1229,6 @@ export default function TaskDetailPage() {
                                           {(() => { const r = resolveProductFile(mt.productFile); return r ? r.name : mt.productFile; })()}
                                         </span>
                                         <div className="flex items-center gap-1 flex-shrink-0">
-                                          <a
-                                            href={(() => { const r = resolveProductFile(mt.productFile); return r ? r.url : "#"; })()}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-1 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                            title="View file"
-                                          >
-                                            <ExternalLink className="w-3 h-3" />
-                                          </a>
                                           <button
                                             type="button"
                                             onClick={(e) => {
@@ -1253,7 +1262,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={handleDeclineFromModalClient}
-                    className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 font-bold rounded-xl text-sm transition-all border border-red-200/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                    className="px-5 py-2.5 bg-destructive-light hover:bg-destructive-light text-destructive font-medium rounded-lg text-sm transition-all border border-destructive/20/50 shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <X className="w-4 h-4" />
                     Decline
@@ -1261,7 +1270,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     onClick={handleApproveClick}
-                    className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
+                    className="px-5 py-2.5 bg-brand-green hover:bg-brand-green/90 text-primary-foreground font-medium rounded-lg text-sm transition-all shadow-sm flex items-center gap-1.5 cursor-pointer font-sans"
                   >
                     <Check className="w-4 h-4" />
                     Accept
@@ -1271,7 +1280,7 @@ export default function TaskDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowViewProductModalClient(false)}
-                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-bold rounded-xl text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
+                  className="px-5 py-2.5 bg-secondary hover:bg-muted text-foreground/80 font-medium rounded-lg text-sm transition-all border border-border shadow-sm font-sans cursor-pointer"
                 >
                   Close
                 </button>
@@ -1283,11 +1292,11 @@ export default function TaskDetailPage() {
 
       {/* Evidence Submission Modal (Expert) */}
       {showEvidenceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-card rounded-2xl border border-border shadow-2xl w-full max-w-md overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 bg-secondary/60 border-b border-border">
               <div>
-                <h3 className="text-lg font-bold text-foreground">Confirm Submission of Handover Evidence</h3>
+                <h3 className="text-lg font-semibold text-foreground">Confirm Submission of Handover Evidence</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Milestone: {task?.title}
                 </p>
@@ -1304,7 +1313,7 @@ export default function TaskDetailPage() {
                 <button
                   type="button"
                   onClick={() => setShowEvidenceModal(false)}
-                  className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-xl font-semibold text-sm cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-secondary hover:bg-muted rounded-lg font-medium text-sm cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1312,7 +1321,7 @@ export default function TaskDetailPage() {
                   type="button"
                   onClick={handleEvidenceSubmit}
                   disabled={evidenceSubmitting}
-                  className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-xl font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex-1 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover rounded-lg font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {evidenceSubmitting ? "Submitting..." : "Confirm & Send"}
                 </button>
@@ -1323,7 +1332,7 @@ export default function TaskDetailPage() {
       )}
 
       {/* Activity Timeline */}
-      <div className="bg-card rounded-lg border border-border p-6 mt-8">
+      <div className="bg-card rounded-lg border border-border p-6">
         <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Activity Timeline</h2>
@@ -1343,36 +1352,35 @@ export default function TaskDetailPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Task Acceptance Stepper — visual progress row
+// Task Acceptance Stepper - visual progress row
 // ---------------------------------------------------------------------------
 
 function TaskAcceptanceStepper({ displayStatus, isWaitingForApproval, isDone, hasMainProduct, task }) {
   const steps = [
-    { label: "MiniTasks Done", done: displayStatus === "Checklist Completed" || isWaitingForApproval || isDone, active: displayStatus !== "Checklist Completed" && !isWaitingForApproval && !isDone },
+    { label: "Mini-tasks done", done: displayStatus === "Checklist Completed" || isWaitingForApproval || isDone, active: displayStatus !== "Checklist Completed" && !isWaitingForApproval && !isDone },
     { label: "Evidence Submitted", done: displayStatus === "Checklist Completed" || isWaitingForApproval || isDone, active: false },
     { label: "Product Delivered", done: hasMainProduct || isDone, active: displayStatus === "Checklist Completed" && !hasMainProduct },
     { label: "Client Approved", done: isDone, active: isWaitingForApproval },
   ];
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm p-5 sm:p-6 mb-6">
-      <h3 className="text-sm font-semibold text-foreground/80 mb-4">Task Progress</h3>
-      <div className="flex flex-wrap items-center gap-0">
+    <div className="w-full">
+      <div className="flex w-full items-start">
         {steps.map((step, i) => (
-          <div key={step.label} className="flex items-center">
-            <div className="flex flex-col items-center">
+          <div key={step.label} className="flex min-w-0 flex-1 items-start last:flex-none">
+            <div className="flex w-20 shrink-0 flex-col items-center">
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step.done ? "bg-success text-white" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all ${step.done ? "bg-brand-primary text-brand-primary-foreground" : step.active ? "bg-brand-primary text-brand-primary-foreground ring-2 ring-brand-primary/30" : "bg-muted text-muted-foreground"
                   }`}
               >
-                {step.done ? "✓" : i + 1}
+                {step.done ? "Done" : i + 1}
               </div>
-              <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-success" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
+              <span className={`text-[10px] mt-1.5 font-medium max-w-[64px] text-center leading-tight ${step.done ? "text-brand-primary" : step.active ? "text-brand-primary font-semibold" : "text-muted-foreground"}`}>
                 {step.label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`w-8 sm:w-12 h-0.5 mx-1 mt-[-12px] transition-colors ${step.done ? "bg-success" : "bg-muted"}`} />
+              <div className={`h-0.5 min-w-8 flex-1 mt-4 transition-colors ${step.done ? "bg-brand-primary" : "bg-muted"}`} />
             )}
           </div>
         ))}

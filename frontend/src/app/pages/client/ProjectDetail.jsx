@@ -1,15 +1,14 @@
-// =============================================================================
-// ClientProjectDetail — Project detail page for Client role.
+﻿// =============================================================================
+// ClientProjectDetail - Project detail page for Client role.
 //
-// ⚠️  DEPRECATED — NOT in active routing.
 //     routes.jsx imports ProjectDetail from ClientProjectManagement.jsx,
 //     not this file. This file is dead code, kept for reference only.
 //     Active page: src/app/pages/client/ClientProjectManagement.jsx
 //
 // Features:
 //   - View project details
-//   - "Pay Project" button — pay full amount into escrow
-//   - "Complete & Accept" button — accept work, release payment to Expert
+//   - "Pay Project" button - pay full amount into escrow
+//   - "Complete & Accept" button - accept work, release payment to Expert
 //   - Dispute banner when project is Disputed
 //   - Read-only mode when project is Disputed
 // =============================================================================
@@ -36,7 +35,7 @@ export function ProjectDetail() {
   const { id } = useParams();
   const { user } = useAuth();
 
-  // Project data — loaded from API
+  // Project data - loaded from API
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -150,8 +149,8 @@ export function ProjectDetail() {
   // -----------------------------------------------------------------------
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 shadow-sm">
@@ -174,8 +173,8 @@ export function ProjectDetail() {
   // -----------------------------------------------------------------------
   if (error === "load_failed") {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -195,8 +194,8 @@ export function ProjectDetail() {
   // -----------------------------------------------------------------------
   if (error === "not_found" || !project) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/client/dashboard" className="mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/client/dashboard" className="mb-0">
           Back
         </BackButton>
         <div className="bg-card rounded-xl border border-border p-12 text-center shadow-sm">
@@ -222,17 +221,17 @@ export function ProjectDetail() {
   // Render
   // -----------------------------------------------------------------------
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/client/dashboard" className="mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/client/dashboard" className="mb-0">
         Back
       </BackButton>
 
       {/* ---- Dispute banner ---- */}
-      {isDisputed && <DisputeBanner className="mb-6" />}
+      {isDisputed && <DisputeBanner />}
 
       {/* ---- Project header ---- */}
-      <div className="bg-card rounded-xl border border-border p-8 shadow-sm mb-8">
-        <h1 className="text-2xl font-bold text-foreground mb-4">
+      <div className="bg-card rounded-xl border border-border p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-foreground mb-4">
           {project.title}
         </h1>
         <p className="text-muted-foreground mb-4">{project.description}</p>
@@ -255,7 +254,7 @@ export function ProjectDetail() {
 
         {/* ---- Escrow status indicator ---- */}
         {escrowPaid && !paymentReleased && (
-          <div className="mb-4 p-3 bg-brand-primary-light border border-blue-200 rounded-xl flex items-center gap-2">
+          <div className="mb-4 p-3 bg-brand-primary-light border border-accent/25 rounded-xl flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-brand-primary" />
             <div>
               <p className="text-sm font-medium text-brand-primary">
@@ -269,13 +268,13 @@ export function ProjectDetail() {
         )}
 
         {paymentReleased && (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600" />
+          <div className="mb-4 p-3 bg-success-light border border-success/20 rounded-xl flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-success" />
             <div>
-              <p className="text-sm font-medium text-green-700">
+              <p className="text-sm font-medium text-success">
                 Paid to Expert
               </p>
-              <p className="text-sm text-green-600">
+              <p className="text-sm text-success">
                 Project is complete and payment has been released.
               </p>
             </div>
@@ -289,19 +288,19 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowPayModal(true)}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <ShieldCheck className="w-4 h-4" />
               Pay Project
             </button>
           )}
 
-          {/* Already paid — disabled state */}
+          {/* Already paid - disabled state */}
           {escrowPaid && !paymentReleased && !isDisputed && (
             <button
               type="button"
               disabled
-              className="h-11 px-5 bg-muted/80 text-muted-foreground rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-10 px-4 bg-muted/80 text-muted-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <ShieldCheck className="w-4 h-4" />
               Funds Held / Project Active
@@ -313,7 +312,7 @@ export function ProjectDetail() {
             <button
               type="button"
               onClick={() => setShowAcceptModal(true)}
-              className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover font-semibold text-base inline-flex items-center gap-2 transition-colors"
             >
               <CheckCircle className="w-4 h-4" />
               Complete & Accept
@@ -325,7 +324,7 @@ export function ProjectDetail() {
             <button
               type="button"
               disabled
-              className="h-11 px-5 bg-muted/80 text-muted-foreground rounded-[14px] font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
+              className="h-10 px-4 bg-muted/80 text-muted-foreground rounded-lg font-semibold text-base inline-flex items-center gap-2 cursor-not-allowed"
             >
               <CheckCircle className="w-4 h-4" />
               Completed
@@ -337,7 +336,7 @@ export function ProjectDetail() {
       {/* ---- Timeline (hidden when disputed) ---- */}
       {isDisputed ? (
         <div className="bg-card rounded-xl border border-border p-8 shadow-sm text-center">
-          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <AlertTriangle className="w-10 h-10 text-warning mx-auto mb-3" />
           <p className="text-muted-foreground text-base">
             Project actions are temporarily locked during dispute resolution.
           </p>

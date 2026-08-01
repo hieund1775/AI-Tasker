@@ -1,24 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
-
-// ---------------------------------------------------------------------------
-// Helper: localStorage key for client profile (avoids clashing with BE Status column)
-// ---------------------------------------------------------------------------
-export const getClientProfileKey = (userId) => `aitasker_client_profile_${userId}`;
-
-export function getLocalClientProfile(userId) {
-  try {
-    const raw = localStorage.getItem(getClientProfileKey(userId));
-    return raw ? JSON.parse(raw) : {};
-  } catch { return {}; }
-}
-
-export function saveLocalClientProfile(userId, data) {
-  localStorage.setItem(getClientProfileKey(userId), JSON.stringify(data));
-}
+import { toast } from "sonner";
+import { getLocalClientProfile, saveLocalClientProfile } from "../../lib/clientProfileStorage.js";
 
 // ---------------------------------------------------------------------------
 // Component
@@ -31,10 +18,6 @@ export function EditClientProfile() {
     fullName: "",
     email: "",
     phone: "",
-    location: "",
-    website: "",
-    industry: "",
-    bio: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,18 +33,15 @@ export function EditClientProfile() {
           const apiData = {
             fullName: client.fullName || client.name || "",
             email: client.email || "",
+            phone: client.phoneNumber || client.PhoneNumber || "",
           };
           // Profile details from localStorage (phone, location, ...)
           const localProfile = getLocalClientProfile(authUser.id);
 
           setFormData({
             fullName: apiData.fullName,
-            email: apiData.email,
-            phone: localProfile.phone || "",
-            location: localProfile.location || "",
-            website: localProfile.website || "",
-            industry: localProfile.industry || "",
-            bio: localProfile.bio || "",
+            email: localProfile.email || apiData.email,
+            phone: localProfile.phone || apiData.phone,
           });
         }
       })
@@ -84,33 +64,31 @@ export function EditClientProfile() {
       // 1. Save fullName & email to API (safe, does not touch Status column)
       await api.users.update(authUser.id, {
         fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
+        phoneNumber: formData.phone.trim(),
       });
 
       // 2. Save remaining profile fields to localStorage
       saveLocalClientProfile(authUser.id, {
+        email: formData.email.trim(),
         phone: formData.phone.trim(),
-        location: formData.location.trim(),
-        website: formData.website.trim(),
-        industry: formData.industry.trim(),
-        bio: formData.bio.trim(),
       });
 
-      // 3. Update fullName in auth localStorage
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      // 3. Update current tab auth session only
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.fullName.trim();
+        u.fullName = formData.fullName.trim();
+        u.email = formData.email.trim();
+        u.phoneNumber = formData.phone.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
+        window.dispatchEvent(new Event("aitasker_auth_sync"));
       }
 
       navigate("/client/profile");
     } catch (err) {
       console.error("Failed to update profile:", err);
-      alert(err.message || "Failed to update profile. Please try again.");
+      toast.error(err.message || "Failed to update profile. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -134,13 +112,16 @@ export function EditClientProfile() {
 
   // ---- Render ----
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/client/profile" className="text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <h1 className="text-2xl font-bold text-foreground">Edit Profile</h1>
-      </div>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <PageHeader
+        title="Edit Profile"
+        subtitle="Update your client profile information."
+        actions={(
+          <Link to="/client/profile" className="text-muted-foreground hover:text-foreground" aria-label="Back to profile">
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
+        )}
+      />
 
       <form
         onSubmit={handleSubmit}
@@ -149,48 +130,35 @@ export function EditClientProfile() {
         {[
           { key: "fullName", label: "Full Name", type: "text", required: true },
           { key: "email", label: "Email Address", type: "email", required: true },
-          { key: "phone", label: "Phone Number", type: "tel", required: true },
-          { key: "location", label: "Location", type: "text" },
-          { key: "website", label: "Website", type: "url" },
-          { key: "industry", label: "Industry", type: "text" },
-        ].map(({ key, label, type, required }) => (
+          { key: "phone", label: "Phone Number", type: "tel", required: true, pattern: "^0[0-9]{9}$" },
+        ].map(({ key, label, type, required, pattern }) => (
           <div key={key}>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              {label} {required && <span className="text-red-500">*</span>}
+              {label} {required && <span className="text-destructive">*</span>}
             </label>
             <input
               type={type}
               value={formData[key]}
               onChange={(e) => handleChange(key, e.target.value)}
               required={required}
+              pattern={pattern}
+              title={key === "phone" ? "Use a 10-digit phone number that starts with 0." : undefined}
               className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
             />
           </div>
         ))}
 
-        <div>
-          <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Bio / About
-          </label>
-          <textarea
-            value={formData.bio}
-            onChange={(e) => handleChange("bio", e.target.value)}
-            rows={4}
-            className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
-          />
-        </div>
-
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+            className="h-10 px-4 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <Save className="w-4 h-4" /> {saving ? "Saving..." : "Save Changes"}
           </button>
           <Link
             to="/client/profile"
-            className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+            className="h-10 px-4 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
           >
             Cancel
           </Link>

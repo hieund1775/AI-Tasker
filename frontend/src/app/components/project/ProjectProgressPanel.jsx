@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import { ClipboardList } from "lucide-react";
 import { EmptyState } from "../shared/EmptyState.jsx";
 import { Skeleton } from "../ui/skeleton.jsx";
@@ -6,17 +6,46 @@ import { TaskProgressCard } from "./TaskProgressCard.jsx";
 import { ProjectTimelineIllustration } from "../shared/illustrations/ProjectTimelineIllustration.jsx";
 import { cn } from "../../lib/utils.js";
 
+function isTaskFinishedForOrdering(task) {
+  const status = String(task?.displayStatus || task?.status || "").toLowerCase();
+  return (
+    [
+      "done",
+      "completed",
+      "checklist completed",
+      "checklist_completed",
+      "waiting for approval",
+      "waiting_for_approval",
+      "pending approval",
+      "pending_approval",
+      "pending review",
+      "pending_review",
+    ].includes(status)
+  );
+}
+
+function orderTasksByCompletion(tasks) {
+  return tasks
+    .map((task, index) => ({ task, index }))
+    .sort((a, b) => {
+      const aFinished = isTaskFinishedForOrdering(a.task) ? 1 : 0;
+      const bFinished = isTaskFinishedForOrdering(b.task) ? 1 : 0;
+      return aFinished - bFinished || a.index - b.index;
+    })
+    .map(({ task }) => task);
+}
+
 // =============================================================================
-// ProjectProgressPanel — overall project progress section with task cards.
+// ProjectProgressPanel - overall project progress section with task cards.
 //
 // Props:
-//   tasks              — array of tasks with progress and status
-//   overallProgress   — 0-100 number
-//   role               — "client" | "expert"
-//   projectId          — parent project ID
-//   onToggleMiniTask   — (taskId, miniTaskId) => void
-//   focusTaskId        — string|null, task to scroll to
-//   loading            — boolean
+//   tasks              - array of tasks with progress and status
+//   overallProgress   - 0-100 number
+//   role               - "client" | "expert"
+//   projectId          - parent project ID
+//   onToggleMiniTask   - (taskId, miniTaskId) => void
+//   focusTaskId        - string|null, task to scroll to
+//   loading            - boolean
 // =============================================================================
 
 export function ProjectProgressPanel({
@@ -30,19 +59,29 @@ export function ProjectProgressPanel({
   project = null,
 }) {
   const taskRefs = useRef({});
+  const lastScrolledFocusTaskIdRef = useRef(null);
+  const orderedTasks = orderTasksByCompletion(tasks);
 
-  // Scroll to focused task when focusTaskId changes
+  // Scroll to focused task once when returning from a task action page.
+  // Do not depend on `tasks`; data refreshes after submit can otherwise pull
+  // the user back to the same task while they are scrolling to other tasks.
   useEffect(() => {
-    if (focusTaskId && taskRefs.current[focusTaskId]) {
-      const timer = setTimeout(() => {
-        taskRefs.current[focusTaskId]?.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [focusTaskId, tasks]);
+    if (!focusTaskId || lastScrolledFocusTaskIdRef.current === focusTaskId) return;
+    if (window.location.hash === "#project-progress") return;
+
+    const timer = setTimeout(() => {
+      const target = taskRefs.current[focusTaskId];
+      if (!target) return;
+
+      lastScrolledFocusTaskIdRef.current = focusTaskId;
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [focusTaskId]);
 
   if (loading) {
     return (
@@ -66,7 +105,7 @@ export function ProjectProgressPanel({
     );
   }
 
-  if (tasks.length === 0) {
+  if (orderedTasks.length === 0) {
     return (
       <EmptyState
         icon={ClipboardList}
@@ -78,32 +117,35 @@ export function ProjectProgressPanel({
     );
   }
 
-  const completedTasks = tasks.filter(
+  const completedTasks = orderedTasks.filter(
     (t) => t.displayStatus === "Done"
   ).length;
 
   return (
     <div className="bg-card rounded-xl border border-border p-6 space-y-6">
       {/* Overall progress header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4">
+      <div
+        id="project-progress"
+        className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-border pb-4 scroll-mt-28"
+      >
         <div>
           <h2 className="text-xl font-semibold text-foreground">Project Progress</h2>
           <p className="text-sm text-muted-foreground">
-            Progress is automatically calculated from completed Minitasks.
+            Progress is automatically calculated from completed mini-tasks.
           </p>
-          {tasks.length > 0 && (
+          {orderedTasks.length > 0 && (
             <p className="text-xs text-muted-foreground mt-1">
-              {completedTasks} of {tasks.length} tasks completed
+              {completedTasks} of {orderedTasks.length} tasks completed
             </p>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Overall</span>
-          <span className={`text-4xl font-bold font-mono tracking-tight ${overallProgress >= 100 ? "text-success" :
+        <div className="flex items-baseline gap-2 rounded-xl border border-border bg-secondary/35 px-3 py-2">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Overall</span>
+          <span className={`text-lg font-semibold font-mono leading-none tracking-tight ${overallProgress >= 100 ? "text-success" :
               overallProgress >= 50 ? "text-accent" :
                 "text-foreground"
             }`}>
-            {overallProgress}<span className="text-lg">%</span>
+            {overallProgress}<span className="text-xs">%</span>
           </span>
         </div>
       </div>
@@ -125,12 +167,12 @@ export function ProjectProgressPanel({
       {project?.useCases && project.useCases.length > 0 ? (
         <div className="space-y-6 pt-2">
           {project.useCases.map((uc, ucIdx) => {
-            const ucTasks = tasks.filter((t) => {
+            const ucTasks = orderTasksByCompletion(tasks.filter((t) => {
               if (t.useCaseId === uc.id) return true;
               const hasValidUseCase = project.useCases.some((item) => item.id === t.useCaseId);
               if (!hasValidUseCase && project.useCases[0]?.id === uc.id) return true;
               return false;
-            });
+            }));
 
             // Calculate Use Case progress based on child tasks' minitasks
             let totalMinis = 0;
@@ -151,10 +193,10 @@ export function ProjectProgressPanel({
                 <div className="p-4 bg-accent-light/35 border-b border-border flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold dark:bg-blue-900/40 dark:text-blue-300">
+                      <span className="px-2 py-0.5 bg-brand-primary-light text-brand-primary border border-brand-primary/20 rounded-full text-[10px] font-semibold">
                         Client Use Case
                       </span>
-                      <h4 className="font-bold text-foreground text-sm">
+                      <h4 className="font-semibold text-foreground text-sm">
                         {uc.title || uc.nameAndDeadline}
                       </h4>
                     </div>
@@ -166,8 +208,8 @@ export function ProjectProgressPanel({
                   {/* Use Case Milestone Progress & Duration */}
                   <div className="flex items-center gap-4 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground font-medium">Use Case Progress:</span>
-                      <span className="text-xs font-bold text-primary font-mono">{ucProgressPercent}%</span>
+                      <span className="text-xs text-muted-foreground font-medium">Use case progress:</span>
+                      <span className="text-xs font-semibold text-primary font-mono">{ucProgressPercent}%</span>
                       <div className="w-20 bg-secondary h-1.5 rounded-full overflow-hidden">
                         <div
                           className="bg-primary h-full rounded-full transition-all duration-500"
@@ -175,7 +217,7 @@ export function ProjectProgressPanel({
                         />
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full font-bold whitespace-nowrap">
+                    <span className="text-xs text-muted-foreground bg-secondary px-2.5 py-1 rounded-full font-semibold whitespace-nowrap">
                       {uc.originalDurationDays || 1} days
                     </span>
                   </div>
@@ -195,6 +237,7 @@ export function ProjectProgressPanel({
                           if (el) taskRefs.current[task.id] = el;
                         }}
                         id={task.id}
+                        className="scroll-mt-28"
                       >
                         <TaskProgressCard
                           task={task}
@@ -217,13 +260,14 @@ export function ProjectProgressPanel({
             Milestones ({tasks.length})
           </h3>
           <div className="space-y-4">
-            {tasks.map((task) => (
+            {orderedTasks.map((task) => (
               <div
                 key={task.id}
                 ref={(el) => {
                   if (el) taskRefs.current[task.id] = el;
                 }}
                 id={task.id}
+                className="scroll-mt-28"
               >
                 <TaskProgressCard
                   task={task}

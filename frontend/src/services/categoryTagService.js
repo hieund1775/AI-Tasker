@@ -1,17 +1,17 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Category-Tag Service
 // =============================================================================
 // Wraps the existing /api/category-tags endpoints for managing skills and
 // categories. Used by Admin/Owner management pages.
 //
 // Endpoints consumed:
-//   GET    /category-tags              — list all (skills + categories)
-//   GET    /category-tags/skills       — list all skills
-//   POST   /category-tags/skills       — create a skill
-//   DELETE /category-tags/skills/{id}  — delete a skill
-//   GET    /category-tags/categories   — list all categories
-//   POST   /category-tags/categories   — create a category
-//   DELETE /category-tags/categories/{id} — delete a category
+//   GET    /category-tags              - list all (skills + categories)
+//   GET    /category-tags/skills       - list all skills
+//   POST   /category-tags/skills       - create a skill
+//   DELETE /category-tags/skills/{id}  - delete a skill
+//   GET    /category-tags/categories   - list all categories
+//   POST   /category-tags/categories   - create a category
+//   DELETE /category-tags/categories/{id} - delete a category
 // =============================================================================
 
 import api from "./api.js";
@@ -28,13 +28,13 @@ const BASE = "/category-tags";
  */
 export async function getSkills() {
   const result = await api.get(`${BASE}/skills`);
-  // Normalize — backend may return array directly or { data: [...] }
+  // Normalize - backend may return array directly or { data: [...] }
   return Array.isArray(result) ? result : result?.data ?? [];
 }
 
 /**
  * Create a new skill.
- * @param {object} payload — { name: string }
+ * @param {object} payload - { name: string }
  * @returns {Promise<{id, name}>}
  */
 export async function createSkill(payload) {
@@ -65,7 +65,7 @@ export async function getCategories() {
 
 /**
  * Create a new category.
- * @param {object} payload — { name: string }
+ * @param {object} payload - { name: string }
  * @returns {Promise<{id, name}>}
  */
 export async function createCategory(payload) {

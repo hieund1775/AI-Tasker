@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminCategoryTags — Skills & Categories management page for Admin/Owner.
+﻿// =============================================================================
+// AdminCategoryTags - Skills & Categories management page for Admin/Owner.
 //
 // Uses existing /api/category-tags endpoints. Admin/Owner can:
 //   - View skills list with search
@@ -13,8 +13,9 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Trash2, Tag, FolderTree, Briefcase } from "lucide-react";
+import { Trash2, Tag, FolderTree, Briefcase } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import {
   getSkills,
@@ -29,7 +30,7 @@ import {
 } from "../../../services/categoryTagService.js";
 
 // ---------------------------------------------------------------------------
-// Error message helper — maps HTTP status codes to user-friendly messages
+// Error message helper - maps HTTP status codes to user-friendly messages
 // ---------------------------------------------------------------------------
 
 function errorMessage(err, action) {
@@ -38,13 +39,13 @@ function errorMessage(err, action) {
 
   switch (status) {
     case 400:
-      return `Invalid request — ${detail}`;
+      return `Invalid request - ${detail}`;
     case 403:
       return "You do not have permission to perform this action.";
     case 404:
       return "The item was not found. It may have already been deleted.";
     case 500:
-      return "Server error — please try again later.";
+      return "Server error - please try again later.";
     default:
       return `${action} failed: ${detail}`;
   }
@@ -71,7 +72,6 @@ export function AdminCategoryTags() {
   const [skills, setSkills] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
   const [skillsError, setSkillsError] = useState(null);
-  const [skillSearch, setSkillSearch] = useState("");
   const [newSkillName, setNewSkillName] = useState("");
   const [addingSkill, setAddingSkill] = useState(false);
 
@@ -79,7 +79,6 @@ export function AdminCategoryTags() {
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState(null);
-  const [categorySearch, setCategorySearch] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
 
@@ -87,7 +86,6 @@ export function AdminCategoryTags() {
   const [specializations, setSpecializations] = useState([]);
   const [specializationsLoading, setSpecializationsLoading] = useState(true);
   const [specializationsError, setSpecializationsError] = useState(null);
-  const [specializationSearch, setSpecializationSearch] = useState("");
   const [newSpecializationName, setNewSpecializationName] = useState("");
   const [selectedDomainId, setSelectedDomainId] = useState("");
   const [addingSpecialization, setAddingSpecialization] = useState(false);
@@ -98,7 +96,7 @@ export function AdminCategoryTags() {
   const [deleting, setDeleting] = useState(false);
 
   // -----------------------------------------------------------------------
-  // Toast helper — success variant (green)
+  // Toast helper - success variant (green)
   // -----------------------------------------------------------------------
   const showSuccess = useCallback((msg) => {
     setFeedback({ text: msg, type: "success" });
@@ -106,7 +104,7 @@ export function AdminCategoryTags() {
   }, []);
 
   // -----------------------------------------------------------------------
-  // Toast helper — error variant (red)
+  // Toast helper - error variant (red)
   // -----------------------------------------------------------------------
   const showError = useCallback((msg) => {
     setFeedback({ text: msg, type: "error" });
@@ -263,6 +261,7 @@ export function AdminCategoryTags() {
         await deleteCategory(deleteModal.id);
         showSuccess(`Category "${deleteModal.name}" has been deleted.`);
         await fetchCategories();
+        await fetchSpecializations();
       } else if (deleteModal.type === "specialization") {
         await deleteSpecialization(deleteModal.id);
         showSuccess(`Specialization "${deleteModal.name}" has been deleted.`);
@@ -274,25 +273,27 @@ export function AdminCategoryTags() {
       setDeleting(false);
       setDeleteModal(null);
     }
-  }, [deleteModal, fetchSkills, fetchCategories, showSuccess, showError]);
+  }, [deleteModal, fetchSkills, fetchCategories, fetchSpecializations, showSuccess, showError]);
 
-  // -----------------------------------------------------------------------
-  // Filter helpers
-  // -----------------------------------------------------------------------
-  const filteredSkills = skills.filter((s) => {
-    const name = (s.name || "").toLowerCase();
-    return name.includes(skillSearch.toLowerCase());
-  });
-
-  const filteredCategories = categories.filter((c) => {
-    const name = (c.name || "").toLowerCase();
-    return name.includes(categorySearch.toLowerCase());
-  });
-
-  const filteredSpecializations = specializations.filter((s) => {
-    const name = (s.name || "").toLowerCase();
-    return name.includes(specializationSearch.toLowerCase());
-  });
+  const renderDeleteAction = useCallback(
+    (type, label) => (row) => {
+      const id = row.id ?? row.Id;
+      const name = row.name ?? row.Name ?? label;
+      return (
+        <button
+          type="button"
+          onClick={() => setDeleteModal({ type, id, name })}
+          disabled={!id}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-destructive/25 bg-destructive-light px-2.5 text-xs font-semibold text-destructive transition-colors hover:border-destructive/40 hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+          title={`Delete ${label}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </button>
+      );
+    },
+    [],
+  );
 
   // -----------------------------------------------------------------------
   // Table columns
@@ -302,7 +303,7 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Skill Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -312,7 +313,7 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Category Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -322,14 +323,14 @@ export function AdminCategoryTags() {
       key: "name",
       label: "Specialization Name",
       render: (val) => (
-        <span className="text-sm font-medium text-foreground">{val || "—"}</span>
+        <span className="text-sm font-medium text-foreground">{val || "-"}</span>
       ),
     },
     {
       key: "domainName",
       label: "Category (Domain)",
       render: (val) => (
-        <span className="text-sm text-muted-foreground">{val || "—"}</span>
+        <span className="text-sm text-muted-foreground">{val || "-"}</span>
       ),
     },
   ];
@@ -341,30 +342,19 @@ export function AdminCategoryTags() {
 
   return (
     <div className="space-y-6">
-      
-
-      {/* Page Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
-          <Tag className="w-5 h-5 text-accent" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Skills &amp; Categories
-          </h1>
-        </div>
-      </div>
-      <p className="text-muted-foreground mb-6 ml-[52px]">
-        Manage platform skills and category tags used in projects and expert profiles.
-      </p>
+      <PageHeader
+        title="Skills & Categories"
+        subtitle="Manage platform skills and category tags used in projects and expert profiles."
+        illustration={<Tag className="h-28 w-28" />}
+      />
 
       {/* Feedback toast */}
       {feedback && (
         <div
-          className={`mb-4 p-3 border rounded-lg text-sm ${
+          className={`p-3 border rounded-lg text-sm ${
             feedback.type === "error"
-              ? "bg-red-50 border-red-200 text-red-700"
-              : "bg-green-50 border-green-200 text-green-700"
+              ? "bg-destructive-light border-destructive/20 text-destructive"
+              : "bg-success-light border-success/20 text-success"
           }`}
         >
           {feedback.text}
@@ -372,7 +362,7 @@ export function AdminCategoryTags() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-border">
+      <div className="flex gap-1 border-b border-border">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.key;
@@ -382,7 +372,7 @@ export function AdminCategoryTags() {
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              className={`inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
                 isActive
                   ? "border-accent text-accent"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -390,7 +380,7 @@ export function AdminCategoryTags() {
             >
               <Icon className="w-4 h-4" />
               {tab.label}
-              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
                 isActive ? "bg-accent/10 text-accent" : "bg-secondary text-muted-foreground"
               }`}>
                 {count}
@@ -407,38 +397,15 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {skillsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {skillsError}
             </div>
           )}
 
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
-              <input
-                type="text"
-                placeholder="Search skills..."
-                value={skillSearch}
-                onChange={(e) => setSkillSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {skillSearch && (
-                <button
-                  type="button"
-                  onClick={() => setSkillSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Add skill form */}
           <form
             onSubmit={handleAddSkill}
-            className="flex gap-2 items-end max-w-lg mb-4"
+            className="page-filter-toolbar max-w-lg"
           >
             <div className="flex-1">
               <label
@@ -454,24 +421,30 @@ export function AdminCategoryTags() {
                 value={newSkillName}
                 onChange={(e) => setNewSkillName(e.target.value)}
                 disabled={addingSkill}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
-            <button
-              type="submit"
-              disabled={addingSkill || !newSkillName.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingSkill ? "Adding..." : "+ Add Skill"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingSkill || !newSkillName.trim()}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingSkill ? "Adding..." : "+ Add Skill"}
+              </button>
+            </div>
           </form>
 
           {/* Skills table */}
           <DataTable
             columns={skillColumns}
-            data={filteredSkills}
+            data={skills}
             loading={skillsLoading}
             emptyMessage="No skills found."
+            actions={renderDeleteAction("skill", "skill")}
           />
         </div>
       )}
@@ -483,38 +456,15 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {categoriesError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {categoriesError}
             </div>
           )}
 
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search categories..."
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {categorySearch && (
-                <button
-                  type="button"
-                  onClick={() => setCategorySearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Add category form */}
           <form
             onSubmit={handleAddCategory}
-            className="flex gap-2 items-end max-w-lg mb-4"
+            className="page-filter-toolbar max-w-lg"
           >
             <div className="flex-1">
               <label
@@ -530,24 +480,30 @@ export function AdminCategoryTags() {
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 disabled={addingCategory}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
-            <button
-              type="submit"
-              disabled={addingCategory || !newCategoryName.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingCategory ? "Adding..." : "+ Add Category"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingCategory || !newCategoryName.trim()}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingCategory ? "Adding..." : "+ Add Category"}
+              </button>
+            </div>
           </form>
 
           {/* Categories table */}
           <DataTable
             columns={categoryColumns}
-            data={filteredCategories}
+            data={categories}
             loading={categoriesLoading}
             emptyMessage="No categories found."
+            actions={renderDeleteAction("category", "category")}
           />
         </div>
       )}
@@ -559,38 +515,15 @@ export function AdminCategoryTags() {
         <div className="space-y-4">
           {/* Error banner */}
           {specializationsError && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+            <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
               {specializationsError}
             </div>
           )}
 
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search specializations..."
-                value={specializationSearch}
-                onChange={(e) => setSpecializationSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {specializationSearch && (
-                <button
-                  type="button"
-                  onClick={() => setSpecializationSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Add specialization form */}
           <form
             onSubmit={handleAddSpecialization}
-            className="flex gap-2 items-end max-w-2xl mb-4"
+            className="page-filter-toolbar max-w-2xl"
           >
             <div className="flex-1">
               <label
@@ -606,7 +539,7 @@ export function AdminCategoryTags() {
                 value={newSpecializationName}
                 onChange={(e) => setNewSpecializationName(e.target.value)}
                 disabled={addingSpecialization}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
             <div className="flex-1">
@@ -621,7 +554,7 @@ export function AdminCategoryTags() {
                 value={selectedDomainId}
                 onChange={(e) => setSelectedDomainId(e.target.value)}
                 disabled={addingSpecialization}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">Select a Category...</option>
                 {categories.map((c) => (
@@ -631,24 +564,45 @@ export function AdminCategoryTags() {
                 ))}
               </select>
             </div>
-            <button
-              type="submit"
-              disabled={addingSpecialization || !newSpecializationName.trim() || !selectedDomainId}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingSpecialization ? "Adding..." : "+ Add"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingSpecialization || !newSpecializationName.trim() || !selectedDomainId}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingSpecialization ? "Adding..." : "+ Add"}
+              </button>
+            </div>
           </form>
 
           {/* Specializations table */}
           <DataTable
             columns={specializationColumns}
-            data={filteredSpecializations}
+            data={specializations}
             loading={specializationsLoading}
             emptyMessage="No specializations found."
+            actions={renderDeleteAction("specialization", "specialization")}
           />
         </div>
       )}
+
+      <ConfirmationModal
+        open={Boolean(deleteModal)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteModal(null);
+        }}
+        title={`Delete ${deleteModal?.type || "item"}`}
+        description={`Are you sure you want to delete "${deleteModal?.name || "this item"}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteModal(null)}
+      />
     </div>
   );
 }

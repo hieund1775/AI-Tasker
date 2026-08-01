@@ -1,9 +1,9 @@
-// =============================================================================
+﻿// =============================================================================
 // AITasker Dispute Service
 // =============================================================================
 // Handles Admin-side dispute resolution actions for projects.
 //
-// Backend endpoints are NOT yet implemented — each function uses an empty
+// Backend endpoints are NOT yet implemented - each function uses an empty
 // placeholder URL so the real API can be wired in later without changing
 // the component code.
 // =============================================================================
@@ -18,7 +18,7 @@ import api from "./api.js";
  * Mark a project as "Disputed" (lock all actions for Client & Expert).
  *
  * @param {string} projectId
- * @param {object} payload — { reportId: string, reason?: string, staffId?: string }
+ * @param {object} payload - { reportId: string, reason?: string, staffId?: string }
  * @returns {Promise<object>}
  */
 export async function pauseProjectAsDisputed(projectId, payload = {}) {
@@ -35,7 +35,7 @@ export async function pauseProjectAsDisputed(projectId, payload = {}) {
  * Unlocks all actions for Client & Expert.
  *
  * @param {string} projectId
- * @param {object} payload — { adminNote?: string }
+ * @param {object} payload - { adminNote?: string }
  * @returns {Promise<object>}
  */
 export async function continueProject(projectId, payload = {}) {
@@ -52,7 +52,7 @@ export async function continueProject(projectId, payload = {}) {
  * Admin must provide the final decision reason.
  *
  * @param {string} projectId
- * @param {object} payload — {
+ * @param {object} payload - {
  *   reason: string (required),
  *   moneyAction: "refund" | "release",
  *   reportId: string (required),
@@ -73,7 +73,7 @@ export async function stopProject(projectId, payload) {
 /**
  * Create or open a group chat for dispute:
  *
- * @param {object} payload — {
+ * @param {object} payload - {
  *   reportId: string,
  *   projectId: string,
  *   clientId: string,

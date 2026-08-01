@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Outlet } from "react-router";
 import { Link } from "react-router";
 import { Search, Briefcase, Users, Award, CheckCircle2 } from "lucide-react";
@@ -6,7 +6,7 @@ import { Footer } from "./Footer.jsx";
 import api from "../../../services/api.js";
 
 /**
- * PublicLayout — minimal shell for public-facing browse pages.
+ * PublicLayout - minimal shell for public-facing browse pages.
  *
  * Provides a simple navbar with links to Browse Experts and Browse Jobs,
  * a platform stats banner, plus the shared Footer. Used for routes that
@@ -21,37 +21,37 @@ export function PublicLayout() {
         const data = await api.get("/platform/stats", { authenticated: false });
         setStats(data);
       } catch {
-        // Graceful fallback — stats banner hidden if API unavailable
+        // Graceful fallback - stats banner hidden if API unavailable
       }
     }
     loadStats();
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
-          <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-blue-900 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">AI</span>
+      <nav className="fixed inset-x-0 top-0 z-40 bg-background/82 backdrop-blur-xl border-b border-border/70 shadow-sm shadow-foreground/[0.025]">
+        <div className="mx-auto flex h-[4.25rem] w-full max-w-[var(--layout-max)] items-center justify-between gap-5 px-[var(--page-gutter)]">
+          <div className="flex items-center gap-10">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-sm">
+                <span className="text-primary-foreground font-bold text-base">AI</span>
               </div>
-              <span className="text-[20px] font-semibold text-blue-900 hidden sm:inline">
+              <span className="text-[1.35rem] font-semibold tracking-[-0.02em] text-foreground hidden sm:inline">
                 Tasker
               </span>
             </Link>
-            <nav className="hidden sm:flex items-center gap-1">
+            <nav className="hidden items-center gap-5 sm:flex">
               <Link
                 to="/experts"
-                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                className="inline-flex h-11 min-w-[9rem] items-center justify-center gap-2 rounded-xl px-5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
                 <Search className="w-4 h-4" />
                 Browse Experts
               </Link>
               <Link
                 to="/jobs"
-                className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-blue-900 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center gap-1.5"
+                className="inline-flex h-11 min-w-[8rem] items-center justify-center gap-2 rounded-xl px-5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
               >
                 <Briefcase className="w-4 h-4" />
                 Browse Jobs
@@ -61,13 +61,13 @@ export function PublicLayout() {
           <div className="flex items-center gap-3">
             <Link
               to="/login"
-              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-900 transition-colors"
+              className="inline-flex h-10 min-w-20 items-center justify-center rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               Log In
             </Link>
             <Link
               to="/signup"
-              className="px-5 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 font-semibold text-sm shadow-sm transition-colors"
+              className="inline-flex h-10 min-w-24 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary-hover"
             >
               Sign Up
             </Link>
@@ -76,27 +76,27 @@ export function PublicLayout() {
 
         {/* Platform Stats Banner */}
         {stats && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-t border-blue-100/50">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-8 text-xs text-gray-600">
+          <div className="bg-card/65 border-t border-border/70">
+            <div className="mx-auto flex w-full max-w-[var(--layout-max)] items-center justify-center gap-10 px-[var(--page-gutter)] py-2 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-blue-600" />
-                <span className="font-semibold text-gray-900">
+                <Users className="w-3.5 h-3.5 text-accent" />
+                <span className="font-semibold text-foreground tabular-nums">
                   {(stats.totalExperts ?? 0).toLocaleString()}
                 </span>{" "}
                 Experts
               </span>
-              <span className="text-gray-300">|</span>
+              <span className="text-border">|</span>
               <span className="inline-flex items-center gap-1.5">
-                <Briefcase className="w-3.5 h-3.5 text-purple-600" />
-                <span className="font-semibold text-gray-900">
+                <Briefcase className="w-3.5 h-3.5 text-accent" />
+                <span className="font-semibold text-foreground tabular-nums">
                   {(stats.totalOpenJobs ?? 0).toLocaleString()}
                 </span>{" "}
                 Open Jobs
               </span>
-              <span className="text-gray-300">|</span>
+              <span className="text-border">|</span>
               <span className="inline-flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                <span className="font-semibold text-gray-900">
+                <CheckCircle2 className="w-3.5 h-3.5 text-success" />
+                <span className="font-semibold text-foreground tabular-nums">
                   {(stats.totalCompletedProjects ?? 0).toLocaleString()}
                 </span>{" "}
                 Completed
@@ -107,7 +107,7 @@ export function PublicLayout() {
       </nav>
 
       {/* Content */}
-      <main className="flex-1">
+      <main className={`flex-1 ${stats ? "pt-[6.5rem]" : "pt-[4.25rem]"}`}>
         <Outlet />
       </main>
 

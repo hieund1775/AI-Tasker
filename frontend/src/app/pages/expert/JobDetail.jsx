@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   Clock,
-  MapPin,
   Send,
   Calendar,
   User,
@@ -15,10 +14,22 @@ import {
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
+import { BackButton } from "../../components/shared/BackButton.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { SectionCard } from "../../components/shared/SectionCard.jsx";
-import api, { enrichFileUrl } from "../../../services/api.js";
+import api, { enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { notificationService } from "../../../services/notificationHelper.js";
+import { toast } from "sonner";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
+
+const isResubmittableProposalStatus = (status) =>
+  ["decline", "declined", "rejected", "withdrawn", "expired"].includes(
+    String(status || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_"),
+  );
 
 export function JobDetail() {
   const { id } = useParams();
@@ -48,16 +59,11 @@ export function JobDetail() {
           try {
             const clientUser = await api.users.getById(project.clientId);
             if (clientUser) {
-              let parsedStatus = {};
-              try {
-                parsedStatus = JSON.parse(clientUser.status);
-              } catch {
-                parsedStatus = { companyName: "", location: "" };
-              }
+              const clientProfile = buildClientProfileFromUser(clientUser);
               clientInfo = {
-                name: clientUser.fullName || clientUser.name || "Client",
-                company: parsedStatus.companyName || "",
-                location: parsedStatus.location || "",
+                name: clientProfile?.fullName || "Client",
+                company: clientProfile?.profile?.company || "",
+                location: clientProfile?.profile?.location || "",
               };
             }
           } catch (e) {
@@ -72,19 +78,39 @@ export function JobDetail() {
           try {
             const myProposals = await api.proposals.getByExpert(user.id).catch(() => []);
             invitationProposal = myProposals.find(
-              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) === 0 && p.status?.toLowerCase() === "pending"
+              (p) => {
+                const proposalJobId = p.jobPostId || p.JobPostId;
+                const proposalStatus = p.status || p.Status;
+                return (
+                  String(proposalJobId) === String(project.id) &&
+                  (Number(p.bidAmount || p.BidAmount) || 0) === 0 &&
+                  String(proposalStatus || "").toLowerCase() === "pending"
+                );
+              }
             );
             hasSubmittedProp = myProposals.some(
-              (p) => p.jobPostId === project.id && (Number(p.bidAmount) || 0) > 0 && p.status?.toLowerCase() !== "declined" && p.status?.toLowerCase() !== "withdrawn"
+              (p) => {
+                const proposalJobId = p.jobPostId || p.JobPostId;
+                const proposalStatus = p.status || p.Status;
+                return (
+                  String(proposalJobId) === String(project.id) &&
+                  (Number(p.bidAmount || p.BidAmount) || 0) > 0 &&
+                  !isResubmittableProposalStatus(proposalStatus)
+                );
+              }
             );
-            // Check for accepted proposal with extended deadline
+            // Check for accepted proposal with extended deadline or active project deadline
             const acceptedProposal = myProposals.find(p =>
-              p.jobPostId === project.id &&
-              ["accepted", "pending_escrow", "pending_pay", "in_progress", "active"].includes(p.status?.toLowerCase())
+              (p.jobPostId === project.id || p.jobPostId === id) &&
+              ["accepted", "pending_escrow", "pending_pay", "in_progress", "in progress", "active"].includes(p.status?.toLowerCase())
             );
-            if (acceptedProposal?.projectId) {
+            const projIdKey = acceptedProposal?.projectId || acceptedProposal?.id || project.id || id;
+            if (projIdKey) {
               try {
-                const storedDeadline = localStorage.getItem(`project_deadline_${acceptedProposal.projectId}`);
+                const storedDeadline =
+                  localStorage.getItem(`project_deadline_${projIdKey}`) ||
+                  localStorage.getItem(`project_deadline_${project.id}`) ||
+                  localStorage.getItem(`project_deadline_${id}`);
                 if (storedDeadline) extendedDeadlineStr = storedDeadline;
               } catch (e) { /* ignore */ }
             }
@@ -137,17 +163,17 @@ export function JobDetail() {
         });
       }
 
-      alert("You have successfully declined the invitation!");
+      toast.success("Invitation declined successfully.");
       setInvitation(null);
     } catch (e) {
       console.error("Failed to decline invite:", e);
-      alert("Failed to decline invitation. Please try again!");
+      toast.error("Failed to decline invitation. Please try again.");
     }
   };
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-muted rounded w-48" />
           <div className="h-64 bg-muted rounded-2xl" />
@@ -158,8 +184,11 @@ export function JobDetail() {
 
   if (error || !job) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader title="Job Details" subtitle="—" divider={false} />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/find-jobs" className="mb-0">
+          Back to Jobs
+        </BackButton>
+        <PageHeader title="Job Details" subtitle="-" divider={false} />
         <div className="bg-card rounded-2xl border border-destructive/20 p-12 text-center shadow-sm">
           <h3 className="text-lg font-semibold text-destructive mb-2">{error || "Job not found"}</h3>
           <p className="text-sm text-muted-foreground">This job may have been removed or is no longer available.</p>
@@ -174,9 +203,7 @@ export function JobDetail() {
     : (job.jobPostSkills?.map((s) => s.skill?.name || s.skillName || "").filter(Boolean) || []);
 
   const deadlineText = (() => {
-    if (!job.deadline) return null;
-
-    // Use extended deadline from localStorage if available (project extension approved)
+    // 1. Use extended deadline from localStorage / active project extension if available
     if (job._extendedDeadline) {
       return safeDateFormat(job._extendedDeadline, {
         year: "numeric",
@@ -185,10 +212,13 @@ export function JobDetail() {
       }, String(job._extendedDeadline));
     }
 
-    // Convert numeric deadline (days) to actual date based on job creation date
-    const num = Number(job.deadline);
+    // 2. Check for explicit project deadline properties
+    const effectiveVal = job.projectDeadlineDate || job.endDate || job.EndDate || job.deadline || job.Deadline;
+    if (!effectiveVal) return null;
+
+    const num = Number(effectiveVal);
     if (!Number.isNaN(num) && num < 1000) {
-      const startDate = new Date(job.createdAt || job.CreatedAt || Date.now());
+      const startDate = new Date(job.startDate || job.StartDate || job.createdAt || job.CreatedAt || Date.now());
       if (!Number.isNaN(startDate.getTime())) {
         const deadlineDate = new Date(startDate.getTime() + num * 24 * 60 * 60 * 1000);
         return safeDateFormat(deadlineDate.toISOString(), {
@@ -198,40 +228,53 @@ export function JobDetail() {
         }, `${num} days`);
       }
     }
-    return safeDateFormat(job.deadline, {
+    return safeDateFormat(effectiveVal, {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }, String(job.deadline));
+    }, String(effectiveVal));
   })();
 
+  const statusKey = String(job.status || "open").toLowerCase();
+  const statusBadgeClass =
+    statusKey === "completed"
+      ? "bg-success-light text-success border border-success/25"
+      : statusKey === "cancelled" || statusKey === "canceled"
+        ? "bg-destructive-light text-destructive border border-destructive/25"
+        : statusKey === "pending" || statusKey === "pending_escrow"
+          ? "bg-warning-light text-warning border border-warning/25"
+          : "bg-brand-primary-light text-brand-primary border border-brand-primary/25";
+
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/expert/find-jobs" className="mb-0">
+        Back to Jobs
+      </BackButton>
       <PageHeader
         title={job.title}
-        subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` · ${job.client.company}` : ""}`}
+        subtitle={`Posted by ${job.client?.name || "Client"}${job.client?.company ? ` - ${job.client.company}` : ""}`}
         badge={
-          <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary capitalize">
+          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold capitalize ${statusBadgeClass}`}>
             {job.status || "Open"}
           </span>
         }
         actions={
           user?.role === "expert" && !invitation ? (
             hasSubmitted ? (
-              <button disabled className="h-11 px-5 bg-secondary text-muted-foreground border border-border rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed">
+              <button disabled className="h-10 px-4 bg-secondary text-muted-foreground border border-border rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed">
                 <Send className="w-4 h-4" /> Proposal Submitted
               </button>
             ) : user.hasProfile ? (
-              <button type="button" onClick={() => navigate(`/expert/jobs/${id}/proposal`)} className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-medium text-sm inline-flex items-center gap-2 transition-colors">
+              <button type="button" onClick={() => navigate(`/expert/jobs/${id}/proposal`)} className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover font-medium text-sm inline-flex items-center gap-2 transition-colors">
                 <Send className="w-4 h-4" /> Apply Now
               </button>
             ) : (
               <div className="flex flex-col items-end gap-1.5">
-                <button disabled className="h-11 px-5 bg-muted text-muted-foreground rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed opacity-60">
+                <button disabled className="h-10 px-4 bg-muted text-muted-foreground rounded-xl font-medium text-sm inline-flex items-center gap-2 cursor-not-allowed opacity-60">
                   <Send className="w-4 h-4" /> Apply Now
                 </button>
-                <span className="text-xs text-red-500 font-medium">
-                  Please <Link to="/expert/profile/edit" className="underline hover:text-red-700">complete your Profile</Link> to apply.
+                <span className="text-xs text-destructive font-medium">
+                  Please <Link to="/expert/profile/edit" className="underline hover:text-destructive">complete your Profile</Link> to apply.
                 </span>
               </div>
             )
@@ -241,23 +284,23 @@ export function JobDetail() {
 
       {/* Invitation banner */}
       {invitation && (
-        <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-5 mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="bg-success-light dark:bg-success-light border border-success/20 dark:border-success/30 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">You've been invited to this project!</h4>
-            <p className="text-xs text-emerald-700 dark:text-emerald-400 mt-1">Please Accept or Decline this invitation.</p>
+            <h4 className="text-sm font-semibold text-success dark:text-success">You've been invited to this project!</h4>
+            <p className="text-xs text-success dark:text-success mt-1">Please Accept or Decline this invitation.</p>
           </div>
           <div className="flex gap-3">
-            <button type="button" onClick={handleAcceptInvite} className="h-10 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <button type="button" onClick={handleAcceptInvite} className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
               Accept
             </button>
-            <button type="button" onClick={handleDeclineInvite} className="h-10 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
+            <button type="button" onClick={handleDeclineInvite} className="h-10 px-4 bg-destructive hover:bg-destructive text-primary-foreground rounded-xl text-sm font-medium transition-colors inline-flex items-center gap-2">
               Decline
             </button>
           </div>
         </div>
       )}
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Description */}
         <SectionCard title="Description" icon={FileText} padding="lg">
           <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
@@ -270,15 +313,15 @@ export function JobDetail() {
           <SectionCard title="Project User Stories" icon={Layers} padding="lg">
             <div className="space-y-3">
               {safeArray(job.useCases).map((uc, i) => (
-                <div key={i} className="p-4 bg-secondary/40 border border-border rounded-xl space-y-2">
+                <div key={i} className="space-y-2 rounded-2xl border border-border/50 bg-secondary/30 p-4">
                   <div className="flex items-center justify-between flex-wrap gap-2 text-left">
-                    <p className="font-bold text-foreground text-sm">
+                    <p className="font-semibold text-foreground text-sm">
                       User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline}</span>
                     </p>
                     <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Duration: {uc.originalDurationDays || uc.durationDays || 1} days</span>
                   </div>
                   {uc.description ? (
-                    <p className="text-muted-foreground text-sm pl-3 border-l-2 border-brand-primary/20">Description: {uc.description}</p>
+                    <p className="border-l border-brand-primary/25 pl-3 text-sm text-muted-foreground">Description: {uc.description}</p>
                   ) : null}
                 </div>
               ))}
@@ -291,12 +334,12 @@ export function JobDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Category</p>
-              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "—"}</p>
+              <p className="text-sm text-foreground font-medium">{job.domain?.name || job.category || "-"}</p>
             </div>
             {(job.specialization || job.specializationName) && (
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Specialization</p>
-                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "—"}</p>
+                <p className="text-sm text-foreground font-medium">{job.specialization?.name || job.specializationName || job.specialization || "-"}</p>
               </div>
             )}
           </div>
@@ -354,29 +397,15 @@ export function JobDetail() {
 
                   let fileName = typeof file === "object" ? (file.name || file.Name || file.originalName || file.fileName) : null;
                   if (!fileName && typeof rawUrl === "string") {
-                    const baseName = rawUrl.split("/").pop() || "Attachment";
-                    fileName = baseName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                    if (!fileName) fileName = baseName;
+                    fileName = cleanFileName(rawUrl);
+                  } else if (fileName) {
+                    fileName = cleanFileName(fileName);
                   }
 
-                  const handleDownloadFile = async (e) => {
+                  const handleDownloadFile = (e) => {
                     e.preventDefault();
                     if (!fileUrl || fileUrl === "#") return;
-                    try {
-                      const res = await fetch(fileUrl);
-                      const blob = await res.blob();
-                      const blobUrl = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = blobUrl;
-                      a.download = fileName || "Project_Attachment";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(blobUrl);
-                    } catch (err) {
-                      console.warn("Direct blob download failed, falling back to window.open:", err);
-                      window.open(fileUrl, "_blank");
-                    }
+                    downloadFile(fileUrl, fileName);
                   };
 
                   return (
@@ -401,15 +430,15 @@ export function JobDetail() {
         {/* Stats */}
         <SectionCard padding="lg">
           <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Budget</p>
               <p className="font-semibold text-foreground text-sm"><MoneyDisplay amount={job.budget} /></p>
             </div>
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Deadline</p>
-              <p className="font-semibold text-foreground text-sm">{deadlineText || "—"}</p>
+              <p className="font-semibold text-foreground text-sm">{deadlineText || "-"}</p>
             </div>
-            <div className="text-center p-3 bg-secondary/40 rounded-xl">
+            <div className="rounded-xl bg-secondary/35 p-3 text-center">
               <p className="text-xs text-muted-foreground mb-0.5">Posted</p>
               <p className="font-semibold text-foreground text-sm">{safeDateFormat(job.createdAt, { month: "short", day: "numeric", year: "numeric" })}</p>
             </div>
@@ -419,4 +448,3 @@ export function JobDetail() {
     </div>
   );
 }
-

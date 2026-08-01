@@ -1,10 +1,9 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef } from "react";
 import {
   CheckSquare,
   Square,
   Loader2,
   AlertCircle,
-  Edit3,
   Paperclip,
   Upload,
   X,
@@ -16,10 +15,11 @@ import { EmptyState } from "../shared/EmptyState.jsx";
 import { StatusBadge } from "../shared/StatusBadge.jsx";
 import { cn } from "../../lib/utils.js";
 import { safeDateTimeFormat } from "../../lib/safety.js";
+import { getFileSizeErrorMessage, validateUploadFiles } from "../../lib/fileValidation.js";
 import { toast } from "sonner";
 import { api, enrichFileUrl } from "../../../services/api.js";
 
-// ── Helpers for mini-task file resolution and blob downloads ──
+// Helpers for mini-task file resolution and blob downloads
 function resolveMiniTaskFile(productFile) {
   if (!productFile) return null;
   let parsed = null;
@@ -97,16 +97,16 @@ function formatFileSize(bytes) {
 }
 
 // =============================================================================
-// MiniTaskChecklist — reusable mini-task checklist with role-based permissions.
+// MiniTaskChecklist - reusable mini-task checklist with role-based permissions.
 //
 // Props:
-//   miniTasks     — array of mini task objects
-//   editable      — boolean (true for expert, false for client)
-//   onToggle      — (taskId, miniTaskId) => void  (only called when editable)
-//   onUpdate      — (miniTaskId, updates) => void (new prop for inline edit)
-//   compact       — boolean (true for inline card display, false for full detail)
-//   emptyMessage  — custom empty message (optional)
-//   loading       — boolean, shows skeleton rows
+//   miniTasks     - array of mini task objects
+//   editable      - boolean (true for expert, false for client)
+//   onToggle      - (taskId, miniTaskId) => void  (only called when editable)
+//   onUpdate      - (miniTaskId, updates) => void (new prop for inline edit)
+//   compact       - boolean (true for inline card display, false for full detail)
+//   emptyMessage  - custom empty message (optional)
+//   loading       - boolean, shows skeleton rows
 // =============================================================================
 
 export function MiniTaskChecklist({
@@ -125,6 +125,7 @@ export function MiniTaskChecklist({
   const [editLink, setEditLink] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [existingFileObj, setExistingFileObj] = useState(null);
+  const [fileError, setFileError] = useState("");
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -146,8 +147,8 @@ export function MiniTaskChecklist({
 
   if (!miniTasks || miniTasks.length === 0) {
     const defaultMessages = {
-      expert: "Create mini tasks to start tracking your work.",
-      client: "Expert has not created mini tasks yet.",
+      expert: "Create mini-tasks to start tracking your work.",
+      client: "The expert has not created mini-tasks yet.",
     };
     return (
       <div className="py-4 text-center">
@@ -172,6 +173,7 @@ export function MiniTaskChecklist({
     const resolved = resolveMiniTaskFile(mini.productFile);
     setExistingFileObj(resolved);
     setSelectedFile(null);
+    setFileError("");
   };
 
   const handleSave = async (miniId) => {
@@ -216,14 +218,21 @@ export function MiniTaskChecklist({
         productFile: finalProductFile,
       });
 
-      toast.success("MiniTask updated successfully!");
+      toast.success("Mini-task updated successfully.");
       setEditingId(null);
       setSelectedFile(null);
       setExistingFileObj(null);
+      setFileError("");
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      setTimeout(() => {
+        document.getElementById("project-progress")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 80);
     } catch (err) {
       console.error(err);
-      toast.error("Failed to update MiniTask.");
+      toast.error("Failed to update mini-task.");
     } finally {
       setUploadingFile(false);
     }
@@ -234,7 +243,7 @@ export function MiniTaskChecklist({
       {allComplete && (
         <div className="flex items-center gap-2 text-sm text-success font-medium mb-2 px-1">
           <CheckSquare className="w-4 h-4" />
-          All {miniTasks.length} mini tasks completed
+          All {miniTasks.length} mini-tasks completed
         </div>
       )}
       {miniTasks.map((mini, idx) => {
@@ -317,7 +326,7 @@ export function MiniTaskChecklist({
               <div className="flex-1 min-w-0 space-y-3 p-3 bg-secondary rounded-lg border border-border text-left">
                 <div>
                   <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
-                    MiniTask Title
+                    Mini-task title
                   </label>
                   <input
                     type="text"
@@ -330,7 +339,7 @@ export function MiniTaskChecklist({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-muted-foreground uppercase mb-1">
-                      Product Link
+                      Product link
                     </label>
                     <input
                       type="text"
@@ -351,8 +360,19 @@ export function MiniTaskChecklist({
                       type="file"
                       ref={fileInputRef}
                       onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedFile(e.target.files[0]);
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const validation = validateUploadFiles([file]);
+                          if (!validation.valid) {
+                            const message = getFileSizeErrorMessage(file);
+                            toast.error(message);
+                            setFileError(message);
+                            setSelectedFile(null);
+                            e.target.value = "";
+                            return;
+                          }
+                          setFileError("");
+                          setSelectedFile(file);
                         }
                       }}
                       className="hidden"
@@ -368,7 +388,10 @@ export function MiniTaskChecklist({
                         </div>
                         <button
                           type="button"
-                          onClick={() => setSelectedFile(null)}
+                          onClick={() => {
+                            setSelectedFile(null);
+                            setFileError("");
+                          }}
                           className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
                           title="Remove file"
                         >
@@ -393,7 +416,10 @@ export function MiniTaskChecklist({
                           </button>
                           <button
                             type="button"
-                            onClick={() => setExistingFileObj(null)}
+                            onClick={() => {
+                              setExistingFileObj(null);
+                              setFileError("");
+                            }}
                             className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-destructive"
                             title="Remove attachment"
                           >
@@ -411,6 +437,11 @@ export function MiniTaskChecklist({
                         <span>Upload file from computer...</span>
                       </button>
                     )}
+                    {fileError && (
+                      <p className="mt-1.5 text-xs font-medium text-destructive">
+                        {fileError}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -422,6 +453,7 @@ export function MiniTaskChecklist({
                       setEditingId(null);
                       setSelectedFile(null);
                       setExistingFileObj(null);
+                      setFileError("");
                     }}
                     className="px-2.5 py-1.5 border border-border text-foreground rounded-md hover:bg-secondary font-semibold"
                   >
@@ -467,10 +499,10 @@ export function MiniTaskChecklist({
                           href={mini.productLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-semibold transition-colors"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 rounded-md font-medium transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          <span>Product Link</span>
+                          <span>Product link</span>
                         </a>
                       )}
 
@@ -551,19 +583,9 @@ export function MiniTaskChecklist({
               </div>
             )}
 
-            {/* Action buttons (Edit / Done tag) */}
+            {/* Action tag */}
             {!isEditingThis && (
               <div className="flex-shrink-0 flex items-center gap-2">
-                {isActuallyEditable && (
-                  <button
-                    type="button"
-                    onClick={() => startEditing(mini)}
-                    className="text-xs font-semibold text-accent hover:text-accent-hover px-2.5 py-1 border border-border rounded-lg bg-card transition-colors cursor-pointer flex items-center gap-1"
-                  >
-                    <Edit3 className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                )}
                 {compact && isDone && (
                   <span className="text-sm text-success font-medium">
                     Done
@@ -577,4 +599,3 @@ export function MiniTaskChecklist({
     </div>
   );
 }
-

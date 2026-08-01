@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ArrowLeft, Save } from "lucide-react";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
+import { MoneyInput } from "../../components/shared/MoneyInput.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 export const getExpertProfileKey = (userId) => `aitasker_expert_profile_${userId}`;
 
@@ -126,7 +129,7 @@ export function EditExpertProfile() {
         industry: formData.industry || "",
       };
 
-      // Save profile to backend — category, specialization, skills are persisted in the DB
+      // Save profile to backend - category, specialization, skills are persisted in the DB
       await Promise.all([
         api.users.update(user.id, {
           fullName: formData.name.trim(),
@@ -136,14 +139,11 @@ export function EditExpertProfile() {
         completeExpertProfile(apiPayload),
       ]);
 
-      const storedUser = sessionStorage.getItem("aitasker_user_info") || localStorage.getItem("aitasker_user_info");
+      const storedUser = sessionStorage.getItem("aitasker_user_info");
       if (storedUser) {
         const u = JSON.parse(storedUser);
         u.name = formData.name.trim();
         sessionStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        if (localStorage.getItem("aitasker_user_info")) {
-          localStorage.setItem("aitasker_user_info", JSON.stringify(u));
-        }
       }
 
       // Save dropped fields to localStorage as fallback
@@ -160,7 +160,7 @@ export function EditExpertProfile() {
       // Dispatch custom event to sync with ExpertProfile.jsx
       window.dispatchEvent(new CustomEvent("expert_profile_updated"));
 
-      alert("Profile saved successfully!");
+      toast.success("Profile saved successfully.");
       navigate("/expert/profile", { replace: true });
     } catch (err) {
       setError(err.message || "An error occurred while saving. Please try again!");
@@ -174,30 +174,27 @@ export function EditExpertProfile() {
   const uniqueSkills = Array.from(new Map(allSkills.map(s => [s.name, s])).values());
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center gap-4 mb-6">
-        {user?.hasProfile !== false && (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <PageHeader
+        title={user?.hasProfile === false ? "Complete profile to start" : "Edit Expert Profile"}
+        subtitle="Update your expert profile, skills, and service information."
+        actions={user?.hasProfile !== false ? (
           <Link
             to="/expert/profile"
             className="text-muted-foreground hover:text-foreground"
+            aria-label="Back to profile"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Link>
-        )}
-
-        <h1 className="text-2xl font-bold text-foreground">
-          {user?.hasProfile === false
-            ? "Complete profile to start"
-            : "Edit Expert Profile"}
-        </h1>
-      </div>
+        ) : null}
+      />
 
       <form
         onSubmit={handleSubmit}
         className="bg-card rounded-2xl border border-border shadow-sm p-8 space-y-6"
       >
         {error && (
-          <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm font-medium">
+          <div className="p-3 bg-destructive-light text-destructive rounded-lg text-sm font-medium">
             {error}
           </div>
         )}
@@ -205,7 +202,7 @@ export function EditExpertProfile() {
         {/* Contact Person */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Contact Person <span className="text-red-500">*</span>
+            Contact Person <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -219,7 +216,7 @@ export function EditExpertProfile() {
         {/* Professional Title */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Professional Title <span className="text-red-500">*</span>
+            Professional Title <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -236,7 +233,7 @@ export function EditExpertProfile() {
           {/* Category */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Category <span className="text-red-500">*</span>
+              Category <span className="text-destructive">*</span>
             </label>
             <select
               value={formData.category}
@@ -260,7 +257,7 @@ export function EditExpertProfile() {
           {/* Specialization */}
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Specialization <span className="text-red-500">*</span>
+              Specialization <span className="text-destructive">*</span>
             </label>
             <select
               value={formData.specialization?.name || formData.specialization}
@@ -286,7 +283,7 @@ export function EditExpertProfile() {
         {/* Skills Selector (Togglable buttons) */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Skills <span className="text-red-500">*</span>
+            Skills <span className="text-destructive">*</span>
           </label>
           {!formData.category || !formData.specialization ? (
             <p className="text-sm text-muted-foreground">
@@ -322,7 +319,7 @@ export function EditExpertProfile() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Email Address <span className="text-red-500">*</span>
+              Email Address <span className="text-destructive">*</span>
             </label>
             <input
               type="email"
@@ -335,7 +332,7 @@ export function EditExpertProfile() {
 
           <div>
             <label className="block text-sm font-medium text-foreground/80 mb-2">
-              Phone Number <span className="text-red-500">*</span>
+              Phone Number <span className="text-destructive">*</span>
             </label>
             <input
               type="tel"
@@ -408,14 +405,13 @@ export function EditExpertProfile() {
         {/* Hourly Rate */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Hourly Rate (USD/hr)
+            Hourly Rate (VND/hr)
           </label>
-          <input
-            type="number"
+          <MoneyInput
             min="0"
             value={formData.hourlyRate}
-            onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-            placeholder="e.g. 50"
+            onValueChange={(value) => setFormData({ ...formData, hourlyRate: value })}
+            placeholder="e.g. 500000"
             className="w-full px-4 py-2 border border-input rounded-lg focus:outline-none focus:border-brand-primary"
           />
         </div>
@@ -423,7 +419,7 @@ export function EditExpertProfile() {
         {/* Bio */}
         <div>
           <label className="block text-sm font-medium text-foreground/80 mb-2">
-            Bio <span className="text-red-500">*</span>
+            Bio <span className="text-destructive">*</span>
           </label>
           <textarea
             value={formData.bio}
@@ -439,7 +435,7 @@ export function EditExpertProfile() {
           <button
             type="submit"
             disabled={loading}
-            className="h-11 px-5 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
+            className="h-10 px-4 text-[15px] rounded-xl bg-brand-primary text-brand-primary-foreground hover:bg-brand-primary-hover font-medium inline-flex items-center gap-2 justify-center disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {loading ? "Saving..." : "Save Changes"}
@@ -448,7 +444,7 @@ export function EditExpertProfile() {
           {user?.hasProfile !== false && (
             <Link
               to="/expert/profile"
-              className="h-11 px-5 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
+              className="h-10 px-4 text-[15px] rounded-xl border border-input hover:bg-secondary/60 font-medium inline-flex items-center justify-center"
             >
               Cancel
             </Link>

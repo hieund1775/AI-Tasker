@@ -1,16 +1,16 @@
-// =============================================================================
-// AnimatedReveal — lightweight scroll-reveal wrapper for list items & cards.
+﻿// =============================================================================
+// AnimatedReveal - lightweight scroll-reveal wrapper for list items & cards.
 //
 // Uses native CSS `.reveal-hidden` / `.reveal-visible` classes with
 // IntersectionObserver for zero-dependency scroll-triggered animations.
 //
 // Props:
-//   children   — content to reveal
-//   className  — additional classes on the wrapper
-//   delay      — stagger delay index (multiplied by 80ms, e.g. 0→0ms, 2→160ms)
-//   direction  — "up" (default) | "left" | "right"
-//   threshold  — visibility threshold (default 0.1)
-//   once       — animate only once (default true)
+//   children   - content to reveal
+//   className  - additional classes on the wrapper
+//   delay      - stagger delay index (multiplied by 80ms, e.g. 0->0ms, 2->160ms)
+//   direction  - "up" (default) | "left" | "right"
+//   threshold  - visibility threshold (default 0.1)
+//   once       - animate only once (default true)
 // =============================================================================
 
 import { useEffect, useRef, useState } from "react";

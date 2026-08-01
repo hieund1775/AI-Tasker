@@ -1,5 +1,5 @@
-// =============================================================================
-// ReportForm — dispute report submission form for Expert.
+﻿// =============================================================================
+// ReportForm - dispute report submission form for Expert.
 //
 // Automatically pulls data from the associated project:
 //   - Report name (defaults to project name)
@@ -17,7 +17,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, Upload, X, FileText } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import { MoneyDisplay } from "../shared/MoneyDisplay.jsx";
 import { FileUploadDropzone } from "../shared/FileUploadDropzone.jsx";
@@ -107,7 +107,7 @@ export function ReportForm({
       try {
         await onSubmit?.({
           projectId: project?.projectId || project?.id,
-          reportName: projectTitle !== "—" ? projectTitle : (project?.title || ""),
+          reportName: projectTitle !== "-" ? projectTitle : (project?.title || ""),
           reason,
           description,
           disputeType,
@@ -122,11 +122,10 @@ export function ReportForm({
     [validate, onSubmit, project, reason, description, disputeType, desiredResolution, evidence],
   );
 
-  const addEvidence = useCallback(() => {
-    setEvidence((prev) => {
-      if (prev.length >= 1) return prev;
-      return [{ id: Date.now().toString(), name: "", note: "", file: null }];
-    });
+  const addEvidenceFromFiles = useCallback((newFiles) => {
+    const f = newFiles[0] || null;
+    if (!f) return;
+    setEvidence([{ id: Date.now().toString(), name: f.name, note: "", file: f }]);
   }, []);
 
   const removeEvidence = useCallback((id) => {
@@ -149,11 +148,11 @@ export function ReportForm({
 
   // Pre-calculate display deadline and start date
   const rawStartDate = project.startDate || project.StartDate || project.createdAt || project.CreatedAt;
-  const displayStartDate = rawStartDate ? formatDateTime(rawStartDate) : "—";
+  const displayStartDate = rawStartDate ? formatDateTime(rawStartDate) : "-";
 
   const displayDeadline = (() => {
     const rawDeadline = project.endDate || project.EndDate || project.deadline || project.Deadline;
-    if (!rawDeadline) return "—";
+    if (!rawDeadline) return "-";
     const num = Number(rawDeadline);
     if (!Number.isNaN(num) && num < 1000) {
       const d = new Date(rawStartDate || new Date());
@@ -168,14 +167,14 @@ export function ReportForm({
     clientUser?.name ||
     project.clientName ||
     (typeof project.client === "string" ? project.client : project.client?.fullName || project.client?.name) ||
-    "—";
+    "-";
 
   const expertName =
     expertUser?.fullName ||
     expertUser?.name ||
     project.expertName ||
     (typeof project.expert === "string" ? project.expert : project.expert?.fullName || project.expert?.name) ||
-    "—";
+    "-";
 
   const projectTitle =
     project.title ||
@@ -188,7 +187,7 @@ export function ReportForm({
     project.Name ||
     project.reportName ||
     project.ReportName ||
-    "—";
+    "-";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -205,7 +204,7 @@ export function ReportForm({
             label="Funds in Escrow"
             value={<MoneyDisplay amount={project.budget || project.escrowAmount || 0} />}
           />
-          <InfoRow label="Status" value={project.status || "—"} />
+          <InfoRow label="Status" value={project.status || "-"} />
           <InfoRow label="Start Date" value={displayStartDate} />
           <InfoRow label="Deadline" value={displayDeadline} />
         </div>
@@ -214,7 +213,7 @@ export function ReportForm({
       {/* ---- Entered fields ---- */}
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Response Reason" : "Report Reason"} <span className="text-red-500">*</span>
+          {isResponse ? "Response Reason" : "Report Reason"} <span className="text-destructive">*</span>
         </label>
         <input
           type="text"
@@ -222,18 +221,18 @@ export function ReportForm({
           onChange={(e) => setReason(e.target.value)}
           placeholder={isResponse ? "e.g. Deliverable completed but client has not released funds" : "e.g. Client has not paid after project completion"}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary ${
-            errors.reason ? "border-red-300" : "border-input"
+            errors.reason ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.reason && (
-          <p className="mt-1 text-xs text-red-500">{errors.reason}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.reason}</p>
         )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          Dispute Type <span className="text-red-500">*</span>
+          Dispute Type <span className="text-destructive">*</span>
         </label>
         <select
           value={disputeType}
@@ -251,7 +250,7 @@ export function ReportForm({
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Detailed Response Content" : "Detailed Description"} <span className="text-red-500">*</span>
+          {isResponse ? "Detailed Response Content" : "Detailed Description"} <span className="text-destructive">*</span>
         </label>
         <textarea
           value={description}
@@ -259,18 +258,18 @@ export function ReportForm({
           placeholder={isResponse ? "Describe explanation in detail..." : "Describe the issue in detail, timeline of events..."}
           rows={4}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.description ? "border-red-300" : "border-input"
+            errors.description ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.description && (
-          <p className="mt-1 text-xs text-red-500">{errors.description}</p>
+          <p className="mt-1 text-xs text-destructive">{errors.description}</p>
         )}
       </div>
 
       <div>
         <label className="block text-sm font-medium text-foreground/80 mb-1">
-          {isResponse ? "Desired Resolution" : "Desired Resolution"} <span className="text-red-500">*</span>
+          {isResponse ? "Desired Resolution" : "Desired Resolution"} <span className="text-destructive">*</span>
         </label>
         <textarea
           value={desiredResolution}
@@ -278,12 +277,12 @@ export function ReportForm({
           placeholder={isResponse ? "e.g. Request full payout release from escrow" : "How would you like this to be resolved?"}
           rows={2}
           className={`w-full px-4 py-2.5 border rounded-lg text-sm focus:outline-none focus:border-brand-primary resize-vertical ${
-            errors.desiredResolution ? "border-red-300" : "border-input"
+            errors.desiredResolution ? "border-destructive/35" : "border-input"
           }`}
           disabled={isLoading}
         />
         {errors.desiredResolution && (
-          <p className="mt-1 text-xs text-red-500">
+          <p className="mt-1 text-xs text-destructive">
             {errors.desiredResolution}
           </p>
         )}
@@ -295,29 +294,20 @@ export function ReportForm({
           <label className="block text-sm font-medium text-foreground/80">
             {isResponse ? "Documents / Evidence (Max 1 file - Optional)" : "Evidence (Max 1 file - Optional)"}
           </label>
-          {evidence.length < 1 && (
-            <button
-              type="button"
-              onClick={addEvidence}
-              disabled={isLoading}
-              className="text-xs text-brand-primary hover:text-brand-primary-hover font-medium inline-flex items-center gap-1 cursor-pointer"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Add Evidence
-            </button>
-          )}
         </div>
         {errors.evidence && (
-          <p className="mb-2 text-xs text-red-500">{errors.evidence}</p>
+          <p className="mb-2 text-xs text-destructive">{errors.evidence}</p>
         )}
 
         {evidence.length === 0 && (
-          <div className="border-2 border-dashed border-input rounded-xl p-6 text-center">
-            <Upload className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              No evidence added yet. Click &quot;Add Evidence&quot; to upload 1 screenshot or document.
-            </p>
-          </div>
+          <FileUploadDropzone
+            files={[]}
+            onFilesChange={addEvidenceFromFiles}
+            multiple={false}
+            maxFiles={1}
+            disabled={isLoading}
+            helperText="Click this area to upload 1 screenshot or document."
+          />
         )}
 
         <div className="space-y-4">
@@ -334,7 +324,7 @@ export function ReportForm({
                 <button
                   type="button"
                   onClick={() => removeEvidence(item.id)}
-                  className="p-1 text-muted-foreground hover:text-red-500 transition cursor-pointer"
+                  className="p-1 text-muted-foreground hover:text-destructive transition cursor-pointer"
                   disabled={isLoading}
                 >
                   <X className="w-4 h-4" />
@@ -366,7 +356,7 @@ export function ReportForm({
       {/* ---- Submission info ---- */}
       <div className="bg-brand-primary-light rounded-xl p-3 border border-brand-primary/20 text-xs text-brand-primary">
         <p>
-          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} •{" "}
+          <strong>Submitted by:</strong> {role === "client" ? "Client" : "Expert"} -{" "}
           <strong>Submission time:</strong> {formatDateTime(submitTime)}
         </p>
         <p className="mt-1">
@@ -387,7 +377,7 @@ export function ReportForm({
         <button
           type="submit"
           disabled={isLoading}
-          className="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50 inline-flex items-center gap-2 transition"
+          className="px-5 py-2.5 bg-destructive text-primary-foreground rounded-lg text-sm font-medium hover:bg-destructive disabled:opacity-50 inline-flex items-center gap-2 transition"
         >
           {isLoading ? (
             <>

@@ -1,20 +1,20 @@
-// =============================================================================
-// TaskCard — single task card with progress bar, status, and action buttons.
+﻿// =============================================================================
+// TaskCard - single task card with progress bar, status, and action buttons.
 //
 // Props:
-//   task              — task object
-//   derivedStatus     — display status string
-//   role              — "client" | "expert"
-//   completedMiniTasks — number
-//   totalMiniTasks    — number
-//   progress          — 0-100 number
-//   latestLog         — { message } | null
-//   canOpenSubmit     — boolean
-//   isSubmitDisabled  — boolean
-//   submitButtonLabel — string
-//   goToTaskAction    — (task, action) => void
-//   getTaskStatusClass — (status) => string
-//   getTaskStatusLabel — (status) => string
+//   task              - task object
+//   derivedStatus     - display status string
+//   role              - "client" | "expert"
+//   completedMiniTasks - number
+//   totalMiniTasks    - number
+//   progress          - 0-100 number
+//   latestLog         - { message } | null
+//   canOpenSubmit     - boolean
+//   isSubmitDisabled  - boolean
+//   submitButtonLabel - string
+//   goToTaskAction    - (task, action) => void
+//   getTaskStatusClass - (status) => string
+//   getTaskStatusLabel - (status) => string
 // =============================================================================
 
 import { CheckCircle2, Clock3 } from "lucide-react";
@@ -43,7 +43,7 @@ export function TaskCard({
       <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
         <div className="flex-1 pr-4">
           <div className="flex items-start gap-4">
-            <div className="w-11 h-11 bg-gradient-to-br from-primary/15 to-primary/5 text-primary rounded-xl flex items-center justify-center font-semibold flex-shrink-0 border border-primary/10">
+            <div className="w-11 h-10 bg-gradient-to-br from-primary/15 to-primary/5 text-primary rounded-xl flex items-center justify-center font-semibold flex-shrink-0 border border-primary/10">
               {task.id || "?"}
             </div>
             <div className="flex-1">
@@ -64,7 +64,7 @@ export function TaskCard({
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <CheckCircle2 className="w-4 h-4" />
                   {completedMiniTasks}/{totalMiniTasks}{" "}
-                  mini tasks
+                  mini-tasks
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock3 className="w-4 h-4" />

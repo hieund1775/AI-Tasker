@@ -19,13 +19,13 @@
 
 /* ── Selection styling ── */
 ::selection {
-  background: color-mix(in srgb, #3b82f6 20%, transparent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   color: inherit;
 }
 
 /* ── Smooth page transitions ── */
 main {
-  animation: page-enter 0.25s ease-out;
+  animation: page-enter 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* ── Expert Dashboard — responsive panel heights ── */
@@ -46,5 +46,13 @@ main {
   transition: background-color 0.15s ease;
 }
 .table-row-hover tbody tr:hover {
-  background-color: color-mix(in srgb, var(--accent) 3%, transparent);
+  background-color: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+:where(a, button, input, textarea, select, [role="button"]) {
+  outline-offset: 2px;
+}
+
+:where(a, button, input, textarea, select, [role="button"]):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ring) 55%, transparent);
 }

@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+build/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Runtime/dev-server artifacts
+runtime-*
+*.log
+*.pid
+*.out
+*.err
+
+# Tool caches
+.vite/
+.cache/
+coverage/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp

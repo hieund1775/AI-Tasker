@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 /**
- * useScrollReveal — reveals elements as they enter the viewport.
+ * useScrollReveal - reveals elements as they enter the viewport.
  *
  * Returns a ref to attach to the target element and an isVisible flag.
  * Uses IntersectionObserver for performance.

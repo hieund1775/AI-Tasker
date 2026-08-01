@@ -1,7 +1,7 @@
-import { Bot, FileText, MessageSquare } from "lucide-react";
+﻿import { Bot, FileText, MessageSquare } from "lucide-react";
 
 // =============================================================================
-// Timeline helpers — pure utility functions for ProjectTimelineManager
+// Timeline helpers - pure utility functions for ProjectTimelineManager
 // =============================================================================
 
 /** Return an icon element for a given actor label. */

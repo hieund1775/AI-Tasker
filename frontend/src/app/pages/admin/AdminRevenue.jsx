@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, BarChart3 } from "lucide-react";
+import { TrendingUp, Banknote, BarChart3 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import api from "../../../services/api.js";
 import { useAuth } from "../../hooks/useAuth.js";
 
@@ -36,7 +37,7 @@ const parseDateAndTime = (str) => {
 export function AdminRevenue() {
   const { user } = useAuth();
   const role = (user?.role || user?.Role || "").toLowerCase();
-  const isOwnerOrAdmin = role === "owner" || role === "admin";
+  const isOwnerOrAdmin = role === "owner" || role === "admin" || role === "staff";
 
   const [data, setData] = useState(DEFAULT_DATA);
   const [loading, setLoading] = useState(true);
@@ -44,14 +45,16 @@ export function AdminRevenue() {
   useEffect(() => {
     async function fetchRevenue() {
       try {
-        const [dashboardRes, transactionsRes, usersRes] = await Promise.all([
+        const [dashboardRes, transactionsRes, usersRes, directProjectsRes] = await Promise.all([
           isOwnerOrAdmin ? api.users.systemDashboard().catch(() => null) : Promise.resolve(null),
           api.payments.getTransactions().catch(() => []),
           api.users.list().catch(() => []),
+          api.projects.list().catch(() => []),
         ]);
 
         const transactions = Array.isArray(transactionsRes) ? transactionsRes : [];
         const users = Array.isArray(usersRes) ? usersRes : (usersRes?.data || usersRes?.value || []);
+        const directProjects = Array.isArray(directProjectsRes) ? directProjectsRes : (directProjectsRes?.data || directProjectsRes?.value || []);
 
         // Build User Map
         const userMap = new Map();
@@ -74,16 +77,19 @@ export function AdminRevenue() {
         const projectsResults = await Promise.all(projectPromises);
         const projects = [];
         const seenIds = new Set();
-        projectsResults.forEach(list => {
-          if (Array.isArray(list)) {
-            list.forEach(p => {
-              const pId = String(p.id || p.Id).toLowerCase();
-              if (!seenIds.has(pId)) {
-                seenIds.add(pId);
-                projects.push(p);
-              }
-            });
+
+        const addProject = (p) => {
+          if (!p) return;
+          const pId = String(p.id || p.Id || "").toLowerCase();
+          if (pId && !seenIds.has(pId)) {
+            seenIds.add(pId);
+            projects.push(p);
           }
+        };
+
+        directProjects.forEach(addProject);
+        projectsResults.forEach(list => {
+          if (Array.isArray(list)) list.forEach(addProject);
         });
 
         const projectMap = new Map();
@@ -92,11 +98,11 @@ export function AdminRevenue() {
           const clientName = p.client?.fullName || p.client?.FullName || p.clientName || p.client || "";
           const expertName = p.expert?.fullName || p.expert?.FullName || p.expertName || p.expert || "";
           const title = p.title || p.jobPost?.title || p.jobPostTitle || "Project";
-          const budget = p.budget ?? p.Budget ?? p.escrowBalance ?? p.escrowAmount ?? 0;
+          const budget = Number(p.escrowBalance ?? p.EscrowBalance ?? p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowAmount ?? 0);
           projectMap.set(projId, { clientName, expertName, title, budget });
         });
 
-        // 1. Escrow Held calculation (Quỹ ký quỹ của các dự án đang chạy)
+        // 1. Escrow held calculation for active projects.
         const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
         const transactionProjectIds = new Set(
           transactions
@@ -106,6 +112,7 @@ export function AdminRevenue() {
 
         const dbEscrowFunds = Number(dashboardRes?.statistics?.totalFundsLockedInEscrow || dashboardRes?.Statistics?.TotalFundsLockedInEscrow || 0);
         let escrowHeld = 0;
+
         if (projects.length > 0) {
           projects.forEach(p => {
             const projId = p.id || p.Id;
@@ -117,21 +124,28 @@ export function AdminRevenue() {
             }
 
             const localStatus = localStorage.getItem(`project_status_${projId}`);
-            const status = (localStatus || p.status || p.Status || "").toLowerCase().replace(/_/g, "").trim();
+            const rawStatusStr = localStatus || p.status || p.Status || "";
+            const status = rawStatusStr.toLowerCase().replace(/[\s_]+/g, "").trim();
             const isReleasedLocally = localReleases.some(r => String(r.projectId).toLowerCase() === String(projId).toLowerCase());
 
-            if (status === "inprogress" && !isReleasedLocally) {
-              const budget = p.escrowBalance ?? p.escrowAmount ?? p.budget ?? p.Budget ?? 0;
-              escrowHeld += Number(budget);
+            const isActiveStatus = ["inprogress", "active", "worksubmitted", "underreview", "revisionrequested", "awaitingcancellation", "locked", "accepted", "assigned"].includes(status);
+
+            if (isActiveStatus && !isReleasedLocally) {
+              const eb = Number(p.escrowBalance ?? p.EscrowBalance ?? 0);
+              const b = Number(p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.proposal?.bidAmount ?? p.Proposal?.BidAmount ?? p.escrowAmount ?? 0);
+              const budget = eb > 0 ? eb : (b > 0 ? b : 0);
+              escrowHeld += budget;
             }
           });
-        } else {
+        }
+
+        if (escrowHeld === 0 && dbEscrowFunds > 0) {
           escrowHeld = dbEscrowFunds;
           localReleases.forEach(r => {
             const releaseProjIdLower = String(r.projectId).toLowerCase();
             const hasDbTx = transactionProjectIds.has(releaseProjIdLower);
             if (!hasDbTx) {
-              escrowHeld = Math.max(0, escrowHeld - Number(r.amount));
+              escrowHeld = Math.max(0, escrowHeld - Number(r.amount || 0));
             }
           });
         }
@@ -141,7 +155,7 @@ export function AdminRevenue() {
           Number(dashboardRes?.totalPlatformRevenue ?? dashboardRes?.TotalPlatformRevenue ?? 0)
         );
 
-        // 3. Projected 5% Fee Revenue from Active Projects (Dự kiến thu nhập 5% từ các dự án đang chạy)
+        // 3. Projected 5% fee revenue from active projects.
         const projectedRevenue = escrowHeld * 0.05;
 
         // 4. Build System Transaction Log List from SystemTransactionLogs (SystemWallets)
@@ -233,6 +247,7 @@ export function AdminRevenue() {
     {
       key: "type",
       label: "Type",
+      sortable: false,
       filterOptions: [
         { value: "System Platform Fee", label: "System Platform Fee" },
         { value: "Penalty & Fee", label: "Penalty & Fee" },
@@ -242,37 +257,40 @@ export function AdminRevenue() {
     {
       key: "client",
       label: "Client",
+      sortable: false,
     },
     {
       key: "expert",
       label: "Expert",
+      sortable: false,
     },
     {
       key: "project",
       label: "Project",
+      sortable: false,
     },
     {
       key: "amount",
       label: "System Revenue Amount",
-      className: "text-right font-semibold text-green-600",
+      className: "text-right font-semibold text-success",
       sortable: true,
       render: (val) => (
-        <span className="text-green-600 font-semibold">
+        <span className="text-success font-semibold">
           +<MoneyDisplay amount={Math.abs(val)} />
         </span>
       ),
     },
     {
-      key: "date",
+      key: "rawDate",
       label: "Date & Time",
       className: "text-right whitespace-nowrap",
-      render: (_, row) => {
-        const parsed = parseDateAndTime(row.rawDate);
-        if (!parsed) return <span className="text-muted-foreground">—</span>;
+      render: (val) => {
+        const parsed = parseDateAndTime(val);
+        if (!parsed) return <span className="text-muted-foreground">-</span>;
         return (
           <div className="flex flex-col items-end">
-            <span className="font-medium text-foreground">{parsed.dateStr}</span>
-            <span className="text-xs text-muted-foreground">{parsed.timeStr}</span>
+            <span className="text-sm font-semibold leading-none text-foreground">{parsed.dateStr}</span>
+            <span className="-mt-px text-[11px] font-medium leading-none tracking-wide text-muted-foreground">{parsed.timeStr}</span>
           </div>
         );
       },
@@ -281,17 +299,19 @@ export function AdminRevenue() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Revenue &amp; Transactions</h1>
-      <p className="text-muted-foreground mb-8">Platform system wallet revenue summary and transaction audit log.</p>
+      <PageHeader
+        title="Revenue & Transactions"
+        subtitle="Platform system wallet revenue summary and transaction audit log."
+      />
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           {
             label: "Total Realized Revenue (SystemWallet)",
             value: <MoneyDisplay amount={Math.abs(s.totalRevenue)} />,
             icon: TrendingUp,
-            color: "text-green-600 bg-green-100",
+            color: "text-success bg-success-light",
             desc: "Realized revenue credited to system wallet",
           },
           {
@@ -304,8 +324,8 @@ export function AdminRevenue() {
           {
             label: "In Escrow (Active Projects)",
             value: <MoneyDisplay amount={Math.abs(s.escrowHeld)} />,
-            icon: DollarSign,
-            color: "text-purple-600 bg-purple-100",
+            icon: Banknote,
+            color: "text-warning bg-warning-light",
             desc: "Total escrow funds locked in active projects",
           },
         ].map((card, i) => (
@@ -316,7 +336,7 @@ export function AdminRevenue() {
               </div>
             </div>
             <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
-            <p className="text-xl font-bold text-foreground mt-0.5">{card.value}</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5">{card.value}</p>
             <p className="text-xs text-muted-foreground/70 mt-1">{card.desc}</p>
           </div>
         ))}

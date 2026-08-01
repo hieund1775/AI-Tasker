@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import {
   CheckCircle,
   XCircle,
   FileText,
-  DollarSign,
   Calendar,
   User,
   Briefcase,
@@ -15,9 +14,10 @@ import { BackButton } from "../../components/shared/BackButton.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import api from "../../../services/api.js";
 import { toast } from "sonner";
+import { buildClientProfileFromUser } from "../../lib/clientProfileStorage.js";
 
 /**
- * ExpertContractView — Expert views a contract in read-only mode.
+ * ExpertContractView - Expert views a contract in read-only mode.
  * Can Accept or Reject the contract.
  *
  * Route: /expert/contracts/:contractId
@@ -62,7 +62,7 @@ export function ExpertContractView() {
         if (contractRes.clientId) {
           try {
             const cli = await api.users.getById(contractRes.clientId);
-            setClient(cli);
+            setClient(buildClientProfileFromUser(cli));
           } catch {
             console.warn("Failed to load client for contract");
           }
@@ -138,14 +138,14 @@ export function ExpertContractView() {
   // ---- Loading ----
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back
         </BackButton>
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 shadow-sm text-center">
+        <div className="bg-card rounded-2xl border border-border p-12 shadow-sm text-center">
           <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mx-auto" />
-            <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+            <div className="h-6 bg-border rounded w-1/3 mx-auto" />
+            <div className="h-4 bg-border rounded w-1/2 mx-auto" />
           </div>
         </div>
       </div>
@@ -155,16 +155,16 @@ export function ExpertContractView() {
   // ---- Not found ----
   if (!contract) {
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <BackButton fallback="/expert/dashboard" className="mb-6">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <BackButton fallback="/expert/dashboard" className="mb-0">
           Back
         </BackButton>
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center shadow-sm">
-          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-500 mb-2">
+        <div className="bg-card rounded-2xl border border-border p-12 text-center shadow-sm">
+          <FileText className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-muted-foreground mb-2">
             Contract not found
           </h3>
-          <p className="text-sm text-gray-400">
+          <p className="text-sm text-muted-foreground/70">
             This contract may have been removed or is no longer available.
           </p>
         </div>
@@ -191,39 +191,39 @@ export function ExpertContractView() {
       : "N/A";
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <BackButton fallback="/expert/dashboard" className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <BackButton fallback="/expert/dashboard" className="mb-0">
         Back to Dashboard
       </BackButton>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="p-8 border-b border-gray-100">
+        <div className="p-8 border-b border-border-light">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div className="flex-1">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <h1 className="text-2xl font-semibold text-foreground mb-2">
                 Contract Review
               </h1>
-              <p className="text-gray-500 text-sm">
+              <p className="text-muted-foreground text-sm">
                 Review the contract details below. This contract is read-only.
               </p>
             </div>
             {/* Status */}
             <div className="flex-shrink-0">
               {isPending && (
-                <span className="px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium inline-flex items-center gap-1.5">
+                <span className="px-3 py-1.5 bg-warning-light text-warning rounded-full text-sm font-medium inline-flex items-center gap-1.5">
                   <FileText className="w-4 h-4" />
                   Pending Review
                 </span>
               )}
               {isAccepted && (
-                <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-medium inline-flex items-center gap-1.5">
+                <span className="px-3 py-1.5 bg-success-light text-success rounded-full text-sm font-medium inline-flex items-center gap-1.5">
                   <CheckCircle className="w-4 h-4" />
                   Accepted
                 </span>
               )}
               {isRejected && (
-                <span className="px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-medium inline-flex items-center gap-1.5">
+                <span className="px-3 py-1.5 bg-destructive-light text-destructive rounded-full text-sm font-medium inline-flex items-center gap-1.5">
                   <XCircle className="w-4 h-4" />
                   Rejected
                 </span>
@@ -232,40 +232,40 @@ export function ExpertContractView() {
           </div>
         </div>
 
-        {/* Contract Content — Read Only */}
+        {/* Contract Content - Read Only */}
         <div className="p-8 space-y-8">
           {/* Project Information */}
           <section>
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
               Project Information
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Project Name</p>
-                <p className="font-semibold text-gray-900">
-                  {contract.projectTitle || project?.title || "—"}
+              <div className="bg-secondary rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Project Name</p>
+                <p className="font-semibold text-foreground">
+                  {contract.projectTitle || project?.title || "-"}
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Budget / Escrow</p>
-                <p className="font-semibold text-gray-900">
+              <div className="bg-secondary rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Budget / Escrow</p>
+                <p className="font-semibold text-foreground">
                   <MoneyDisplay amount={contract.budget || project?.budget} />
                 </p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Deadline</p>
-                <p className="font-semibold text-gray-900">{deadlineText}</p>
+              <div className="bg-secondary rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Deadline</p>
+                <p className="font-semibold text-foreground">{deadlineText}</p>
               </div>
-              <div className="bg-gray-50 rounded-xl p-4">
-                <p className="text-xs text-gray-500 mb-1">Status</p>
-                <p className="font-semibold text-gray-900 capitalize">
+              <div className="bg-secondary rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                <p className="font-semibold text-foreground capitalize">
                   {contract.status || "Unknown"}
                 </p>
               </div>
             </div>
-            <div className="mt-4 bg-gray-50 rounded-xl p-4">
-              <p className="text-xs text-gray-500 mb-1">Project Description</p>
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <div className="mt-4 bg-secondary rounded-xl p-4">
+              <p className="text-xs text-muted-foreground mb-1">Project Description</p>
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {contract.projectDescription ||
                   project?.description ||
                   "No description."}
@@ -273,23 +273,23 @@ export function ExpertContractView() {
             </div>
           </section>
 
-          {/* Use Cases */}
+          {/* Use cases */}
           {useCases.length > 0 && (
             <section>
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
-                Use Cases
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
+                Use cases
               </h2>
               <div className="space-y-3">
                 {useCases.map((uc, idx) => (
                   <div
                     key={idx}
-                    className="bg-gray-50 rounded-xl p-4 border border-gray-200"
+                    className="bg-secondary rounded-xl p-4 border border-border"
                   >
-                    <p className="font-semibold text-gray-900 text-sm mb-1">
+                    <p className="font-semibold text-foreground text-sm mb-1">
                       {uc.name || `Use Case ${idx + 1}`}
                     </p>
                     {uc.description && (
-                      <p className="text-sm text-gray-600">{uc.description}</p>
+                      <p className="text-sm text-muted-foreground">{uc.description}</p>
                     )}
                   </div>
                 ))}
@@ -299,18 +299,18 @@ export function ExpertContractView() {
 
           {/* Client Information */}
           <section>
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
               Client Information
             </h2>
-            <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                <User className="w-6 h-6 text-white" />
+            <div className="bg-secondary rounded-xl p-4 flex items-center gap-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <User className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <p className="font-semibold text-gray-900">
+                <p className="font-semibold text-foreground">
                   {client?.fullName || "Client"}
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   {client?.email || ""}
                 </p>
               </div>
@@ -319,11 +319,11 @@ export function ExpertContractView() {
 
           {/* Terms & Agreement (Read Only) */}
           <section>
-            <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
               Terms & Agreement
             </h2>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <div className="bg-secondary rounded-xl p-4 border border-border">
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {contract.terms || "No terms specified."}
               </p>
             </div>
@@ -332,11 +332,11 @@ export function ExpertContractView() {
           {/* Additional Notes */}
           {contract.notes && (
             <section>
-              <h2 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-4">
+              <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-4">
                 Additional Notes
               </h2>
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+              <div className="bg-secondary rounded-xl p-4 border border-border">
+                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                   {contract.notes}
                 </p>
               </div>
@@ -344,11 +344,11 @@ export function ExpertContractView() {
           )}
         </div>
 
-        {/* Footer — Accept / Reject */}
+        {/* Footer - Accept / Reject */}
         {hasAction && (
-          <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+          <div className="p-8 border-t border-border-light bg-secondary/50">
             <div className="flex items-center justify-between flex-wrap gap-4">
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground/70">
                 By accepting this contract, you agree to the terms and the
                 project will begin. Rejecting will notify the Client.
               </p>
@@ -357,7 +357,7 @@ export function ExpertContractView() {
                   type="button"
                   onClick={handleReject}
                   disabled={acting}
-                  className="px-5 py-2.5 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 font-medium text-sm inline-flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 border border-destructive/20 text-destructive rounded-xl hover:bg-destructive-light font-medium text-sm inline-flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <XCircle className="w-4 h-4" />
                   {acting ? "Processing..." : "Reject"}
@@ -366,7 +366,7 @@ export function ExpertContractView() {
                   type="button"
                   onClick={handleAccept}
                   disabled={acting}
-                  className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium text-sm inline-flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-success text-primary-foreground rounded-xl hover:bg-success/85 font-medium text-sm inline-flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CheckCircle className="w-4 h-4" />
                   {acting ? "Processing..." : "Accept"}
@@ -376,12 +376,12 @@ export function ExpertContractView() {
           </div>
         )}
 
-        {/* Already acted — status message */}
+        {/* Already acted - status message */}
         {!hasAction && (
-          <div className="p-8 border-t border-gray-100 bg-gray-50/50">
+          <div className="p-8 border-t border-border-light bg-secondary/50">
             <div className="flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5 text-gray-400" />
-              <p className="text-sm text-gray-500">
+              <ShieldCheck className="w-5 h-5 text-muted-foreground/70" />
+              <p className="text-sm text-muted-foreground">
                 {isAccepted
                   ? "This contract has been accepted. The project is now in progress."
                   : "This contract has been rejected."}

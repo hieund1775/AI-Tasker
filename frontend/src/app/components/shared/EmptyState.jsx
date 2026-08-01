@@ -1,20 +1,20 @@
-import { cn } from "../../lib/utils.js";
+﻿import { cn } from "../../lib/utils.js";
 import { SearchX, FolderOpen, BellOff, MessageSquareOff, FileText, AlertTriangle, PackageOpen } from "lucide-react";
 import { motion } from "motion/react";
 
 // =============================================================================
-// EmptyState — reusable empty/not-found placeholder (premium design).
+// EmptyState - reusable empty/not-found placeholder (premium design).
 //
 // Props:
-//   icon         — Lucide icon component (optional, auto-detects based on type)
-//   title        — heading text (required)
-//   description  — supporting text (optional)
-//   action       — React node for a CTA button/link (optional)
-//   illustration — React node (optional) — rendered above the icon for branded visuals
-//   className    — additional classes for the outer wrapper
-//   size         — "sm" | "md" | "lg" (default "md")
-//   variant      — "default" | "minimal" (no border/bg, just centered content)
-//   type         — "empty" | "not-found" | "error" | "no-projects" | "no-notifications" | "no-messages" | "no-proposals"
+//   icon         - Lucide icon component (optional, auto-detects based on type)
+//   title        - heading text (required)
+//   description  - supporting text (optional)
+//   action       - React node for a CTA button/link (optional)
+//   illustration - React node (optional) - rendered above the icon for branded visuals
+//   className    - additional classes for the outer wrapper
+//   size         - "sm" | "md" | "lg" (default "md")
+//   variant      - "default" | "minimal" (no border/bg, just centered content)
+//   type         - "empty" | "not-found" | "error" | "no-projects" | "no-notifications" | "no-messages" | "no-proposals"
 // =============================================================================
 
 const SIZES = {

@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+﻿import { Link } from "react-router";
 import { Bot, MessageSquare } from "lucide-react";
 
 import {
@@ -17,7 +17,7 @@ import { ActivityLogPanel } from "./timeline/ActivityLogPanel.jsx";
 import { TaskCard } from "./timeline/TaskCard.jsx";
 
 // =============================================================================
-// ProjectTimelineManager — main container for project timeline view.
+// ProjectTimelineManager - main container for project timeline view.
 //
 // State, effects, derived values, and action handlers live in the
 // useProjectTimeline hook.  Rendering delegates to extracted sub-components:
@@ -121,31 +121,31 @@ export function ProjectTimelineManager({ role, projectId }) {
           <div className="flex-1 min-w-0">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-primary-light text-primary rounded-full text-xs font-medium mb-4">
               <Bot className="w-4 h-4" />
-              AI Project Timeline Manager
+              AI project timeline manager
             </div>
 
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-3xl font-semibold text-foreground">
               {project.projectTitle || "Project"}
             </h1>
 
             <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
-              AI divides the project into main tasks and mini tasks. Overall
-              progress is calculated from average mini task completion.
+              AI divides the project into main tasks and mini-tasks. Overall
+              progress is calculated from average mini-task completion.
             </p>
 
             {/* Stats */}
             <div className="flex flex-wrap gap-4 mt-6">
               {deadlineInfo && (
                 <>
-                  <div className="bg-secondary rounded-xl px-4 py-3">
-                    <p className="text-xs text-muted-foreground mb-1">Project Deadline</p>
+                  <div className="bg-secondary rounded-xl px-4 py-2.5">
+                    <p className="text-xs text-muted-foreground mb-1">Project deadline</p>
                     <p className="font-semibold text-foreground">
                       {deadlineInfo.formattedDate || "N/A"}
                     </p>
                   </div>
 
                   <div
-                    className={`rounded-xl px-4 py-3 ${deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
+                    className={`rounded-xl px-4 py-2.5 ${deadlineInfo.isOverdue ? "bg-destructive-light" : "bg-success-light"
                       }`}
                   >
                     <p
@@ -164,7 +164,7 @@ export function ProjectTimelineManager({ role, projectId }) {
                 </>
               )}
 
-              <div className="bg-success-light rounded-xl px-4 py-3">
+              <div className="bg-success-light rounded-xl px-4 py-2.5">
                 <p className="text-xs text-success mb-1">Completed Tasks</p>
                 <p className="font-semibold text-success">
                   {completedTasks}/{tasks.length}
@@ -173,7 +173,7 @@ export function ProjectTimelineManager({ role, projectId }) {
             </div>
           </div>
 
-          {/* Expert action buttons — right side */}
+          {/* Expert action buttons - right side */}
           {role === "expert" && (
             <div className="flex flex-row xl:flex-col gap-3 xl:flex-shrink-0">
               <Button
@@ -184,21 +184,21 @@ export function ProjectTimelineManager({ role, projectId }) {
                 onClick={() => setShowExtensionForm((current) => !current)}
               >
                 {hasPendingExtension
-                  ? "Extension Request Pending"
-                  : "Request Project Extension"}
+                  ? "Extension request pending"
+                  : "Request project extension"}
               </Button>
 
               <Button asChild variant="default" fullWidth>
                 <Link to={chatUrl}>
                   <MessageSquare className="w-4 h-4" />
-                  Message Client
+                  Message client
                 </Link>
               </Button>
             </div>
           )}
         </div>
 
-        {/* Extension request panel — extracted component */}
+        {/* Extension request panel - extracted component */}
         <ExtensionRequestPanel
           role={role}
           extensionRequest={project?.extensionRequest}
@@ -220,7 +220,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         {/* Overall progress bar */}
         <div>
           <div className="flex justify-between mb-3">
-            <span className="text-sm font-medium text-foreground">Overall Progress</span>
+            <span className="text-sm font-medium text-foreground">Overall progress</span>
             <span className="font-semibold text-foreground">
               {overallProgress}%
             </span>
@@ -232,12 +232,12 @@ export function ProjectTimelineManager({ role, projectId }) {
             />
           </div>
           <p className="text-sm text-muted-foreground mt-3">
-            Overall progress = average mini task completion.
+            Overall progress = average mini-task completion.
           </p>
         </div>
       </div>
 
-      {/* Task list — uses extracted TaskCard component */}
+      {/* Task list - uses extracted TaskCard component */}
       <div className="space-y-4 relative pl-4 border-l-2 border-border ml-2"
         style={{ borderImage: 'linear-gradient(to bottom, var(--accent), var(--border), var(--border)) 1' }}
       >
@@ -281,7 +281,7 @@ export function ProjectTimelineManager({ role, projectId }) {
         })}
       </div>
 
-      {/* Activity log — extracted component */}
+      {/* Activity log - extracted component */}
       <ActivityLogPanel projectLogs={projectLogs} />
     </div>
   );

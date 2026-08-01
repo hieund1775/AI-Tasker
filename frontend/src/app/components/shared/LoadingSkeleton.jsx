@@ -1,14 +1,14 @@
-import { Skeleton } from "../ui/skeleton.jsx";
+﻿import { Skeleton } from "../ui/skeleton.jsx";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// LoadingSkeleton — reusable loading placeholder components.
+// LoadingSkeleton - reusable loading placeholder components.
 //
 // Props:
-//   variant  — "card" | "list" | "dashboard" | "detail"
-//   count    — number of skeleton items to render (default 1 for card/detail,
+//   variant  - "card" | "list" | "dashboard" | "detail"
+//   count    - number of skeleton items to render (default 1 for card/detail,
 //              default 4 for dashboard, default 3 for list)
-//   className — additional classes for the outer wrapper
+//   className - additional classes for the outer wrapper
 // =============================================================================
 
 const DEFAULT_COUNTS = {

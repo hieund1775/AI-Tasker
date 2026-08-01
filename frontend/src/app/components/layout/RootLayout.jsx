@@ -1,4 +1,4 @@
-import { Outlet, useLocation, useNavigate } from "react-router";
+﻿import { Outlet, useLocation, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { AlertTriangle, LogOut } from "lucide-react";
@@ -7,7 +7,7 @@ import { Footer } from "./Footer.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 
 /**
- * RootLayout — shell that wraps authenticated routes with Header + Footer.
+ * RootLayout - shell that wraps authenticated routes with Header + Footer.
  *
  * Real-time Ban Event Engine (Lightweight & Event-Driven):
  *   - Listens to ban events via localStorage / custom window events (NO background polling).
@@ -55,7 +55,7 @@ export function RootLayout() {
     }, 1000);
   }, [executeImmediateLogout]);
 
-  // Event-driven ban listener (No background API polling)
+  // Automatically sync between tabs when localStorage changes (status overrides, audit logs, escrow) & event-driven ban listener
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
 
@@ -111,13 +111,13 @@ export function RootLayout() {
     <div className="min-h-screen bg-background flex flex-col relative w-full max-w-[100vw] overflow-x-hidden">
       {/* Sleek Minimalist 10-Second Banned Notification Modal */}
       {bannedNotification && (
-        <div className="fixed inset-0 z-[999999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div data-modal-overlay className="fixed inset-0 z-[999999] bg-foreground/55 backdrop-blur-sm flex items-center justify-center p-4">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full shadow-xl text-center space-y-4"
           >
-            <div className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto">
+            <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-destructive-light text-destructive">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div>
@@ -129,12 +129,12 @@ export function RootLayout() {
 
             {/* Countdown timer & progress bar */}
             <div className="space-y-1.5 py-1">
-              <span className="text-2xl font-bold text-red-600 tracking-wider">
+              <span className="text-2xl font-semibold text-destructive tracking-wider">
                 {bannedNotification.countdown}s
               </span>
               <div className="w-full bg-secondary h-1.5 rounded-full overflow-hidden">
                 <div
-                  className="bg-red-600 h-full transition-all duration-1000 ease-linear"
+                  className="h-full bg-destructive transition-all duration-1000 ease-linear"
                   style={{ width: `${(bannedNotification.countdown / 10) * 100}%` }}
                 />
               </div>
@@ -143,7 +143,7 @@ export function RootLayout() {
             <button
               type="button"
               onClick={executeImmediateLogout}
-              className="w-full py-2 px-3 bg-red-600 text-white hover:bg-red-700 rounded-lg text-xs font-medium transition flex items-center justify-center gap-1.5"
+              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-destructive px-4 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/85"
             >
               <LogOut className="w-3.5 h-3.5" />
               Log Out Now
@@ -153,14 +153,15 @@ export function RootLayout() {
       )}
 
       {!hideHeaderFooter && <Header />}
-      <main className="flex-1 w-full overflow-x-hidden">
+      <main className={`flex-1 w-full overflow-x-hidden ${hideHeaderFooter ? "" : "pt-[4.75rem]"}`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.42, ease: [0.25, 0.1, 0.25, 1] }}
+            className="page-shell"
           >
             <Outlet />
           </motion.div>

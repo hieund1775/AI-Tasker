@@ -1,21 +1,21 @@
-// =============================================================================
-// Project Status Configuration — single source of truth for all status display
+﻿// =============================================================================
+// Project Status Configuration - single source of truth for all status display
 // =============================================================================
 //
 // Every page that renders a project card, badge, or button should import from
 // this file instead of defining its own status labels, colours, or logic.
 //
 // Standardized status keys (the "source of truth" identifier):
-//   reviewing_proposals  — Project is open, client is reviewing incoming proposals
-//   in_progress           — Project has an assigned expert and is being worked on
-//   waiting_review        — Expert has submitted work, waiting for client review
-//   needs_revision        — Client requested changes on a submission
-//   completed             — Project is finished
-//   cancelled             — Project was cancelled
+//   reviewing_proposals  - Project is open, client is reviewing incoming proposals
+//   in_progress           - Project has an assigned expert and is being worked on
+//   waiting_review        - Expert has submitted work, waiting for client review
+//   needs_revision        - Client requested changes on a submission
+//   completed             - Project is finished
+//   cancelled             - Project was cancelled
 // =============================================================================
 
 // ---------------------------------------------------------------------------
-// 1. Status display labels — mapping from standardized key → human label
+// 1. Status display labels - mapping from standardized key -> human label
 // ---------------------------------------------------------------------------
 
 export const STATUS_LABELS = {
@@ -30,32 +30,36 @@ export const STATUS_LABELS = {
   contract_cancelled: "Contract Cancelled",
   awaiting_cancellation: "Awaiting Cancellation",
   cancel_done: "Cancelled Successfully",
-  settled_dispute: "Settled dispute",
+  settled_dispute: "Settled Dispute",
+  accepted: "Delivery Accepted",
+  payment_released: "Payment Released",
 };
 
 // ---------------------------------------------------------------------------
-// 2. Status badge colour classes — standardized key → Tailwind classes
+// 2. Status badge colour classes - standardized key -> Tailwind classes
 // ---------------------------------------------------------------------------
 
 export const STATUS_BADGE_CLASSES = {
-  reviewing_proposals: "bg-purple-100 text-purple-700",
-  in_progress: "bg-brand-primary-light text-brand-primary",
-  waiting_review: "bg-yellow-100 text-yellow-700",
-  needs_revision: "bg-orange-100 text-orange-700",
-  completed: "bg-brand-green/10 text-brand-green",
-  cancelled: "bg-red-100 text-red-700",
-  contract_cancelled: "bg-rose-100 text-rose-700 border border-rose-200",
-  pending_escrow: "bg-amber-100 text-amber-700 border border-amber-200",
-  disputed: "bg-red-500/10 text-red-500 border border-red-500/20 font-semibold",
+  reviewing_proposals: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
+  in_progress: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
+  waiting_review: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  needs_revision: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  completed: "bg-success-light text-success border border-success/25 font-semibold",
+  cancelled: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  contract_cancelled: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  pending_escrow: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  disputed: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
   "disputed-card": "bg-card border border-border hover:border-border/80",
-  awaiting_cancellation: "bg-amber-100 text-amber-800 border border-amber-200 font-semibold",
-  cancel_done: "bg-rose-100 text-rose-800 border border-rose-200",
-  settled_dispute: "bg-teal-100 text-teal-800 border border-teal-200 font-semibold",
+  awaiting_cancellation: "bg-warning-light text-warning border border-warning/25 font-semibold",
+  cancel_done: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
+  settled_dispute: "bg-success-light text-success border border-success/25 font-semibold",
+  accepted: "bg-success-light text-success border border-success/25 font-semibold",
+  payment_released: "bg-success-light text-success border border-success/25 font-semibold",
 };
 
 /** Convenience: get the badge class for a key, with fallback. */
 export function getStatusBadgeClass(key) {
-  return STATUS_BADGE_CLASSES[key] || "bg-secondary text-foreground/80";
+  return STATUS_BADGE_CLASSES[key] || "bg-secondary text-foreground/80 border border-border";
 }
 
 /** Convenience: get the display label for a key, with fallback. */
@@ -70,7 +74,7 @@ export function getStatusLabel(key) {
 /**
  * Returns an object describing what to show about the assigned expert.
  * @param {{ assignedExpertId: string | null }} project
- * @param {function} getUserById — e.g. getMockUserById
+ * @param {function} getUserById - e.g. getMockUserById
  * @returns {{ text: string, isAssigned: boolean }}
  */
 export function getExpertDisplayInfo(project, getUserById) {
@@ -85,7 +89,7 @@ export function getExpertDisplayInfo(project, getUserById) {
 }
 
 // ---------------------------------------------------------------------------
-// 4. Client-side button config — based on project status
+// 4. Client-side button config - based on project status
 //    Returns { label: string, className: string, behavior: string }
 // ---------------------------------------------------------------------------
 
@@ -107,7 +111,7 @@ const CLIENT_BUTTON_MAP = {
   },
   needs_revision: {
     label: "Review Changes",
-    className: "bg-orange-600 text-white hover:bg-orange-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   completed: {
@@ -122,17 +126,17 @@ const CLIENT_BUTTON_MAP = {
   },
   contract_cancelled: {
     label: "View Details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   awaiting_cancellation: {
     label: "View cancellation",
-    className: "bg-amber-600 text-white hover:bg-amber-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   cancel_done: {
     label: "Cancellation details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/client/projects/${p.id}`,
   },
   settled_dispute: {
@@ -148,7 +152,7 @@ export function getClientButtonConfig(statusKey) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Expert-side button config — based on project status
+// 5. Expert-side button config - based on project status
 // ---------------------------------------------------------------------------
 
 const EXPERT_BUTTON_MAP = {
@@ -159,12 +163,12 @@ const EXPERT_BUTTON_MAP = {
   },
   waiting_review: {
     label: "Waiting for Client Review",
-    className: "bg-yellow-100 text-yellow-700 border border-yellow-300 cursor-default",
+    className: "bg-warning-light text-warning border border-warning/35 cursor-default",
     disabled: true,
   },
   needs_revision: {
     label: "Update Submission",
-    className: "bg-orange-600 text-white hover:bg-orange-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   completed: {
@@ -174,12 +178,12 @@ const EXPERT_BUTTON_MAP = {
   },
   awaiting_cancellation: {
     label: "View cancellation",
-    className: "bg-amber-600 text-white hover:bg-amber-700",
+    className: "bg-warning text-primary-foreground hover:bg-warning/85",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   cancel_done: {
     label: "Cancellation details",
-    className: "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100",
+    className: "bg-destructive-light text-destructive border border-destructive/20 hover:bg-destructive-light",
     linkTo: (p) => `/expert/projects/${p.id}`,
   },
   settled_dispute: {
@@ -205,41 +209,43 @@ export function getExpertButtonConfig(statusKey) {
  * standardized keys (e.g., "in_progress") rather than a display label.
  *
  * Rules (first match wins):
- *   1. Raw status is "completed" | "cancelled" → pass through as-is
+ *   1. Raw status is "completed" | "cancelled" -> pass through as-is
  *   2. Raw status is "in_progress":
- *      - If ALL tasks are completed → "completed"
- *      - If ANY task is pending_review → "waiting_review"
- *      - If ANY task is needs_revision → "needs_revision"
- *      - Otherwise → "in_progress"
+ *      - If ALL tasks are completed -> "completed"
+ *      - If ANY task is pending_review -> "waiting_review"
+ *      - If ANY task is needs_revision -> "needs_revision"
+ *      - Otherwise -> "in_progress"
  *   3. Raw status is "open":
- *      - If has assigned expert → "in_progress" (project was just assigned)
- *      - If has proposals → "reviewing_proposals"
- *      - Otherwise → "reviewing_proposals" (shown as "Seeking Expert" in UI) — see
+ *      - If has assigned expert -> "in_progress" (project was just assigned)
+ *      - If has proposals -> "reviewing_proposals"
+ *      - Otherwise -> "reviewing_proposals" (shown as "Seeking Expert" in UI) - see
  *        `getStatusLabel` and the `proposalCount` param for finer display control.
  *
- * @param {object} project — raw project from mock DB
+ * @param {object} project - raw project from mock DB
  * @param {{ proposalCount?: number }} options
  * @returns {string} standardized status key
  */
 export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
   if (!project) return "reviewing_proposals";
 
-  const raw = project.status;
+  const raw = String(project.status || "").trim().toLowerCase();
 
   // Completed / cancelled pass through directly
-  if (raw === "settled_dispute" || raw === "Settled dispute" || raw === "settled dispute") return "settled_dispute";
-  if (raw === "completed") return "completed";
-  if (raw === "cancelled") return "cancelled";
+  if (raw === "settled_dispute" || raw === "settled dispute") return "settled_dispute";
+  if (raw === "completed" || raw === "complete") return "completed";
+  if (raw === "accepted") return "accepted";
+  if (raw === "payment_released" || raw === "payment released") return "payment_released";
+  if (raw === "cancelled" || raw === "canceled" || raw === "stopped") return "cancelled";
   if (raw === "contract_cancelled") return "contract_cancelled";
   if (raw === "pending_escrow" || raw === "pending escrow") return "pending_escrow";
-  if (raw === "disputed" || raw === "Disputed" || raw === "under_review" || raw === "under review" || raw === "Under Review") return "disputed";
-  if (raw === "Awaiting_Cancellation" || raw === "awaiting_cancellation") return "awaiting_cancellation";
+  if (raw === "disputed" || raw === "under_review" || raw === "under review") return "disputed";
+  if (raw === "awaiting_cancellation" || raw === "awaiting cancellation") return "awaiting_cancellation";
   if (raw === "cancel_done") return "cancel_done";
 
-  // in_progress or active → check task states for waiting_review / needs_revision
-  if (raw === "in_progress" || raw === "active") return "in_progress";
+  // in_progress or active -> check task states for waiting_review / needs_revision
+  if (raw === "in_progress" || raw === "in progress" || raw === "inprogress" || raw === "active") return "in_progress";
 
-  // open → determine based on assigned expert and proposals
+  // open -> determine based on assigned expert and proposals
   if (raw === "open") {
     // If an expert is assigned, treat as in_progress (assignment was likely
     // done in this session and the raw status hasn't been updated yet)
@@ -258,7 +264,7 @@ export function deriveProjectStatusKey(project, { proposalCount = 0 } = {}) {
 
 /**
  * @deprecated Use deriveProjectStatusKey + getStatusLabel instead.
- * Kept for backward compatibility — returns the human-readable label.
+ * Kept for backward compatibility - returns the human-readable label.
  */
 export function deriveProjectDisplayStatus(project, options) {
   const key = deriveProjectStatusKey(project, options);
@@ -266,29 +272,29 @@ export function deriveProjectDisplayStatus(project, options) {
 }
 
 // ---------------------------------------------------------------------------
-// 8. Task-level status config — used by ProjectTimelineManager
+// 8. Task-level status config - used by ProjectTimelineManager
 //    These are the statuses derived by deriveTaskStatus(), not project-level.
 // ---------------------------------------------------------------------------
 
 export const TASK_STATUS_CONFIG = {
-  "Not Started":         { className: "bg-secondary text-muted-foreground",   label: "Not Started" },
-  "In Progress":         { className: "bg-brand-primary-light text-brand-primary",   label: "In Progress" },
-  "Pending Review":      { className: "bg-purple-100 text-purple-700", label: "Waiting for Client Review" },
-  "Waiting For Approval":{ className: "bg-purple-100 text-purple-700", label: "Waiting For Approval" },
-  "Checklist Completed": { className: "bg-amber-50 text-amber-700 border border-amber-200", label: "Checklist Completed" },
-  "Waiting for Expert Product": { className: "bg-yellow-50 text-yellow-700 border border-yellow-200", label: "Waiting for Expert Product" },
-  "Completed":           { className: "bg-brand-green/10 text-brand-green",  label: "Completed" },
-  "Done":                { className: "bg-brand-green/10 text-brand-green",  label: "Done" },
-  "Needs Revision":      { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
-  "Decline":             { className: "bg-red-100 text-red-700 border border-red-200", label: "Decline" },
-  "Rework":              { className: "bg-orange-100 text-orange-700 border border-orange-300", label: "Rework" },
-  "Reopen Requested":    { className: "bg-red-100 text-red-700",     label: "Reopen Requested" },
-  "Cancelled":           { className: "bg-red-100 text-red-700",     label: "Cancelled" },
+  "Not Started":         { className: "bg-secondary text-muted-foreground border border-border font-semibold",   label: "Not Started" },
+  "In Progress":         { className: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",   label: "In Progress" },
+  "Pending Review":      { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting for Client Review" },
+  "Waiting For Approval":{ className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting For Approval" },
+  "Checklist Completed": { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Checklist Completed" },
+  "Waiting for Expert Product": { className: "bg-warning-light text-warning border border-warning/25 font-semibold", label: "Waiting for Expert Product" },
+  "Completed":           { className: "bg-success-light text-success border border-success/25 font-semibold",  label: "Completed" },
+  "Done":                { className: "bg-success-light text-success border border-success/25 font-semibold",  label: "Done" },
+  "Needs Revision":      { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold", label: "Decline" },
+  "Decline":             { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold", label: "Decline" },
+  "Rework":              { className: "bg-warning-light text-warning border border-warning/35 font-semibold", label: "Rework" },
+  "Reopen Requested":    { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",     label: "Reopen Requested" },
+  "Cancelled":           { className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",     label: "Cancelled" },
 };
 
 /** Get the badge class for a task-level display status. */
 export function getTaskStatusClass(status) {
-  return TASK_STATUS_CONFIG[status]?.className || "bg-secondary text-foreground/80";
+  return TASK_STATUS_CONFIG[status]?.className || "bg-secondary text-foreground/80 border border-border";
 }
 
 /** Get the display label for a task-level display status. */
@@ -297,20 +303,20 @@ export function getTaskStatusLabel(status) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. Deadline status config — used by TaskProgressCard and TaskDetailPage
+// 9. Deadline status config - used by TaskProgressCard and TaskDetailPage
 // ---------------------------------------------------------------------------
 
 export const DEADLINE_STATUS_CONFIG = {
   normal: {
-    className: "bg-brand-primary-light text-brand-primary",
+    className: "bg-brand-primary-light text-brand-primary border border-brand-primary/20 font-semibold",
     label: "Due in X days",
   },
   warning: {
-    className: "bg-orange-50 text-orange-700",
+    className: "bg-warning-light text-warning border border-warning/25 font-semibold",
     label: "Due soon",
   },
   overdue: {
-    className: "bg-red-50 text-red-700",
+    className: "bg-destructive-light text-destructive border border-destructive/25 font-semibold",
     label: "Overdue",
   },
 };

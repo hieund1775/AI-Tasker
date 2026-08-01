@@ -114,15 +114,46 @@ namespace AITasker_Modular.Modules.ProposalModule
 
         public async Task<Proposal> SubmitProposalAsync(CreateProposalDto dto)
         {
-            var hasActiveProposal = await _context.Proposals
-                .AnyAsync(x => x.JobPostId == dto.JobPostId 
-                            && x.ExpertId == dto.ExpertId 
-                            && x.Status.ToLower() != "rejected"
-                            && x.Status.ToLower() != "declined");
+            var existingProposal = await _context.Proposals
+                .Include(x => x.ProposalTasks)
+                .ThenInclude(t => t.ProposalMiniTasks)
+                .FirstOrDefaultAsync(x => x.JobPostId == dto.JobPostId && x.ExpertId == dto.ExpertId);
 
-            if (hasActiveProposal)
+            if (existingProposal != null)
             {
-                throw new InvalidOperationException("Each expert can only have one active proposal per job post. You must wait for the previous proposal to be rejected or declined before submitting a new one.");
+                var status = (existingProposal.Status ?? "").ToLower();
+                if (status == "pending" || status == "accepted")
+                {
+                    throw new InvalidOperationException("You already have an active or accepted proposal for this job post. You can submit a new proposal after your previous proposal is rejected or declined.");
+                }
+
+                // Previous proposal was rejected, declined, or withdrawn!
+                // Reuse existing proposal record to satisfy DB Unique Index (JobPostId + ExpertId) seamlessly
+                existingProposal.BidAmount = dto.BidAmount;
+                existingProposal.EstimatedDuration = dto.EstimatedDuration;
+                existingProposal.Introduction = dto.Introduction.Trim();
+                if (!string.IsNullOrWhiteSpace(dto.PortfolioUrl)) existingProposal.Portfolio = dto.PortfolioUrl;
+                if (!string.IsNullOrWhiteSpace(dto.AttachmentUrl)) existingProposal.AttachmentUrl = dto.AttachmentUrl;
+                existingProposal.Status = "Pending";
+                existingProposal.CreatedAt = DateTime.UtcNow;
+
+                if (existingProposal.ProposalTasks != null && existingProposal.ProposalTasks.Any())
+                {
+                    _context.ProposalTasks.RemoveRange(existingProposal.ProposalTasks);
+                }
+
+                SaveProposalWbs(existingProposal.Id, dto.Implementation);
+                await _context.SaveChangesAsync();
+
+                var res = await _context.Proposals
+                    .Include(x => x.JobPost)
+                    .Include(x => x.Expert)
+                    .Include(x => x.ProposalTasks)
+                    .ThenInclude(t => t.ProposalMiniTasks)
+                    .FirstAsync(x => x.Id == existingProposal.Id);
+
+                res.Implementation = GetProposalWbsJson(res);
+                return res;
             }
 
             var proposal = new Proposal

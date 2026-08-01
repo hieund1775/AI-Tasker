@@ -1,5 +1,5 @@
-// =============================================================================
-// AdminUsers — User management page for Admin/Owner.
+﻿// =============================================================================
+// AdminUsers - User management page for Admin/Owner.
 //
 // Uses existing /api/users endpoint. Admin/Owner can:
 //   - View user list with search
@@ -12,6 +12,7 @@ import { Search, ShieldOff, Shield, Filter, Eye, X } from "lucide-react";
 import { useNavigate } from "react-router";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { StatusBadge } from "../../components/shared/StatusBadge.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
 import { formatDateTime } from "../../lib/dateUtils.js";
 import api from "../../../services/api.js";
@@ -22,18 +23,36 @@ import { useAuth } from "../../hooks/useAuth.js";
 // ---------------------------------------------------------------------------
 
 const ROLE_COLORS = {
-  client: "bg-brand-primary-light text-brand-primary",
-  expert: "bg-purple-100 text-purple-700",
-  admin: "bg-red-100 text-red-700",
-  owner: "bg-yellow-100 text-yellow-700",
+  client: "bg-brand-primary-light text-brand-primary border border-brand-primary/20",
+  expert: "bg-[#dbeafe] text-[#1c2e4a] border border-[#93c5fd] dark:bg-[#1c2e4a] dark:text-white dark:border-[#5b7da8]",
+  admin: "bg-destructive-light text-destructive border border-destructive/25",
+  owner: "bg-warning-light text-warning border border-warning/25",
 };
 
 const STATUS_CONFIG = {
-  active: { color: "bg-green-100 text-green-700", label: "Active" },
-  inactive: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  suspended: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  locked: { color: "bg-red-100 text-red-700", label: "Inactive" },
-  banned: { color: "bg-red-100 text-red-700", label: "Inactive" },
+  pending: { color: "bg-warning-light text-warning border border-warning/25", label: "Pending" },
+  active: { color: "bg-success-light text-success border border-success/20", label: "Active" },
+  inactive: { color: "bg-secondary text-secondary-foreground border border-border", label: "Inactive" },
+  banned: { color: "bg-destructive-light text-destructive border border-destructive/20", label: "Banned" },
+};
+
+const normalizeUserStatus = (user) => {
+  const isActive = user?.isActive ?? user?.IsActive;
+  const raw = String(user?.status || user?.Status || "").trim().toLowerCase();
+
+  if (raw === "banned" || raw === "ban") return "banned";
+  if (raw === "pending") return "pending";
+  if (raw === "inactive" || raw === "disabled" || raw === "locked" || raw === "suspended" || raw === "false") return "inactive";
+  if (raw === "active" || raw === "true") return "active";
+  if (isActive === false) return "inactive";
+  return "active";
+};
+
+const USER_STATUS_LABELS = {
+  pending: "Pending",
+  active: "Active",
+  inactive: "Inactive",
+  banned: "Banned",
 };
 
 const ROLE_FILTER_OPTIONS = [
@@ -58,7 +77,7 @@ export function AdminUsers({ excludeRoles = [] }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  // Frontend filtering — role exclusion
+  // Frontend filtering - role exclusion
   const filteredUsers = useMemo(() => {
     let result = users;
     // Exclude specified roles (e.g. Owner page excludes admins)
@@ -92,7 +111,8 @@ export function AdminUsers({ excludeRoles = [] }) {
         const roleLower = (u.role || u.Role || "").trim().toLowerCase();
         return {
           ...u,
-          role: roleLower === "staff" ? "admin" : roleLower
+          role: roleLower === "staff" ? "admin" : roleLower,
+          status: normalizeUserStatus(u),
         };
       });
       setUsers(normalizedData);
@@ -151,6 +171,13 @@ export function AdminUsers({ excludeRoles = [] }) {
     [showToast],
   );
 
+  const statusFilterOptions = useMemo(() => {
+    const statuses = new Set(filteredUsers.map((user) => user.status).filter(Boolean));
+    return Object.entries(USER_STATUS_LABELS)
+      .filter(([value]) => statuses.has(value))
+      .map(([value, label]) => ({ value, label }));
+  }, [filteredUsers]);
+
   // -----------------------------------------------------------------------
   // Table columns
   // -----------------------------------------------------------------------
@@ -158,25 +185,27 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "fullName",
       label: "User",
+      sortable: false,
       render: (val, row) => (
         <div>
           <p className="text-sm font-medium text-foreground">
-            {val || row.name || "—"}
+            {val || row.name || "-"}
           </p>
-          <p className="text-xs text-muted-foreground">{row.email || "—"}</p>
+          <p className="text-xs text-muted-foreground">{row.email || "-"}</p>
         </div>
       ),
     },
     {
       key: "role",
       label: "Role",
+      sortable: false,
       filterOptions: [
         { label: "Client", value: "client" },
         { label: "Expert", value: "expert" },
         { label: "Admin", value: "admin" },
       ],
       render: (val) => {
-        if (!val) return "—";
+        if (!val) return "-";
         const normalized = val.trim().toLowerCase();
         const displayLabel = normalized.charAt(0).toUpperCase() + normalized.slice(1);
         return (
@@ -193,10 +222,8 @@ export function AdminUsers({ excludeRoles = [] }) {
     {
       key: "status",
       label: "Status",
-      filterOptions: [
-        { label: "Active", value: "active" },
-        { label: "Inactive", value: "inactive" },
-      ],
+      sortable: false,
+      filterOptions: statusFilterOptions,
       render: (val) => (
         <StatusBadge status={val || "active"} config={STATUS_CONFIG} />
       ),
@@ -206,7 +233,7 @@ export function AdminUsers({ excludeRoles = [] }) {
       label: "Joined",
       render: (val) => (
         <span className="text-xs text-muted-foreground">
-          {val ? formatDateTime(val) : "—"}
+          {val ? formatDateTime(val) : "-"}
         </span>
       ),
     },
@@ -219,21 +246,19 @@ export function AdminUsers({ excludeRoles = [] }) {
     <div className="space-y-6">
 
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">
-        User Management
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        View and manage platform users.
-      </p>
+      <PageHeader
+        title="User Management"
+        subtitle="View and manage platform users."
+      />
 
       {feedback && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+        <div className="p-3 bg-success-light border border-success/20 rounded-lg text-sm text-success">
           {feedback}
         </div>
       )}
 
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+        <div className="p-4 bg-destructive-light border border-destructive/20 rounded-xl text-sm text-destructive">
           {error}
         </div>
       )}
@@ -267,7 +292,7 @@ export function AdminUsers({ excludeRoles = [] }) {
                   const url = `${basePath}/${profileType}/${row.id}`;
                   navigate(url);
                 }}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition bg-accent-light text-accent hover:bg-accent-light border border-accent/25"
               >
                 <Eye className="w-3.5 h-3.5" />
                 View
@@ -283,8 +308,8 @@ export function AdminUsers({ excludeRoles = [] }) {
                 }
                 disabled={actionLoading}
                 className={`px-2.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1 transition ${isLocked
-                  ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                  : "bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                  ? "bg-success-light text-success hover:bg-success-light border border-success/20"
+                  : "bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20"
                   }`}
               >
                 {isLocked ? (

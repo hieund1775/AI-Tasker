@@ -3,7 +3,7 @@
 // =============================================================================
 // Handles all dispute report operations between Expert and Admin/Owner.
 //
-// Backend endpoints are NOT yet implemented — each function uses an empty
+// Backend endpoints are NOT yet implemented - each function uses an empty
 // placeholder URL so the real API can be wired in later without changing
 // the component code.
 // =============================================================================
@@ -11,7 +11,7 @@
 import api from "./api.js";
 
 // ---------------------------------------------------------------------------
-// API endpoint paths — wired to mock API handler for frontend development.
+// API endpoint paths - wired to mock API handler for frontend development.
 // Replace with real backend endpoints when available.
 // ---------------------------------------------------------------------------
 
@@ -40,30 +40,37 @@ export async function uploadEvidenceFiles(evidenceList = []) {
   if (!Array.isArray(evidenceList) || evidenceList.length === 0) return null;
   const processed = [];
   for (const item of evidenceList) {
-    if (item.file instanceof File) {
+    const actualFile = item instanceof File ? item : (item?.file instanceof File ? item.file : null);
+    if (actualFile) {
       try {
         const formData = new FormData();
-        formData.append("file", item.file);
+        formData.append("file", actualFile);
         const uploadRes = await api.post("/JobPosts/upload-file", formData, { isFormData: true }).catch(() => null);
-        const fileUrl = uploadRes?.url || uploadRes?.fileUrl || uploadRes?.data || "";
+        const cleanUrl = uploadRes?.url || uploadRes?.Url || uploadRes?.fileUrl || uploadRes?.FileUrl || uploadRes?.data || "";
+        const finalUrl = cleanUrl ? (cleanUrl.includes("?") ? cleanUrl : `${cleanUrl}?name=${encodeURIComponent(actualFile.name)}`) : "";
         processed.push({
-          fileName: item.file.name,
-          fileUrl: fileUrl || item.file.name,
-          note: item.note || ""
+          fileName: actualFile.name,
+          fileUrl: finalUrl || actualFile.name,
+          note: item?.note || ""
         });
       } catch {
         processed.push({
-          fileName: item.file.name,
-          fileUrl: item.file.name,
-          note: item.note || ""
+          fileName: actualFile.name,
+          fileUrl: actualFile.name,
+          note: item?.note || ""
         });
       }
-    } else if (item.file || item.fileUrl || item.name) {
-      processed.push({
-        fileName: (item.file && item.file.name) ? item.file.name : (item.fileName || item.name || "Evidence File"),
-        fileUrl: item.fileUrl || (typeof item.file === "string" ? item.file : ""),
-        note: item.note || ""
-      });
+    } else if (item) {
+      const rawUrl = typeof item === "string" ? item : (item.fileUrl || item.url || item.Url || (typeof item.file === "string" ? item.file : ""));
+      const fileName = (typeof item === "object" && item.fileName) ? item.fileName : (item.name || "Evidence File");
+      const finalUrl = (rawUrl && !rawUrl.includes("?")) ? `${rawUrl}?name=${encodeURIComponent(fileName)}` : rawUrl;
+      if (finalUrl) {
+        processed.push({
+          fileName: fileName,
+          fileUrl: finalUrl,
+          note: item?.note || ""
+        });
+      }
     }
   }
   return processed.length > 0 ? JSON.stringify(processed) : null;
@@ -75,7 +82,7 @@ export async function createReport(payload) {
     try {
       const authData = JSON.parse(
         sessionStorage.getItem("aitasker_user_info") ||
-          localStorage.getItem("aitasker_user_info") ||
+          sessionStorage.getItem("user") ||
           "{}",
       );
       reporterId = authData?.id;
@@ -118,7 +125,7 @@ export async function createReport(payload) {
 /**
  * Fetch report list for Admin/Owner with optional filters.
  *
- * @param {object} params — { status?, projectId?, search?, page?, limit? }
+ * @param {object} params - { status?, projectId?, search?, page?, limit? }
  * @returns {Promise<object>} { data: Report[], total: number, page: number }
  */
 export async function getReports(params = {}) {
@@ -272,7 +279,7 @@ export async function getReportDetail(reportId) {
  * After acceptance the project status changes to "Disputed".
  *
  * @param {string} reportId
- * @param {object} payload — { adminNote?: string, reportType?: string }
+ * @param {object} payload - { adminNote?: string, reportType?: string }
  * @returns {Promise<object>}
  */
 export async function acceptReport(reportId, payload = {}) {
@@ -294,7 +301,7 @@ export async function acceptReport(reportId, payload = {}) {
  * Rejection reason is REQUIRED. A notification is sent to the Expert.
  *
  * @param {string} reportId
- * @param {object} payload — { reason: string (required), reportType?: string }
+ * @param {object} payload - { reason: string (required), reportType?: string }
  * @returns {Promise<object>}
  */
 export async function rejectReport(reportId, payload) {

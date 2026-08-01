@@ -1,25 +1,26 @@
-import { Star, ReceiptText, Users } from 'lucide-react';
+﻿import { Star, ReceiptText, Users } from 'lucide-react';
+import { formatCurrency } from "../../lib/formatCurrency.js";
 
 export function FeaturedExperts() {
   // TODO: Replace with API call when backend is ready
   const experts = [];
 
   return (
-    <section id="experts" className="py-20 px-4 sm:px-6 lg:px-8 bg-card">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-14">
-          <h2 className="text-3xl font-bold text-foreground tracking-tight mb-3">Featured Experts</h2>
+    <section id="experts" className="bg-card px-4 py-[var(--section-y)] sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[var(--layout-max)]">
+        <div className="mb-16 text-center">
+          <h2 className="text-3xl font-semibold text-foreground tracking-tight mb-3">Featured Experts</h2>
           <p className="text-base text-muted-foreground max-w-md mx-auto">Connect with top-rated AI professionals</p>
         </div>
 
         {experts.length === 0 ? (
-          <div className="text-center py-16 bg-secondary/20 rounded-xl border border-border">
+          <div className="rounded-xl border border-border bg-secondary/20 py-16 text-center">
             <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="text-base font-semibold text-foreground/60 mb-2">No experts available</h3>
             <p className="text-sm text-muted-foreground">Check back soon for featured AI experts.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
             {experts.map((expert) => (
               <div
                 key={expert.id}
@@ -41,7 +42,7 @@ export function FeaturedExperts() {
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground text-sm">
                     <ReceiptText className="w-4 h-4" />
-                    <span className="font-medium">${expert.hourlyRate}/hr</span>
+                    <span className="font-medium">{formatCurrency(expert.hourlyRate)}/hr</span>
                   </div>
                 </div>
               </div>

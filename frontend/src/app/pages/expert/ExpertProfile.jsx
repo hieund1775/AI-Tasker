@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 import api from "../../../services/api.js";
+import { toast } from "sonner";
 
 import { getLocalExpertProfile } from "./EditExpertProfile.jsx";
 
@@ -66,35 +68,38 @@ export function ExpertProfile() {
     };
     
     if (interactionType === "reply" && !payload.replyText) {
-      alert("Please enter a thank you or response message.");
+      toast.error("Please enter a thank you or response message.");
       return;
     }
     if (interactionType === "revision" && !payload.requestRevisionText) {
-      alert("Please enter the reason for revision request.");
+      toast.error("Please enter the reason for revision request.");
       return;
     }
 
     try {
-      if (interactionType === "reply") {
+      const textToSend = payload.replyText || payload.requestRevisionText;
+      if (textToSend) {
         // Fetch review by projectId to get the reviewId
-        const review = await api.reviews.getReviewByProject(projId);
+        const review = await api.reviews.getReviewByProject(projId).catch(() => null);
         if (review && review.id) {
-          await api.reviews.replyReview(review.id, { replyContent: payload.replyText });
+          await api.reviews.replyReview(review.id, { replyContent: textToSend });
         }
       }
       
-      // Keep local state updated for immediate UI change
+      // Save local backup and trigger cross-tab update event
+      localStorage.setItem(`review_expert_reply_${projId}`, JSON.stringify(payload));
       setInteractions(prev => ({
         ...prev,
         [projId]: payload
       }));
       window.dispatchEvent(new CustomEvent("aitasker_db_update"));
+      toast.success(interactionType === "revision" ? "Revision request sent to client." : "Response saved successfully.");
       setReplyText("");
       setRevisionReason("");
       setActiveReplyProjectId(null);
     } catch (error) {
       console.error("Failed to save interaction:", error);
-      alert("Failed to save your reply. Please try again.");
+      toast.error("Failed to save your reply. Please try again.");
     }
   };
 
@@ -251,10 +256,14 @@ export function ExpertProfile() {
             const startDate = formatDate(startDateRaw);
             const endDate = formatDate(endDateRaw);
 
-            // 1. Get original review (from database or legacy project_review_)
+            // 1. Get original review (check project_review_original_ backup first to preserve initial review rating)
             const dbReview = dbReviewsList.find(r => r.projectId === pId);
             let review = null;
-            if (dbReview) {
+            const rawOrig = localStorage.getItem(`project_review_original_${pId}`);
+            if (rawOrig) {
+              try { review = JSON.parse(rawOrig); } catch (e) {}
+            }
+            if (!review && dbReview) {
               review = {
                 rating: dbReview.rating,
                 comment: dbReview.comment,
@@ -262,7 +271,7 @@ export function ExpertProfile() {
                 expertReply: dbReview.expertReply,
                 replyCreatedAt: dbReview.replyCreatedAt
               };
-            } else {
+            } else if (!review) {
               const rawReview = localStorage.getItem(`project_review_${pId}`);
               if (rawReview) {
                 try {
@@ -340,7 +349,7 @@ export function ExpertProfile() {
           <p className="text-sm text-muted-foreground mb-5">Complete your profile to get started.</p>
           <Link
             to="/expert/profile/edit"
-            className="h-11 px-5 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-medium inline-flex items-center gap-2 transition-colors"
+            className="h-10 px-4 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover text-sm font-medium inline-flex items-center gap-2 transition-colors"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
@@ -360,16 +369,15 @@ export function ExpertProfile() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* ── Profile header card ── */}
       <div className="bg-card rounded-xl border border-border p-8">
         <div className="flex items-start justify-between flex-wrap gap-4">
           {/* Avatar + name info */}
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-primary-light rounded-xl flex items-center justify-center flex-shrink-0">
-              <span className="text-xl font-bold text-primary">{initials}</span>
+              <span className="text-xl font-semibold text-primary">{initials}</span>
             </div>
             <div className="text-left">
-              <h1 className="text-2xl font-bold text-foreground">{displayName}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">{displayName}</h1>
               {expert.profile?.jobTitle && (
                 <p className="text-foreground font-medium">{expert.profile.jobTitle}</p>
               )}
@@ -379,13 +387,12 @@ export function ExpertProfile() {
 
           <Link
             to="/expert/profile/edit"
-            className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
+            className="h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-sm font-medium inline-flex items-center gap-2 transition-colors flex-shrink-0"
           >
             <Edit className="w-4 h-4" /> Edit Profile
           </Link>
         </div>
 
-        {/* ── Meta details ── */}
         <div className="flex flex-wrap items-center gap-4 mt-5 pt-5 border-t border-border">
           {expert.profile?.location && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -408,7 +415,7 @@ export function ExpertProfile() {
           {expert.profile?.hourlyRate > 0 && (
             <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
               <Clock className="w-4 h-4 text-muted-foreground/60" />
-              ${expert.profile.hourlyRate}/hr
+              {formatCurrency(expert.profile.hourlyRate)}/hr
             </span>
           )}
           {expert.createdAt && (
@@ -424,7 +431,6 @@ export function ExpertProfile() {
           )}
         </div>
 
-        {/* ── Contact & Professional Info ── */}
         <div className="mt-8 pt-8 border-t border-border space-y-6 text-left">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -468,7 +474,6 @@ export function ExpertProfile() {
           </div>
         </div>
 
-        {/* ── Skills Section ── */}
         {expert.profile?.skills && expert.profile.skills.length > 0 && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Skills</h3>
@@ -485,7 +490,6 @@ export function ExpertProfile() {
           </div>
         )}
 
-        {/* ── About / bio ── */}
         {expert.profile?.bio && (
           <div className="mt-5 pt-5 border-t border-border text-left">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">About / Bio</h3>
@@ -494,7 +498,6 @@ export function ExpertProfile() {
         )}
       </div>
 
-      {/* ── Statistics cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
           {
@@ -507,7 +510,7 @@ export function ExpertProfile() {
             label: "Cancel",
             value: stats.cancel,
             icon: XCircle,
-            color: "text-red-500 bg-red-500/10",
+            color: "text-destructive bg-destructive-light",
           },
           {
             label: "Report",
@@ -540,15 +543,14 @@ export function ExpertProfile() {
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
               {stat.label}
             </p>
-            <p className="text-xl font-bold text-foreground mt-0.5">{stat.value}</p>
+            <p className="text-xl font-semibold text-foreground mt-0.5">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Completed Projects Section ── */}
       <div className="bg-card rounded-xl border border-border p-8 text-left space-y-6">
         <div className="flex items-center justify-between border-b border-border pb-4">
-          <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+          <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-success" />
             Completed Projects
           </h2>
@@ -575,12 +577,12 @@ export function ExpertProfile() {
                         {proj.title}
                       </h3>
                       {proj.review && (
-                        <div className="flex items-center gap-0.5 flex-shrink-0 bg-amber-500/10 px-2.5 py-1 rounded-lg">
+                        <div className="flex items-center gap-0.5 flex-shrink-0 bg-warning-light/10 px-2.5 py-1 rounded-lg">
                           {Array.from({ length: 5 }, (_, i) => (
                             <Star
                               key={i}
                               className={`w-3.5 h-3.5 ${
-                                i < proj.review.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                i < proj.review.rating ? "fill-warning text-warning" : "text-border"
                               }`}
                             />
                           ))}
@@ -596,11 +598,11 @@ export function ExpertProfile() {
                       <div className="flex flex-wrap gap-x-2 gap-y-1 text-muted-foreground">
                         <div>
                           <span className="font-semibold text-foreground/80">Category:</span>{" "}
-                          <span>{proj.category || "—"}</span>
+                          <span>{proj.category || "-"}</span>
                         </div>
                         {proj.specialization && (
                           <>
-                            <span className="text-border">•</span>
+                            <span className="text-border">-</span>
                             <div>
                               <span className="font-semibold text-foreground/80">Specialization:</span>{" "}
                               <span>{proj.specialization}</span>
@@ -609,10 +611,10 @@ export function ExpertProfile() {
                         )}
                         {(proj.startDate || proj.endDate) && (
                           <>
-                            <span className="text-border">•</span>
+                            <span className="text-border">-</span>
                             <div>
                               <span className="font-semibold text-foreground/80">Duration:</span>{" "}
-                              <span>{proj.startDate || "—"} to {proj.endDate || "—"}</span>
+                              <span>{proj.startDate || "-"} to {proj.endDate || "-"}</span>
                             </div>
                           </>
                         )}
@@ -634,7 +636,7 @@ export function ExpertProfile() {
 
                     {proj.review?.comment && (
                       <div className="mt-3 p-3 bg-secondary/50 rounded-xl border border-border/40 text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                        <span className="absolute left-2 text-base text-amber-500/70 font-semibold select-none leading-none">“</span>
+                        <span className="absolute left-2 text-base text-warning/70 font-semibold select-none leading-none">"</span>
                         {proj.review.comment}
                         {(proj.review.createdAt || proj.review.date) && (
                           <span className="block text-[10px] text-muted-foreground mt-1.5 text-right font-medium">
@@ -645,22 +647,13 @@ export function ExpertProfile() {
                     )}
 
                     {/* Show previous Expert response */}
-                    {interactions[proj.id] && (
+                    {interactions[proj.id] && (interactions[proj.id].replyText || interactions[proj.id].requestRevisionText) && (
                       <div className="space-y-1.5 pl-4 border-l-2 border-brand-primary/20 mt-2">
-                        {interactions[proj.id].replyText && (
-                          <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                            <span className="font-bold text-brand-primary block">Expert Response (Thank You):</span>
-                            <p className="text-muted-foreground">{interactions[proj.id].replyText}</p>
-                            <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                          </div>
-                        )}
-                        {interactions[proj.id].requestRevisionText && (
-                          <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
-                            <span className="font-bold text-amber-600 block">Expert Response & Revision Request:</span>
-                            <p className="text-muted-foreground">{interactions[proj.id].requestRevisionText}</p>
-                            <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
-                          </div>
-                        )}
+                        <div className="p-3 bg-brand-primary-light/10 border border-brand-primary/20 rounded-xl text-xs text-foreground font-sans text-left space-y-1">
+                          <span className="font-semibold text-brand-primary block">Expert Response:</span>
+                          <p className="text-muted-foreground">{interactions[proj.id].replyText || interactions[proj.id].requestRevisionText}</p>
+                          <span className="block text-[9px] text-muted-foreground text-right">{new Date(interactions[proj.id].date).toLocaleDateString("vi-VN")}</span>
+                        </div>
                       </div>
                     )}
 
@@ -673,12 +666,12 @@ export function ExpertProfile() {
                             Edited Review
                           </span>
                           <div className="h-px bg-success/20 flex-1" />
-                          <div className="flex items-center gap-0.5 bg-amber-500/10 px-2 py-0.5 rounded">
+                          <div className="flex items-center gap-0.5 bg-warning-light/10 px-2 py-0.5 rounded">
                             {Array.from({ length: 5 }, (_, i) => (
                               <Star
                                 key={i}
                                 className={`w-3 h-3 ${
-                                  i < proj.editedReview.rating ? "fill-amber-500 text-amber-500" : "text-border"
+                                  i < proj.editedReview.rating ? "fill-warning text-warning" : "text-border"
                                 }`}
                               />
                             ))}
@@ -686,7 +679,7 @@ export function ExpertProfile() {
                         </div>
                         {proj.editedReview.comment && (
                           <div className="p-3 bg-success/5 border border-success/10 rounded-xl text-xs text-muted-foreground relative pl-7 font-sans leading-relaxed text-left">
-                            <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">“</span>
+                            <span className="absolute left-2 text-base text-success/60 font-semibold select-none leading-none">"</span>
                             {proj.editedReview.comment}
                           </div>
                         )}
@@ -705,7 +698,7 @@ export function ExpertProfile() {
                               setReplyText("");
                               setRevisionReason("");
                             }}
-                            className="text-[11px] text-brand-primary hover:underline cursor-pointer font-bold"
+                            className="text-[11px] text-brand-primary hover:underline cursor-pointer font-semibold"
                           >
                             + Respond / Request Review Edit
                           </button>
@@ -761,7 +754,7 @@ export function ExpertProfile() {
                               <button
                                 type="button"
                                 onClick={() => handleSaveInteraction(proj.id)}
-                                className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-bold cursor-pointer"
+                                className="px-3 py-1.5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-lg font-semibold cursor-pointer"
                               >
                                 Send
                               </button>

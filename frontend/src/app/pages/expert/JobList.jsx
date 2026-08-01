@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
 import {
   Search,
@@ -15,12 +15,13 @@ import {
   Target,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth.js";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import api from "../../../services/api.js";
 import { categoryTagService } from "../../../services/categoryTagService.js";
-import { safeNumberFormat } from "../../lib/safety.js";
+import { formatCurrency } from "../../lib/formatCurrency.js";
 
 /**
- * Job Card — renders a scannable job listing card for the expert job board.
+ * Job Card - renders a scannable job listing card for the expert job board.
  */
 function ProjectCard({ job }) {
   const clientName = job.client || "Anonymous Client";
@@ -63,32 +64,28 @@ function ProjectCard({ job }) {
 
   const getBudgetFormatted = () => {
     if (!job.budget) return "N/A";
-    try {
-      return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Number(job.budget));
-    } catch {
-      return String(job.budget);
-    }
+    return formatCurrency(job.budget);
   };
 
-  // Match score — simulated from skills count vs total skills
+  // Match score - simulated from skills count vs total skills
   const skillCount = skills.length;
   const matchScore = skillCount > 0 ? Math.min(95, 55 + skillCount * 8) : 60;
 
   return (
     <Link
       to={`/expert/jobs/${job.id}`}
-      className="group block bg-card rounded-2xl border border-border shadow-sm hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 relative overflow-hidden"
+      className="group relative block overflow-hidden rounded-2xl border border-border/70 bg-card/82 shadow-sm shadow-foreground/[0.02] transition-all duration-300 hover:-translate-y-0.5 hover:border-accent/25 hover:bg-card hover:shadow-md"
     >
       {/* Subtle gradient overlay on hover */}
       <div className="absolute inset-0 bg-gradient-to-br from-accent/[0.02] via-transparent to-primary/[0.02] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-      <div className="relative p-6 flex flex-col gap-4">
+      <div className="relative flex flex-col gap-4 p-5 sm:p-6">
         {/* Row 1: Title + Match Score + Category Badges */}
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-3">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1.5">
               {/* Match score pill */}
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
                 matchScore >= 80 ? "bg-success/10 text-success border border-success/20" :
                 matchScore >= 65 ? "bg-accent/10 text-accent border border-accent/20" :
                 "bg-muted text-muted-foreground border border-border"
@@ -124,19 +121,19 @@ function ProjectCard({ job }) {
         </p>
 
         {/* Row 3: Info grid with tinted background */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3.5 px-4 bg-secondary/60 rounded-xl border border-border/60">
+        <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/50 bg-secondary/35 p-3 md:grid-cols-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-success/10">
               <ReceiptText className="w-4 h-4 text-success" />
             </div>
             <div>
               <span className="text-[10px] text-muted-foreground block font-semibold uppercase tracking-wider">Budget</span>
-              <span className="font-bold text-foreground text-sm">{getBudgetFormatted()}</span>
+              <span className="font-semibold text-foreground text-sm">{getBudgetFormatted()}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-warning/10">
               <Calendar className="w-4 h-4 text-warning" />
             </div>
             <div>
@@ -146,7 +143,7 @@ function ProjectCard({ job }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-accent/10">
               <Clock className="w-4 h-4 text-accent" />
             </div>
             <div>
@@ -156,7 +153,7 @@ function ProjectCard({ job }) {
           </div>
 
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/6 flex items-center justify-center flex-shrink-0">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/6">
               <User className="w-4 h-4 text-primary" />
             </div>
             <div>
@@ -360,17 +357,14 @@ export function JobList() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="page-title">Find Jobs</h1>
-        <p className="page-subtitle">
-          Browse available AI projects that match your skills
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
+      <PageHeader
+        title="Find Jobs"
+        subtitle="Browse available AI projects that match your skills"
+      />
 
       {user?.role === "expert" && user?.hasProfile === false && (
-        <div className="mb-6 p-4 bg-warning-light border border-warning/20 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="p-4 bg-warning-light border border-warning/20 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-warning flex-shrink-0" />
             <p className="text-sm font-medium text-foreground">
@@ -378,8 +372,8 @@ export function JobList() {
             </p>
           </div>
           <Link
-            to="/expert/edit-profile"
-            className="whitespace-nowrap h-10 px-5 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
+            to="/expert/profile/edit"
+            className="whitespace-nowrap h-10 px-4 bg-warning text-warning-foreground rounded-xl hover:opacity-90 font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
           >
             Create Profile
           </Link>
@@ -387,16 +381,15 @@ export function JobList() {
       )}
 
       {/* Sticky Search & Filters Bar */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 py-3 mb-6 border-b border-border">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
+      <div className="page-filter-toolbar page-filter-toolbar--sticky">
+        <div className="page-filter-search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
             <input
               type="text"
               placeholder="Search jobs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-border rounded-xl bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40 transition-shadow"
+              className="h-10 w-full rounded-xl border border-border bg-card pl-10 pr-9 text-sm transition-shadow placeholder:text-muted-foreground/40 focus:border-ring focus:outline-none focus:ring-2 focus:ring-ring/15"
             />
             {searchTerm && (
               <button
@@ -407,10 +400,11 @@ export function JobList() {
               </button>
             )}
           </div>
+        <div className="page-filter-controls">
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`h-11 px-4 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-all ${
+            className={`h-10 px-4 border rounded-xl inline-flex items-center gap-2 text-sm font-medium transition-all ${
               showFilters || hasActiveFilters
                 ? "border-accent bg-accent/6 text-accent shadow-sm"
                 : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -424,24 +418,24 @@ export function JobList() {
           <select
             value={filters.sortBy}
             onChange={(e) => updateFilter("sortBy", e.target.value)}
-            className="h-11 px-4 border border-border rounded-xl bg-card text-sm font-medium focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 cursor-pointer"
+            className="h-10 px-4 border border-border rounded-xl bg-card text-sm font-medium focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 cursor-pointer"
           >
             <option value="newest">Newest first</option>
             <option value="budget_high">Budget: High to Low</option>
             <option value="budget_low">Budget: Low to High</option>
             <option value="deadline">Deadline: Soonest</option>
           </select>
+        </div>
 
           {/* Results count */}
-          <span className="text-sm text-muted-foreground font-medium ml-auto">
+          <span className="page-filter-count">
             {filtered.length} job{filtered.length !== 1 ? "s" : ""}
           </span>
-        </div>
       </div>
 
       {/* Filter Panel */}
       {showFilters && (
-        <div className="bg-card rounded-xl border border-border p-6 mb-6 shadow-sm animate-fade-in">
+        <div className="page-filter-panel animate-fade-in">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
@@ -530,7 +524,7 @@ export function JobList() {
 
       {/* Loading State */}
       {loading ? (
-        <div className="space-y-5">
+        <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="bg-card rounded-2xl border border-border p-6 animate-pulse">
               <div className="flex items-start justify-between gap-3 mb-4">
@@ -597,7 +591,7 @@ export function JobList() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="space-y-5">
+          <div className="space-y-4">
             {filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((job) => (
               <ProjectCard key={job.id} job={job} />
             ))}

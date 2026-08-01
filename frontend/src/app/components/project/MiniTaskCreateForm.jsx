@@ -1,19 +1,19 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Plus, Trash2, GripVertical, ArrowUp, ArrowDown, Edit3, Check, X } from "lucide-react";
 import { cn } from "../../lib/utils.js";
 
 // =============================================================================
-// MiniTaskCreateForm — expert-only form to create, edit, remove, and reorder
+// MiniTaskCreateForm - expert-only form to create, edit, remove, and reorder
 // mini tasks before confirmation.
 //
 // Props:
-//   miniTasks     — current mini tasks array (draft state)
-//   onAdd         — (data: {title, description, estimatedTime}) => void
-//   onRemove       — (miniTaskId) => void
-//   onReorder      — (orderedIds: string[]) => void
-//   onUpdate       — (miniTaskId, updates) => void
-//   onConfirm      — () => void — opens confirmation modal
-//   disabled       — boolean (true when confirmed/locked)
+//   miniTasks     - current mini tasks array (draft state)
+//   onAdd         - (data: {title, description, estimatedTime}) => void
+//   onRemove       - (miniTaskId) => void
+//   onReorder      - (orderedIds: string[]) => void
+//   onUpdate       - (miniTaskId, updates) => void
+//   onConfirm      - () => void - opens confirmation modal
+//   disabled       - boolean (true when confirmed/locked)
 // =============================================================================
 
 export function MiniTaskCreateForm({
@@ -98,14 +98,14 @@ export function MiniTaskCreateForm({
       {miniTasks.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            Mini Tasks ({miniTasks.length})
+            Mini-tasks ({miniTasks.length})
           </h4>
           {miniTasks.map((mt, idx) => (
             <div
               key={mt.id}
               className={cn(
                 "flex items-start gap-2 p-3 bg-secondary/60 rounded-xl border border-border group",
-                editingId === mt.id && "bg-brand-primary-light border-blue-200"
+                editingId === mt.id && "bg-brand-primary-light border-accent/25"
               )}
             >
               <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
@@ -159,7 +159,7 @@ export function MiniTaskCreateForm({
                     <button
                       type="button"
                       onClick={saveEditing}
-                      className="h-10 px-4 text-sm font-semibold bg-brand-primary text-brand-primary-foreground rounded-[14px] hover:bg-brand-primary-hover inline-flex items-center gap-1.5 transition"
+                      className="h-10 px-4 text-sm font-semibold bg-brand-primary text-brand-primary-foreground rounded-lg hover:bg-brand-primary-hover inline-flex items-center gap-1.5 transition"
                     >
                       <Check className="w-3.5 h-3.5" />
                       Save
@@ -167,7 +167,7 @@ export function MiniTaskCreateForm({
                     <button
                       type="button"
                       onClick={cancelEditing}
-                      className="h-10 px-4 text-sm font-semibold border border-input text-muted-foreground rounded-[14px] hover:bg-secondary transition"
+                      className="h-10 px-4 text-sm font-semibold border border-input text-muted-foreground rounded-lg hover:bg-secondary transition"
                     >
                       <X className="w-3.5 h-3.5" />
                       Cancel
@@ -204,7 +204,7 @@ export function MiniTaskCreateForm({
                   <button
                     type="button"
                     onClick={() => onRemove?.(mt.id)}
-                    className="p-1 text-muted-foreground hover:text-red-600"
+                    className="p-1 text-muted-foreground hover:text-destructive"
                     title="Remove"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -219,7 +219,7 @@ export function MiniTaskCreateForm({
       {/* Add new mini task form */}
       <div className="space-y-2 p-3 bg-brand-primary-light/50 rounded-lg border border-brand-primary/20">
         <h4 className="text-xs font-semibold text-brand-primary uppercase tracking-wider">
-          Add Mini Task
+          Add mini-task
         </h4>
         <input
           type="text"
@@ -227,7 +227,7 @@ export function MiniTaskCreateForm({
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={handleKeyDown}
           className="w-full px-3 py-2 text-sm border border-input rounded-lg focus:outline-none focus:border-brand-primary"
-          placeholder="Mini task title *"
+          placeholder="Mini-task title *"
         />
         <input
           type="text"
@@ -258,7 +258,7 @@ export function MiniTaskCreateForm({
             <button
               type="button"
               onClick={onConfirm}
-              className="px-5 py-2 bg-brand-green text-white rounded-xl hover:bg-brand-green/90 text-[15px] font-medium transition"
+              className="px-5 py-2 bg-brand-green text-primary-foreground rounded-xl hover:bg-brand-green/90 text-[15px] font-medium transition"
             >
               Confirm & Save
             </button>

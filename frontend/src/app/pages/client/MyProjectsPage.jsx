@@ -13,17 +13,38 @@ import {
   Clock,
   Paperclip,
   File as FileIcon,
+  ChevronDown,
 } from "lucide-react";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { LoadingSkeleton } from "../../components/shared/LoadingSkeleton.jsx";
+import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { toast } from "sonner";
-import api, { parseProposalWbs, enrichFileUrl } from "../../../services/api.js";
+import api, { parseProposalWbs, enrichFileUrl, cleanFileName } from "../../../services/api.js";
+import { downloadFile } from "../../lib/downloadFileUtils.js";
 import { notifyProposalDecision } from "../../../services/notificationHelper.js";
 
 import { getProjectProgress, deriveProjectStatusKey, getStatusLabel, getStatusBadgeClass, getOverallProgress } from "../../lib/projectTimelineStore.js";
 import { safeArray, safeDateFormat } from "../../lib/safety.js";
 import { cn } from "../../lib/utils.js";
+
+const CLIENT_ACCEPTED_PROPOSAL_STATUSES = new Set([
+  "accepted",
+  "pending_pay",
+  "pending_escrow",
+  "in_progress",
+  "active",
+  "completed",
+]);
+
+function canClientViewProposalMiniTasks(status) {
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+
+  return CLIENT_ACCEPTED_PROPOSAL_STATUSES.has(normalizedStatus);
+}
 
 export function getNormalizedStatus(project, activeReports = []) {
   const localReleases = JSON.parse(localStorage.getItem("escrow_releases") || "[]");
@@ -35,7 +56,7 @@ export function getNormalizedStatus(project, activeReports = []) {
   let status = (localStatus || dbStatus).toLowerCase();
 
   // If status is awaiting_cancellation, check if it's still pending Admin approval
-  // Only match by projectId — no type filtering needed.
+  // Only match by projectId - no type filtering needed.
   if (status === "awaiting_cancellation" && projId && Array.isArray(activeReports) && activeReports.length > 0) {
     const report = activeReports.find(r => {
       const rProjId = String(r.projectId || r.ProjectId || "").toLowerCase();
@@ -49,17 +70,17 @@ export function getNormalizedStatus(project, activeReports = []) {
   }
 
   let label = "In Progress";
-  let badgeClass = "bg-blue-500/10 text-blue-500 border-blue-500/20";
+  let badgeClass = "bg-brand-primary-light text-brand-primary border-brand-primary/25 font-semibold";
 
   if (status === "completed" || status === "complete" || status === "resolved" || isReleasedLocally) {
     label = "Completed";
-    badgeClass = "bg-emerald-500/10 text-emerald-500 border-emerald-500/20";
+    badgeClass = "bg-success-light text-success border-success/25 font-semibold";
   } else if (status === "cancelled" || status === "cancel" || status === "cancel_done" || status === "contract_cancelled" || status === "awaiting_cancellation") {
     label = "Cancel";
-    badgeClass = "bg-red-500/10 text-red-500 border-red-500/20";
+    badgeClass = "bg-destructive-light text-destructive border-destructive/25 font-semibold";
   } else if (status === "disputed") {
     label = "Disputed";
-    badgeClass = "bg-red-500/10 text-red-500 border border-red-500/20 font-semibold";
+    badgeClass = "bg-destructive-light text-destructive border border-destructive/25 font-semibold";
   } else {
     const hasProjectRecord = !!project.projectId;
     const isPendingEscrow = status === "pending_escrow" || status === "pending" || dbStatus === "pending_escrow";
@@ -69,7 +90,7 @@ export function getNormalizedStatus(project, activeReports = []) {
 
     if (!hasProjectRecord || isPendingEscrow || !isDeposited) {
       label = "Open";
-      badgeClass = "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      badgeClass = "bg-warning-light text-warning border-warning/25 font-semibold";
     }
   }
 
@@ -106,6 +127,44 @@ export function MyProjectsList() {
   const [showInviteSuccessBanner, setShowInviteSuccessBanner] = useState(false);
   const [invitedExpertName, setInvitedExpertName] = useState("");
   const [activeReports, setActiveReports] = useState([]);
+  const [expandedMiniTaskIds, setExpandedMiniTaskIds] = useState(() => new Set());
+
+  const toggleMiniTasks = (key) => {
+    setExpandedMiniTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const renderMiniTasksToggle = (task, status, keyPrefix, idx) => {
+    if (!canClientViewProposalMiniTasks(status) || !task.miniTasks || task.miniTasks.length === 0) return null;
+
+    const key = `${keyPrefix}-${task.id || idx}`;
+    const isOpen = expandedMiniTaskIds.has(key);
+
+    return (
+      <div className="mt-2">
+        <button
+          type="button"
+          onClick={() => toggleMiniTasks(key)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-brand-primary/45 hover:bg-brand-primary-light/45 cursor-pointer"
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          {isOpen ? "Hide mini-tasks" : `Show mini-tasks (${task.miniTasks.length})`}
+        </button>
+        {isOpen && (
+          <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide block">Mini-tasks:</span>
+            {task.miniTasks.map((mt, mtIdx) => (
+              <p key={mt.id || mtIdx} className="text-xs text-foreground/80">- {mt.title}</p>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   async function loadProjects() {
     if (!user?.id) return;
@@ -380,12 +439,11 @@ export function MyProjectsList() {
               const fileUrl = enrichFileUrl(rawPath);
               const exists = attachments.some(a => a.url === fileUrl || a.url === rawPath);
               if (!exists) {
-                const rawName = rawPath.split("/").pop() || fallbackTitle;
-                const cleanName = rawName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawName);
+                const cleanName = cleanFileName(rawPath) || fallbackTitle;
+                const isImg = /\.(png|jpe?g|gif|webp)$/i.test(rawPath);
                 attachments.push({
                   id: `${idPrefix}-${Date.now()}`,
-                  name: cleanName || rawName,
+                  name: cleanName,
                   type: isImg ? "image/png" : "document",
                   fileType: isImg ? "image/png" : "document",
                   url: fileUrl
@@ -425,7 +483,7 @@ export function MyProjectsList() {
         );
 
         if (!cancelled) {
-          const accepted = enrichedList.find(p => ["accepted", "pending_escrow", "pending_pay", "in_progress", "completed", "active"].includes(p.status?.toLowerCase()));
+          const accepted = enrichedList.find(p => canClientViewProposalMiniTasks(p.status));
           if (accepted) {
             setProposal(accepted);
           } else {
@@ -475,7 +533,7 @@ export function MyProjectsList() {
     setActionLoading(true);
     try {
       await api.proposals.updateStatus(proposalId, "Declined");
-      toast.success("Proposal has been declined successfully!");
+      toast.success("Proposal declined successfully.");
       
       // Update local state immediately
       setProposalsList((prev) => prev.filter((p) => p.id !== proposalId));
@@ -525,7 +583,7 @@ export function MyProjectsList() {
         console.warn("Failed to update job post metadata, continuing anyway:", jobUpdateErr);
       }
       
-      toast.success("Proposal has been accepted successfully! Please set up escrow to start the project.");
+      toast.success("Proposal accepted successfully. Please set up escrow to start the project.");
 
       // Notify selected expert + reject others
       const otherProposals = proposalsList.filter(prop => prop.id !== p.id);
@@ -556,11 +614,11 @@ export function MyProjectsList() {
 
   const getProposalStatusBadgeClass = (status) => {
     const s = status?.toLowerCase();
-    if (s === "accepted") return "bg-green-50 text-green-700 border-green-200 border";
-    if (s === "declined") return "bg-red-50 text-red-700 border-red-200 border";
-    if (s === "under_review" || s === "under review") return "bg-brand-primary-light text-brand-primary border-blue-200 border";
-    if (s === "pending_escrow" || s === "pending escrow" || s === "pending_pay" || s === "pending pay") return "bg-amber-50 text-amber-700 border-amber-200 border";
-    return "bg-yellow-50 text-yellow-700 border-yellow-200 border";
+    if (s === "accepted") return "bg-success-light text-success border-success/20 border";
+    if (s === "declined") return "bg-destructive-light text-destructive border-destructive/20 border";
+    if (s === "under_review" || s === "under review") return "bg-brand-primary-light text-brand-primary border-accent/25 border";
+    if (s === "pending_escrow" || s === "pending escrow" || s === "pending_pay" || s === "pending pay") return "bg-warning-light text-warning border-warning/20 border";
+    return "bg-warning-light text-warning border-warning/20 border";
   };
 
   const handleBackToList = () => {
@@ -615,23 +673,23 @@ export function MyProjectsList() {
     })();
 
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Back Button */}
         <button
           onClick={handleBackToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Projects
         </button>
 
         {showInviteSuccessBanner && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-800 rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
+          <div className="p-4 bg-success-light border border-success/20 text-success rounded-xl flex items-center justify-between shadow-sm animate-fade-in">
             <span className="font-semibold text-sm">
               Successfully invited expert {invitedExpertName ? `"${invitedExpertName}" ` : ""}
             </span>
             <button
               onClick={() => setShowInviteSuccessBanner(false)}
-              className="text-green-650 hover:text-green-800 transition-colors"
+              className="text-success hover:text-success transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -641,7 +699,7 @@ export function MyProjectsList() {
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8 space-y-6">
           <div className="flex items-start justify-between flex-wrap gap-4 border-b border-border/60 pb-4">
             <div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">{selectedProject.title}</h1>
+              <h1 className="text-2xl font-semibold text-foreground mb-2">{selectedProject.title}</h1>
               <span className="inline-flex px-3 py-1 rounded-full text-xs font-semibold bg-brand-primary-light text-brand-primary">
                 Status: {selectedProject.status}
               </span>
@@ -660,7 +718,7 @@ export function MyProjectsList() {
                 {safeArray(selectedProject.useCases).map((uc, i) => (
                   <div key={i} className="p-4 bg-secondary/60 border border-border rounded-xl flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-sm text-left">
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground">
+                      <p className="font-semibold text-foreground">
                         User Story {i + 1}: <span className="font-semibold text-foreground/80">{uc.title || uc.nameAndDeadline || `User Story #${i + 1}`}</span>
                       </p>
                       {uc.description && (
@@ -670,7 +728,7 @@ export function MyProjectsList() {
                       )}
                     </div>
                     {(uc.originalDurationDays || uc.durationDays) && (
-                      <span className="px-2.5 py-1.5 bg-accent/10 text-accent font-bold rounded-lg whitespace-nowrap self-start sm:self-center text-xs">
+                      <span className="px-2.5 py-1.5 bg-accent/10 text-accent font-semibold rounded-lg whitespace-nowrap self-start sm:self-center text-xs">
                         Duration: {uc.originalDurationDays || uc.durationDays} days
                       </span>
                     )}
@@ -777,27 +835,13 @@ export function MyProjectsList() {
                   {uniqueFiles.map((file, idx) => {
                     const rawUrl = typeof file === "string" ? file : (file.url || file.Url || "#");
                     const fileUrl = rawUrl.startsWith("http") ? rawUrl : enrichFileUrl(rawUrl);
-                    const rawFileName = (typeof file === "object" ? file.name : null) || rawUrl.split("/").pop() || "Attachment";
-                    const cleanName = rawFileName.replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                    const finalName = cleanName || rawFileName;
+                    const rawFileName = (typeof file === "object" ? file.name : null) || rawUrl;
+                    const finalName = cleanFileName(rawFileName);
 
-                    const handleDownloadFile = async (e) => {
+                    const handleDownloadFile = (e) => {
                       e.preventDefault();
                       if (!fileUrl || fileUrl === "#") return;
-                      try {
-                        const res = await fetch(fileUrl);
-                        const blob = await res.blob();
-                        const blobUrl = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = blobUrl;
-                        a.download = finalName;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(blobUrl);
-                      } catch (err) {
-                        window.open(fileUrl, "_blank");
-                      }
+                      downloadFile(fileUrl, finalName);
                     };
 
                     return (
@@ -830,18 +874,18 @@ export function MyProjectsList() {
     const isAcceptedView = !!proposal;
 
     return (
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Back Button */}
         <button
           onClick={handleBackToList}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors font-medium"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors font-medium"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Projects
         </button>
 
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden p-8">
           <div className="border-b border-border/60 pb-4 mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-semibold text-foreground">
               {isAcceptedView 
                 ? `Proposal connected to: ${selectedProject.title}`
                 : `Proposals list for: ${selectedProject.title}`
@@ -864,7 +908,7 @@ export function MyProjectsList() {
               {/* Proposal Header Card */}
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border/60 pb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">{proposal.proposalTitle}</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{proposal.proposalTitle}</h3>
                   <p className="text-base text-muted-foreground mt-1">
                     Expert: <span className="font-semibold text-foreground/80">{proposal.expertName}</span>
                   </p>
@@ -875,7 +919,7 @@ export function MyProjectsList() {
                     {proposal.status === "pending_escrow" || proposal.status === "pending escrow" || proposal.status === "pending_pay" || proposal.status === "pending pay" ? "Pending Payment" : proposal.status}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Submitted {safeDateFormat(proposal.createdAt, { month: "short", day: "numeric", year: "numeric" }, "—")}
+                    Submitted {safeDateFormat(proposal.createdAt, { month: "short", day: "numeric", year: "numeric" }, "-")}
                   </p>
                 </div>
               </div>
@@ -888,14 +932,23 @@ export function MyProjectsList() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-0.5 font-medium">Estimated Duration</p>
-                  <p className="font-semibold text-foreground">{proposal.durationDays} days</p>
+                  <p className="font-semibold text-foreground">
+                    {(Number(proposal?.durationDays) || 0) +
+                      (Number(
+                        localStorage.getItem(`project_extra_days_${proposal?.projectId}`) ||
+                        localStorage.getItem(`project_extra_days_${proposal?.project?.id}`) ||
+                        localStorage.getItem(`project_extra_days_${proposal?.jobPostId}`) ||
+                        0
+                      ) || 0)}{" "}
+                    days
+                  </p>
                 </div>
               </div>
 
               {/* Sections */}
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
                   <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                     {proposal.coverLetter || "No introduction provided."}
                   </p>
@@ -903,7 +956,7 @@ export function MyProjectsList() {
 
                 {proposal.technicalApproach && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {proposal.technicalApproach}
                     </p>
@@ -912,19 +965,18 @@ export function MyProjectsList() {
 
                 {proposal.tasks && proposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
-                        {selectedProject.useCases.map((uc) => {
+                        {selectedProject.useCases.map((uc, ucIdx) => {
                           const ucTasks = proposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* ── Use Case Header ── */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-foreground text-sm">
-                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    <span className="font-semibold text-foreground text-sm">
+                                      User story: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
                                   <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
@@ -938,7 +990,6 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* ── Tasks ── */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -947,19 +998,11 @@ export function MyProjectsList() {
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Minitasks */}
-                                      {task.miniTasks && task.miniTasks.length > 0 && (
-                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
-                                          {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
-                                          ))}
-                                        </div>
-                                      )}
+                                      {renderMiniTasksToggle(task, proposal.status, `accepted-uc-${uc.id || ucIdx}`, idx)}
                                     </div>
                                   ))
                                 )}
@@ -974,19 +1017,11 @@ export function MyProjectsList() {
                         {proposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Minitasks */}
-                            {task.miniTasks && task.miniTasks.length > 0 && (
-                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
-                                {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
-                                ))}
-                              </div>
-                            )}
+                            {renderMiniTasksToggle(task, proposal.status, "accepted-flat", idx)}
                           </div>
                         ))}
                       </div>
@@ -995,7 +1030,7 @@ export function MyProjectsList() {
                 ) : (
                   proposal.timelineMilestones && (
                     <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
                       <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                         {proposal.timelineMilestones}
                       </p>
@@ -1005,7 +1040,7 @@ export function MyProjectsList() {
 
                 {proposal.dependencies && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {proposal.dependencies}
                     </p>
@@ -1015,34 +1050,17 @@ export function MyProjectsList() {
                 {/* Attached Assets for Client (Single Accepted Proposal Detail) */}
                 {proposal.attachments && proposal.attachments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({proposal.attachments.length})</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {proposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
                         let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
-                        if (!rawName && typeof rawUrl === "string") {
-                          rawName = rawUrl.split("/").pop() || "Attachment";
-                        }
-                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                        const finalName = cleanName || rawName;
+                        const finalName = cleanFileName(rawName || rawUrl);
 
-                        const handleDownloadFile = async (e) => {
+                        const handleDownloadFile = (e) => {
                           e.preventDefault();
                           if (!rawUrl || rawUrl === "#") return;
-                          try {
-                            const res = await fetch(rawUrl);
-                            const blob = await res.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = blobUrl;
-                            a.download = finalName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
-                          } catch (err) {
-                            window.open(rawUrl, "_blank");
-                          }
+                          downloadFile(rawUrl, finalName);
                         };
 
                         return (
@@ -1067,7 +1085,7 @@ export function MyProjectsList() {
               {/* Escrow payment direct button for single accepted proposal */}
               {(proposal.status?.toLowerCase() === "pending_escrow" || proposal.status?.toLowerCase() === "pending escrow" || proposal.status?.toLowerCase() === "pending_pay" || proposal.status?.toLowerCase() === "pending pay") && (
                 <div className="bg-card border border-border rounded-xl p-6 space-y-4 shadow-sm text-left">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Escrow Setup</h3>
+                  <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Escrow Setup</h3>
                   
                   <div className="flex items-start gap-2.5 pt-2">
                     <input
@@ -1077,7 +1095,7 @@ export function MyProjectsList() {
                       className="mt-1 w-4 h-4 rounded border-input text-brand-primary focus:ring-brand-primary/50"
                     />
                     <label htmlFor="agreeEscrowSingle" className="text-sm text-foreground/80 font-medium">
-                      Confirm that you want to deposit <span className="font-bold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
+                      Confirm that you want to deposit <span className="font-semibold"><MoneyDisplay amount={proposal.bidAmount} /></span> into escrow to start this project.
                     </label>
                   </div>
 
@@ -1100,7 +1118,7 @@ export function MyProjectsList() {
                         }
                       });
                     }}
-                    className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
+                    className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl text-[15px] font-semibold hover:bg-brand-primary-hover transition-colors"
                   >
                     Confirm Escrow Deposit
                   </button>
@@ -1111,13 +1129,13 @@ export function MyProjectsList() {
                 <div className="pt-6 border-t border-border/60 flex items-center justify-end gap-3">
                   <Link
                     to={`/client/projects/${selectedProject.projectId || selectedProject.id}`}
-                    className="h-11 px-5 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    className="h-10 px-4 bg-success text-success-foreground rounded-xl hover:opacity-90 text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <Briefcase className="w-4 h-4" /> Manage Project Progress
                   </Link>
                   <Link
                     to={`/messenger/${proposal.expertId}`}
-                    className="h-11 px-5 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
+                    className="h-10 px-4 border border-border text-foreground rounded-xl hover:bg-secondary text-[15px] font-semibold transition-all inline-flex items-center gap-2"
                   >
                     <MessageSquare className="w-4 h-4" /> Contact Expert
                   </Link>
@@ -1175,7 +1193,7 @@ export function MyProjectsList() {
                       className="p-5 rounded-2xl border bg-card border-border hover:border-input transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="text-left">
-                        <h4 className="font-bold text-foreground text-base">{p.expertName}</h4>
+                        <h4 className="font-semibold text-foreground text-base">{p.expertName}</h4>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                           {p.expertCategory && (
                             <span className="font-medium">Category: {p.expertCategory}</span>
@@ -1199,8 +1217,8 @@ export function MyProjectsList() {
                             )}
                           </div>
                         )}
-                        <p className="text-base font-bold text-brand-primary mt-2">
-                          Bid: <MoneyDisplay amount={p.bidAmount} /> · {p.durationDays} days
+                        <p className="text-base font-semibold text-brand-primary mt-2">
+                          Bid: <MoneyDisplay amount={p.bidAmount} /> - {p.durationDays} days
                         </p>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                           <span>
@@ -1226,7 +1244,7 @@ export function MyProjectsList() {
                             setViewedProposal(p);
                             setShowEscrowConfirm(false);
                           }}
-                          className="h-11 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground text-sm font-semibold rounded-xl transition-colors border border-brand-primary"
+                          className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground text-sm font-medium rounded-lg transition-colors border border-brand-primary"
                         >
                           View Proposal
                         </button>
@@ -1241,7 +1259,7 @@ export function MyProjectsList() {
             <div className="space-y-6 text-left">
               <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-border/60 pb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-foreground">Proposal</h3>
+                  <h3 className="text-lg font-semibold text-foreground">Proposal</h3>
                   <p className="text-base text-muted-foreground mt-1">
                     Expert: <span className="font-semibold text-foreground/80">{viewedProposal.expertName}</span>
                   </p>
@@ -1252,7 +1270,7 @@ export function MyProjectsList() {
                     {viewedProposal.status}
                   </span>
                   <p className="text-xs text-muted-foreground">
-                    Submitted {safeDateFormat(viewedProposal.createdAt, { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, "—")}
+                    Submitted {safeDateFormat(viewedProposal.createdAt, { month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }, "-")}
                   </p>
                 </div>
               </div>
@@ -1265,14 +1283,23 @@ export function MyProjectsList() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-0.5 font-medium">Estimated Duration</p>
-                  <p className="font-semibold text-foreground">{viewedProposal.durationDays} days</p>
+                  <p className="font-semibold text-foreground">
+                    {(Number(viewedProposal?.durationDays) || 0) +
+                      (Number(
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.projectId}`) ||
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.project?.id}`) ||
+                        localStorage.getItem(`project_extra_days_${viewedProposal?.jobPostId}`) ||
+                        0
+                      ) || 0)}{" "}
+                    days
+                  </p>
                 </div>
               </div>
 
               {/* Sections */}
               <div className="space-y-6">
                 <div>
-                  <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Professional Introduction</h4>
                   <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                     {viewedProposal.coverLetter || "No introduction provided."}
                   </p>
@@ -1280,7 +1307,7 @@ export function MyProjectsList() {
 
                 {viewedProposal.technicalApproach && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Technical Approach & Methodology</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {viewedProposal.technicalApproach}
                     </p>
@@ -1289,19 +1316,18 @@ export function MyProjectsList() {
 
                 {viewedProposal.tasks && viewedProposal.tasks.length > 0 ? (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-3">Tasks & Milestones Breakdown</h4>
                     {selectedProject?.useCases && selectedProject.useCases.length > 0 ? (
                       <div className="space-y-6 mt-3">
-                        {selectedProject.useCases.map((uc) => {
+                        {selectedProject.useCases.map((uc, ucIdx) => {
                           const ucTasks = viewedProposal.tasks.filter(t => t.useCaseId === uc.id);
                           return (
                             <div key={uc.id} className="border border-border rounded-xl overflow-hidden bg-card">
-                              {/* ── Use Case Header ── */}
                               <div className="p-4 bg-accent-light/30 border-b border-border flex flex-col gap-1.5 text-left w-full">
                                 <div className="flex items-start justify-between flex-wrap gap-2 w-full">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-foreground text-sm">
-                                      UserStory: {uc.title || uc.nameAndDeadline}
+                                    <span className="font-semibold text-foreground text-sm">
+                                      User story: {uc.title || uc.nameAndDeadline}
                                     </span>
                                   </div>
                                   <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full whitespace-nowrap self-start">
@@ -1315,7 +1341,6 @@ export function MyProjectsList() {
                                 )}
                               </div>
 
-                              {/* ── Tasks ── */}
                               <div className="p-4 space-y-4">
                                 {ucTasks.length === 0 ? (
                                   <p className="text-xs text-muted-foreground italic text-center py-2 text-left">No tasks proposed for this use case.</p>
@@ -1324,19 +1349,11 @@ export function MyProjectsList() {
                                     <div key={task.id || idx} className="p-4 bg-secondary/30 border border-border rounded-xl space-y-3 text-left">
                                       {/* Task Title Row */}
                                       <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                                        <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                                        <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                                       </div>
 
-                                      {/* Minitasks */}
-                                      {false && task.miniTasks && task.miniTasks.length > 0 && (
-                                        <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
-                                          {task.miniTasks.map((mt, mtIdx) => (
-                                            <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
-                                          ))}
-                                        </div>
-                                      )}
+                                      {renderMiniTasksToggle(task, viewedProposal.status, `viewed-uc-${uc.id || ucIdx}`, idx)}
                                     </div>
                                   ))
                                 )}
@@ -1351,19 +1368,11 @@ export function MyProjectsList() {
                         {viewedProposal.tasks.map((task, idx) => (
                           <div key={task.id || idx} className="p-4 bg-secondary/50 border border-border rounded-xl space-y-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Title:</span>
-                              <span className="text-sm font-bold text-foreground">{task.title || `Task #${idx + 1}`}</span>
+                              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Task Title:</span>
+                              <span className="text-sm font-semibold text-foreground">{task.title || `Task #${idx + 1}`}</span>
                             </div>
 
-                            {/* Minitasks */}
-                            {false && task.miniTasks && task.miniTasks.length > 0 && (
-                              <div className="pl-3 border-l-2 border-brand-primary/20 space-y-1.5 mt-2">
-                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide block">Minitasks:</span>
-                                {task.miniTasks.map((mt, mtIdx) => (
-                                  <p key={mt.id || mtIdx} className="text-xs text-foreground/80">• {mt.title}</p>
-                                ))}
-                              </div>
-                            )}
+                            {renderMiniTasksToggle(task, viewedProposal.status, "viewed-flat", idx)}
                           </div>
                         ))}
                       </div>
@@ -1372,7 +1381,7 @@ export function MyProjectsList() {
                 ) : (
                   viewedProposal.timelineMilestones && (
                     <div>
-                      <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Timeline & Milestones</h4>
                       <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                         {viewedProposal.timelineMilestones}
                       </p>
@@ -1382,7 +1391,7 @@ export function MyProjectsList() {
 
                 {viewedProposal.dependencies && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1">Dependencies & Requirements</h4>
                     <p className="text-base text-foreground/80 leading-relaxed mt-2 whitespace-pre-wrap">
                       {viewedProposal.dependencies}
                     </p>
@@ -1392,34 +1401,17 @@ export function MyProjectsList() {
                 {/* Attached Assets for Client (ViewedProposal Detail) */}
                 {viewedProposal.attachments && viewedProposal.attachments.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-bold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
+                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border/60 pb-1 mb-2">Attached Assets ({viewedProposal.attachments.length})</h4>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {viewedProposal.attachments.map((att, idx) => {
                         const rawUrl = att.url ? (att.url.startsWith("http") ? att.url : enrichFileUrl(att.url)) : "#";
                         let rawName = typeof att === "object" ? (att.name || att.Name || att.originalName || att.fileName) : null;
-                        if (!rawName && typeof rawUrl === "string") {
-                          rawName = rawUrl.split("/").pop() || "Attachment";
-                        }
-                        const cleanName = (rawName || "Attachment").replace(/^[a-f0-9-]{36}_/i, "").replace(/^\d+[-_]/, "");
-                        const finalName = cleanName || rawName;
+                        const finalName = cleanFileName(rawName || rawUrl);
 
-                        const handleDownloadFile = async (e) => {
+                        const handleDownloadFile = (e) => {
                           e.preventDefault();
                           if (!rawUrl || rawUrl === "#") return;
-                          try {
-                            const res = await fetch(rawUrl);
-                            const blob = await res.blob();
-                            const blobUrl = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = blobUrl;
-                            a.download = finalName;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(blobUrl);
-                          } catch (err) {
-                            window.open(rawUrl, "_blank");
-                          }
+                          downloadFile(rawUrl, finalName);
                         };
 
                         return (
@@ -1446,14 +1438,14 @@ export function MyProjectsList() {
                 <button
                   type="button"
                   onClick={() => handleDeclineProposal(viewedProposal.id)}
-                  className="h-11 px-5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[15px] font-semibold transition-all"
+                  className="h-10 px-4 bg-destructive hover:bg-destructive text-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
                 >
                   Decline Proposal
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAcceptProposal(viewedProposal)}
-                  className="h-11 px-5 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
+                  className="h-10 px-4 bg-brand-primary hover:bg-brand-primary-hover text-brand-primary-foreground rounded-xl text-[15px] font-semibold transition-all"
                 >
                   Accept Proposal
                 </button>
@@ -1469,7 +1461,7 @@ export function MyProjectsList() {
   // VIEW: LIST
   // =========================================================================
   const STATUS_OPTIONS = [
-    { value: "", label: "All Statuses" },
+    { value: "", label: "All" },
     { value: "Open", label: "Open" },
     { value: "In Progress", label: "In Progress" },
     { value: "Completed", label: "Complete" },
@@ -1486,38 +1478,38 @@ export function MyProjectsList() {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">All Projects</h1>
-          <p className="text-muted-foreground mt-1">Manage your posted projects</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-muted-foreground">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-11 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <PageHeader
+        title="All Projects"
+        subtitle="Manage your posted projects"
+        actions={(
+          <div className="page-filter-controls">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-muted-foreground">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-10 px-3 border border-input rounded-xl bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-accent text-sm cursor-pointer"
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Link
+              to="/client/post-project"
+              className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
             >
-              {STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+              <PlusCircle className="w-4 h-4" /> Post New Project
+            </Link>
           </div>
-          <Link
-            to="/client/post-project"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium inline-flex items-center gap-2 transition-colors"
-          >
-          <PlusCircle className="w-4 h-4" /> Post New Project
-        </Link>
-      </div>
-    </div>
+        )}
+      />
 
       {loading ? (
         <div className="py-8">
@@ -1536,7 +1528,7 @@ export function MyProjectsList() {
           </p>
           <Link
             to="/client/post-project"
-            className="h-11 px-5 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium"
+            className="h-10 px-4 bg-brand-primary text-brand-primary-foreground rounded-xl hover:bg-brand-primary-hover text-[15px] font-medium"
           >
             Post a Project
           </Link>
@@ -1590,7 +1582,6 @@ export function MyProjectsList() {
                 key={project.id}
                 className="bg-card rounded-xl border border-border hover:border-border/80 p-6 hover:shadow-md transition-all duration-200"
               >
-                {/* ── Top row: title + status badge ── */}
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1612,7 +1603,6 @@ export function MyProjectsList() {
                 </div>
 
 
-                {/* ── Metadata grid ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 bg-secondary/40 rounded-lg p-3 border border-border/60">
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Posted</span>
@@ -1628,7 +1618,7 @@ export function MyProjectsList() {
                   )}
                   <div>
                     <span className="block text-[10px] uppercase font-semibold text-muted-foreground tracking-[0.04em]">Budget</span>
-                    <span className="font-bold text-success text-sm">
+                    <span className="font-semibold text-success text-sm">
                       <MoneyDisplay amount={project.budget} />
                     </span>
                   </div>
@@ -1640,7 +1630,6 @@ export function MyProjectsList() {
                   </div>
                 </div>
 
-                {/* ── Bottom row: actions ── */}
                 <div className="flex items-center justify-end pt-3 border-t border-border gap-3">
                   <button
                     onClick={() => {
