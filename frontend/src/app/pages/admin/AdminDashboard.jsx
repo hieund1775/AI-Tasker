@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AdminDashboard - Dashboard overview page for Admin/Owner.
 //
 // Shows platform stats and quick links to all management pages.
@@ -38,7 +38,7 @@ export function AdminDashboard() {
     const results = await Promise.allSettled([
       api.users.list({ timeout: DASHBOARD_TIMEOUT }),
       getReports({ status: "Pending" }),
-      isOwner ? api.users.systemDashboard().catch(() => null) : Promise.resolve(null),
+      api.users.systemDashboard().catch(() => null),
       api.payments.getTransactions().catch(() => []),
     ]);
 
@@ -115,30 +115,6 @@ export function AdminDashboard() {
       }
     });
 
-    const getPlatformFee = (t) => {
-      const lType = (t.type || t.Type || "").toLowerCase();
-      const projId = t.projectId || t.ProjectId;
-      const projIdLower = projId ? String(projId).toLowerCase() : null;
-      const tAmount = Number(t.amount || t.Amount || 0);
-
-      if (lType === "platformfee" || lType === "platform_fee") {
-        return Math.abs(tAmount);
-      }
-
-      if (lType === "releasepayment" || lType === "escrow_release" || lType === "escrowrelease") {
-        if (projIdLower && projectsWithPlatformFee.has(projIdLower)) {
-          return 0;
-        }
-        const projDetails = projIdLower ? projectMap.get(projIdLower) : null;
-        if (projDetails && projDetails.budget > 0) {
-          return projDetails.budget * 0.05;
-        }
-        return tAmount * 5 / 95;
-      }
-
-      return 0;
-    };
-
     const systemDash = systemDashboardSettled.status === "fulfilled" ? systemDashboardSettled.value : null;
     let totalRevenue = Math.abs(Number(systemDash?.totalPlatformRevenue ?? systemDash?.TotalPlatformRevenue ?? 0));
 
@@ -150,6 +126,14 @@ export function AdminDashboard() {
     }
 
     if (totalRevenue === 0) {
+      allFetchedProjects.forEach(p => {
+        const dbStatus = (p.status || p.Status || "").toLowerCase().trim();
+        const isCompleted = ["completed", "complete", "contract_cancelled", "cancel_done"].includes(dbStatus);
+        if (isCompleted) {
+          const budget = Number(p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowBalance ?? 0);
+          totalRevenue += budget * 0.05;
+        }
+      });
       transactions.forEach(t => {
         const lType = (t.type || t.Type || "").toLowerCase();
         const tPlatformFee = Math.abs(Number(t.platformFee || t.PlatformFee || 0));

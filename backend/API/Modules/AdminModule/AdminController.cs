@@ -105,11 +105,18 @@ namespace AITasker_Modular.Modules.AdminModule
                     systemEscrowWallet.TotalBalance = activeEscrowSum;
                     systemEscrowWallet.UpdatedAt = DateTime.UtcNow;
 
-                    // Auto-sync Owner Fee Wallet if uninitialized
+                    // Auto-sync Owner Fee Wallet if uninitialized or if total logged revenue / completed project fees is higher
+                    var completedStatuses = new[] { "Completed", "completed", "complete", "Contract_Cancelled", "contract_cancelled", "cancel_done" };
+                    var completedProjectsFee = await _context.Projects
+                        .Where(p => completedStatuses.Contains(p.Status))
+                        .SumAsync(p => (decimal?)((p.JobPost != null ? p.JobPost.Budget : p.EscrowBalance) * 0.05m)) ?? 0m;
+
                     var totalLoggedRevenue = await _context.SystemTransactionLogs.SumAsync(l => (decimal?)l.Amount) ?? 0m;
-                    if (ownerFeeWallet.TotalBalance < totalLoggedRevenue)
+                    var actualPlatformRevenue = Math.Max(totalLoggedRevenue, completedProjectsFee);
+
+                    if (ownerFeeWallet.TotalBalance < actualPlatformRevenue)
                     {
-                        ownerFeeWallet.TotalBalance = totalLoggedRevenue;
+                        ownerFeeWallet.TotalBalance = actualPlatformRevenue;
                         ownerFeeWallet.UpdatedAt = DateTime.UtcNow;
                     }
 
