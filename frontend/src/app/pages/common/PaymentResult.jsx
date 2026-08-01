@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth.js";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 export default function PaymentResult() {
