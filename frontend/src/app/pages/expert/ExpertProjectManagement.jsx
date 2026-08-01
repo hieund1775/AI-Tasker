@@ -20,6 +20,7 @@ import {
 } from "../../../services/notificationHelper.js";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { DisputeBanner } from "../../components/shared/DisputeBanner.jsx";
+import { DisputeVerdictBanner } from "../../components/shared/DisputeVerdictBanner.jsx";
 import { ReportForm } from "../../components/report/ReportForm.jsx";
 import { safeArray } from "../../lib/safety.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.jsx";
@@ -235,6 +236,7 @@ export default function ExpertProjectDetail() {
     && normalizedStatus !== "awaiting_cancellation"
     && !HARD_TERMINAL_STATUSES.has(normalizedStatus)
     && expertMeetsProgressThreshold
+    && !isDisputed
     && !cancelLocked;
 
   useEffect(() => {
@@ -649,6 +651,7 @@ export default function ExpertProjectDetail() {
       <div className="space-y-6">
         {/* Dispute banner */}
         {isDisputed && <DisputeBanner report={report} />}
+        {!isDisputed && <DisputeVerdictBanner project={project} />}
         {report?.status === "Rejected" && report?.reporterRole === "expert" && showRejectedBanner && (
           <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm font-sans flex items-start justify-between gap-2 shadow-sm relative">
             <div className="flex items-start gap-2">
