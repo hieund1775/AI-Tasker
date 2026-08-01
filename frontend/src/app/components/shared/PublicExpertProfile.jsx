@@ -16,7 +16,6 @@ import {
   Calendar,
 } from "lucide-react";
 import { api } from "../../../services/api.js";
-import { getCategoriesWithSpecializations, getSpecializations } from "../../../services/categoryTagService.js";
 import { safeArray } from "../../lib/safety.js";
 import { MoneyDisplay } from "./MoneyDisplay.jsx";
 import { formatCurrency } from "../../lib/formatCurrency.js";
@@ -53,8 +52,6 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   const [completedProjects, setCompletedProjects] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [interactions, setInteractions] = useState({});
-  const [categoriesList, setCategoriesList] = useState([]);
-  const [specializationsList, setSpecializationsList] = useState([]);
   const [stats, setStats] = useState({
     completed: 0,
     cancel: 0,
@@ -62,22 +59,6 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
     success: "0",
     evaluate: 0,
   });
-
-  useEffect(() => {
-    async function loadTags() {
-      try {
-        const [cats, specs] = await Promise.all([
-          getCategoriesWithSpecializations().catch(() => []),
-          getSpecializations().catch(() => []),
-        ]);
-        setCategoriesList(cats || []);
-        setSpecializationsList(specs || []);
-      } catch (err) {
-        console.warn("Failed to load category tags in PublicExpertProfile:", err);
-      }
-    }
-    loadTags();
-  }, []);
 
   useEffect(() => {
     const initialInteractions = {};
@@ -528,43 +509,19 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
             {(() => {
               // Resolve Category name
               let resolvedCat = expert.category;
-              const expCatLower = String(expert.category || "").toLowerCase();
-              const matchedCat = categoriesList.find(c =>
-                String(c.id || c.Id || "").toLowerCase() === expCatLower ||
-                String(c.name || c.Name || "").toLowerCase() === expCatLower
-              );
+              const matchedCat = categoriesList.find(c => c.id === expert.category);
               if (matchedCat) {
-                resolvedCat = matchedCat.name || matchedCat.Name;
-              } else if (resolvedCat && resolvedCat.match(/^[0-9a-fA-F-]{36}$/)) {
-                resolvedCat = "Machine Learning Engineering";
+                resolvedCat = matchedCat.name;
               }
 
               // Resolve Specialization name
               let resolvedSpec = expert.specialization;
-              const expSpecLower = String(expert.specialization || "").toLowerCase();
-
-              const matchedSpecDirect = specializationsList.find(s =>
-                String(s.id || s.Id || "").toLowerCase() === expSpecLower ||
-                String(s.name || s.Name || "").toLowerCase() === expSpecLower
-              );
-
-              if (matchedSpecDirect) {
-                resolvedSpec = matchedSpecDirect.name || matchedSpecDirect.Name;
-              } else {
-                for (const cat of categoriesList) {
-                  const matchedSpec = cat.specializations?.find(s =>
-                    String(s.id || s.Id || "").toLowerCase() === expSpecLower ||
-                    String(s.name || s.Name || "").toLowerCase() === expSpecLower
-                  );
-                  if (matchedSpec) {
-                    resolvedSpec = matchedSpec.name || matchedSpec.Name;
-                    break;
-                  }
+              for (const cat of categoriesList) {
+                const matchedSpec = cat.specializations?.find(s => s.id === expert.specialization);
+                if (matchedSpec) {
+                  resolvedSpec = matchedSpec.name;
+                  break;
                 }
-              }
-
-              if (resolvedSpec && resolvedSpec.match(/^[0-9a-fA-F-]{36}$/)) {
-                resolvedSpec = "AI Specialist";
               }
 
               return (

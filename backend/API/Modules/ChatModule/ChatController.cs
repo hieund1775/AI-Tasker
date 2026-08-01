@@ -27,7 +27,11 @@ namespace AITasker_Modular.Modules.ChatModule
         public async Task<IActionResult> GetUserConversations(Guid userId)
         {
             var result = await _service.GetUserConversationsAsync(userId);
-            return Ok(result ?? Array.Empty<ConversationResponseDto>());
+            if (result == null || !result.Any())
+            {
+                return NotFound("Không tìm thấy cuộc hội thoại nào của người dùng này.");
+            }
+            return Ok(result);
         }
 
         [HttpPost("messages")]
@@ -48,7 +52,11 @@ namespace AITasker_Modular.Modules.ChatModule
         public async Task<IActionResult> GetConversationMessages(Guid conversationId)
         {
             var result = await _service.GetConversationMessagesAsync(conversationId);
-            return Ok(result ?? Array.Empty<MessageResponseDto>());
+            if (result == null || !result.Any())
+            {
+                return NotFound("Cuộc hội thoại chưa có tin nhắn nào.");
+            }
+            return Ok(result);
         }
     }
 }
