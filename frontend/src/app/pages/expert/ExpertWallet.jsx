@@ -54,11 +54,11 @@ const typeLabels = {
   escrowrefund: "dispute refund",
   refund: "dispute refund",
   dispute: "dispute refund",
-  platformfee: "platform fee",
-  platform_fee: "platform fee",
+  platformfee: "System Platform Fee",
+  platform_fee: "System Platform Fee",
   cancel: "cancellation request",
-  report_request: "reported request",
-  verdict: "reported request",
+  report_request: "PAYOUT",
+  verdict: "PAYOUT",
 };
 
 function isReportLikeDeposit(tx) {
@@ -254,6 +254,7 @@ export function ExpertWallet() {
                   return {
                     expertPayout: Number(md.expertPayout),
                     clientRefund: Number(md.clientRefund),
+                    verdictType: md.verdictType,
                   };
                 }
               } catch(e) {}
@@ -445,7 +446,7 @@ export function ExpertWallet() {
                   type: "platform_fee",
                   createdAt: tDate,
                   projectTitle: tTitle,
-                  description: "systemfee",
+                  description: "System Platform Fee",
                 });
               } else {
                 myTransactions.push({
@@ -484,14 +485,16 @@ export function ExpertWallet() {
               return;
             }
 
-            const isReportResolvedByAdmin = report && (
-              report.adminNote ||
-              localStorage.getItem(`report_status_${projIdLower}`) ||
-              ["Resolved", "Accepted"].includes(report.status)
+            const isReportResolvedByAdmin = (split?.verdictType === "client_refund" || split?.verdictType === "expert_paid") || (
+              report && (
+                report.adminNote ||
+                localStorage.getItem(`report_status_${projIdLower}`) ||
+                ["Resolved", "Accepted"].includes(report.status)
+              )
             );
 
             if (isReportResolvedByAdmin) {
-              // Dispute Report Flow (Admin resolution): Only show rows IF Expert actually receives payout!
+              // Dispute Report Flow (Admin resolution): payout row (gross) + system fee row
               if (split.expertPayout > 0) {
                 const grossBudget = split.escrowTotal || 10000;
                 const pFee = Math.round(grossBudget * 0.05);
@@ -515,7 +518,7 @@ export function ExpertWallet() {
                     status: "done",
                     createdAt: tDate,
                     projectTitle: split.title,
-                    description: "systemfee",
+                    description: "System Platform Fee",
                   });
                 }
               }
@@ -1021,12 +1024,13 @@ export function ExpertWallet() {
 
                   // Process description display as requested
                   let displayDesc = tx.description;
-                  if (isReportLikeDeposit(tx)) displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : "report successful";
+                  if (isReportLikeDeposit(tx)) displayDesc = "Reported SuccessFull";
                   else if (lowerType === "deposit" || lowerType === "manualdeposit") displayDesc = "Deposit From ZaloPay";
                   else if (lowerType === "withdrawal" || lowerType === "withdraw") displayDesc = "withdrawal";
-                  else if (lowerType === "verdict") displayDesc = "report successful";
-                  else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "systemfee";
-                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel", "report_request"].includes(lowerType)) {
+                  else if (lowerType === "verdict") displayDesc = "Reported SuccessFull";
+                  else if (lowerType === "report_request") displayDesc = "Reported SuccessFull";
+                  else if (lowerType === "platform_fee" || lowerType === "platformfee") displayDesc = "System Platform Fee";
+                  else if (["escrow_deposit", "escrowdeposit", "escrow_release", "escrowrelease", "releasepayment", "escrow_refund", "escrowrefund", "refund", "dispute", "cancel"].includes(lowerType)) {
                     displayDesc = tx.projectTitle ? `Project: ${tx.projectTitle}` : (tx.description || "Project: AI-Tasker");
                   }
 

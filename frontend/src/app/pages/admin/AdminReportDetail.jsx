@@ -19,7 +19,6 @@ import {
   MessageCircle,
   Play,
   StopCircle,
-  User,
   FileText,
   AlertTriangle,
   Loader2,
@@ -130,17 +129,18 @@ function normalizeEvidence(...sources) {
   return list;
 }
 
-function getReasonAndDetails(explanation, reasonField) {
-  if (reasonField && reasonField !== explanation) return { reason: reasonField, details: explanation };
-  if (explanation && typeof explanation === "string" && explanation.includes("\n\n")) {
-    const parts = explanation.split("\n\n");
+// Backend stores explanation as "reason\n\ndescription" without a separate reason field
+// for partner-submit-response, so derive Reason from the first part when missing.
+function splitReason(details, reasonField) {
+  if (reasonField) return { reason: reasonField, details };
+  if (details && typeof details === "string" && details.includes("\n\n")) {
+    const parts = details.split("\n\n");
     return { reason: parts[0], details: parts.slice(1).join("\n\n") };
   }
-  return { reason: null, details: explanation };
+  return { reason: null, details };
 }
 
-export function AdminReportDetail() {
-  const { id } = useParams();
+export function AdminReportDetail() {  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -167,27 +167,6 @@ export function AdminReportDetail() {
   const [moneyAction, setMoneyAction] = useState("refund"); // "refund" | "release"
   const [rejectReasonError, setRejectReasonError] = useState("");
   const [stopReasonError, setStopReasonError] = useState("");
-
-  const initialRound = (() => {
-    const local = localStorage.getItem(`dispute_initial_round_${id}`);
-    if (local) {
-      try {
-        return JSON.parse(local);
-      } catch (e) { }
-    }
-    return null;
-  })();
-
-  const reportForPartiesInvolved = (initialRound && report) ? {
-    ...report,
-    clientExplanation: report.clientExplanation || initialRound.client?.explanation,
-    clientExplanationEvidence: report.clientExplanationEvidence || initialRound.client?.evidence,
-    clientExplanationDesiredResolution: report.clientExplanationDesiredResolution || initialRound.client?.desiredResolution,
-    expertExplanation: report.expertExplanation || initialRound.expert?.explanation,
-    expertExplanationEvidence: report.expertExplanationEvidence || initialRound.expert?.evidence,
-    expertExplanationDesiredResolution: report.expertExplanationDesiredResolution || initialRound.expert?.desiredResolution,
-    evidenceUrl: report.evidenceUrl || initialRound.client?.evidence || initialRound.expert?.evidence,
-  } : report;
 
   // Fetch report detail
   const fetchReport = useCallback(async () => {
@@ -272,9 +251,6 @@ export function AdminReportDetail() {
     }
   }, [id]);
 
-  const [activeTab, setActiveTab] = useState("client");
-  const [activePartyTab, setActivePartyTab] = useState("reporter");
-
   useEffect(() => {
     fetchReport();
     const handleUpdate = () => {
@@ -285,12 +261,6 @@ export function AdminReportDetail() {
       window.removeEventListener("aitasker_db_update", handleUpdate);
     };
   }, [fetchReport]);
-
-  useEffect(() => {
-    if (report?.reporterRole) {
-      setActiveTab(report.reporterRole.toLowerCase());
-    }
-  }, [report]);
 
   const showToast = useCallback((message) => {
     setFeedback(message);
@@ -449,54 +419,6 @@ export function AdminReportDetail() {
     }
     setActionLoading(true);
     try {
-      // BACKUP explanation to localStorage BEFORE being overwritten in Backend
-      const currentClientExp = report?.clientExplanation || report?.clientExplanationDescription || "";
-      const currentExpertExp = report?.expertExplanation || report?.expertExplanationDescription || "";
-
-      const initialSaved = localStorage.getItem(`dispute_initial_round_${id}`);
-      if (!initialSaved) {
-        if (currentClientExp || currentExpertExp) {
-          const initialRoundData = {
-            client: {
-              explanation: currentClientExp,
-              evidence: report?.clientExplanationEvidence || report?.evidenceUrl || "",
-              desiredResolution: report?.clientExplanationDesiredResolution || "",
-              submittedAt: report?.updatedAt || report?.createdAt || new Date().toISOString(),
-            },
-            expert: {
-              explanation: currentExpertExp,
-              evidence: report?.expertExplanationEvidence || report?.evidenceUrl || "",
-              desiredResolution: report?.expertExplanationDesiredResolution || "",
-              submittedAt: report?.updatedAt || report?.createdAt || new Date().toISOString(),
-            }
-          };
-          localStorage.setItem(`dispute_initial_round_${id}`, JSON.stringify(initialRoundData));
-        }
-      } else {
-        // Initial round exists (Round 1), so this next submission freezes the previous round (Rounds 2, 3...)
-        const existingRounds = JSON.parse(localStorage.getItem(`dispute_rounds_history_${id}`) || "[]");
-        const nextRoundNumber = existingRounds.length + 1;
-
-        const newHistoryRound = {
-          round: nextRoundNumber,
-          adminNote: report?.adminNote || "Additional explanation requested",
-          client: {
-            explanation: currentClientExp,
-            evidence: report?.clientExplanationEvidence || "",
-            desiredResolution: report?.clientExplanationDesiredResolution || "",
-            submittedAt: report?.updatedAt || new Date().toISOString(),
-          },
-          expert: {
-            explanation: currentExpertExp,
-            evidence: report?.expertExplanationEvidence || "",
-            desiredResolution: report?.expertExplanationDesiredResolution || "",
-            submittedAt: report?.updatedAt || new Date().toISOString(),
-          }
-        };
-        existingRounds.push(newHistoryRound);
-        localStorage.setItem(`dispute_rounds_history_${id}`, JSON.stringify(existingRounds));
-      }
-
       const isCancellation = report.reportType === "cancellation" || report.disputeType === "cancellation";
       if (isCancellation) {
         await api.put(`/reports/${report.id}`, {
@@ -848,6 +770,7 @@ export function AdminReportDetail() {
       } else {
         // For standard financial Dispute: force split verdict
         const disputeId = localStorage.getItem(`dispute_id_for_report_${id}`) || id;
+        let verdictSucceeded = true;
         try {
           // 1. Stop the project
           await stopProject(report?.projectId, {
@@ -857,6 +780,7 @@ export function AdminReportDetail() {
             staffId,
           });
         } catch (e) {
+          verdictSucceeded = false;
           console.warn("Backend dispute verdict failed, using fallback payout/refund...", e);
         }
 
@@ -880,24 +804,21 @@ export function AdminReportDetail() {
         }
 
         const payoutAmount = Math.round(escrowTotal * 0.95);
-        const platformFee = escrowTotal - payoutAmount;
+        const platformFee = Math.round(escrowTotal * 0.05);
 
         if (moneyAction === "refund") {
           try {
-            if (targetClientId) await api.payments.depositWallet(targetClientId, payoutAmount);
+            if (!verdictSucceeded && targetClientId) {
+              await api.post("/interactions/transaction", {
+                projectId: report?.projectId,
+                destinationWalletId: targetClientId,
+                amount: payoutAmount,
+                type: "Deposit",
+                description: "Dispute verdict - Reported SuccessFull",
+              });
+            }
           } catch (depositErr) {
-            console.warn("depositWallet client refund failed:", depositErr);
-          }
-          try {
-            await refundProjectMoneyToClient({
-              projectId: report?.projectId,
-              amount: escrowTotal,
-              clientId: targetClientId,
-              reportId: id,
-              reason: `${stopReason}`,
-            });
-          } catch (e) {
-            console.warn("refundProjectMoneyToClient failed:", e);
+            console.warn("Verdict client payout failed:", depositErr);
           }
           try {
             await api.post("/interactions/transaction", {
@@ -920,7 +841,9 @@ export function AdminReportDetail() {
             clientRefund: escrowTotal,
             clientFee: platformFee,
             isEscalatedVerdict: false,
-            verdictType: "client_refund"
+            verdictType: "client_refund",
+            winnerRole: "Client",
+            finalDecisionReason: stopReason
           });
           try {
             await api.projects.updateStatus(report?.projectId, "Cancelled");
@@ -928,22 +851,17 @@ export function AdminReportDetail() {
           } catch (e) { console.warn("Backend update status/metadata failed", e); }
         } else {
           try {
-            if (targetExpertId) await api.payments.depositWallet(targetExpertId, payoutAmount);
+            if (!verdictSucceeded && targetExpertId) {
+              await api.post("/interactions/transaction", {
+                projectId: report?.projectId,
+                destinationWalletId: targetExpertId,
+                amount: payoutAmount,
+                type: "Deposit",
+                description: "Dispute verdict - Reported SuccessFull",
+              });
+            }
           } catch (depositErr) {
-            console.warn("depositWallet expert release failed:", depositErr);
-          }
-          try {
-            await api.post("/interactions/transaction", {
-              projectId: report?.projectId,
-              amount: escrowTotal,
-              expertId: targetExpertId,
-              reportId: id,
-              type: "release_payment",
-              transactionType: "release_payment",
-              description: `Dispute verdict: Release escrow to Expert for project ${report?.projectId}`,
-            });
-          } catch (e) {
-            console.warn("releasePayment transaction log failed:", e);
+            console.warn("Verdict expert payout failed:", depositErr);
           }
           try {
             await api.post("/interactions/transaction", {
@@ -966,7 +884,9 @@ export function AdminReportDetail() {
             clientRefund: 0,
             clientFee: 0,
             isEscalatedVerdict: false,
-            verdictType: "expert_paid"
+            verdictType: "expert_paid",
+            winnerRole: "Expert",
+            finalDecisionReason: stopReason
           });
           try {
             await api.projects.updateStatus(report?.projectId, "Cancelled");
@@ -974,6 +894,9 @@ export function AdminReportDetail() {
           } catch (e) { console.warn("Backend update status/metadata failed", e); }
         }
         localStorage.setItem(`report_status_${id}`, "Resolved");
+        if (report?.projectId) {
+          localStorage.setItem(`report_status_${String(report.projectId).toLowerCase()}`, "Resolved");
+        }
       }
 
       setReport((prev) => ({
@@ -1189,33 +1112,6 @@ export function AdminReportDetail() {
   const isType1 = report.reportType !== "type2";
   const isType2 = report.reportType === "type2";
   const canHandleMoney = report.status === "Pending Admin" || report.status === "Pending";
-
-  // Derived fields for Reporter and Responder
-  const isReporterClient = (report.reporterRole || report.ReporterRole || "").toLowerCase() === "client" || report.reportType === "type2";
-  const isReporterTab = activePartyTab === "reporter";
-
-  const reporterLabel = isReporterClient ? "Client (Reporter)" : "Expert (Reporter)";
-  const responderLabel = isReporterClient ? "Expert (Responder)" : "Client (Responder)";
-  const reporterName = isReporterClient
-    ? (report.clientName || report.clientId || "-")
-    : (report.expertName || report.expertId || "-");
-  const responderName = isReporterClient
-    ? (report.expertName || report.expertId || "-")
-    : (report.clientName || report.clientId || "-");
-  const reporterEmail = isReporterClient ? report.clientEmail : report.expertEmail;
-  const responderEmail = isReporterClient ? report.expertEmail : report.clientEmail;
-
-  // Reporter details
-  const reporterExplanation = isReporterClient ? report.clientExplanation : report.expertExplanation;
-  const reporterEvidence = isReporterClient ? report.clientExplanationEvidence : report.expertExplanationEvidence;
-
-  // Responder details
-  const responderReason = isReporterClient ? report.expertExplanationReason : report.clientExplanationReason;
-  const responderDescription = isReporterClient ? report.expertExplanationDescription : report.clientExplanationDescription;
-  const responderExplanation = isReporterClient ? report.expertExplanation : report.clientExplanation;
-  const responderDesiredResolution = isReporterClient ? report.expertExplanationDesiredResolution : report.clientExplanationDesiredResolution;
-  const responderEvidence = isReporterClient ? report.expertExplanationEvidence : report.clientExplanationEvidence;
-  const hasResponderResponded = !!responderExplanation;
 
   // -----------------------------------------------------------------------
   // Render
@@ -1540,478 +1436,87 @@ export function AdminReportDetail() {
           </SectionCard>
         ) : (
           <>
-            {/* 1. Archive of previous explanation rounds (Round 1, Round 2...) */}
-            {(() => {
-              const historyRounds = JSON.parse(localStorage.getItem(`dispute_rounds_history_${id}`) || "[]");
-              if (historyRounds.length === 0) return null;
-
-              return historyRounds.map((roundData) => (
-                <SectionCard
-                  key={roundData.round}
-                  title={`Evidence & Explanation (Round ${roundData.round})`}
-                  icon={FileText}
-                  className="border-warning/20 bg-warning-light/10 mb-6"
-                >
-                  <div className="p-6 bg-card border border-border rounded-xl space-y-6 text-left text-sm font-sans">
-                    {roundData.adminNote && (
-                      <div className="p-3 bg-warning-light border border-warning/20 text-warning rounded-lg text-xs leading-relaxed font-sans">
-                        <strong>Admin request details:</strong> &quot;{roundData.adminNote}&quot;
-                      </div>
-                    )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Client side */}
-                      <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
-                        <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {roundData.round})</h4>
-                        <div className="space-y-2 break-words max-w-full">
-                          {(() => {
-                            const { reason: cReason, details: cDetails } = getReasonAndDetails(roundData.client.explanation, roundData.client.reason);
-                            return (
-                              <>
-                                {cReason && (
-                                  <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {cReason}</p>
-                                )}
-                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {cDetails || "-"}</p>
-                              </>
-                            );
-                          })()}
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.client.desiredResolution || "-"}</p>
-
-                          {normalizeEvidence(roundData.client.evidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-accent/20">
-                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                              <div className="space-y-1.5 max-w-full overflow-hidden">
-                                {normalizeEvidence(roundData.client.evidence).map((e, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={e.fileUrl}
-                                    onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                    title={e.fileName}
-                                  >
-                                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Expert side */}
-                      <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
-                        <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {roundData.round})</h4>
-                        <div className="space-y-2 break-words max-w-full">
-                          {(() => {
-                            const { reason: eReason, details: eDetails } = getReasonAndDetails(roundData.expert.explanation, roundData.expert.reason);
-                            return (
-                              <>
-                                {eReason && (
-                                  <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {eReason}</p>
-                                )}
-                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {eDetails || "-"}</p>
-                              </>
-                            );
-                          })()}
-                          <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {roundData.expert.desiredResolution || "-"}</p>
-
-                          {normalizeEvidence(roundData.expert.evidence).length > 0 && (
-                            <div className="mt-3 pt-2 border-t border-warning/20">
-                              <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                              <div className="space-y-1.5 max-w-full overflow-hidden">
-                                {normalizeEvidence(roundData.expert.evidence).map((e, idx) => (
-                                  <a
-                                    key={idx}
-                                    href={e.fileUrl}
-                                    onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                    className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                    title={e.fileName}
-                                  >
-                                    <FileText className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </SectionCard>
-              ));
-            })()}
-
-            {/* 2. Latest Evidence & Explanation (from Backend) */}
-            {initialRound && (() => {
-              const historyRounds = JSON.parse(localStorage.getItem(`dispute_rounds_history_${id}`) || "[]");
-              const currentRoundNumber = historyRounds.length + 1;
-              return (
-                <SectionCard
-                  title={`Evidence & Explanation (Round ${currentRoundNumber})`}
-                  icon={FileText}
-                  className="border-warning/25 bg-warning-light/20 mb-6"
-                >
-                  <div className="p-6 bg-card border border-border rounded-xl space-y-6 text-left text-sm font-sans">
-                    <div className="p-3 bg-warning-light border border-warning/25 text-warning rounded-lg text-xs leading-relaxed font-sans">
-                      <strong>Admin request details:</strong> &quot;{report.adminNote || "Additional explanation requested"}&quot;
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {/* Client side latest statement */}
-                      {(() => {
-                        const hasClientSubmitted = !!(report.clientExplanationReason || report.clientExplanation || (normalizeEvidence(report.clientExplanationEvidence).length > 0));
-                        if (!hasClientSubmitted) {
-                          return (
-                            <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-3">
-                              <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
-                              <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
-                                <Clock className="w-4 h-4 text-primary shrink-0" />
-                                <span>Waiting for the Client to submit an explanation and evidence for Round {currentRoundNumber}...</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="p-4 bg-accent-light/60 border border-accent/20 rounded-xl space-y-3">
-                            <h4 className="text-sm font-semibold text-primary">Client - Explanation (Round {currentRoundNumber})</h4>
-                            <div className="space-y-2 break-words max-w-full">
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.clientExplanationReason || "-"}</p>
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.clientExplanation || "-"}</p>
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
-
-                              {normalizeEvidence(report.clientExplanationEvidence).length > 0 && (
-                                <div className="mt-3 pt-2 border-t border-accent/20">
-                                  <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                                  <div className="space-y-1.5 max-w-full overflow-hidden">
-                                    {normalizeEvidence(report.clientExplanationEvidence).map((e, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={e.fileUrl}
-                                        onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                        className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                        title={e.fileName}
-                                      >
-                                        <FileText className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-
-                      {/* Expert side latest statement */}
-                      {(() => {
-                        const hasExpertSubmitted = !!(report.expertExplanationReason || report.expertExplanation || (normalizeEvidence(report.expertExplanationEvidence).length > 0));
-                        if (!hasExpertSubmitted) {
-                          return (
-                            <div className="p-4 bg-muted/40 border border-border/60 rounded-xl space-y-3">
-                              <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
-                              <div className="p-3 bg-secondary/40 rounded-lg text-xs text-muted-foreground flex items-center gap-2 font-medium">
-                                <Clock className="w-4 h-4 text-warning shrink-0" />
-                                <span>Waiting for the Expert to submit an explanation and evidence for Round {currentRoundNumber}...</span>
-                              </div>
-                            </div>
-                          );
-                        }
-                        return (
-                          <div className="p-4 bg-warning-light/60 border border-warning/20 rounded-xl space-y-3">
-                            <h4 className="text-sm font-semibold text-warning">Expert - Explanation (Round {currentRoundNumber})</h4>
-                            <div className="space-y-2 break-words max-w-full">
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.expertExplanationReason || "-"}</p>
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.expertExplanation || "-"}</p>
-                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
-
-                              {normalizeEvidence(report.expertExplanationEvidence).length > 0 && (
-                                <div className="mt-3 pt-2 border-t border-warning/20">
-                                  <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                                  <div className="space-y-1.5 max-w-full overflow-hidden">
-                                    {normalizeEvidence(report.expertExplanationEvidence).map((e, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={e.fileUrl}
-                                        onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                        className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                        title={e.fileName}
-                                      >
-                                        <FileText className="w-3.5 h-3.5 shrink-0" />
-                                        <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </SectionCard>
-              );
-            })()}
-
-            {(() => {
-              const report = reportForPartiesInvolved; // Comprehensive shadowing for Parties Involved!
-              return (
-                <SectionCard title="Parties Involved" icon={User}>
-                  <div className="flex border-b border-border mb-4 font-sans">
-                    {(() => {
-                      const report = reportForPartiesInvolved; // Variable Shadowing!
-                      const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
-                      const tabsOrder = reporter === "client" ? ["client", "expert"] : ["expert", "client"];
-                      return tabsOrder.map((role) => {
-                        const label = role === "client" ? "Client" : "Expert";
-                        const isSelected = activeTab === role;
-                        const isReporter = role === reporter;
-
-                        let activeClass = "";
-                        if (role === "client") {
-                          activeClass = isSelected
-                            ? "border-accent text-accent bg-accent-light/50"
-                            : "border-transparent text-muted-foreground hover:text-accent hover:bg-accent-light";
-                        } else {
-                          activeClass = isSelected
-                            ? "border-warning text-warning bg-warning-light/50"
-                            : "border-transparent text-muted-foreground hover:text-warning hover:bg-warning-light";
-                        }
-
-                        return (
-                          <button
-                            key={role}
-                            type="button"
-                            onClick={() => setActiveTab(role)}
-                            className={`flex-1 py-2.5 text-center border-b-2 font-semibold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${activeClass}`}
+            {/* Report Details (original report info) */}
+            <SectionCard title="Report Details" icon={FileText}>
+              <div className="p-6 bg-card border border-border rounded-xl space-y-4 text-left text-sm font-sans">
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Reported By:</strong>
+                  <span className="text-base font-semibold text-foreground">
+                    {(report.reporterRole || report.ReporterRole || "").toLowerCase() === "client" ? `Client: ${report.clientName}` : `Expert: ${report.expertName}`}
+                  </span>
+                </div>
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Report Reason:</strong>
+                  <p className="mt-1 text-sm text-foreground bg-muted/40 p-4 border border-border rounded-xl font-medium">
+                    &quot;{report.reason}&quot;
+                  </p>
+                </div>
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Dispute Type:</strong>
+                  <p className="mt-1 text-sm text-foreground">{report.disputeType}</p>
+                </div>
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Detailed Description:</strong>
+                  <p className="mt-1 text-sm text-foreground bg-muted/40 p-4 border border-border rounded-xl font-medium">{report.description}</p>
+                </div>
+                <div>
+                  <strong className="text-muted-foreground block text-xs uppercase tracking-wider">Desired Resolution:</strong>
+                  <p className="mt-1 text-sm text-foreground">{report.desiredResolution}</p>
+                </div>
+                {(() => {
+                  const evList = normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.clientEvidence);
+                  if (evList.length === 0) return null;
+                  return (
+                    <div>
+                      <strong className="text-muted-foreground block text-xs uppercase tracking-wider mb-1">Evidence:</strong>
+                      <div className="space-y-1.5 max-w-full overflow-hidden">
+                        {evList.map((e, idx) => (
+                          <a
+                            key={idx}
+                            href={e.fileUrl}
+                            onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
+                            className="text-sm text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
+                            title={e.fileName}
                           >
-                            <span>{label}</span>
-                            {isReporter && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-destructive-light text-destructive font-medium">
-                                Reporter (Plaintiff)
-                              </span>
-                            )}
-                          </button>
-                        );
-                      });
-                    })()}
-                  </div>
-
-                  <div className="min-h-[200px] font-sans">
-                    {(() => {
-                      const reporter = report.reporterRole ? report.reporterRole.toLowerCase() : "expert";
-                      if (activeTab === "client") {
-                        return (
-                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Client" ? "bg-secondary/50 border-border select-none opacity-60" : "bg-accent-light/60 border-accent/20"
-                            }`}>
-                            {report.status === "Awaiting Client" && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-card/20 z-10">
-                                <span className="bg-accent text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
-                                  Awaiting explanation...
-                                </span>
-                              </div>
-                            )}
-                            <div className="space-y-4 text-left">
-                              <div>
-                                <p className="text-xs font-semibold text-primary uppercase tracking-wider mb-0.5">Client Name</p>
-                                <p className="text-base font-semibold text-foreground">{report.clientName || report.clientId || "-"}</p>
-                                {report.clientEmail && <p className="text-xs text-muted-foreground">{report.clientEmail}</p>}
-                              </div>
-
-                              <div className="border-t border-accent/20 pt-3">
-                                {reporter === "client" ? (
-                                  <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Violation / Dispute Details</p>
-                                    <div className="space-y-2 break-words max-w-full">
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.reason}</p>
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.description}</p>
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.desiredResolution}</p>
-
-                                      {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.clientEvidence).length > 0 && (
-                                        <div className="mt-3 pt-2 border-t border-accent/20">
-                                          <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                                          <div className="space-y-1.5 max-w-full overflow-hidden">
-                                            {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.clientEvidence).map((e, idx) => (
-                                              <a
-                                                key={idx}
-                                                href={e.fileUrl}
-                                                onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                className="text-xs text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                                title={e.fileName}
-                                              >
-                                                <FileText className="w-3.5 h-3.5 shrink-0" />
-                                                <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Dispute Document ${idx + 1}`}</span>
-                                                {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
-                                              </a>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
-                                    {report.clientExplanation ? (
-                                      <div className="space-y-2 break-words max-w-full">
-                                        {(() => {
-                                          const { reason: clientReason, details: clientDetails } = getReasonAndDetails(report.clientExplanation, report.clientExplanationReason);
-                                          return (
-                                            <>
-                                              {clientReason && (
-                                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {clientReason}</p>
-                                              )}
-                                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {clientDetails}</p>
-                                            </>
-                                          );
-                                        })()}
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.clientExplanationDesiredResolution || "-"}</p>
-                                        {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).length > 0 && (
-                                          <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
-                                            <strong>Attached Documents:</strong>
-                                            <div className="mt-1 space-y-1">
-                                              {normalizeEvidence(report.clientExplanationEvidence, report.clientEvidenceList, report.clientEvidence).map((e, eIdx) => (
-                                                <a
-                                                  key={eIdx}
-                                                  href={e.fileUrl}
-                                                  onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                  className="text-accent hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                                  title={e.fileName}
-                                                >
-                                                  <FileText className="w-3.5 h-3.5 shrink-0" />
-                                                  <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${eIdx + 1}`}</span>
-                                                  {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
-                                                </a>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className="py-6 text-center text-muted-foreground/70">
-                                        <p className="text-sm italic">Responder has not responded yet</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      } else if (activeTab === "expert") {
-                        return (
-                          <div className={`p-5 rounded-xl border transition-all relative ${report.status === "Awaiting Expert" ? "bg-secondary/50 border-border select-none opacity-60" : "bg-warning-light/60 border-warning/20"
-                            }`}>
-                            {report.status === "Awaiting Expert" && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-card/20 z-10">
-                                <span className="bg-warning text-primary-foreground text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
-                                  Awaiting explanation...
-                                </span>
-                              </div>
-                            )}
-                            <div className="space-y-4 text-left">
-                              <div>
-                                <p className="text-xs font-semibold text-warning uppercase tracking-wider mb-0.5">Expert Name</p>
-                                <p className="text-base font-semibold text-foreground">{report.expertName || report.expertId || "-"}</p>
-                                {report.expertEmail && <p className="text-xs text-muted-foreground">{report.expertEmail}</p>}
-                              </div>
-
-                              <div className="border-t border-warning/20 pt-3">
-                                {reporter === "expert" ? (
-                                  <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Dispute / Violation Details</p>
-                                    <div className="space-y-2 break-words max-w-full">
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {report.reason}</p>
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {report.description}</p>
-                                      <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.desiredResolution}</p>
-
-                                      {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.expertEvidence).length > 0 && (
-                                        <div className="mt-3 pt-2 border-t border-warning/20">
-                                          <strong className="text-xs text-muted-foreground block mb-1">Attached Evidence & Screenshots:</strong>
-                                          <div className="space-y-1.5 max-w-full overflow-hidden">
-                                            {normalizeEvidence(report.evidence, report.evidenceUrl, report.EvidenceUrl, report.evidenceList, report.EvidenceList, report.attachmentUrl, report.attachment, report.expertEvidence).map((e, idx) => (
-                                              <a
-                                                key={idx}
-                                                href={e.fileUrl}
-                                                onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                className="text-xs text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                                title={e.fileName}
-                                              >
-                                                <FileText className="w-3.5 h-3.5 shrink-0" />
-                                                <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Dispute Document ${idx + 1}`}</span>
-                                                {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
-                                              </a>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Response Explanation Report</p>
-                                    {report.expertExplanation ? (
-                                      <div className="space-y-2 break-words max-w-full">
-                                        {(() => {
-                                          const { reason: expertReason, details: expertDetails } = getReasonAndDetails(report.expertExplanation, report.expertExplanationReason);
-                                          return (
-                                            <>
-                                              {expertReason && (
-                                                <p className="text-sm text-foreground break-words"><strong className="text-foreground">Reason:</strong> {expertReason}</p>
-                                              )}
-                                              <p className="text-sm text-foreground break-words"><strong className="text-foreground">Details:</strong> {expertDetails}</p>
-                                            </>
-                                          );
-                                        })()}
-                                        <p className="text-sm text-foreground break-words"><strong className="text-foreground">Desired Resolution:</strong> {report.expertExplanationDesiredResolution || "-"}</p>
-                                        {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).length > 0 && (
-                                          <div className="mt-2 text-xs text-muted-foreground max-w-full overflow-hidden">
-                                            <strong>Attached Documents:</strong>
-                                            <div className="mt-1 space-y-1">
-                                              {normalizeEvidence(report.expertExplanationEvidence, report.expertEvidenceList, report.expertEvidence).map((e, eIdx) => (
-                                                <a
-                                                  key={eIdx}
-                                                  href={e.fileUrl}
-                                                  onClick={(ev) => handleDownloadFile(ev, e.fileUrl, e.fileName)}
-                                                  className="text-warning hover:underline inline-flex items-center gap-1.5 cursor-pointer font-medium max-w-full overflow-hidden"
-                                                  title={e.fileName}
-                                                >
-                                                  <FileText className="w-3.5 h-3.5 shrink-0" />
-                                                  <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${eIdx + 1}`}</span>
-                                                  {e.note && <span className="text-muted-foreground/70 font-normal truncate max-w-[120px]">({e.note})</span>}
-                                                </a>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className="py-6 text-center text-muted-foreground/70">
-                                        <p className="text-sm italic">Responder has not responded yet</p>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </div>
-                </SectionCard>
-              );
-            })()}
+                            <FileText className="w-4 h-4 shrink-0 text-accent" />
+                            <span className="truncate max-w-[260px] sm:max-w-[360px] block">{e.fileName || `Document ${idx + 1}`}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </SectionCard>
           </>
         )}
 
-        {/* Form items for Additional Statements History */}
-        {report.disputeType !== "cancellation" && report.additionalRounds && report.additionalRounds.length > 0 && (
+        {/* Explanations from Both Parties (current round) */}
+        {report.disputeType !== "cancellation" && report.status !== "Pending" && report.status !== "Pending Admin" && (
           <SectionCard title="Additional Explanations from Both Parties" icon={FileText}>
             <div className="space-y-6">
-              {report.additionalRounds.map((round, idx) => (
+              {(Array.isArray(report.additionalRounds) && report.additionalRounds.length > 0 ? report.additionalRounds : [{ roundNumber: 1, clientExplanation: null, expertExplanation: null }]).map((round, idx, rounds) => {
+                const isLatest = idx === rounds.length - 1;
+                // Latest round reflects current submission state; older rounds are frozen history
+                const clientSubmitted = isLatest
+                  ? (report.currentRoundClientSubmitted && report.clientExplanation)
+                  : round.clientExplanation;
+                const clientReason = isLatest ? report.clientExplanationReason : round.clientExplanationReason;
+                const clientDetails = isLatest ? report.clientExplanation : round.clientExplanation;
+                const clientDesired = isLatest ? report.clientExplanationDesiredResolution : round.clientExplanationDesiredResolution;
+                const clientEvidence = isLatest ? report.clientExplanationEvidence : round.clientExplanationEvidence;
+                const expertSubmitted = isLatest
+                  ? (report.currentRoundExpertSubmitted && report.expertExplanation)
+                  : round.expertExplanation;
+                const expertReason = isLatest ? report.expertExplanationReason : round.expertExplanationReason;
+                const expertDetails = isLatest ? report.expertExplanation : round.expertExplanation;
+                const expertDesired = isLatest ? report.expertExplanationDesiredResolution : round.expertExplanationDesiredResolution;
+                const expertEvidence = isLatest ? report.expertExplanationEvidence : round.expertExplanationEvidence;
+
+                const clientParsed = splitReason(clientDetails, clientReason);
+                const expertParsed = splitReason(expertDetails, expertReason);
+
+                return (
                 <div key={idx} className="border border-border rounded-xl p-4 bg-secondary/50">
                   <h4 className="text-sm font-semibold text-foreground mb-3 border-b pb-2">
                     Additional Explanation Round #{round.roundNumber}
@@ -2022,16 +1527,16 @@ export function AdminReportDetail() {
                       <h5 className="text-xs font-semibold text-primary uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-accent"></span> Client
                       </h5>
-                      {round.clientExplanation ? (
+                      {clientSubmitted ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-foreground"><strong>Reason:</strong> {round.clientExplanationReason || "-"}</p>
-                          <p className="text-foreground"><strong>Details:</strong> {round.clientExplanation || "-"}</p>
-                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.clientExplanationDesiredResolution || "-"}</p>
-                          {normalizeEvidence(round.clientExplanationEvidence).length > 0 && (
+                          <p className="text-foreground"><strong>Reason:</strong> {clientParsed.reason || "-"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {clientParsed.details || "-"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {clientDesired || "-"}</p>
+                          {normalizeEvidence(clientEvidence).length > 0 && (
                             <div className="pt-2 border-t border-accent/20 mt-2">
                               <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
                               <div className="space-y-1">
-                                {normalizeEvidence(round.clientExplanationEvidence).map((e, eIdx) => (
+                                {normalizeEvidence(clientEvidence).map((e, eIdx) => (
                                   <a
                                     key={eIdx}
                                     href={e.fileUrl}
@@ -2057,16 +1562,16 @@ export function AdminReportDetail() {
                       <h5 className="text-xs font-semibold text-warning uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-warning"></span> Expert
                       </h5>
-                      {round.expertExplanation ? (
+                      {expertSubmitted ? (
                         <div className="space-y-2 text-xs">
-                          <p className="text-foreground"><strong>Reason:</strong> {round.expertExplanationReason || "-"}</p>
-                          <p className="text-foreground"><strong>Details:</strong> {round.expertExplanation || "-"}</p>
-                          <p className="text-foreground"><strong>Desired Resolution:</strong> {round.expertExplanationDesiredResolution || "-"}</p>
-                          {normalizeEvidence(round.expertExplanationEvidence).length > 0 && (
+                          <p className="text-foreground"><strong>Reason:</strong> {expertParsed.reason || "-"}</p>
+                          <p className="text-foreground"><strong>Details:</strong> {expertParsed.details || "-"}</p>
+                          <p className="text-foreground"><strong>Desired Resolution:</strong> {expertDesired || "-"}</p>
+                          {normalizeEvidence(expertEvidence).length > 0 && (
                             <div className="pt-2 border-t border-warning/20 mt-2">
                               <strong className="text-muted-foreground block mb-1">Attached Documents:</strong>
                               <div className="space-y-1">
-                                {normalizeEvidence(round.expertExplanationEvidence).map((e, eIdx) => (
+                                {normalizeEvidence(expertEvidence).map((e, eIdx) => (
                                   <a
                                     key={eIdx}
                                     href={e.fileUrl}
@@ -2088,7 +1593,8 @@ export function AdminReportDetail() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </SectionCard>
         )}
