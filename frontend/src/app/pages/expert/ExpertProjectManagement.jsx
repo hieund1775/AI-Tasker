@@ -1265,26 +1265,26 @@ export default function ExpertProjectDetail() {
         const expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
         const clientRefund = contractAmount - expertPayout - platformFee;
         return (
-          <div data-modal-overlay className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 sm:items-center sm:p-4 bg-black/65 backdrop-blur-sm transition-all animate-fade-in">
-            <div className="bg-card rounded-2xl border border-destructive/25 shadow-2xl w-[min(90vw,30rem)] max-h-[calc(100vh-1rem)] overflow-hidden transform transition-all scale-100 animate-zoom-in text-left grid min-h-0 grid-rows-[auto,minmax(0,1fr),auto]">
+          <div data-modal-overlay className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/65 backdrop-blur-sm overflow-y-auto transition-all animate-fade-in">
+            <div className="relative bg-card rounded-2xl border border-destructive/25 shadow-2xl w-full max-w-xl max-h-[90vh] my-auto flex flex-col overflow-hidden text-left transform transition-all scale-100 animate-zoom-in font-sans">
               {/* Header */}
-              <div className={`shrink-0 flex items-start gap-2.5 px-3.5 py-2.5 border-b ${cancelAttemptCount >= 1 ? "bg-warning-light/80 border-warning/25" : "bg-destructive-light/75 border-destructive/25"}`}>
-                <div className={`mt-0.5 p-1.5 rounded-lg ring-1 ring-inset ${cancelAttemptCount >= 1 ? "bg-card/70 text-warning ring-warning/25" : "bg-card/70 text-destructive ring-destructive/25"}`}>
-                  <Ban className="w-3.5 h-3.5" />
+              <div className={`shrink-0 flex items-start gap-3 px-4 py-3.5 border-b ${cancelAttemptCount >= 1 ? "bg-warning-light/80 border-warning/25" : "bg-destructive-light/75 border-destructive/25"}`}>
+                <div className={`mt-0.5 p-2 rounded-xl ring-1 ring-inset ${cancelAttemptCount >= 1 ? "bg-card/70 text-warning ring-warning/25" : "bg-card/70 text-destructive ring-destructive/25"}`}>
+                  <Ban className="w-4 h-4" />
                 </div>
-                <div className="min-w-0">
-                  <h3 className={`text-sm font-semibold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
+                <div className="min-w-0 flex-1">
+                  <h3 className={`text-base font-bold font-sans ${cancelAttemptCount >= 1 ? "text-warning" : "text-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Escalate Cancel to Admin (Binding Dispute)" : "Cancel Contract (Expert)"}
                   </h3>
-                  <p className={`text-[11px] sm:text-xs mt-1 font-medium leading-relaxed font-sans ${cancelAttemptCount >= 1 ? "text-warning/85" : "text-muted-foreground"}`}>
+                  <p className={`text-xs mt-0.5 font-medium leading-relaxed font-sans ${cancelAttemptCount >= 1 ? "text-warning/85" : "text-muted-foreground"}`}>
                     {cancelAttemptCount >= 1 ? "Your previous cancellation was rejected. This request will be escalated to Admin for a final binding decision." : "Terminate contract - 5% platform fee + 10% penalty will be applied"}
                   </p>
                 </div>
               </div>
 
               {/* Content */}
-              <div className="min-h-0 overflow-y-auto p-3 space-y-2.5 text-sm font-sans">
-                <div className="grid grid-cols-1 gap-1.5 rounded-2xl border border-border bg-secondary/35 p-2.5 sm:grid-cols-2">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 text-sm font-sans">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-2xl border border-border bg-secondary/35 p-2.5">
                   <div className="rounded-xl border border-border bg-card/80 p-2">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Escrow</span>
                     <span className="mt-1 block text-xs sm:text-sm font-semibold text-foreground"><MoneyDisplay amount={contractAmount} /></span>
