@@ -274,6 +274,7 @@ export function AdminCategoryTags() {
         await deleteCategory(deleteModal.id);
         showSuccess(`Category "${deleteModal.name}" has been deleted.`);
         await fetchCategories();
+        await fetchSpecializations();
       } else if (deleteModal.type === "specialization") {
         await deleteSpecialization(deleteModal.id);
         showSuccess(`Specialization "${deleteModal.name}" has been deleted.`);
@@ -285,7 +286,27 @@ export function AdminCategoryTags() {
       setDeleting(false);
       setDeleteModal(null);
     }
-  }, [deleteModal, fetchSkills, fetchCategories, showSuccess, showError]);
+  }, [deleteModal, fetchSkills, fetchCategories, fetchSpecializations, showSuccess, showError]);
+
+  const renderDeleteAction = useCallback(
+    (type, label) => (row) => {
+      const id = row.id ?? row.Id;
+      const name = row.name ?? row.Name ?? label;
+      return (
+        <button
+          type="button"
+          onClick={() => setDeleteModal({ type, id, name })}
+          disabled={!id}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-destructive/25 bg-destructive-light px-2.5 text-xs font-semibold text-destructive transition-colors hover:border-destructive/40 hover:bg-destructive/10 disabled:cursor-not-allowed disabled:opacity-50"
+          title={`Delete ${label}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Delete
+        </button>
+      );
+    },
+    [],
+  );
 
   // -----------------------------------------------------------------------
   // Filter helpers
@@ -473,6 +494,7 @@ export function AdminCategoryTags() {
             data={filteredSkills}
             loading={skillsLoading}
             emptyMessage="No skills found."
+            actions={renderDeleteAction("skill", "skill")}
           />
         </div>
       )}
@@ -549,6 +571,7 @@ export function AdminCategoryTags() {
             data={filteredCategories}
             loading={categoriesLoading}
             emptyMessage="No categories found."
+            actions={renderDeleteAction("category", "category")}
           />
         </div>
       )}
@@ -647,9 +670,25 @@ export function AdminCategoryTags() {
             data={filteredSpecializations}
             loading={specializationsLoading}
             emptyMessage="No specializations found."
+            actions={renderDeleteAction("specialization", "specialization")}
           />
         </div>
       )}
+
+      <ConfirmationModal
+        open={Boolean(deleteModal)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteModal(null);
+        }}
+        title={`Delete ${deleteModal?.type || "item"}`}
+        description={`Are you sure you want to delete "${deleteModal?.name || "this item"}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteModal(null)}
+      />
     </div>
   );
 }
