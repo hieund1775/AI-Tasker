@@ -1,6 +1,34 @@
 // =============================================================================
-// Shared date/time formatting helpers.
+// Shared date/time formatting helpers (Vietnam Timezone - ICT / UTC+7).
 // =============================================================================
+
+/**
+ * Safely parse any date input (ISO string, timestamp, or Date) as UTC.
+ * Ensures ISO strings without explicit timezone offsets (missing 'Z' or offset) are treated as UTC.
+ *
+ * @param {string|number|Date} dateInput
+ * @returns {Date|null}
+ */
+export function parseUtcDate(dateInput) {
+  if (!dateInput) return null;
+  if (dateInput instanceof Date) return dateInput;
+  if (typeof dateInput === "number") return new Date(dateInput);
+
+  let str = String(dateInput).trim();
+  if (!str) return null;
+
+  if (!str.endsWith("Z") && !str.includes("+") && !str.match(/-\d{2}:\d{2}$/)) {
+    if (str.includes(" ") && !str.includes("T")) {
+      str = str.replace(" ", "T");
+    }
+    if (str.includes("T")) {
+      str = str + "Z";
+    }
+  }
+
+  const date = new Date(str);
+  return Number.isNaN(date.getTime()) ? new Date(dateInput) : date;
+}
 
 /**
  * Human-readable relative time from an ISO date string or timestamp.
@@ -11,8 +39,11 @@
 export function timeAgo(dateInput) {
   if (!dateInput) return "";
 
+  const parsed = parseUtcDate(dateInput);
+  if (!parsed) return "";
+
   const now = Date.now();
-  const then = new Date(dateInput).getTime();
+  const then = parsed.getTime();
 
   if (Number.isNaN(then)) return "";
 
@@ -31,7 +62,7 @@ export function timeAgo(dateInput) {
 }
 
 /**
- * Format a date string to a locale date string.
+ * Format a date string to a locale date string in Vietnam timezone.
  *
  * @param {string|number|Date} dateInput
  * @param {object} [options] - Intl.DateTimeFormat options
@@ -40,27 +71,36 @@ export function timeAgo(dateInput) {
 export function formatDate(dateInput, options = { year: "numeric", month: "short", day: "numeric" }) {
   if (!dateInput) return "";
   try {
-    return new Date(dateInput).toLocaleDateString("en-US", options);
+    const parsed = parseUtcDate(dateInput);
+    if (!parsed || Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleDateString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      ...options,
+    });
   } catch {
     return "";
   }
 }
 
 /**
- * Format a date input to a full date-time string (locale).
+ * Format a date input to a full date-time string in Vietnam timezone (ICT / UTC+7).
  *
  * @param {string|number|Date} dateInput
- * @returns {string} e.g. "Jun 10, 2026, 3:45 PM"
+ * @returns {string} e.g. "01/08/2026 09:44"
  */
 export function formatDateTime(dateInput) {
   if (!dateInput) return "";
   try {
-    return new Date(dateInput).toLocaleString("vi-VN", {
+    const parsed = parseUtcDate(dateInput);
+    if (!parsed || Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleString("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: false,
     });
   } catch {
     return "";

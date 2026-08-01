@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // safety.js - Runtime safety utilities for crash prevention.
 //
 // Use these helpers everywhere instead of raw array/object/date/number
@@ -58,16 +58,17 @@ export function safeNum(val, fallback = 0) {
  * @param {string} fallback - String to return if the date is invalid (default "N/A")
  * @returns {string}
  */
-export function safeDateFormat(value, options, fallback = "N/A") {
+export function safeDateFormat(value, options = {}, fallback = "N/A") {
   if (!value) return fallback;
   try {
     let dVal = value;
-    if (typeof dVal === "string" && dVal.includes("T") && !dVal.endsWith("Z") && !dVal.match(/[+-]\d{2}:\d{2}$/)) {
-      dVal += "Z";
+    if (typeof dVal === "string" && !dVal.endsWith("Z") && !dVal.includes("+") && !dVal.match(/-\d{2}:\d{2}$/)) {
+      if (dVal.includes(" ") && !dVal.includes("T")) dVal = dVal.replace(" ", "T");
+      if (dVal.includes("T")) dVal += "Z";
     }
     const date = new Date(dVal);
     if (Number.isNaN(date.getTime())) return fallback;
-    return date.toLocaleDateString("en-US", options);
+    return date.toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", ...options });
   } catch {
     return fallback;
   }
@@ -81,16 +82,17 @@ export function safeDateFormat(value, options, fallback = "N/A") {
  * @param {string} fallback - String to return if invalid (default "N/A")
  * @returns {string}
  */
-export function safeDateTimeFormat(value, options, fallback = "N/A") {
+export function safeDateTimeFormat(value, options = {}, fallback = "N/A") {
   if (!value) return fallback;
   try {
     let dVal = value;
-    if (typeof dVal === "string" && dVal.includes("T") && !dVal.endsWith("Z") && !dVal.match(/[+-]\d{2}:\d{2}$/)) {
-      dVal += "Z";
+    if (typeof dVal === "string" && !dVal.endsWith("Z") && !dVal.includes("+") && !dVal.match(/-\d{2}:\d{2}$/)) {
+      if (dVal.includes(" ") && !dVal.includes("T")) dVal = dVal.replace(" ", "T");
+      if (dVal.includes("T")) dVal += "Z";
     }
     const date = new Date(dVal);
     if (Number.isNaN(date.getTime())) return fallback;
-    return date.toLocaleString("en-US", options);
+    return date.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", ...options });
   } catch {
     return fallback;
   }
