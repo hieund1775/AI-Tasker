@@ -1,11 +1,11 @@
-export const MAX_UPLOAD_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_UPLOAD_FILE_SIZE_BYTES = 10_000_000;
 export const MAX_UPLOAD_FILE_SIZE_LABEL = "10 MB";
 
 export function formatUploadFileSize(bytes) {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1000) return `${bytes} B`;
+  if (bytes < 1000 * 1000) return `${(bytes / 1000).toFixed(1)} KB`;
+  return `${(bytes / (1000 * 1000)).toFixed(1)} MB`;
 }
 
 export function getOversizedFiles(files, maxBytes = MAX_UPLOAD_FILE_SIZE_BYTES) {

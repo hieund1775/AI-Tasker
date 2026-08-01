@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, BarChart3 } from "lucide-react";
+import { TrendingUp, Banknote, BarChart3 } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { MoneyDisplay } from "../../components/shared/MoneyDisplay.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
@@ -131,7 +131,9 @@ export function AdminRevenue() {
             const isActiveStatus = ["inprogress", "active", "worksubmitted", "underreview", "revisionrequested", "awaitingcancellation", "locked", "accepted", "assigned"].includes(status);
 
             if (isActiveStatus && !isReleasedLocally) {
-              const budget = Number(p.escrowBalance ?? p.EscrowBalance ?? p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.escrowAmount ?? 0);
+              const eb = Number(p.escrowBalance ?? p.EscrowBalance ?? 0);
+              const b = Number(p.budget ?? p.Budget ?? p.jobPost?.budget ?? p.JobPost?.Budget ?? p.proposal?.bidAmount ?? p.Proposal?.BidAmount ?? p.escrowAmount ?? 0);
+              const budget = eb > 0 ? eb : (b > 0 ? b : 0);
               escrowHeld += budget;
             }
           });
@@ -322,7 +324,7 @@ export function AdminRevenue() {
           {
             label: "In Escrow (Active Projects)",
             value: <MoneyDisplay amount={Math.abs(s.escrowHeld)} />,
-            icon: DollarSign,
+            icon: Banknote,
             color: "text-warning bg-warning-light",
             desc: "Total escrow funds locked in active projects",
           },

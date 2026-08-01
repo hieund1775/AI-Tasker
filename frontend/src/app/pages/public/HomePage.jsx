@@ -77,7 +77,7 @@ export function HomePage() {
       </nav>
 
       {/* Hero */}
-      <HeroSection />
+      <HeroSection isAuthenticated={isAuthenticated} dashboardPath={dashboardPath} />
 
       {/* How It Works */}
       <HowItWorks />

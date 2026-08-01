@@ -160,6 +160,7 @@ export default function TaskDetailPage() {
   const [productLinkInput, setProductLinkInput] = useState("");
   const [productFileInput, setProductFileInput] = useState("");
   const [productFileObject, setProductFileObject] = useState(null);
+  const [productFileError, setProductFileError] = useState("");
   const [productSubmitLoading, setProductSubmitLoading] = useState(false);
 
   // Client view product modal state
@@ -191,7 +192,7 @@ export default function TaskDetailPage() {
       if (success) {
         toast.success("Handover evidence submitted! Task is now Checklist Completed.");
         window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
           replace: true,
         });
       } else {
@@ -239,6 +240,7 @@ export default function TaskDetailPage() {
       if (success) {
         toast.success("Deliverables submitted successfully.");
         setShowProductModal(false);
+        setProductFileError("");
 
         notifyTaskSubmittedForReview({
           clientUserId: project?.clientId || project?.ClientId || client?.id,
@@ -274,7 +276,7 @@ export default function TaskDetailPage() {
           taskId,
         }).catch(() => { });
         // Redirect back to project progress
-        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}`, {
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
           replace: true,
         });
       } else {
@@ -319,7 +321,7 @@ export default function TaskDetailPage() {
       if (success) {
         toast.success("Task accepted! (Quick Accept)");
         window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-        navigate(`/${role}/projects/${projectId}?focusTaskId=${taskId}#project-progress`, {
+        navigate(`/${role}/projects/${projectId}#project-progress`, {
           replace: true,
         });
       } else {
@@ -1064,21 +1066,32 @@ export default function TaskDetailPage() {
                       if (file) {
                         const validation = validateUploadFiles([file]);
                         if (!validation.valid) {
-                          toast.error(getFileSizeErrorMessage(file));
+                          const message = getFileSizeErrorMessage(file);
+                          toast.error(message);
+                          setProductFileError(message);
                           setProductFileObject(null);
                           e.target.value = "";
                           return;
                         }
                       }
+                      setProductFileError("");
                       setProductFileObject(file || null);
                     }}
                     className="hidden"
                   />
                 </label>
+                {productFileError && (
+                  <p className="mt-1.5 text-xs font-medium text-destructive">
+                    {productFileError}
+                  </p>
+                )}
                 {productFileObject && (
                   <button
                     type="button"
-                    onClick={() => setProductFileObject(null)}
+                    onClick={() => {
+                      setProductFileObject(null);
+                      setProductFileError("");
+                    }}
                     className="mt-1 text-xs text-destructive hover:text-destructive font-medium"
                   >
                     Remove file
@@ -1093,6 +1106,7 @@ export default function TaskDetailPage() {
                 onClick={() => {
                   setShowProductModal(false);
                   setProductFileObject(null);
+                  setProductFileError("");
                 }}
                 disabled={productSubmitLoading}
               >

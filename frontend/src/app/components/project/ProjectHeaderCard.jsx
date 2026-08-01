@@ -174,7 +174,7 @@ export function ProjectHeaderCard({
           <StatusBadge status={project.status} entity="project" className="mb-2" />
 
           <h1 className="text-2xl sm:text-3xl font-semibold text-foreground mt-1 truncate">
-            {project.title || "Untitled Project"}
+            {project.title || project.Title || project.jobPost?.title || project.jobPost?.Title || project.jobPostTitle || project.JobPostTitle || "Untitled Project"}
           </h1>
 
           {/* Other person info */}

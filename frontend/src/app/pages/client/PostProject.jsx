@@ -220,8 +220,8 @@ export function PostProject() {
     }
 
     const budgetNum = Number(formData.budget) || 0;
-    if (budgetNum < 1000) {
-      toast.error(`Project budget must be at least ${formatCurrency(1000)}.`);
+    if (budgetNum < 100000) {
+      toast.error(`Project budget must be at least ${formatCurrency(100000)}.`);
       setSubmitting(false);
       return;
     }
@@ -469,7 +469,7 @@ export function PostProject() {
     formData.category !== "" &&
     formData.specialization !== "" &&
     selectedSkills.length > 0 &&
-    Number(formData.budget) >= 1000 &&
+    Number(formData.budget) >= 100000 &&
     Number(formData.durationValue) > 0 &&
     useCases.every(uc => (uc.title || uc.nameAndDeadline || "").trim() !== "" && uc.description.trim() !== "" && Number(uc.originalDurationDays) > 0) &&
     isDeadlineValid;
@@ -759,49 +759,56 @@ export function PostProject() {
               }
             >
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground/80 mb-2">Budget</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-stretch">
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-foreground mb-2">Budget <span className="text-destructive">*</span></label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Minimum project budget is {formatCurrency(100000)}
+                    </div>
                     <MoneyInput
                       name="budget"
                       id="budget"
-                      min="1000"
+                      min="100000"
                       value={formData.budget || ""}
                       onValueChange={(value) => updateField("budget", value === "" ? 0 : value)}
                       className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary ${
-                        formData.budget > 0 && formData.budget < 1000 ? "border-destructive focus:border-destructive" : "border-input"
+                        formData.budget > 0 && formData.budget < 100000 ? "border-destructive focus:border-destructive" : "border-input"
                       }`}
-                      placeholder="1000"
+                      placeholder="100000"
                       required
                     />
-                    {formData.budget > 0 && formData.budget < 1000 ? (
-                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is {formatCurrency(1000)}</p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground mt-1">Minimum project budget is {formatCurrency(1000)}</p>
-                    )}
+                    {formData.budget > 0 && formData.budget < 100000 ? (
+                      <p className="text-xs text-destructive mt-1 font-semibold">Minimum budget required is {formatCurrency(100000)}</p>
+                    ) : null}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground/80 mb-2">Timeline (auto from user stories)</label>
-                    <div className="flex gap-2">
-                      <input
-                        type="number" name="durationValue" id="durationValue"
-                        min="1" step="1"
-                        value={totalUseCaseDays || 1}
-                        readOnly
-                        className="w-24 px-4 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
-                      />
-                      <select
-                        name="durationUnit" id="durationUnit"
-                        value={formData.durationUnit}
-                        disabled
-                        className="flex-1 px-3 py-2.5 border border-input rounded-xl bg-secondary/60 text-muted-foreground cursor-not-allowed"
-                      >
-                        <option value="Days">Days</option>
-                        <option value="Months">Months</option>
-                        <option value="Years">Years</option>
-                      </select>
+                  <div className="space-y-1.5">
+                    <label className="block text-sm font-semibold text-foreground mb-2">
+                      Total Estimated Duration (Days) <span className="text-destructive">*</span>
+                    </label>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      Auto-computed from tasks: {totalUseCaseDays || 1} days
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Auto-calculated from total user story duration</p>
+                    <div className="relative">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-calendar absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground">
+                        <path d="M8 2v4" />
+                        <path d="M16 2v4" />
+                        <rect width="18" height="18" x="3" y="4" rx="2" />
+                        <path d="M3 10h18" />
+                      </svg>
+                      <input
+                        type="number"
+                        min="1"
+                        disabled
+                        readOnly
+                        className="w-full pl-10 pr-4 py-2.5 border border-input rounded-xl bg-secondary/40 text-muted-foreground text-sm font-medium cursor-not-allowed focus:outline-none"
+                        placeholder="14"
+                        required
+                        value={totalUseCaseDays || 1}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">
+                      Total estimated duration computed automatically from tasks.
+                    </p>
                   </div>
                 </div>
 
@@ -883,7 +890,7 @@ export function PostProject() {
           >
           <div className="flex items-center justify-between mb-5 border-b border-border/60 pb-3">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">AI Recommendations</h2>
+              <h2 className="text-sm font-semibold text-foreground">Recomment Experts</h2>
               <p className="text-xs text-muted-foreground mt-0.5 font-medium">Matching experts</p>
             </div>
             <button

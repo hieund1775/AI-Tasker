@@ -195,7 +195,7 @@ export function OwnerWallet() {
   const ownerId = user?.id || user?.Id;
 
   const transactionStatusOptions = [
-    { value: "", label: "All Statuses" },
+    { value: "", label: "All" },
     { value: "done", label: "Done" },
     { value: "pending", label: "Pending" },
     { value: "in progress", label: "In Progress" },

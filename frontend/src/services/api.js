@@ -356,8 +356,74 @@ function loadJobAttachments(jobId) {
   } catch (e) { return null; }
 }
 
+export function cleanJsonText(rawVal) {
+  if (!rawVal) return "";
+  if (typeof rawVal === "object") {
+    if (Array.isArray(rawVal)) {
+      return rawVal
+        .map((item) => cleanJsonText(item))
+        .filter(Boolean)
+        .join("\n\n");
+    }
+    return (
+      rawVal.description ||
+      rawVal.Description ||
+      rawVal.title ||
+      rawVal.Title ||
+      rawVal.text ||
+      rawVal.Text ||
+      ""
+    );
+  }
+
+  let str = String(rawVal).trim();
+
+  // Unquote double-serialized JSON strings
+  if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    try {
+      const unquoted = JSON.parse(str);
+      if (typeof unquoted === "string") str = unquoted.trim();
+    } catch (e) {}
+  }
+
+  if (str.startsWith("[") || str.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(str);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => {
+            if (typeof item === "string") return cleanJsonText(item);
+            const t = item.title || item.Title || "";
+            const d = item.description || item.Description || "";
+            if (t && d) return `${t}: ${d}`;
+            return d || t || "";
+          })
+          .filter(Boolean)
+          .join("\n\n");
+      }
+      if (parsed && typeof parsed === "object") {
+        return (
+          parsed.description ||
+          parsed.Description ||
+          parsed.title ||
+          parsed.Title ||
+          parsed.text ||
+          parsed.Text ||
+          str
+        );
+      }
+    } catch (e) {}
+  }
+
+  return str;
+}
+
 function mapJobPost(jp) {
   if (!jp) return jp;
+
+  // Clean description if raw JSON string was stored
+  const rawDesc = jp.description || jp.Description || "";
+  jp.description = cleanJsonText(rawDesc);
 
   // Map Domain and Specialization fallbacks
   const domain = jp.domain || jp.Domain;
@@ -387,7 +453,11 @@ function mapJobPost(jp) {
   let parsedImplementation = [];
   if (implementationStr) {
     try {
-      const parsed = JSON.parse(implementationStr);
+      let rawToParse = implementationStr;
+      if (typeof rawToParse === "string" && (rawToParse.startsWith('"') || rawToParse.startsWith("'"))) {
+        try { rawToParse = JSON.parse(rawToParse); } catch (e) {}
+      }
+      const parsed = typeof rawToParse === "string" ? JSON.parse(rawToParse) : rawToParse;
       if (Array.isArray(parsed)) {
         parsedImplementation = parsed;
       }
@@ -402,7 +472,7 @@ function mapJobPost(jp) {
       const miniTasks = task.jobPostMiniTasks || task.JobPostMiniTasks || [];
       const parsedUc = parsedImplementation.find(u => (u.Title || u.title) === (task.title || task.Title)) || parsedImplementation[idx];
       const cachedUc = cachedUseCases.find(c => c.title === (task.title || task.Title)) || cachedUseCases[idx];
-      const descVal = task.description || task.Description || parsedUc?.Description || parsedUc?.description || cachedUc?.description || "";
+      const descVal = cleanJsonText(task.description || task.Description || parsedUc?.Description || parsedUc?.description || cachedUc?.description || "");
       return {
         id: task.id || task.Id || `uc-${Math.random()}`,
         title: task.title || task.Title || "",
@@ -424,7 +494,7 @@ function mapJobPost(jp) {
       return {
         id: uc.id || uc.Id || `uc-${Math.random()}`,
         title: uc.Title || uc.title || "",
-        description: uc.Description || uc.description || cachedUc?.description || "",
+        description: cleanJsonText(uc.Description || uc.description || cachedUc?.description || ""),
         originalDurationDays: uc.Duration || uc.duration || uc.durationDays || 1,
         durationDays: uc.Duration || uc.duration || uc.durationDays || 1,
         requirements: miniTasks.map(mt => ({
@@ -436,7 +506,10 @@ function mapJobPost(jp) {
     });
   } else {
     // 3. Fallback: localStorage (saved during post on this machine)
-    jp.useCases = cachedUseCases;
+    jp.useCases = cachedUseCases.map(uc => ({
+      ...uc,
+      description: cleanJsonText(uc.description)
+    }));
   }
 
   // Inject attachments from localStorage fallback

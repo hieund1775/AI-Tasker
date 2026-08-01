@@ -74,6 +74,7 @@ export function useProjectProgress(projectId, role) {
         try {
           const jp = await api.jobPosts.getById(jId);
           if (jp) {
+            proj.title = proj.title || proj.Title || jp.title || jp.Title || "";
             proj.category = jp.domain?.name || jp.Domain?.Name || jp.category || "Artificial Intelligence";
             proj.specialization = jp.specialization?.name || jp.Specialization?.Name || jp.specialization || jp.specializationName;
             proj.requiredSkills = jp.requiredSkills || jp.jobPostSkills?.map(s =>
@@ -114,6 +115,7 @@ export function useProjectProgress(projectId, role) {
       proj.finalWorkDeclineReason = parsedLink.declineReason || proj.declineReason || proj.DeclineReason || "";
 
       // Normalize standard keys to prevent casing mismatch issues
+      proj.title = proj.title || proj.Title || proj.jobPost?.title || proj.jobPost?.Title || proj.jobPostTitle || proj.JobPostTitle || "";
       proj.budget = proj.budget || proj.Budget || proj.EscrowBalance || proj.escrowBalance || proj.escrowAmount || proj.EscrowAmount || 0;
       proj.escrowBalance = proj.escrowBalance || proj.EscrowBalance || proj.budget || 0;
       proj.clientId = proj.clientId ?? proj.ClientId ?? "";

@@ -156,13 +156,77 @@ public class UserService : IUserService
         if (!Guid.TryParse(userId, out var userGuid))
             throw new ArgumentException("Invalid user ID format.", nameof(userId));
 
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid);
+        if (user == null)
+            throw new InvalidOperationException($"User not found for ID: {userId}");
+
+        var isOwner = string.Equals(user.Role, "Owner", StringComparison.OrdinalIgnoreCase);
+
         var wallet = await _context.Wallets.FirstOrDefaultAsync(w => w.UserId == userGuid);
         if (wallet == null)
-            throw new InvalidOperationException($"Wallet not found for user ID: {userId}");
-        if (wallet.Balance < amount)
-            throw new InvalidOperationException("Insufficient balance.");
+        {
+            wallet = new Wallet
+            {
+                UserId = userGuid,
+                Balance = 0,
+                EscrowBalance = 0,
+                TotalEarned = 0
+            };
+            _context.Wallets.Add(wallet);
+        }
 
-        wallet.Balance -= amount;
+        var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        var ownerFeeWallet = await _context.SystemWallets
+            .FirstOrDefaultAsync(w => w.Id == ownerFeeWalletId);
+        if (ownerFeeWallet == null)
+        {
+            ownerFeeWallet = new SystemWallet
+            {
+                Id = ownerFeeWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.SystemWallets.Add(ownerFeeWallet);
+        }
+
+        if (isOwner)
+        {
+            var ownerFeeWallet1 = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("88888888-8888-8888-8888-888888888888"));
+            var ownerFeeWallet2 = await _context.SystemWallets
+                .FirstOrDefaultAsync(w => w.Id == Guid.Parse("11111111-1111-1111-1111-111111111111"));
+
+            var totalLoggedRevenue = await _context.SystemTransactionLogs
+                .SumAsync(l => (decimal?)l.Amount) ?? 0m;
+
+            var totalFeeWithdrawals = await _context.TransactionLogs
+                .Where(t => t.SourceWalletId == wallet.UserId && t.Type == "Withdraw")
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+            var netLoggedRevenue = Math.Max(0m, totalLoggedRevenue - totalFeeWithdrawals);
+            var wallet1Balance = ownerFeeWallet1?.TotalBalance ?? 0m;
+            var wallet2Balance = ownerFeeWallet2?.TotalBalance ?? 0m;
+
+            var effectiveRevenue = Math.Max(wallet1Balance, Math.Max(wallet2Balance, netLoggedRevenue));
+            var availableBalance = Math.Max(wallet.Balance, effectiveRevenue);
+
+            if (availableBalance < amount)
+                throw new InvalidOperationException("Insufficient fee balance in Owner wallet.");
+
+            var remaining = availableBalance - amount;
+
+            if (ownerFeeWallet1 != null) { ownerFeeWallet1.TotalBalance = remaining; ownerFeeWallet1.UpdatedAt = DateTime.UtcNow; }
+            if (ownerFeeWallet2 != null) { ownerFeeWallet2.TotalBalance = remaining; ownerFeeWallet2.UpdatedAt = DateTime.UtcNow; }
+
+            wallet.Balance = remaining;
+        }
+        else
+        {
+            if (wallet.Balance < amount)
+                throw new InvalidOperationException("Insufficient balance.");
+
+            wallet.Balance -= amount;
+        }
 
         var resolvedBankCode = !string.IsNullOrWhiteSpace(bankCode) ? bankCode : "VISA (ZaloPay)";
         var description = $"Rút tiền về thẻ/tài khoản ({resolvedBankCode})" +
@@ -183,6 +247,19 @@ public class UserService : IUserService
             Description = description
         };
         _context.TransactionLogs.Add(log);
+
+        if (isOwner)
+        {
+            _context.SystemTransactionLogs.Add(new SystemTransactionLog
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = Guid.Empty,
+                Amount = amount,
+                Type = "OwnerWithdraw",
+                Description = $"Owner rút tiền két sắt sàn ({resolvedBankCode}) - STK/Thẻ: {bankAccountNumber}",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
 
         await _context.SaveChangesAsync();
         return wallet.Balance;
@@ -653,8 +730,30 @@ public class UserService : IUserService
 
         await _context.SaveChangesAsync();
 
-        // TODO: Gửi email cho user chứa link reset password với resetToken
-        // Trong dev mode, trả về token để test trực tiếp
+        // Gửi email chứa mã reset password cho người dùng
+        var emailSubject = "Yêu cầu đặt lại mật khẩu AI-Tasker";
+        var emailBody = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;'>
+                <h2 style='color: #2c3e50; text-align: center;'>Đặt lại mật khẩu tài khoản AI-Tasker</h2>
+                <p>Xin chào <strong>{user.FullName}</strong>,</p>
+                <p>Hệ thống nhận được yêu cầu đặt lại mật khẩu cho tài khoản email <strong>{normalizedEmail}</strong>.</p>
+                <p>Vui lòng sử dụng mã xác thực bên dưới để hoàn tất việc đặt lại mật khẩu:</p>
+                <div style='background-color: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center; font-size: 22px; font-weight: bold; letter-spacing: 2px; border: 1px dashed #3498db; color: #2c3e50;'>
+                    {resetToken}
+                </div>
+                <p style='color: #e74c3c; font-size: 13px; margin-top: 20px;'>⚠️ Mã xác thực này có hiệu lực trong vòng <strong>15 phút</strong> và chỉ sử dụng được 1 lần.</p>
+                <p style='color: #7f8c8d; font-size: 12px; margin-top: 30px;'>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này hoặc liên hệ bộ phận hỗ trợ.</p>
+            </div>";
+
+        try
+        {
+            await _emailService.SendEmailAsync(normalizedEmail, emailSubject, emailBody);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EmailError] Failed to send forgot password email: {ex.Message}");
+        }
+
         return (true, resetToken, null);
     }
 

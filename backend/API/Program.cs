@@ -66,23 +66,13 @@ builder.Services.AddSwaggerGen(c =>
 // --- CẤU HÌNH CORS ĐỒNG BỘ: MỞ RỘNG THÊM CỔNG 8080 VÀ CHO PHÉP WEBHOOK TỰ DO ---
 builder.Services.AddCors(options =>
 {
-    // Giữ nguyên Policy cũ của nhóm để không lỗi code FrontEnd của các bạn
-    options.AddPolicy("AllowLocalhost5173",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials();
-        });
-
-    // Thêm Policy mở rộng cho cổng test của Minh để thông mạch trình duyệt lập tức
     options.AddPolicy("AllowAllTest",
         policy =>
         {
-            policy.AllowAnyOrigin()
+            policy.SetIsOriginAllowed(_ => true)
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
@@ -181,6 +171,30 @@ using (var scope = app.Services.CreateScope())
             {
                 db.Skills.Add(new Skill { Id = Guid.NewGuid(), Name = skillName });
             }
+        }
+
+        // 1. Seed Escrow Vault SystemWallet (Holds escrow balance locked across projects)
+        var systemEscrowWalletId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        if (!await db.SystemWallets.AnyAsync(sw => sw.Id == systemEscrowWalletId))
+        {
+            db.SystemWallets.Add(new SystemWallet
+            {
+                Id = systemEscrowWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+
+        // 2. Seed Owner Fee SystemWallet (Stores platform fee income belonging to Owner)
+        var ownerFeeWalletId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+        if (!await db.SystemWallets.AnyAsync(sw => sw.Id == ownerFeeWalletId))
+        {
+            db.SystemWallets.Add(new SystemWallet
+            {
+                Id = ownerFeeWalletId,
+                TotalBalance = 0m,
+                UpdatedAt = DateTime.UtcNow
+            });
         }
 
         // Seed Test Users (Client & Expert & Owner)
