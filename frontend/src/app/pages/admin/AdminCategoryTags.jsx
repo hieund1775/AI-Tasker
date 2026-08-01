@@ -13,7 +13,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Plus, Trash2, Tag, FolderTree, Briefcase } from "lucide-react";
+import { Trash2, Tag, FolderTree, Briefcase } from "lucide-react";
 import { DataTable } from "../../components/shared/DataTable.jsx";
 import { PageHeader } from "../../components/shared/PageHeader.jsx";
 import { ConfirmationModal } from "../../components/shared/ConfirmationModal.jsx";
@@ -72,7 +72,6 @@ export function AdminCategoryTags() {
   const [skills, setSkills] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(true);
   const [skillsError, setSkillsError] = useState(null);
-  const [skillSearch, setSkillSearch] = useState("");
   const [newSkillName, setNewSkillName] = useState("");
   const [addingSkill, setAddingSkill] = useState(false);
 
@@ -80,7 +79,6 @@ export function AdminCategoryTags() {
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState(null);
-  const [categorySearch, setCategorySearch] = useState("");
   const [newCategoryName, setNewCategoryName] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
 
@@ -88,7 +86,6 @@ export function AdminCategoryTags() {
   const [specializations, setSpecializations] = useState([]);
   const [specializationsLoading, setSpecializationsLoading] = useState(true);
   const [specializationsError, setSpecializationsError] = useState(null);
-  const [specializationSearch, setSpecializationSearch] = useState("");
   const [newSpecializationName, setNewSpecializationName] = useState("");
   const [selectedDomainId, setSelectedDomainId] = useState("");
   const [addingSpecialization, setAddingSpecialization] = useState(false);
@@ -299,24 +296,6 @@ export function AdminCategoryTags() {
   );
 
   // -----------------------------------------------------------------------
-  // Filter helpers
-  // -----------------------------------------------------------------------
-  const filteredSkills = skills.filter((s) => {
-    const name = (s.name || "").toLowerCase();
-    return name.includes(skillSearch.toLowerCase());
-  });
-
-  const filteredCategories = categories.filter((c) => {
-    const name = (c.name || "").toLowerCase();
-    return name.includes(categorySearch.toLowerCase());
-  });
-
-  const filteredSpecializations = specializations.filter((s) => {
-    const name = (s.name || "").toLowerCase();
-    return name.includes(specializationSearch.toLowerCase());
-  });
-
-  // -----------------------------------------------------------------------
   // Table columns
   // -----------------------------------------------------------------------
   const skillColumns = [
@@ -423,29 +402,6 @@ export function AdminCategoryTags() {
             </div>
           )}
 
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
-              <input
-                type="text"
-                placeholder="Search skills..."
-                value={skillSearch}
-                onChange={(e) => setSkillSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {skillSearch && (
-                <button
-                  type="button"
-                  onClick={() => setSkillSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
-
           {/* Add skill form */}
           <form
             onSubmit={handleAddSkill}
@@ -465,22 +421,27 @@ export function AdminCategoryTags() {
                 value={newSkillName}
                 onChange={(e) => setNewSkillName(e.target.value)}
                 disabled={addingSkill}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
-            <button
-              type="submit"
-              disabled={addingSkill || !newSkillName.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingSkill ? "Adding..." : "+ Add Skill"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingSkill || !newSkillName.trim()}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingSkill ? "Adding..." : "+ Add Skill"}
+              </button>
+            </div>
           </form>
 
           {/* Skills table */}
           <DataTable
             columns={skillColumns}
-            data={filteredSkills}
+            data={skills}
             loading={skillsLoading}
             emptyMessage="No skills found."
             actions={renderDeleteAction("skill", "skill")}
@@ -499,29 +460,6 @@ export function AdminCategoryTags() {
               {categoriesError}
             </div>
           )}
-
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search categories..."
-                value={categorySearch}
-                onChange={(e) => setCategorySearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {categorySearch && (
-                <button
-                  type="button"
-                  onClick={() => setCategorySearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Add category form */}
           <form
@@ -542,22 +480,27 @@ export function AdminCategoryTags() {
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 disabled={addingCategory}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
-            <button
-              type="submit"
-              disabled={addingCategory || !newCategoryName.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingCategory ? "Adding..." : "+ Add Category"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingCategory || !newCategoryName.trim()}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingCategory ? "Adding..." : "+ Add Category"}
+              </button>
+            </div>
           </form>
 
           {/* Categories table */}
           <DataTable
             columns={categoryColumns}
-            data={filteredCategories}
+            data={categories}
             loading={categoriesLoading}
             emptyMessage="No categories found."
             actions={renderDeleteAction("category", "category")}
@@ -576,29 +519,6 @@ export function AdminCategoryTags() {
               {specializationsError}
             </div>
           )}
-
-          {/* Search + Add */}
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search specializations..."
-                value={specializationSearch}
-                onChange={(e) => setSpecializationSearch(e.target.value)}
-                className="w-full pl-9 pr-8 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-ring focus:ring-2 focus:ring-ring/15 text-sm placeholder:text-muted-foreground/40"
-              />
-              {specializationSearch && (
-                <button
-                  type="button"
-                  onClick={() => setSpecializationSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary text-muted-foreground"
-                >
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* Add specialization form */}
           <form
@@ -619,7 +539,7 @@ export function AdminCategoryTags() {
                 value={newSpecializationName}
                 onChange={(e) => setNewSpecializationName(e.target.value)}
                 disabled={addingSpecialization}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed placeholder:text-muted-foreground/40"
               />
             </div>
             <div className="flex-1">
@@ -634,7 +554,7 @@ export function AdminCategoryTags() {
                 value={selectedDomainId}
                 onChange={(e) => setSelectedDomainId(e.target.value)}
                 disabled={addingSpecialization}
-                className="w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-11 w-full px-3 py-2.5 border border-border rounded-lg bg-card focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">Select a Category...</option>
                 {categories.map((c) => (
@@ -644,19 +564,24 @@ export function AdminCategoryTags() {
                 ))}
               </select>
             </div>
-            <button
-              type="submit"
-              disabled={addingSpecialization || !newSpecializationName.trim() || !selectedDomainId}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {addingSpecialization ? "Adding..." : "+ Add"}
-            </button>
+            <div className="flex flex-col justify-end">
+              <span aria-hidden="true" className="invisible mb-1 block text-xs font-medium">
+                Action
+              </span>
+              <button
+                type="submit"
+                disabled={addingSpecialization || !newSpecializationName.trim() || !selectedDomainId}
+                className="inline-flex h-11 items-center justify-center gap-2 px-4 bg-brand-primary text-brand-primary-foreground rounded-lg text-sm font-medium hover:bg-brand-primary-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {addingSpecialization ? "Adding..." : "+ Add"}
+              </button>
+            </div>
           </form>
 
           {/* Specializations table */}
           <DataTable
             columns={specializationColumns}
-            data={filteredSpecializations}
+            data={specializations}
             loading={specializationsLoading}
             emptyMessage="No specializations found."
             actions={renderDeleteAction("specialization", "specialization")}
