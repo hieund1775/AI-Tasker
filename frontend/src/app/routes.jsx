@@ -31,7 +31,7 @@ import ExpertProjectDetail from "./pages/expert/ExpertProjectManagement.jsx";
 import { EditExpertProfile } from "./pages/expert/EditExpertProfile.jsx";
 import { ExpertWallet } from "./pages/expert/ExpertWallet.jsx";
 import { ExpertProfile } from "./pages/expert/ExpertProfile.jsx";
-import PaymentResult from "./pages/common/PaymentResult.jsx";
+import PaymentResult from "./pages/common/PaymentResult";
 
 // Admin Pages
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
