@@ -1096,4 +1096,5 @@ function buildQuery(params) {
 
 export const login = api.auth.login;
 export const register = api.auth.register;
+export { api };
 export default api;
