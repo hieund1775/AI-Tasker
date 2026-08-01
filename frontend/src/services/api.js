@@ -730,6 +730,18 @@ export const api = {
     createCategory: (data) => post("/category-tags/categories", data),
     deleteCategory: (id) => del(`/category-tags/categories/${id}`),
     getSpecializations: () => get("/category-tags/specializations"),
+    getCategoriesWithSpecializations: async () => {
+      const [cats, specs] = await Promise.all([
+        get("/category-tags/categories"),
+        get("/category-tags/specializations"),
+      ]);
+      return (cats || []).map((cat) => ({
+        ...cat,
+        specializations: (specs || []).filter(
+          (s) => s.domainId === cat.id || s.domainName === cat.name
+        ),
+      }));
+    },
     createSpecialization: (data) => post("/category-tags/specializations", data),
     deleteSpecialization: (id) => del(`/category-tags/specializations/${id}`),
   },

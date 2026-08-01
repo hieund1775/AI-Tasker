@@ -336,11 +336,10 @@ export function ExpertWallet() {
           // Check compensating transactions to skip them
           const isCompensatingTx = (t) => {
             const lType = (t.type ?? t.Type ?? "").toLowerCase();
-            // User withdrawals are real transactions, never compensating entries
-            if (lType === "withdrawal" || lType === "withdraw") {
-              return false;
-            }
-            if (lType !== "deposit" && lType !== "manualdeposit") {
+            // Check compensating transactions to skip them.
+            // Compensation entries (escrow adjustments) are matched by amount, so
+            // deposits AND withdrawals that equal a compensation diff are skipped.
+            if (lType !== "deposit" && lType !== "manualdeposit" && lType !== "withdrawal" && lType !== "withdraw") {
               return false;
             }
             const amt = t.amount ?? t.Amount ?? 0;
@@ -361,10 +360,11 @@ export function ExpertWallet() {
                 const stubExpert = report.escrowPayExpert || report.EscrowPayExpert || 285;
                 const stubClient = report.escrowRefundClient || report.EscrowRefundClient || 600;
 
-                const diffExpert = split.expertPayout - stubExpert;
-                const diffClient = split.clientRefund - stubClient;
-                const diffExpertEscrow = split.expertPayout - escrowTotal;
-                const diffExpertEscrowWithFee = split.expertPayout - escrowTotal + platformFee;
+                // Amounts are stored positive; compensation diffs can be negative
+                const diffExpert = Math.abs(split.expertPayout - stubExpert);
+                const diffClient = Math.abs(split.clientRefund - stubClient);
+                const diffExpertEscrow = Math.abs(split.expertPayout - escrowTotal);
+                const diffExpertEscrowWithFee = Math.abs(split.expertPayout - escrowTotal + platformFee);
 
                 if (
                   Math.abs(amt - diffExpert) < 2.0 ||

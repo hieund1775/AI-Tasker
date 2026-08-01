@@ -48,7 +48,7 @@ export function EditExpertProfile() {
 
   // Fetch category and skill lists
   useEffect(() => {
-    api.categoryTags.getCategories().then((res) => setAllCategories(res || [])).catch(() => { });
+    api.categoryTags.getCategoriesWithSpecializations().then((res) => setAllCategories(res || [])).catch(() => { });
     api.categoryTags.getSkills().then((res) => setAllSkills(res || [])).catch(() => { });
   }, []);
 

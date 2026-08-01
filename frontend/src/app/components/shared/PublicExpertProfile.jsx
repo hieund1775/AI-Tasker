@@ -297,7 +297,7 @@ export function PublicExpertProfile({ viewerRole = "public", expertId }) {
   useEffect(() => {
     Promise.all([
       api.categoryTags.getSkills().catch(() => []),
-      api.categoryTags.getCategories().catch(() => []),
+      api.categoryTags.getCategoriesWithSpecializations().catch(() => []),
     ]).then(([skills, categories]) => {
       if (Array.isArray(skills)) setSkillsList(skills);
       if (Array.isArray(categories)) setCategoriesList(categories);

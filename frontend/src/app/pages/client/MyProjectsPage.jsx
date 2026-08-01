@@ -357,10 +357,16 @@ export function MyProjectsList() {
       try {
         // Load categories to resolve GUIDs to display names
         let allCategories = [];
+        let allSpecializations = [];
         try {
           allCategories = await api.categoryTags.getCategories();
         } catch (e) {
           console.warn("Failed to load categories for name resolution:", e);
+        }
+        try {
+          allSpecializations = await api.categoryTags.getSpecializations();
+        } catch (e) {
+          console.warn("Failed to load specializations for name resolution:", e);
         }
 
         const list = await api.proposals.getByJob(selectedProject.id);
@@ -391,9 +397,10 @@ export function MyProjectsList() {
               const matchedCat = allCategories.find(c => c.id === rawCategory);
               if (matchedCat) {
                 resolvedCategory = matchedCat.name;
-                // Resolve specialization within the matched category
-                if (rawSpecialization && matchedCat.specializations) {
-                  const matchedSpec = matchedCat.specializations.find(s => s.id === rawSpecialization);
+                // Resolve specialization within the matched category (legacy nested or dedicated endpoint)
+                if (rawSpecialization) {
+                  const matchedSpec = matchedCat.specializations?.find(s => s.id === rawSpecialization)
+                    || allSpecializations.find(s => s.id === rawSpecialization);
                   if (matchedSpec) resolvedSpecialization = matchedSpec.name;
                 }
               }

@@ -19,7 +19,7 @@ export function ExpertsPage() {
         setLoading(true);
         const [res, cats, skills] = await Promise.all([
           api.experts.list().catch(() => []),
-          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getCategoriesWithSpecializations().catch(() => []),
           api.categoryTags.getSkills().catch(() => []),
         ]);
 

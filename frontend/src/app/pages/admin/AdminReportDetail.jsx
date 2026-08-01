@@ -917,153 +917,6 @@ export function AdminReportDetail() {  const { id } = useParams();
     }
   }, [report, moneyAction, stopReason, id, user, fetchReport, showToast]);
 
-  // -----------------------------------------------------------------------
-  // Escalated Cancellation Binding Verdict Handler (Round 2+)
-  // -----------------------------------------------------------------------
-  const handleExecuteEscalatedVerdict = useCallback(async (verdictType) => {
-    setActionLoading(true);
-    try {
-      const escrowTotal = report?.amount || report?.escrowAmount || 0;
-      const progressPercent = report?.payoutBreakdown?.progressPercent ?? 30;
-      const progressRate = progressPercent / 100;
-      const projectTitle = report?.projectTitle || report?.projectName || "Project";
-
-      if (verdictType === "reject_lock") {
-        try {
-          await api.put(`/reports/${id}/admin-reject-cancel`, {
-            adminNote: "Admin rejected cancellation request and locked future requests.",
-          });
-        } catch (e) {
-          console.warn("Backend admin-reject-cancel failed, using frontend fallback...", e);
-        }
-        localStorage.setItem(`project_status_${report?.projectId}`, "inprogress");
-        localStorage.setItem(`cancel_locked_${report?.projectId}`, "true");
-        localStorage.setItem(`report_status_${id}`, "Rejected");
-
-        showToast("Cancellation request rejected and cancellation locked for this project.");
-        notifyDisputeResolved({ userId: report?.clientId, userRole: "client", projectTitle, resolution: "Cancellation request rejected. Contract resumes.", projectId: report?.projectId }).catch(() => { });
-        notifyDisputeResolved({ userId: report?.expertId, userRole: "expert", projectTitle, resolution: "Cancellation request rejected. Contract resumes.", projectId: report?.projectId }).catch(() => { });
-      } else {
-        // Cancel project and split funds
-        const platformFee = Math.round(escrowTotal * 0.05);
-        const penaltyFee = Math.round(escrowTotal * 0.10);
-        const progressAmount = Math.round(escrowTotal * progressRate);
-
-        let expertPayout = 0;
-        let clientRefund = 0;
-
-        if (verdictType === "client_fault") {
-          expertPayout = progressAmount + penaltyFee;
-          clientRefund = escrowTotal - expertPayout - platformFee;
-        } else if (verdictType === "expert_fault") {
-          expertPayout = Math.max(0, progressAmount - penaltyFee - platformFee);
-          clientRefund = escrowTotal - expertPayout - platformFee;
-        } else if (verdictType === "split_fault") {
-          expertPayout = progressAmount;
-          clientRefund = escrowTotal - expertPayout - platformFee;
-        }
-
-        // Execute wallet fund transfer
-        try {
-          let releaseSucceeded = false;
-          try {
-            await api.payments.releaseEscrow({ projectId: report?.projectId });
-            releaseSucceeded = true;
-          } catch (e) {
-            console.warn("Escrow release endpoint failed inside escalated verdict, falling back to direct transfers...", e);
-          }
-
-          if (releaseSucceeded) {
-            // releaseEscrow already credited escrowTotal to Expert Wallet. 5% system platformFee also deducted.
-            // Therefore, we compute the precise offset difference:
-            const diffExpert = expertPayout - escrowTotal + platformFee;
-            if (diffExpert !== 0) {
-              try {
-                if (diffExpert > 0) {
-                  await api.payments.depositWallet(report?.expertId, diffExpert);
-                } else {
-                  await api.payments.withdraw(report?.expertId, Math.abs(diffExpert));
-                }
-              } catch (expertErr) {
-                console.warn("Expert wallet compensation failed:", expertErr);
-              }
-            }
-
-            // Client receives 0 from releaseEscrow, so we deposit clientRefund
-            if (clientRefund > 0) {
-              try {
-                await api.payments.depositWallet(report?.clientId, clientRefund);
-              } catch (clientErr) {
-                console.warn("Client wallet compensation failed:", clientErr);
-              }
-            }
-          } else {
-            // Fallback: if releaseEscrow fails, deposit directly
-            if (expertPayout > 0) {
-              try {
-                await api.payments.depositWallet(report?.expertId, expertPayout);
-              } catch (expertErr) {
-                console.warn("Direct expert payout failed:", expertErr);
-              }
-            }
-            if (clientRefund > 0) {
-              try {
-                await api.payments.depositWallet(report?.clientId, clientRefund);
-              } catch (clientErr) {
-                console.warn("Direct client refund failed:", clientErr);
-              }
-            }
-          }
-
-          if (platformFee > 0) {
-            try {
-              await api.post("/interactions/transaction", {
-                projectId: report?.projectId,
-                amount: platformFee,
-                sourceWalletId: report?.clientId,
-                reportId: id,
-                status: "completed",
-                type: "PlatformFee",
-                transactionType: "PlatformFee",
-                description: `platform fee -5%`,
-              });
-            } catch (feeErr) { console.warn("Admin escalated platform fee transaction failed:", feeErr); }
-          }
-        } catch (moneyErr) {
-          console.warn("Escalated money distribution api failed, using fallback...", moneyErr);
-        }
-
-        // Save status with lowercase ID to avoid casing mismatch
-        const projIdLower = String(report?.projectId).toLowerCase();
-        // Save metadata to backend
-        const cancellationMetadata = JSON.stringify({
-          expertPayout: expertPayout,
-          clientRefund: clientRefund,
-          isEscalatedVerdict: true,
-          verdictType: verdictType
-        });
-
-        try {
-          await api.projects.updateStatus(report?.projectId, "Cancelled");
-          await api.projects.updateMetadata(report?.projectId, cancellationMetadata);
-        } catch (e) {
-          console.warn("Backend update status/metadata failed", e);
-        }
-        localStorage.setItem(`report_status_${id}`, "Resolved");
-
-        showToast(`Dispute resolved (${verdictType}). Funds have been split.`);
-        notifyDisputeResolved({ userId: report?.clientId, userRole: "client", projectTitle, resolution: `Contract cancelled. Refunded: ${clientRefund.toLocaleString()} VND.`, projectId: report?.projectId }).catch(() => { });
-        notifyDisputeResolved({ userId: report?.expertId, userRole: "expert", projectTitle, resolution: `Contract cancelled. Payout: ${expertPayout.toLocaleString()} VND.`, projectId: report?.projectId }).catch(() => { });
-      }
-
-      window.dispatchEvent(new CustomEvent("aitasker_db_update"));
-      fetchReport();
-    } catch (err) {
-      showToast(err.message || "Error resolving contract cancellation dispute.");
-    } finally {
-      setActionLoading(false);
-    }
-  }, [report, id, fetchReport, showToast]);
 
   // -----------------------------------------------------------------------
   // Render: loading
@@ -1321,10 +1174,9 @@ export function AdminReportDetail() {  const { id } = useParams();
                   const penaltyFee = Math.round(escrowTotal * 0.10);
                   const progressAmount = Math.round(escrowTotal * progressRate);
 
-                  const isEscalated = report.escalated === true || String(report.status).toLowerCase() === "escalated" || String(report.status).toLowerCase() === "disputed";
                   const isClientReporter = (report.reporterRole || report.ReporterRole || "").toLowerCase() === "client";
 
-                  if (!isEscalated) {
+                  if (true) {
                     let expertPayout = 0;
                     let clientRefund = 0;
 
@@ -1365,61 +1217,6 @@ export function AdminReportDetail() {  const { id } = useParams();
                       </div>
                     );
                   }
-
-                  // === ESCALATED SCENARIOS ===
-                  // Client Fault (Client penalized 10% to Expert)
-                  // Expert receives: progress + penalty
-                  // Client receives: total - platform fee - expert payout
-                  const expertPayoutClientFault = progressAmount + penaltyFee;
-                  const clientRefundClientFault = escrowTotal - platformFee - expertPayoutClientFault;
-
-                  // Expert Fault (Expert penalized 10% to Client)
-                  // Expert receives: progress - penalty - platform fee
-                  // Client receives: total - expert payout - platform fee
-                  const expertPayoutExpertFault = Math.max(0, progressAmount - penaltyFee - platformFee);
-                  const clientRefundExpertFault = escrowTotal - expertPayoutExpertFault - platformFee;
-
-                  // Split Fault (Each party penalized 5%)
-                  // Expert receives progress payout, Client receives the rest (minus platform fee)
-                  const expertPayoutSplitFault = progressAmount;
-                  const clientRefundSplitFault = escrowTotal - platformFee - progressAmount;
-
-                  return (
-                    <div className="space-y-4 p-4 bg-muted/30 border border-border rounded-xl text-xs max-w-lg">
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between"><span className="text-muted-foreground">Contract Value:</span><span className="font-semibold text-foreground"><MoneyDisplay amount={escrowTotal} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Current progress:</span><span className="font-semibold text-foreground">{progress}%</span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Platform fee (First deduction 5%):</span><span className="font-semibold text-warning"><MoneyDisplay amount={platformFee} /></span></div>
-                        <div className="flex justify-between"><span className="text-muted-foreground">Violation penalty (10%):</span><span className="font-semibold text-destructive"><MoneyDisplay amount={penaltyFee} /></span></div>
-                      </div>
-
-                      <div className="border-t border-border pt-3 space-y-3">
-                        <div>
-                          Client Fault (Client penalized 10% to Expert)
-                          <div className="pl-2 border-l-2 border-destructive/20 space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress + penalty):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutClientFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundClientFault} /></span></div>
-                          </div>
-                        </div>
-
-                        <div>
-                          Expert Fault (Expert penalized 10% to Client)
-                          <div className="pl-2 border-l-2 border-warning/20 space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress - penalty - fee):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutExpertFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundExpertFault} /></span></div>
-                          </div>
-                        </div>
-
-                        <div>
-                          Split Fault (Each party penalized 5%)
-                          <div className="pl-2 border-l-2 border-border space-y-1">
-                            <div className="flex justify-between"><span className="text-muted-foreground">Payout to Expert (progress):</span><span className="font-semibold text-warning"><MoneyDisplay amount={expertPayoutSplitFault} /></span></div>
-                            <div className="flex justify-between"><span className="text-muted-foreground">Refund to Client:</span><span className="font-semibold text-success"><MoneyDisplay amount={clientRefundSplitFault} /></span></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
                 })()}
               </div>
 
@@ -1606,69 +1403,26 @@ export function AdminReportDetail() {  const { id } = useParams();
               <div className="space-y-4 font-sans text-left">
                 {(report.status === "Pending Admin" || report.status === "Pending") && (
                   <div>
-                    {report.escalated || report.attemptRound >= 2 ? (
-                      <div className="space-y-4 font-sans">
-                        <div className="p-4 bg-warning-light border border-warning/20 rounded-xl text-warning text-sm leading-relaxed mb-3">
-                          <p className="font-semibold">Binding Dispute (Contract Cancellation Round {report.attemptRound || 2} - Binding Verdict)</p>
-                          <p className="mt-1">Cancellation escalated after partner's rejection. Select the verdict to split Escrow automatically:</p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <button
-                            type="button"
-                            onClick={() => handleExecuteEscalatedVerdict("client_fault")}
-                            disabled={actionLoading}
-                            className="h-10 px-4 bg-destructive text-primary-foreground rounded-[12px] hover:bg-destructive font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            Client Fault (Client penalized 10% to Expert)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExecuteEscalatedVerdict("expert_fault")}
-                            disabled={actionLoading}
-                            className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            Expert Fault (Expert penalized 10% to Client)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExecuteEscalatedVerdict("split_fault")}
-                            disabled={actionLoading}
-                            className="h-10 px-4 bg-warning text-primary-foreground rounded-[12px] hover:bg-warning/85 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            Split Fault (Each party penalized 5%)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleExecuteEscalatedVerdict("reject_lock")}
-                            disabled={actionLoading}
-                            className="h-10 px-4 bg-muted-foreground text-primary-foreground rounded-[12px] hover:bg-foreground/80 font-semibold text-sm transition cursor-pointer flex items-center justify-center gap-1.5"
-                          >
-                            Reject cancellation and lock cancellation feature
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          onClick={handleAdminApproveCancel}
-                          disabled={actionLoading}
-                          className="flex-1 h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                        >
-                          {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                          Approve & forward to partner
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowRejectModal(true)}
-                          disabled={actionLoading}
-                          className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          Reject cancellation and lock cancellation feature
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={handleAdminApproveCancel}
+                        disabled={actionLoading}
+                        className="flex-1 h-10 px-4 bg-brand-primary text-primary-foreground rounded-lg hover:bg-brand-primary-hover disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                        Approve & forward to partner
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={actionLoading}
+                        className="flex-1 h-10 px-4 bg-destructive-light text-destructive hover:bg-destructive-light border border-destructive/20 rounded-lg disabled:opacity-50 text-base font-semibold inline-flex items-center justify-center gap-2 transition cursor-pointer"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reject cancellation and lock cancellation feature
+                      </button>
+                    </div>
                   </div>
                 )}
                 {report.status === "Awaiting Partner" && (
