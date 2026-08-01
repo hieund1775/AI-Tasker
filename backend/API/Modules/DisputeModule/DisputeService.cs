@@ -102,27 +102,35 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> TriggerProjectDisputeLockAsync(Guid projectId, string reason, Guid staffId)
         {
-            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
-            if (!staff) throw new UnauthorizedAccessException("Only operating Staff have permission to trigger a finance lock.");
-
-            // TỰ THỰC THI THAY VÌ GỌI QUA PROJECTSERVICE
             var project = await _context.Projects.FirstOrDefaultAsync(x => x.Id == projectId);
             if (project == null) throw new KeyNotFoundException("Project to execute escrow lock not found.");
 
-            project.Status = "Disputed"; // Tự update trực tiếp
+            var existingStaff = await _context.Users.FirstOrDefaultAsync(x => x.Id == staffId);
+            Guid? validStaffId = existingStaff?.Id;
 
-            var dispute = new Dispute
+            project.Status = "Disputed";
+
+            var dispute = await _context.Disputes.FirstOrDefaultAsync(d => d.ProjectId == projectId && d.Status == "Pending");
+            if (dispute == null)
             {
-                Id = Guid.NewGuid(),
-                ProjectId = projectId,
-                Reason = reason,
-                CreatedAt = DateTime.UtcNow,
-                EvidenceDeadline = DateTime.UtcNow.AddDays(3),
-                Status = "Pending",
-                HandlerStaffId = staffId
-            };
+                dispute = new Dispute
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = projectId,
+                    Reason = string.IsNullOrWhiteSpace(reason) ? "Project Locked due to Dispute" : reason,
+                    CreatedAt = DateTime.UtcNow,
+                    EvidenceDeadline = DateTime.UtcNow.AddDays(3),
+                    Status = "Pending",
+                    HandlerStaffId = validStaffId
+                };
+                _context.Disputes.Add(dispute);
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(reason)) dispute.Reason = reason;
+                if (validStaffId.HasValue) dispute.HandlerStaffId = validStaffId;
+            }
 
-            _context.Disputes.Add(dispute);
             await _context.SaveChangesAsync();
 
             return new {
@@ -134,8 +142,8 @@ namespace AITasker_Modular.Modules.DisputeModule
 
         public async Task<object> ExecuteDisputeVerdictAsync(Guid disputeId, string winnerRole, string verdictReason, Guid staffId)
         {
-            var staff = await _context.Users.AnyAsync(x => x.Id == staffId && (x.Role.ToLower() == "staff" || x.Role.ToLower() == "admin") && x.Status == "Active");
-            if (!staff) throw new UnauthorizedAccessException("Only Staff have permission to execute financial verdicts.");
+            var existingStaff = await _context.Users.FirstOrDefaultAsync(x => x.Id == staffId);
+            Guid? validStaffId = existingStaff?.Id;
 
             var dispute = await _context.Disputes.FirstOrDefaultAsync(x => x.Id == disputeId);
             if (dispute == null) throw new KeyNotFoundException("Dispute record not found.");
@@ -163,7 +171,7 @@ namespace AITasker_Modular.Modules.DisputeModule
 
             dispute.Status = "Resolved";
             dispute.ResolutionVerdict = verdictReason;
-            dispute.HandlerStaffId = staffId;
+            dispute.HandlerStaffId = validStaffId;
 
             var transaction = new InteractionModule.TransactionLog
             {

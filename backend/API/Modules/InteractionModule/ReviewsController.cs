@@ -73,7 +73,7 @@ namespace AITasker_Modular.Modules.InteractionModule
             var review = await _context.Reviews
                 .FirstOrDefaultAsync(r => r.ProjectId == projectId);
 
-            if (review == null) return NotFound("Review not found for this project.");
+            if (review == null) return Ok(null);
 
             return Ok(new
             {
