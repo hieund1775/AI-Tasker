@@ -189,6 +189,11 @@ public class JobPostService : IJobPostService
         // If content updates are provided (Title, Description, Budget)
         if (!string.IsNullOrWhiteSpace(jobPostDto.Title))
         {
+            if (!jobPost.Status.Equals("Open", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(jobPostDto.Status))
+            {
+                throw new InvalidOperationException($"Không thể chỉnh sửa bài đăng khi đã có Chuyên gia được chọn hoặc dự án đã được khởi tạo (Trạng thái hiện tại: {jobPost.Status}).");
+            }
+
             int deadlineDays = jobPostDto.Deadline.HasValue && jobPostDto.Deadline.Value > 0 ? jobPostDto.Deadline.Value : jobPost.Deadline;
             if (jobPostDto.DurationValue.HasValue && jobPostDto.DurationValue.Value > 0)
             {
@@ -207,7 +212,6 @@ public class JobPostService : IJobPostService
             if (jobPostDto.DurationUnit != null) jobPost.DurationUnit = jobPostDto.DurationUnit;
             if (jobPostDto.DurationValue.HasValue) jobPost.DurationValue = jobPostDto.DurationValue.Value;
             if (jobPostDto.DomainId.HasValue) jobPost.DomainId = jobPostDto.DomainId;
-            else if (!string.IsNullOrWhiteSpace(jobPostDto.AICategoryDomainId) && Guid.TryParse(jobPostDto.AICategoryDomainId, out var parsedDomainId)) jobPost.DomainId = parsedDomainId;
             if (jobPostDto.SpecializationId.HasValue) jobPost.SpecializationId = jobPostDto.SpecializationId;
 
             if (jobPostDto.SkillIds != null)

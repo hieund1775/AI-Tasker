@@ -576,26 +576,20 @@ export function MyProjectsList() {
       }
 
       try {
-        const skillsList = selectedProject?.jobPostSkills || selectedProject?.JobPostSkills || [];
-        const rawSkillIds = skillsList.map(s => s.skillsId || s.SkillsId || s.skillId || s.skill?.id || s.skill?.Id || s.Skill?.id || s.Skill?.Id).filter(Boolean);
-        const validSkillIds = rawSkillIds.filter(id => typeof id === "string" && id.match(/^[0-9a-fA-F-]{36}$/));
+        const skillsList = selectedProject.jobPostSkills || selectedProject.JobPostSkills || [];
+        const skillIds = skillsList.map(s => s.skillsId || s.SkillsId || s.skillId || s.skill?.id || s.skill?.Id || s.Skill?.id || s.Skill?.Id).filter(Boolean);
 
-        const updatePayload = {};
-        if (selectedProject?.title) updatePayload.title = selectedProject.title;
-        if (selectedProject?.description) updatePayload.description = selectedProject.description;
-        if (selectedProject?.budget && selectedProject.budget > 0) updatePayload.budget = selectedProject.budget;
-
-        const dId = selectedProject?.domainId || selectedProject?.domain?.id || selectedProject?.Domain?.Id;
-        if (dId && typeof dId === "string" && dId.match(/^[0-9a-fA-F-]{36}$/)) updatePayload.domainId = dId;
-
-        const sId = selectedProject?.specializationId || selectedProject?.specialization?.id || selectedProject?.Specialization?.Id;
-        if (sId && typeof sId === "string" && sId.match(/^[0-9a-fA-F-]{36}$/)) updatePayload.specializationId = sId;
-
-        if (validSkillIds.length > 0) updatePayload.skillIds = validSkillIds;
-
-        if (selectedProject?.id && Object.keys(updatePayload).length > 0) {
-          await api.jobPosts.update(selectedProject.id, updatePayload);
-        }
+        await api.jobPosts.update(selectedProject.id, {
+          title: selectedProject.title,
+          description: selectedProject.description || "Project description",
+          budget: selectedProject.budget || 100,
+          deadline: selectedProject.deadline || 14,
+          domainId: selectedProject.domainId || selectedProject.domain?.id || selectedProject.Domain?.Id || null,
+          specializationId: selectedProject.specializationId || selectedProject.specialization?.id || selectedProject.Specialization?.Id || null,
+          durationValue: selectedProject.durationValue || 0,
+          durationUnit: selectedProject.durationUnit || "Days",
+          skillIds: skillIds.length > 0 ? skillIds : (selectedProject.skillIds || selectedProject.SkillIds || [])
+        });
       } catch (jobUpdateErr) {
         console.warn("Failed to update job post metadata, continuing anyway:", jobUpdateErr);
       }
