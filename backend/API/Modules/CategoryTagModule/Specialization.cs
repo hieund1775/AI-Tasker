@@ -16,6 +16,8 @@ public class Specialization
     public Guid DomainId { get; set; }
 
     [ForeignKey("DomainId")]
-    [JsonIgnore]
     public Domain? Domain { get; set; }
+
+    [NotMapped]
+    public string? DomainName => Domain?.Name;
 }

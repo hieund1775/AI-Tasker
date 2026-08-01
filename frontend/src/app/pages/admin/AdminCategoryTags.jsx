@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AdminCategoryTags - Skills & Categories management page for Admin/Owner.
 //
 // Uses existing /api/category-tags endpoints. Admin/Owner can:
@@ -157,14 +157,24 @@ export function AdminCategoryTags() {
   }, [fetchCategories]);
 
   // -----------------------------------------------------------------------
-  // Fetch specializations
-  // -----------------------------------------------------------------------
   const fetchSpecializations = useCallback(async () => {
     setSpecializationsLoading(true);
     setSpecializationsError(null);
     try {
-      const data = await getSpecializations();
-      setSpecializations(data);
+      const [data, cats] = await Promise.all([
+        getSpecializations(),
+        getCategories().catch(() => []),
+      ]);
+      const catMap = new Map((cats || []).map(c => [String(c.id || c.Id).toLowerCase(), c.name || c.Name]));
+      const mapped = data.map(s => {
+        const dId = String(s.domainId || s.DomainId || "").toLowerCase();
+        const dName = s.domainName || s.DomainName || s.domain?.name || s.Domain?.Name || catMap.get(dId) || "-";
+        return {
+          ...s,
+          domainName: dName
+        };
+      });
+      setSpecializations(mapped);
     } catch (err) {
       setSpecializationsError(errorMessage(err, "Load specializations"));
       setSpecializations([]);
@@ -329,9 +339,10 @@ export function AdminCategoryTags() {
     {
       key: "domainName",
       label: "Category (Domain)",
-      render: (val) => (
-        <span className="text-sm text-muted-foreground">{val || "-"}</span>
-      ),
+      render: (val, row) => {
+        const dName = val || row?.domainName || row?.DomainName || row?.domain?.name || row?.Domain?.Name || "-";
+        return <span className="text-sm font-medium text-brand-primary">{dName}</span>;
+      },
     },
   ];
 

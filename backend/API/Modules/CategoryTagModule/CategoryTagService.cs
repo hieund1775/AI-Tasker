@@ -71,12 +71,16 @@ public class CategoryTagService : ICategoryTagService
     // Specializations
     public async Task<IReadOnlyList<Specialization>> GetSpecializationsAsync()
     {
-        return await _context.Specializations.AsNoTracking().ToListAsync();
+        return await _context.Specializations
+            .Include(x => x.Domain)
+            .AsNoTracking()
+            .ToListAsync();
     }
 
     public async Task<IReadOnlyList<Specialization>> GetSpecializationsByDomainIdAsync(Guid domainId)
     {
         return await _context.Specializations
+            .Include(x => x.Domain)
             .Where(x => x.DomainId == domainId)
             .AsNoTracking()
             .ToListAsync();
