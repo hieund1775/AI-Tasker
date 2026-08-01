@@ -70,16 +70,14 @@ namespace AITasker_Modular.Modules.JobModule
         public async Task<IActionResult> GetProposalsByJob(Guid jobPostId)
         {
             var result = await _proposalService.GetProposalsByJobPostIdAsync(jobPostId);
-            if (result == null || !result.Any()) return NotFound("No proposals found for this job post.");
-            return Ok(result);
+            return Ok(result ?? Array.Empty<Proposal>());
         }
 
         [HttpGet("expert/{expertId:guid}")]
         public async Task<IActionResult> GetProposalsByExpert(Guid expertId)
         {
             var result = await _proposalService.GetProposalsByExpertIdAsync(expertId);
-            if (result == null || !result.Any()) return NotFound("No proposals found for this expert.");
-            return Ok(result);
+            return Ok(result ?? Array.Empty<Proposal>());
         }
 
         [HttpPut("{id:guid}/status")]

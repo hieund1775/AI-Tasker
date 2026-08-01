@@ -57,6 +57,7 @@ namespace AITasker_Modular.Modules.JobPostModule
 
         public Guid? DomainId { get; set; }
         public Guid? SpecializationId { get; set; }
+        public string? AICategoryDomainId { get; set; }
         public int? DurationValue { get; set; }
         public string? DurationUnit { get; set; }
 

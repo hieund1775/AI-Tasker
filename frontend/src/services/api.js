@@ -9,7 +9,9 @@ function getToken() {
   try {
     return (
       sessionStorage.getItem(TOKEN_STORAGE_KEY) ||
-      sessionStorage.getItem("token")
+      sessionStorage.getItem("token") ||
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem("token")
     );
   } catch {
     return null;
@@ -65,6 +67,10 @@ function clearToken() {
     sessionStorage.removeItem("aitasker_user_info");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem("aitasker_user_info");
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   } catch { }
 }
 

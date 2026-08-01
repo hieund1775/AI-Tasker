@@ -31,6 +31,8 @@ public class UpdateJobPostDto
     public decimal? Budget { get; set; }
     public int? Deadline { get; set; }
     public string? Status { get; set; }
+    public System.Guid? DomainId { get; set; }
+    public System.Guid? SpecializationId { get; set; }
     public string? AICategoryDomainId { get; set; }
     public List<string>? SkillIds { get; set; }
 }
