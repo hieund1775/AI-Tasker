@@ -385,15 +385,16 @@ export function Billing() {
                 const stubExpert = report.escrowPayExpert || report.EscrowPayExpert || 285;
                 const stubClient = report.escrowRefundClient || report.EscrowRefundClient || 600;
 
-                // Standard cancellation differences
-                const diffExpert = split.expertPayout - stubExpert;
-                const diffClient = split.clientRefund - stubClient;
+                // Standard cancellation differences (amounts are stored positive;
+                // compensation diffs can be negative, so compare in absolute terms)
+                const diffExpert = Math.abs(split.expertPayout - stubExpert);
+                const diffClient = Math.abs(split.clientRefund - stubClient);
 
                 // Escalated verdict differences
-                const diffExpertEscrow = split.expertPayout - escrowTotal;
-                const diffExpertEscrowWithFee = split.expertPayout - escrowTotal + platformFee;
-                const diffClientEscrow = split.clientRefund - escrowTotal;
-                const diffClientEscrowWithFee = split.clientRefund - escrowTotal + platformFee;
+                const diffExpertEscrow = Math.abs(split.expertPayout - escrowTotal);
+                const diffExpertEscrowWithFee = Math.abs(split.expertPayout - escrowTotal + platformFee);
+                const diffClientEscrow = Math.abs(split.clientRefund - escrowTotal);
+                const diffClientEscrowWithFee = Math.abs(split.clientRefund - escrowTotal + platformFee);
 
                 // Direct payouts in case of failed release/refund
                 const isDirectExpert = Math.abs(amt - split.expertPayout) < 1.0;

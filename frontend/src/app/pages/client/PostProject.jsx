@@ -68,16 +68,19 @@ export function PostProject() {
 
   const [apiCategories, setApiCategories] = useState([]);
   const [apiSkills, setApiSkills] = useState([]);
+  const [apiSpecializations, setApiSpecializations] = useState([]);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [cats, skills] = await Promise.all([
-          api.categoryTags.getCategories().catch(() => []),
+        const [cats, skills, specs] = await Promise.all([
+          api.categoryTags.getCategoriesWithSpecializations().catch(() => []),
           api.categoryTags.getSkills().catch(() => []),
+          api.categoryTags.getSpecializations().catch(() => []),
         ]);
         setApiCategories(cats || []);
         setApiSkills(skills || []);
+        setApiSpecializations(specs || []);
       } catch (err) {
         console.error("Failed to load categories", err);
       }
@@ -441,15 +444,21 @@ export function PostProject() {
   const selectedCatObj = categoriesList.find(c => c.id === formData.category || c.name === formData.category);
   
   const specializationsList = useMemo(() => {
-    const specs = selectedCatObj?.specializations || [];
+    // Backend may return specializations nested inside category (legacy) or via
+    // the dedicated endpoint grouped by domainId (current).
+    const nested = selectedCatObj?.specializations || [];
+    if (Array.isArray(nested) && nested.length > 0) return nested;
     const list = [];
-    specs.forEach(spec => {
-      if (spec.name && !list.some(s => s.name === spec.name)) {
+    apiSpecializations.forEach(spec => {
+      const matchesDomain =
+        (selectedCatObj?.id && spec.domainId === selectedCatObj.id) ||
+        (selectedCatObj?.name && spec.domainName === selectedCatObj.name);
+      if (matchesDomain && spec.name && !list.some(s => s.name === spec.name)) {
         list.push(spec);
       }
     });
     return list;
-  }, [selectedCatObj]);
+  }, [selectedCatObj, apiSpecializations]);
 
   // Skills List
   const skillsList = useMemo(() => {

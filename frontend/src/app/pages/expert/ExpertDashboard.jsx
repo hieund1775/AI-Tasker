@@ -467,7 +467,7 @@ export function ExpertDashboard() {
       try {
         const [skillsRes, categoriesRes] = await Promise.all([
           api.categoryTags.getSkills().catch(() => []),
-          api.categoryTags.getCategories().catch(() => []),
+          api.categoryTags.getCategoriesWithSpecializations().catch(() => []),
         ]);
         allSkills = Array.isArray(skillsRes) ? skillsRes : [];
         allCategories = Array.isArray(categoriesRes) ? categoriesRes : [];

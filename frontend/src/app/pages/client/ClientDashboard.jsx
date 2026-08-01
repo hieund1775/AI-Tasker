@@ -555,7 +555,7 @@ export function ClientDashboard() {
                       {/* Bottom row: actions */}
                       <div className="flex items-center justify-end pt-1 gap-3">
                         {(() => {
-                          const isDisputed = ["disputed", "under_review", "under review"].includes(p.status?.toLowerCase());
+                          const isDisputed = ["disputed", "under_review", "under review", "awaiting_cancellation", "cancel_done", "contract_cancelled", "stopped", "withdrawn", "closed"].includes(p.status?.toLowerCase());
                           const isCompleted = p.status?.toLowerCase() === "completed" || displayStatus === "Completed";
                           if (!isDisputed && !isCompleted) {
                             // Anti-spam: check if the project already has a pending report

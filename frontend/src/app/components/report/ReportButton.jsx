@@ -33,8 +33,14 @@ export function ReportButton({
 
   if (!project) return null;
 
-  // Completed or cancelled - hide
-  if (status === "completed" || status === "cancelled") return null;
+  // Terminal states (completed/cancelled/stopped/etc.) - hide; no report needed
+  // once the project is finished. Also hide while a cancellation request is pending.
+  const TERMINAL_STATUSES = [
+    "completed", "cancelled", "canceled", "contract_cancelled",
+    "cancel_done", "stopped", "closed", "payment_released", "withdrawn",
+    "awaiting_cancellation",
+  ];
+  if (TERMINAL_STATUSES.includes(status)) return null;
 
   // User already submitted a report (before admin accepts/rejects it)
   if (hasReported) {

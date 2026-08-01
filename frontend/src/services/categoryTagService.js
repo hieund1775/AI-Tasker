@@ -95,6 +95,22 @@ export async function getSpecializations() {
 }
 
 /**
+ * Fetch categories enriched with their specializations.
+ * Backend now serves specializations via a dedicated endpoint keyed by domainId,
+ * so we group them back onto each category to keep legacy call sites working.
+ * @returns {Promise<Array<{id, name, specializations: Array}>>}
+ */
+export async function getCategoriesWithSpecializations() {
+  const [cats, specs] = await Promise.all([getCategories(), getSpecializations()]);
+  return (cats || []).map((cat) => ({
+    ...cat,
+    specializations: (specs || []).filter(
+      (s) => s.domainId === cat.id || s.domainName === cat.name
+    ),
+  }));
+}
+
+/**
  * Create a new specialization.
  * @param {object} payload
  * @returns {Promise<object>}
@@ -124,6 +140,7 @@ export const categoryTagService = {
   createCategory,
   deleteCategory,
   getSpecializations,
+  getCategoriesWithSpecializations,
   createSpecialization,
   deleteSpecialization,
 };

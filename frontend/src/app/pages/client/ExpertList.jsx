@@ -66,6 +66,7 @@ export function ExpertList() {
   const [loading, setLoading] = useState(true);
   const [categoriesList, setCategoriesList] = useState([]);
   const [skillsList, setSkillsList] = useState([]);
+  const [specializationsList, setSpecializationsList] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
@@ -73,14 +74,16 @@ export function ExpertList() {
     async function loadExperts() {
       try {
         setLoading(true);
-        const [res, cats, skills] = await Promise.all([
+        const [res, cats, skills, specs] = await Promise.all([
           api.experts.list().catch(() => []),
           api.categoryTags.getCategories().catch(() => []),
           api.categoryTags.getSkills().catch(() => []),
+          api.categoryTags.getSpecializations().catch(() => []),
         ]);
-        
+
         setCategoriesList(cats || []);
         setSkillsList(skills || []);
+        setSpecializationsList(specs || []);
 
         const expertsOnly = (res || [])
           .filter((u) => u.role?.toLowerCase() === "expert")
@@ -103,6 +106,13 @@ export function ExpertList() {
                 resolvedSpecName = matchedSpec.name;
                 foundSpec = true;
                 break;
+              }
+            }
+            if (!foundSpec) {
+              const flatSpec = (specs || []).find(s => s.id === resolvedSpecName);
+              if (flatSpec) {
+                resolvedSpecName = flatSpec.name;
+                foundSpec = true;
               }
             }
             if (!foundSpec && resolvedSpecName.match(/^[0-9a-fA-F-]{36}$/)) {
@@ -214,25 +224,28 @@ export function ExpertList() {
   const domainOptions = useMemo(() => {
     const list = [];
     categoriesList.forEach((cat) => {
-      if (Array.isArray(cat.specializations)) {
-        cat.specializations.forEach((spec) => {
-          if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
-            // Count actual matching experts
-            const count = experts.filter((e) => e.specialization === spec.name).length;
-            
-            if (!list.some(item => item.value === spec.name)) {
-              list.push({
-                value: spec.name,
-                label: spec.name,
-                count: count,
-              });
-            }
+      const specs = (Array.isArray(cat.specializations) && cat.specializations.length > 0)
+        ? cat.specializations
+        : specializationsList.filter((spec) =>
+            spec.domainId === cat.id || spec.domainName === cat.name
+          );
+      specs.forEach((spec) => {
+        if (spec.name && !spec.name.match(/^[0-9a-fA-F-]{36}$/)) {
+          // Count actual matching experts
+          const count = experts.filter((e) => e.specialization === spec.name).length;
+
+          if (!list.some(item => item.value === spec.name)) {
+            list.push({
+              value: spec.name,
+              label: spec.name,
+              count: count,
+            });
           }
-        });
-      }
+        }
+      });
     });
     return list.sort((a, b) => a.label.localeCompare(b.label));
-  }, [categoriesList, experts]);
+  }, [categoriesList, specializationsList, experts]);
 
   // Core technology (Skills): retrieve fully from Backend skills API (Filter duplicates)
   const techOptions = useMemo(() => {

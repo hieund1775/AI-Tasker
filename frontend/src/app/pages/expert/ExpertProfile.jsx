@@ -116,7 +116,7 @@ export function ExpertProfile() {
           // Load all categories to resolve GUID to display name
           let allCats = [];
           try {
-            allCats = await api.categoryTags.getCategories();
+            allCats = await api.categoryTags.getCategoriesWithSpecializations();
           } catch (e) {
             console.error("Failed to load categories for name resolution:", e);
           }
